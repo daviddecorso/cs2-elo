@@ -8,13 +8,6 @@ Counter-Strike 2 team Elo ratings, Valve Regional Standings (VRS) projections, a
 - **Non-Commercial**: This is an independent, non-commercial research and statistical modeling project.
 - **Strict Anti-Betting Policy**: This project strictly avoids betting terminology, betting odds, and links to sportsbooks or gambling services. All probabilistic projections represent statistical model probabilities.
 
-## Data Sources & Attribution
-
-- **Valve Regional Standings**: Submodule at `vendor/counter-strike_regional_standings`.
-- **HLTV**: Event data for Regional Standings provided by HLTV.org.
-- **Liquipedia**: Future event metadata is sourced under [CC BY-SA 3.0](https://creativecommons.org/licenses/by-sa/3.0/).
-- **HLTV Demos**: Future player-level statistics and WAR calculations will parse public match demos.
-
 ## Licensing
 
 - Repository code is licensed under the [MIT License](LICENSE) (c) 2026 David DeCorso.

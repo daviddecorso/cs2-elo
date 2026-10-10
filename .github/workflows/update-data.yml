@@ -1,0 +1,48 @@
+name: Update data
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "23 9 * * *" # Daily off-hour run
+
+permissions:
+  contents: write
+
+concurrency: update-data
+
+jobs:
+  update:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: true
+      - name: Update submodule and check for model changes
+        run: |
+          OLD_COMMIT=$(git -C vendor/counter-strike_regional_standings rev-parse HEAD)
+          git submodule update --remote vendor/counter-strike_regional_standings
+          NEW_COMMIT=$(git -C vendor/counter-strike_regional_standings rev-parse HEAD)
+          if [ "$OLD_COMMIT" != "$NEW_COMMIT" ]; then
+            if ! git -C vendor/counter-strike_regional_standings diff --quiet "$OLD_COMMIT" "$NEW_COMMIT" -- model; then
+              echo "::error::Valve updated model/ inside the submodule; failing rather than auto-adopting."
+              exit 1
+            fi
+          fi
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run update-data
+      - run: npm run test:run
+      - name: Commit data
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add public/data vendor/counter-strike_regional_standings
+          if ! git diff --cached --quiet; then
+            git commit -m "Update data"
+            git pull --rebase
+            git push
+          fi

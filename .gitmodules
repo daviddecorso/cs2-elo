@@ -1,0 +1,3 @@
+[submodule "vendor/counter-strike_regional_standings"]
+	path = vendor/counter-strike_regional_standings
+	url = https://github.com/ValveSoftware/counter-strike_regional_standings

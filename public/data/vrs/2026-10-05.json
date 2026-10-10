@@ -1,9 +1,9 @@
 {
   "snapshotDate": "2026-10-05",
   "valveCommit": "eec4853d7bcf0f1f7efe7f0d901234bef7e98b75",
-  "modelCommit": "297ee0099e7b50fb3aa579c35831ab5ae8987128",
+  "modelCommit": "eec4853d7bcf0f1f7efe7f0d901234bef7e98b75",
   "source": "valve-published",
-  "generatedAt": "2026-10-10T07:43:15.091Z",
+  "generatedAt": "2026-10-10T07:49:03.376Z",
   "rosters": [
     {
       "rosterKey": "donk,magixx,sh1ro,tn1r,zont1x",

@@ -48,6 +48,9 @@ describe("valveModel", () => {
         expect(() => computeStandings(matches, events, "invalid")).toThrow(/snapshotDate must be YYYY-MM-DD/);
         expect(() => computeStandings(matches, events, "2026_10_05")).toThrow(/snapshotDate must be YYYY-MM-DD/);
         expect(() => computeStandings(matches, events, "2026/10/05")).toThrow(/snapshotDate must be YYYY-MM-DD/);
+        expect(() => computeStandings(matches, events, "2026-02-31")).toThrow(/Invalid calendar date/);
+        expect(() => computeStandings(matches, events, "2026-04-31")).toThrow(/Invalid calendar date/);
+        expect(() => computeStandings(matches, events, "2026-13-01")).toThrow(/Invalid calendar date/);
     });
 
     it("changes output when snapshot date changes", () => {

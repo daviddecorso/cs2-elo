@@ -88,24 +88,38 @@ let cachedModelCommit = "";
 
 const getSubmoduleCommits = (): { valveCommit: string; modelCommit: string } => {
     if (!cachedValveCommit || !cachedModelCommit) {
-        try {
-            cachedValveCommit = execFileSync("git", ["-C", submodulePath, "rev-parse", "HEAD"], {
-                encoding: "utf8",
-            }).trim();
-            cachedModelCommit = execFileSync(
-                "git",
-                ["-C", submodulePath, "log", "-n", "1", "--format=%H", "--", "model"],
-                { encoding: "utf8" }
-            ).trim();
-        } catch {
-            cachedValveCommit = "eec4853d7bcf0f1f7efe7f0d901234bef7e98b75";
-            cachedModelCommit = "297ee0099e7b50fb3aa579c35831ab5ae8987128";
+        cachedValveCommit = execFileSync("git", ["-C", submodulePath, "rev-parse", "HEAD"], {
+            encoding: "utf8",
+        }).trim();
+        cachedModelCommit = execFileSync(
+            "git",
+            ["-C", submodulePath, "log", "-n", "1", "--format=%H", "--", "model"],
+            { encoding: "utf8" }
+        ).trim();
+        if (!cachedValveCommit || !cachedModelCommit) {
+            throw new Error(`Failed to resolve submodule commits in ${submodulePath}`);
         }
     }
     return { valveCommit: cachedValveCommit, modelCommit: cachedModelCommit };
 };
 
+const validateSnapshotDate = (snapshotDate: string): void => {
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(snapshotDate)) {
+        throw new Error(`snapshotDate must be YYYY-MM-DD, got "${snapshotDate}"`);
+    }
+    const [y, m, d] = snapshotDate.split("-").map(Number);
+    const dateObj = new Date(Date.UTC(y, m - 1, d));
+    if (
+        dateObj.getUTCFullYear() !== y ||
+        dateObj.getUTCMonth() !== m - 1 ||
+        dateObj.getUTCDate() !== d
+    ) {
+        throw new Error(`Invalid calendar date for snapshotDate: "${snapshotDate}"`);
+    }
+};
+
 export const getLosAngelesMidnightSeconds = (dateStr: string): number => {
+    validateSnapshotDate(dateStr);
     const [y, m, d] = dateStr.split("-").map(Number);
     const approxUtc = Date.UTC(y, m - 1, d, 8, 0, 0);
     const formatter = new Intl.DateTimeFormat("en-US", {
@@ -143,9 +157,7 @@ export const computeStandings = (
     eventData: unknown[],
     snapshotDate: string
 ): Standings => {
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(snapshotDate)) {
-        throw new Error(`snapshotDate must be YYYY-MM-DD, got "${snapshotDate}"`);
-    }
+    validateSnapshotDate(snapshotDate);
 
     const cutoffSeconds = getLosAngelesMidnightSeconds(snapshotDate);
 

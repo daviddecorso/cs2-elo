@@ -157,9 +157,9 @@ export const compareStandings = (
         }
     });
 
-    // Check for rosters in model missing in published
+    // Check for ranked rosters in model missing in published
     model.rosters.forEach((m) => {
-        if (!publishedMap.has(m.rosterKey)) {
+        if (m.globalRank !== null && m.globalRank > 0 && !publishedMap.has(m.rosterKey)) {
             strictMismatches.push({
                 rosterKey: m.rosterKey,
                 teamName: m.teamName,

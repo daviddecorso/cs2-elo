@@ -110,12 +110,33 @@ A valid `matchdata.json` file consists of a top-level object:
 }
 ```
 
+### Match Order & `umid` Assignment
+
+Before initializing team entities, `DataLoader` sorts matches in reverse chronological order:
+```javascript
+sortMatches( matches, 'desc' ); // b.matchStartTime - a.matchStartTime
+```
+During `initTeams()`, each match is assigned a unique match index (`umid`) representing its index in this descending array:
+```javascript
+matches.forEach( (match, idx) => {
+    match.umid = idx;
+    ...
+} );
+```
+This reverse-chronological pass ensures that a team's most recent match establishes its base roster. Earlier matches sharing $\ge 3$ player IDs are merged into this existing roster.
+
+Once teams are initialized, matches are sorted into forward chronological order:
+```javascript
+sortMatches( matches, 'asc' ); // a.matchStartTime - b.matchStartTime
+```
+Rating updates and Glicko iterations then proceed forward in time.
+
 ### Match Object
 | Field | Type | Description & Usage |
 | --- | --- | --- |
 | `matchStartTime` | number (integer) | Unix timestamp in seconds. Used for 180-day windowing and age decay. |
-| `team1Id` | string \| number | Team identifier in source database. Passed to event participation tracker. |
-| `team2Id` | string \| number | Team identifier in source database. Passed to event participation tracker. |
+| `team1Id` | string \| number | Team identifier in source database. Links to `event.prizeDistribution[].teamId`. Passed to `recordEventParticipation(events[match.eventId], match.team1Id)` to award prize earnings (`prize + clubShare`). If unmapped or missing, winnings default to 0. |
+| `team2Id` | string \| number | Team identifier in source database. Links to `event.prizeDistribution[].teamId`. Passed to `recordEventParticipation(events[match.eventId], match.team2Id)` to award prize earnings (`prize + clubShare`). If unmapped or missing, winnings default to 0. |
 | `team1Name` | string | Display name of team 1. |
 | `team2Name` | string | Display name of team 2. |
 | `team1Players` | Player[] | Array of exactly 5 player objects for team 1. |
@@ -145,12 +166,20 @@ A valid `matchdata.json` file consists of a top-level object:
 | `finished` | boolean | Must be `true`. If `false`, all matches in event are dropped. |
 | `prizeDistribution` | PrizeItem[] | List of team placements and earnings. |
 
-### PrizeDistribution Object
+### PrizeDistribution Object & `teamId` Link
+Each event indexes `prizeDistribution` entries by `teamId`:
+```javascript
+eventJson.prizeDistribution.forEach( teamJson => {
+    this.prizeDistributionByTeamId[teamJson.teamId] = new EventTeam( teamJson );
+} );
+```
+When a roster participates in an event match via `match.team1Id` or `match.team2Id`, `recordEventParticipation` looks up `event.prizeDistributionByTeamId[teamId]`. If a matching entry exists, the team is credited with `prize + clubShare`; otherwise earnings are 0.
+
 | Field | Type | Description & Usage |
 | --- | --- | --- |
-| `teamId` | string \| number | Matches `match.team1Id` or `match.team2Id` to award winnings. |
+| `teamId` | string \| number | Unique team identifier matching `match.team1Id` or `match.team2Id` to link tournament earnings to the participating roster. |
 | `placement` | number | Finishing placement in the tournament. |
 | `prize` | number | Base prize money in USD. |
-| `clubShare` | number | Organizational club share added to `prize`: total prize is `prize + clubShare`. |
+| `clubShare` | number | Organizational club share added to `prize`: total prize credited is `prize + clubShare`. |
 | `shared` | boolean (optional) | Whether prize was shared. |
 | `qualifiedEvents` | array | Array of qualified event IDs for linked prize pools. Empty array `[]` if none. |

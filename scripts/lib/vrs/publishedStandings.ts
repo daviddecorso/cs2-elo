@@ -26,49 +26,48 @@ export const findLatestSnapshot = (valveRoot: string): string => {
     return dates.at(-1)!;
 };
 
+const defaultValveRoot = path.resolve(
+    import.meta.dirname,
+    "../../../vendor/counter-strike_regional_standings"
+);
+
 const getSubmoduleCommits = (valveRoot: string): { valveCommit: string; modelCommit: string } => {
-    try {
-        const valveCommit = execFileSync("git", ["-C", valveRoot, "rev-parse", "HEAD"], {
-            encoding: "utf8",
-            stdio: ["ignore", "pipe", "ignore"],
-        }).trim();
-        const modelCommit = execFileSync(
-            "git",
-            ["-C", valveRoot, "log", "-n", "1", "--format=%H", "--", "model"],
-            { encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] }
-        ).trim();
-        return { valveCommit, modelCommit };
-    } catch {
-        return {
-            valveCommit: "eec4853d7bcf0f1f7efe7f0d901234bef7e98b75",
-            modelCommit: "297ee0099e7b50fb3aa579c35831ab5ae8987128",
-        };
+    const gitDir = fs.existsSync(path.join(valveRoot, ".git")) ? valveRoot : defaultValveRoot;
+    const valveCommit = execFileSync("git", ["-C", gitDir, "rev-parse", "HEAD"], {
+        encoding: "utf8",
+    }).trim();
+    const modelCommit = execFileSync(
+        "git",
+        ["-C", gitDir, "log", "-n", "1", "--format=%H", "--", "model"],
+        { encoding: "utf8" }
+    ).trim();
+    if (!valveCommit || !modelCommit) {
+        throw new Error(`Failed to resolve submodule commits in ${gitDir}`);
     }
+    return { valveCommit, modelCommit };
 };
 
-interface GlobalRow {
-    globalRank: number;
+interface StandingsRow {
+    rank: number;
     points: number;
     teamName: string;
     players: string[];
     detailRelativePath: string;
 }
 
-const parseGlobalStandings = (content: string): GlobalRow[] => {
-    const rows: GlobalRow[] = [];
+const parseStandingsTable = (content: string): StandingsRow[] => {
+    const rows: StandingsRow[] = [];
     const lines = content.split(/\r?\n/);
     for (const line of lines) {
         const trimmed = line.trim();
         if (!trimmed.startsWith("|")) continue;
-        // Skip header lines
         if (trimmed.includes("Standing") || trimmed.includes("---") || trimmed.includes(":-")) continue;
 
         const parts = trimmed.split("|").map((p) => p.trim());
-        // parts[0] is before first |, parts[1] is Standing, parts[2] is Points, parts[3] is Team Name, parts[4] is Roster, parts[5] is details link
         if (parts.length < 6) continue;
-        const standing = Number(parts[1]);
+        const rank = Number(parts[1]);
         const points = Number(parts[2]);
-        if (Number.isNaN(standing) || Number.isNaN(points)) continue;
+        if (Number.isNaN(rank) || Number.isNaN(points)) continue;
 
         const teamName = parts[3];
         const players = parts[4]
@@ -80,7 +79,7 @@ const parseGlobalStandings = (content: string): GlobalRow[] => {
         const detailRelativePath = linkMatch ? linkMatch[1] : "";
 
         rows.push({
-            globalRank: standing,
+            rank,
             points,
             teamName,
             players,
@@ -91,12 +90,7 @@ const parseGlobalStandings = (content: string): GlobalRow[] => {
 };
 
 interface DetailData {
-    teamName: string;
     players: string[];
-    globalRank: number;
-    region: Region;
-    regionalRank: number;
-    finalRankValue: number;
     startingValue: number;
     h2hAdjustment: number;
     bountyOffered: number;
@@ -106,12 +100,7 @@ interface DetailData {
 }
 
 const parseDetailFile = (content: string): DetailData => {
-    const teamMatch = /Team Name:\s*(.*?)(?:<br\s*\/?>|\r?\n)/i.exec(content);
     const rosterMatch = /Roster:\s*(.*?)(?:<br\s*\/?>|\r?\n)/i.exec(content);
-    const globalRankMatch = /Global Rank:\s*\[?(\d+)\]?/i.exec(content);
-    const regionMatch = /Region:\s*\[?([A-Za-z]+)\]?/i.exec(content);
-    const regionalRankMatch = /Regional Rank:\s*\[?(\d+)\]?/i.exec(content);
-    const finalRankMatch = /Final Rank Value:\s*([0-9.]+)/i.exec(content);
     const startingValMatch = /Starting Rank Value\s*\(([0-9.]+)\)/i.exec(content);
     const h2hMatch = /Head To Head Adjustments\s*\(([+-]?[0-9.]+)\)/i.exec(content);
     const bountyOffMatch = /Bounty Offered:\s*([0-9.]+)/i.exec(content);
@@ -119,24 +108,23 @@ const parseDetailFile = (content: string): DetailData => {
     const oppNetMatch = /Opponent Network:\s*([0-9.]+)/i.exec(content);
     const lanMatch = /LAN Wins:\s*([0-9.]+)/i.exec(content);
 
+    if (!startingValMatch || !h2hMatch || !bountyOffMatch || !bountyColMatch || !oppNetMatch || !lanMatch) {
+        throw new Error("Failed to parse factor values from detail file");
+    }
+
     const players = (rosterMatch ? rosterMatch[1] : "")
         .split(",")
         .map((p) => p.trim())
         .filter(Boolean);
 
     return {
-        teamName: teamMatch ? teamMatch[1].trim() : "",
         players,
-        globalRank: globalRankMatch ? Number(globalRankMatch[1]) : 0,
-        region: (regionMatch ? regionMatch[1].trim() : "Europe") as Region,
-        regionalRank: regionalRankMatch ? Number(regionalRankMatch[1]) : 0,
-        finalRankValue: finalRankMatch ? Number(finalRankMatch[1]) : 0,
-        startingValue: startingValMatch ? Number(startingValMatch[1]) : 0,
-        h2hAdjustment: h2hMatch ? Number(h2hMatch[1]) : 0,
-        bountyOffered: bountyOffMatch ? Number(bountyOffMatch[1]) : 0,
-        bountyCollected: bountyColMatch ? Number(bountyColMatch[1]) : 0,
-        opponentNetwork: oppNetMatch ? Number(oppNetMatch[1]) : 0,
-        lanFactor: lanMatch ? Number(lanMatch[1]) : 0,
+        startingValue: Number(startingValMatch[1]),
+        h2hAdjustment: Number(h2hMatch[1]),
+        bountyOffered: Number(bountyOffMatch[1]),
+        bountyCollected: Number(bountyColMatch[1]),
+        opponentNetwork: Number(oppNetMatch[1]),
+        lanFactor: Number(lanMatch[1]),
     };
 };
 
@@ -163,9 +151,8 @@ export const readPublishedSnapshot = (valveRoot: string, date: string): Standing
         path.join(baseDir, `standings_global_${dateUnderscores}.md`),
         "utf8"
     );
-    const globalRows = parseGlobalStandings(globalContent);
+    const globalRows = parseStandingsTable(globalContent);
 
-    // Also verify regional standings files exist
     const europeFile = path.join(baseDir, `standings_europe_${dateUnderscores}.md`);
     const americasFile = path.join(baseDir, `standings_americas_${dateUnderscores}.md`);
     const asiaFile = path.join(baseDir, `standings_asia_${dateUnderscores}.md`);
@@ -174,38 +161,62 @@ export const readPublishedSnapshot = (valveRoot: string, date: string): Standing
         throw new Error(`Missing regional standings files for ${date} in ${baseDir}`);
     }
 
-    const rosters: Roster[] = globalRows.map((row) => {
-        let detailData: DetailData | null = null;
-        if (row.detailRelativePath) {
-            const detailFilePath = path.resolve(baseDir, row.detailRelativePath);
-            if (fs.existsSync(detailFilePath)) {
-                detailData = parseDetailFile(fs.readFileSync(detailFilePath, "utf8"));
+    const europeRows = parseStandingsTable(fs.readFileSync(europeFile, "utf8"));
+    const americasRows = parseStandingsTable(fs.readFileSync(americasFile, "utf8"));
+    const asiaRows = parseStandingsTable(fs.readFileSync(asiaFile, "utf8"));
+
+    const regionalMap = new Map<string, { region: Region; regionalRank: number }>();
+    const registerRegionalRows = (rows: StandingsRow[], region: Region) => {
+        for (const r of rows) {
+            if (r.detailRelativePath) {
+                regionalMap.set(r.detailRelativePath, { region, regionalRank: r.rank });
             }
+            regionalMap.set(getRosterKey(r.players), { region, regionalRank: r.rank });
+        }
+    };
+    registerRegionalRows(europeRows, "Europe");
+    registerRegionalRows(americasRows, "Americas");
+    registerRegionalRows(asiaRows, "Asia");
+
+    const rosters: Roster[] = globalRows.map((row) => {
+        const regionalInfo =
+            regionalMap.get(row.detailRelativePath) ??
+            regionalMap.get(getRosterKey(row.players));
+
+        if (!regionalInfo) {
+            throw new Error(
+                `Roster "${row.teamName}" (${row.detailRelativePath}) not found in any regional standings file for ${date}`
+            );
         }
 
-        const players = detailData?.players?.length ? detailData.players : row.players;
+        if (!row.detailRelativePath) {
+            throw new Error(`Missing detail relative path for roster "${row.teamName}" in global standings`);
+        }
+
+        const detailFilePath = path.resolve(baseDir, row.detailRelativePath);
+        if (!fs.existsSync(detailFilePath)) {
+            throw new Error(`Detail file not found: ${detailFilePath}`);
+        }
+
+        const detailData = parseDetailFile(fs.readFileSync(detailFilePath, "utf8"));
+        const players = detailData.players.length ? detailData.players : row.players;
         const rosterKey = getRosterKey(players);
-        const region = detailData?.region ?? "Europe";
-        const regionalRank = detailData?.regionalRank ?? null;
-        const points = row.points;
-        const startingValue = detailData?.startingValue ?? 0;
-        const h2hAdjustment = detailData?.h2hAdjustment ?? 0;
 
         return {
             rosterKey,
             teamName: row.teamName,
-            region,
-            regionalRank,
-            globalRank: row.globalRank,
-            points,
+            region: regionalInfo.region,
+            regionalRank: regionalInfo.regionalRank,
+            globalRank: row.rank,
+            points: row.points,
             factors: {
-                bountyOffered: detailData?.bountyOffered ?? 0,
-                bountyCollected: detailData?.bountyCollected ?? 0,
-                opponentNetwork: detailData?.opponentNetwork ?? 0,
-                lanFactor: detailData?.lanFactor ?? 0,
+                bountyOffered: detailData.bountyOffered,
+                bountyCollected: detailData.bountyCollected,
+                opponentNetwork: detailData.opponentNetwork,
+                lanFactor: detailData.lanFactor,
             },
-            startingValue,
-            h2hAdjustment,
+            startingValue: detailData.startingValue,
+            h2hAdjustment: detailData.h2hAdjustment,
             players,
         };
     });

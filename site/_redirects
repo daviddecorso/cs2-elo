@@ -1,2 +1,4 @@
+# Rewrites apply even when a file matches, so list the app's route prefixes instead of /cs2/*.
+# Keep in sync with the routes in src/App.tsx.
 / /cs2/ 302
-/cs2/* /cs2/ 200
+/cs2 /cs2/ 301

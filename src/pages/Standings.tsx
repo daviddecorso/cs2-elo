@@ -8,12 +8,21 @@ import {
     TableHead,
     TableBody,
     Row,
-    Th,
     Td,
     SortHeader,
     FactorBar,
 } from "../components/DataTable.tsx";
-import type { Region, Roster, Standings as StandingsData } from "../vrs/types.ts";
+import {
+    DataRow,
+    EmptyState,
+    Inset,
+    Label,
+    LoadingBar,
+    PageHeader,
+    Section,
+    Segmented,
+} from "../components/ui.tsx";
+import type { Region, Roster, RosterFactors, Standings as StandingsData } from "../vrs/types.ts";
 
 const REGIONS: Array<"Global" | Region> = ["Global", "Europe", "Americas", "Asia"];
 const SORT_KEYS = [
@@ -29,6 +38,17 @@ const SORT_KEYS = [
 
 type SortKey = (typeof SORT_KEYS)[number];
 
+const FACTOR_LABELS: Record<keyof RosterFactors, string> = {
+    bountyOffered: "Bounty Offered",
+    bountyCollected: "Bounty Collected",
+    opponentNetwork: "Opponent Network",
+    lanFactor: "LAN Wins",
+};
+
+const COLUMN_COUNT = 8;
+
+const signed = (value: number) => (value >= 0 ? `+${value.toFixed(1)}` : value.toFixed(1));
+
 const fetchLatestStandings = async (): Promise<StandingsData> => {
     const res = await fetch(`${import.meta.env.BASE_URL}data/vrs/latest.json`);
     if (!res.ok) {
@@ -36,6 +56,44 @@ const fetchLatestStandings = async (): Promise<StandingsData> => {
     }
     return res.json();
 };
+
+const RosterDetails = ({ roster }: { roster: Roster }) => (
+    <Inset className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-x-6 gap-y-4 text-xs font-mono">
+        <div className="space-y-1">
+            <Label>Roster</Label>
+            <div className="font-sans text-fg whitespace-normal">{roster.players.join(", ")}</div>
+            <div className="text-muted">
+                {roster.region} / #{roster.regionalRank ?? "–"}
+            </div>
+        </div>
+
+        <div className="space-y-1">
+            <Label>Rank Calculation</Label>
+            <dl className="space-y-0.5">
+                <DataRow label="Starting">{roster.startingValue.toFixed(1)}</DataRow>
+                <DataRow label="H2H adj.">{signed(roster.h2hAdjustment)}</DataRow>
+                <div className="border-t border-line pt-0.5 font-semibold">
+                    <DataRow label="Points">{roster.points.toFixed(1)}</DataRow>
+                </div>
+            </dl>
+        </div>
+
+        <div className="md:col-span-2 space-y-1">
+            <Label>Modifier Factors</Label>
+            <div className="grid grid-cols-2 gap-x-6 gap-y-2">
+                {(Object.keys(FACTOR_LABELS) as Array<keyof RosterFactors>).map((key) => (
+                    <div key={key} className="space-y-1">
+                        <div className="flex justify-between gap-3">
+                            <span className="text-muted">{FACTOR_LABELS[key]}</span>
+                            <span className="text-fg">{roster.factors[key].toFixed(3)}</span>
+                        </div>
+                        <FactorBar val={roster.factors[key]} className="w-full" />
+                    </div>
+                ))}
+            </div>
+        </div>
+    </Inset>
+);
 
 export const Standings = () => {
     const [queryParams, setQueryParams] = useQueryParams();
@@ -125,302 +183,189 @@ export const Standings = () => {
     };
 
     if (isLoading) {
-        return (
-            <div className="p-8 text-center text-muted font-mono text-sm">
-                Loading standings data...
-            </div>
-        );
+        return <LoadingBar label="Loading standings…" />;
     }
 
     if (error || !data) {
         return (
-            <div className="p-8 text-center text-down font-mono text-sm">
+            <EmptyState className="text-down">
                 Error loading standings: {error instanceof Error ? error.message : "Unknown error"}
-            </div>
+            </EmptyState>
         );
     }
 
     const isGlobal = selectedRegion === "Global";
 
     return (
-        <div className="min-h-screen flex flex-col bg-bg text-fg">
-            <header className="border-b border-line px-4 py-4 sm:px-6">
-                <div className="max-w-7xl mx-auto flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-                    <div>
-                        <h1 className="text-xl font-bold tracking-tight">CS2 Regional Standings</h1>
-                        <p className="text-xs text-muted font-mono mt-0.5">
-                            Valve Regional Standings (VRS) &amp; Factor Breakdown
-                        </p>
-                    </div>
+        <div className="space-y-10">
+            <PageHeader
+                title="CS2 Regional Standings"
+                subtitle={
+                    <>
+                        Snapshot {data.snapshotDate} /{" "}
+                        {data.source === "valve-published" ? "Valve Published Standings" : "Model Simulation"}{" "}
+                        / model{" "}
+                        <a
+                            href={`https://github.com/ValveSoftware/counter-strike_regional_standings/commit/${data.modelCommit}`}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="text-accent hover:underline"
+                        >
+                            {data.modelCommit.slice(0, 7)}
+                        </a>
+                    </>
+                }
+                actions={
+                    <Segmented
+                        aria-label="Region"
+                        options={REGIONS}
+                        value={selectedRegion}
+                        onChange={handleSelectRegion}
+                    />
+                }
+            />
 
-                    <nav className="flex items-center gap-1 bg-surface-2 p-1 rounded-lg border border-line">
-                        {REGIONS.map((region) => {
-                            const active = selectedRegion === region;
-                            return (
-                                <button
-                                    key={region}
-                                    type="button"
-                                    onClick={() => handleSelectRegion(region)}
-                                    className={`px-3 py-1 text-xs font-medium rounded-md transition-colors cursor-pointer ${
-                                        active
-                                            ? "bg-surface text-fg shadow-xs font-semibold"
-                                            : "text-muted hover:text-fg"
-                                    }`}
-                                >
-                                    {region}
-                                </button>
-                            );
-                        })}
-                    </nav>
-                </div>
-            </header>
-
-            <main className="flex-1 max-w-7xl mx-auto w-full p-4 sm:p-6">
-                <div className="border border-line rounded-lg overflow-hidden bg-surface">
-                    <DataTable>
-                        <TableHead>
-                            <Th align="center" className="w-10">
-                                <span className="sr-only">Details</span>
-                            </Th>
-                            <SortHeader
-                                sortKey="rank"
-                                sort={sort}
-                                onSort={onSort}
-                                ascending
-                                align="right"
-                                className="w-16"
-                            >
-                                Rank
-                            </SortHeader>
-                            <SortHeader
-                                sortKey="team"
-                                sort={sort}
-                                onSort={onSort}
-                                ascending
-                                align="left"
-                            >
-                                Team
-                            </SortHeader>
-                            <SortHeader
-                                sortKey="players"
-                                sort={sort}
-                                onSort={onSort}
-                                ascending
-                                align="left"
-                                className="hidden md:table-cell"
-                            >
-                                Players
-                            </SortHeader>
-                            <SortHeader
-                                sortKey="points"
-                                sort={sort}
-                                onSort={onSort}
-                                align="right"
-                                className="w-24"
-                            >
-                                Points
-                            </SortHeader>
-                            <SortHeader
-                                sortKey="bountyOffered"
-                                sort={sort}
-                                onSort={onSort}
-                                align="right"
-                                className="hidden lg:table-cell w-28"
-                            >
-                                Bounty Off.
-                            </SortHeader>
-                            <SortHeader
-                                sortKey="bountyCollected"
-                                sort={sort}
-                                onSort={onSort}
-                                align="right"
-                                className="hidden lg:table-cell w-28"
-                            >
-                                Bounty Col.
-                            </SortHeader>
-                            <SortHeader
-                                sortKey="opponentNetwork"
-                                sort={sort}
-                                onSort={onSort}
-                                align="right"
-                                className="hidden xl:table-cell w-28"
-                            >
-                                Opp. Net.
-                            </SortHeader>
-                            <SortHeader
-                                sortKey="lanFactor"
-                                sort={sort}
-                                onSort={onSort}
-                                align="right"
-                                className="hidden xl:table-cell w-24"
-                            >
-                                LAN
-                            </SortHeader>
-                        </TableHead>
-                        <TableBody>
-                            {sortedRosters.map((roster: Roster) => {
+            <Section
+                title={`${isGlobal ? "Global" : selectedRegion} / ${data.snapshotDate}`}
+                actions={
+                    <span className="text-xs font-mono text-muted">
+                        {sortedRosters.length} teams
+                    </span>
+                }
+            >
+                <DataTable>
+                    <TableHead>
+                        <SortHeader
+                            sortKey="rank"
+                            sort={sort}
+                            onSort={onSort}
+                            ascending
+                            className="w-px"
+                        >
+                            #
+                        </SortHeader>
+                        <SortHeader sortKey="team" sort={sort} onSort={onSort} ascending align="left">
+                            Team
+                        </SortHeader>
+                        <SortHeader
+                            sortKey="players"
+                            sort={sort}
+                            onSort={onSort}
+                            ascending
+                            align="left"
+                            className="hidden md:table-cell"
+                        >
+                            Players
+                        </SortHeader>
+                        <SortHeader sortKey="points" sort={sort} onSort={onSort}>
+                            Points
+                        </SortHeader>
+                        <SortHeader
+                            sortKey="bountyOffered"
+                            sort={sort}
+                            onSort={onSort}
+                            className="hidden lg:table-cell"
+                        >
+                            Bounty Off.
+                        </SortHeader>
+                        <SortHeader
+                            sortKey="bountyCollected"
+                            sort={sort}
+                            onSort={onSort}
+                            className="hidden lg:table-cell"
+                        >
+                            Bounty Col.
+                        </SortHeader>
+                        <SortHeader
+                            sortKey="opponentNetwork"
+                            sort={sort}
+                            onSort={onSort}
+                            className="hidden xl:table-cell"
+                        >
+                            Opp. Net.
+                        </SortHeader>
+                        <SortHeader
+                            sortKey="lanFactor"
+                            sort={sort}
+                            onSort={onSort}
+                            className="hidden xl:table-cell"
+                        >
+                            LAN
+                        </SortHeader>
+                    </TableHead>
+                    <TableBody>
+                        {sortedRosters.length === 0 ? (
+                            <tr>
+                                <td colSpan={COLUMN_COUNT}>
+                                    <EmptyState>No teams found</EmptyState>
+                                </td>
+                            </tr>
+                        ) : (
+                            sortedRosters.map((roster) => {
                                 const rank = isGlobal ? roster.globalRank : roster.regionalRank;
                                 const isExpanded = expandedRows.has(roster.rosterKey);
+                                const players = roster.players.join(", ");
 
                                 return (
                                     <React.Fragment key={roster.rosterKey}>
                                         <Row>
-                                            <Td align="center">
+                                            <Td align="right" className="text-muted">
+                                                {rank ?? "–"}
+                                            </Td>
+                                            <Td className="font-sans">
                                                 <button
                                                     type="button"
                                                     aria-expanded={isExpanded}
-                                                    aria-label={`Toggle details for ${roster.teamName}`}
                                                     onClick={() => toggleRow(roster.rosterKey)}
-                                                    className="text-muted hover:text-fg font-mono text-xs px-1 cursor-pointer"
+                                                    className="group inline-flex items-center gap-1.5 font-medium text-fg hover:text-accent transition-colors cursor-pointer"
                                                 >
-                                                    {isExpanded ? "▼" : "▶"}
+                                                    <svg
+                                                        viewBox="0 0 16 16"
+                                                        fill="currentColor"
+                                                        aria-hidden="true"
+                                                        className={`w-3 h-3 text-muted group-hover:text-accent transition-transform ${isExpanded ? "rotate-90" : ""}`}
+                                                    >
+                                                        <path d="M6 3.5 11 8l-5 4.5z" />
+                                                    </svg>
+                                                    {roster.teamName}
                                                 </button>
-                                            </Td>
-                                            <Td align="right" className="font-semibold">
-                                                {rank !== null ? rank : "-"}
-                                            </Td>
-                                            <Td align="left" className="font-semibold">
-                                                {roster.teamName}
-                                                <span className="md:hidden block text-[10px] text-muted font-normal">
-                                                    {roster.players.join(", ")}
+                                                <span className="md:hidden block pl-[18px] text-[10px] font-mono text-muted">
+                                                    {players}
                                                 </span>
                                             </Td>
-                                            <Td align="left" className="hidden md:table-cell text-muted">
-                                                {roster.players.join(", ")}
+                                            <Td className="hidden md:table-cell font-sans text-muted">
+                                                {players}
                                             </Td>
-                                            <Td align="right" className="font-semibold text-fg">
+                                            <Td align="right" className="text-fg">
                                                 {Math.round(roster.points)}
                                             </Td>
-                                            <Td align="right" className="hidden lg:table-cell">
+                                            <Td align="right" className="hidden lg:table-cell text-muted">
                                                 {roster.factors.bountyOffered.toFixed(3)}
                                             </Td>
-                                            <Td align="right" className="hidden lg:table-cell">
+                                            <Td align="right" className="hidden lg:table-cell text-muted">
                                                 {roster.factors.bountyCollected.toFixed(3)}
                                             </Td>
-                                            <Td align="right" className="hidden xl:table-cell">
+                                            <Td align="right" className="hidden xl:table-cell text-muted">
                                                 {roster.factors.opponentNetwork.toFixed(3)}
                                             </Td>
-                                            <Td align="right" className="hidden xl:table-cell">
+                                            <Td align="right" className="hidden xl:table-cell text-muted">
                                                 {roster.factors.lanFactor.toFixed(3)}
                                             </Td>
                                         </Row>
                                         {isExpanded && (
-                                            <tr className="bg-surface-2 border-b border-line text-xs">
-                                                <td colSpan={9} className="p-4">
-                                                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                                                        <div>
-                                                            <div className="text-[11px] font-mono uppercase text-muted mb-1">
-                                                                Roster
-                                                            </div>
-                                                            <div className="font-mono text-fg">
-                                                                {roster.players.join(", ")}
-                                                            </div>
-                                                            <div className="text-[11px] text-muted mt-1">
-                                                                Region: {roster.region} (Regional #{roster.regionalRank ?? "-"})
-                                                            </div>
-                                                        </div>
-
-                                                        <div>
-                                                            <div className="text-[11px] font-mono uppercase text-muted mb-1">
-                                                                Rank Calculation
-                                                            </div>
-                                                            <div className="font-mono space-y-0.5">
-                                                                <div>
-                                                                    Starting:{" "}
-                                                                    <span className="font-semibold">
-                                                                        {roster.startingValue.toFixed(1)}
-                                                                    </span>
-                                                                </div>
-                                                                <div>
-                                                                    H2H Adj:{" "}
-                                                                    <span className="font-semibold">
-                                                                        {roster.h2hAdjustment >= 0
-                                                                            ? `+${roster.h2hAdjustment.toFixed(1)}`
-                                                                            : roster.h2hAdjustment.toFixed(1)}
-                                                                    </span>
-                                                                </div>
-                                                                <div className="border-t border-line pt-0.5 font-bold">
-                                                                    Points: {roster.points.toFixed(1)}
-                                                                </div>
-                                                            </div>
-                                                        </div>
-
-                                                        <div className="md:col-span-2">
-                                                            <div className="text-[11px] font-mono uppercase text-muted mb-2">
-                                                                Modifier Factors
-                                                            </div>
-                                                            <div className="grid grid-cols-2 gap-x-4 gap-y-2 font-mono text-[11px]">
-                                                                <div>
-                                                                    <div className="flex justify-between mb-0.5 text-muted">
-                                                                        <span>Bounty Offered</span>
-                                                                        <span>{roster.factors.bountyOffered.toFixed(3)}</span>
-                                                                    </div>
-                                                                    <FactorBar val={roster.factors.bountyOffered} />
-                                                                </div>
-                                                                <div>
-                                                                    <div className="flex justify-between mb-0.5 text-muted">
-                                                                        <span>Bounty Collected</span>
-                                                                        <span>{roster.factors.bountyCollected.toFixed(3)}</span>
-                                                                    </div>
-                                                                    <FactorBar val={roster.factors.bountyCollected} />
-                                                                </div>
-                                                                <div>
-                                                                    <div className="flex justify-between mb-0.5 text-muted">
-                                                                        <span>Opponent Network</span>
-                                                                        <span>{roster.factors.opponentNetwork.toFixed(3)}</span>
-                                                                    </div>
-                                                                    <FactorBar val={roster.factors.opponentNetwork} />
-                                                                </div>
-                                                                <div>
-                                                                    <div className="flex justify-between mb-0.5 text-muted">
-                                                                        <span>LAN Wins</span>
-                                                                        <span>{roster.factors.lanFactor.toFixed(3)}</span>
-                                                                    </div>
-                                                                    <FactorBar val={roster.factors.lanFactor} />
-                                                                </div>
-                                                            </div>
-                                                        </div>
-                                                    </div>
+                                            <tr>
+                                                <td colSpan={COLUMN_COUNT} className="px-3 pt-1 pb-3">
+                                                    <RosterDetails roster={roster} />
                                                 </td>
                                             </tr>
                                         )}
                                     </React.Fragment>
                                 );
-                            })}
-                        </TableBody>
-                    </DataTable>
-                </div>
-            </main>
-
-            <footer className="border-t border-line mt-8 py-6 px-4 sm:px-6 text-xs text-muted font-mono">
-                <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
-                    <div className="space-y-1">
-                        <div>
-                            Snapshot: <span className="text-fg font-semibold">{data.snapshotDate}</span> · Source:{" "}
-                            <span className="text-fg font-semibold">
-                                {data.source === "valve-published"
-                                    ? "Valve Published Standings"
-                                    : "Model Simulation"}
-                            </span>
-                        </div>
-                        <div>
-                            Model commit:{" "}
-                            <a
-                                href={`https://github.com/ValveSoftware/counter-strike_regional_standings/commit/${data.modelCommit}`}
-                                target="_blank"
-                                rel="noreferrer"
-                                className="text-accent hover:underline font-mono"
-                            >
-                                {data.modelCommit.slice(0, 7)}
-                            </a>
-                        </div>
-                    </div>
-                    <div className="text-left md:text-right space-y-1">
-                        <div>Event data for Regional Standings provided by HLTV.org</div>
-                        <div>CS2 Regional Standings model &copy; Valve Corporation</div>
-                    </div>
-                </div>
-            </footer>
+                            })
+                        )}
+                    </TableBody>
+                </DataTable>
+            </Section>
         </div>
     );
 };

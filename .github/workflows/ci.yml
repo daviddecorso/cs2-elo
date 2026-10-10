@@ -10,8 +10,12 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-        with:
-          submodules: true
+      - name: Check out submodule with full history
+        run: |
+          git submodule update --init vendor/counter-strike_regional_standings
+          if [ "$(git -C vendor/counter-strike_regional_standings rev-parse --is-shallow-repository)" = "true" ]; then
+            git -C vendor/counter-strike_regional_standings fetch --unshallow
+          fi
       - uses: actions/setup-node@v4
         with:
           node-version: 22

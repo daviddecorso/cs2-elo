@@ -2,8 +2,9 @@ import fs from "node:fs";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
 import { renderToString } from "react-dom/server";
-import { MemoryRouter } from "react-router-dom";
+import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { AppShell } from "../components/AppShell.tsx";
 import { Standings } from "./Standings.tsx";
 import type { Standings as StandingsData } from "../vrs/types.ts";
 
@@ -25,7 +26,11 @@ describe("Standings Page", () => {
         const html = renderToString(
             <QueryClientProvider client={queryClient}>
                 <MemoryRouter initialEntries={["/"]}>
-                    <Standings />
+                    <Routes>
+                        <Route element={<AppShell />}>
+                            <Route path="/" element={<Standings />} />
+                        </Route>
+                    </Routes>
                 </MemoryRouter>
             </QueryClientProvider>
         );

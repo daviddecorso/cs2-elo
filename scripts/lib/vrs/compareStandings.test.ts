@@ -133,4 +133,52 @@ describe("compareStandings", () => {
             publishedRegionalRank: 16,
         });
     });
+
+    it("ignores unranked model rosters with null globalRank when checking for extra rosters", () => {
+        const published = makeStandings([
+            {
+                rosterKey: "p1,p2,p3,p4,p5",
+                teamName: "Team Ranked",
+                region: "Europe",
+                regionalRank: 1,
+                globalRank: 1,
+                points: 2000,
+                factors: { bountyOffered: 1, bountyCollected: 1, opponentNetwork: 1, lanFactor: 1 },
+                startingValue: 2000,
+                h2hAdjustment: 0,
+                players: ["p1", "p2", "p3", "p4", "p5"],
+            },
+        ]);
+
+        const model = makeStandings([
+            {
+                rosterKey: "p1,p2,p3,p4,p5",
+                teamName: "Team Ranked",
+                region: "Europe",
+                regionalRank: 1,
+                globalRank: 1,
+                points: 2000,
+                factors: { bountyOffered: 1, bountyCollected: 1, opponentNetwork: 1, lanFactor: 1 },
+                startingValue: 2000,
+                h2hAdjustment: 0,
+                players: ["p1", "p2", "p3", "p4", "p5"],
+            },
+            {
+                rosterKey: "u1,u2,u3,u4,u5",
+                teamName: "Team Under 5 Matches",
+                region: "Europe",
+                regionalRank: null,
+                globalRank: null,
+                points: 1200,
+                factors: { bountyOffered: 0, bountyCollected: 0, opponentNetwork: 0, lanFactor: 0 },
+                startingValue: 1200,
+                h2hAdjustment: 0,
+                players: ["u1", "u2", "u3", "u4", "u5"],
+            },
+        ]);
+
+        const report = compareStandings(model, published, cutoffs);
+        expect(report.strictMismatches).toEqual([]);
+        expect(report.passed).toBe(true);
+    });
 });

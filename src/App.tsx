@@ -1,5 +1,6 @@
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { AppShell } from "./components/AppShell.tsx";
 import { Standings } from "./pages/Standings.tsx";
 
 const queryClient = new QueryClient({
@@ -17,7 +18,9 @@ export const App = () => {
         <QueryClientProvider client={queryClient}>
             <BrowserRouter basename="/cs2">
                 <Routes>
-                    <Route path="/" element={<Standings />} />
+                    <Route element={<AppShell />}>
+                        <Route path="/" element={<Standings />} />
+                    </Route>
                     <Route path="*" element={<Navigate to="/" replace />} />
                 </Routes>
             </BrowserRouter>

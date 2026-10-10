@@ -1,8 +1,6 @@
 # cs2-elo
 
-Counter-Strike 2 team Elo ratings, Valve Regional Standings (VRS) projections, and Major invitation probabilities. Player WAR modeling is planned for a future phase.
-
-Deployed at [esports.daviddecorso.com/cs2/](https://esports.daviddecorso.com/cs2/).
+Counter-Strike 2 team Elo ratings, Valve Regional Standings (VRS) projections, and Major invitation probabilities. Player modeling is planned for a future phase.
 
 ## Purpose & Policies
 

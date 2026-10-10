@@ -26,3 +26,5 @@ dist-ssr
 
 # Wrangler local state
 .wrangler/
+
+plans/

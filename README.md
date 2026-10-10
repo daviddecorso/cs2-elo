@@ -1,21 +1,12 @@
 # cs2-elo
 
-Counter-Strike 2 team Elo ratings, Valve Regional Standings (VRS) projections, and Major invitation probabilities. Player WAR modeling is planned for a future phase.
-
-Deployed at [esports.daviddecorso.com/cs2/](https://esports.daviddecorso.com/cs2/).
+Counter-Strike 2 team Elo ratings, Valve Regional Standings (VRS) projections, and Major invitation probabilities. Player modeling is planned for a future phase.
 
 ## Purpose & Policies
 
 - **Scope**: Accurate reproduction and forward projections of Valve's CS2 Regional Standings model, team ratings, and Major qualification probabilities.
 - **Non-Commercial**: This is an independent, non-commercial research and statistical modeling project.
 - **Strict Anti-Betting Policy**: This project strictly avoids betting terminology, betting odds, and links to sportsbooks or gambling services. All probabilistic projections represent statistical model probabilities.
-
-## Data Sources & Attribution
-
-- **Valve Regional Standings**: Submodule at `vendor/counter-strike_regional_standings`.
-- **HLTV**: Event data for Regional Standings provided by HLTV.org.
-- **Liquipedia**: Future event metadata is sourced under [CC BY-SA 3.0](https://creativecommons.org/licenses/by-sa/3.0/).
-- **HLTV Demos**: Future player-level statistics and WAR calculations will parse public match demos.
 
 ## Licensing
 

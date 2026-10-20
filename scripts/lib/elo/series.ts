@@ -1,6 +1,7 @@
-/** Probability of winning a best-of-`bestOf` series when each map is won independently with probability `p`. */
-export const seriesWinProbability = (p: number, bestOf: number): number => {
+/** Probability of winning a best-of-`bestOf` series of independent maps won with `p`, its logit first scaled by `mapTemp` for Bo3/Bo5. */
+export const seriesWinProbability = (p: number, bestOf: number, mapTemp = 1): number => {
     const need = Math.floor(seriesLength(bestOf) / 2) + 1;
+    if (need > 1 && mapTemp !== 1 && p > 0 && p < 1) p = 1 / (1 + (p / (1 - p)) ** -mapTemp);
     let total = 0;
     let binom = 1;
     for (let losses = 0; losses < need; losses++) {

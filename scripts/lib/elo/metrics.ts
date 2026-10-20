@@ -61,3 +61,45 @@ export const calibration = (forecasts: Forecast[], bins = 10): CalibrationBin[] 
     }
     return out;
 };
+
+/** Expected calibration error over the favourite-folded bins, weighted by bin size. */
+export const expectedCalibrationError = (forecasts: Forecast[], bins = 10): number => {
+    const n = forecasts.length;
+    return n ? calibration(forecasts, bins).reduce((sum, bin) => sum + bin.n * Math.abs(bin.predicted - bin.actual), 0) / n : NaN;
+};
+
+export const logit = (p: number): number => {
+    const q = Math.min(1 - EPS, Math.max(EPS, p));
+    return Math.log(q / (1 - q));
+};
+
+/** Logistic fit of y on logit(p) by Newton's method: slope below 1 means overconfident. */
+export const calibrationSlope = (forecasts: Forecast[]): { slope: number; intercept: number } => {
+    let a = 0;
+    let b = 1;
+    for (let iter = 0; iter < 50; iter++) {
+        let ga = 0;
+        let gb = 0;
+        let haa = 0;
+        let hab = 0;
+        let hbb = 0;
+        for (const { p, y } of forecasts) {
+            const x = logit(p);
+            const q = 1 / (1 + Math.exp(-(a + b * x)));
+            const w = q * (1 - q);
+            ga += y - q;
+            gb += (y - q) * x;
+            haa += w;
+            hab += w * x;
+            hbb += w * x * x;
+        }
+        const det = haa * hbb - hab * hab;
+        if (!det) break;
+        const da = (hbb * ga - hab * gb) / det;
+        const db = (haa * gb - hab * ga) / det;
+        a += da;
+        b += db;
+        if (Math.abs(da) + Math.abs(db) < 1e-9) break;
+    }
+    return { slope: b, intercept: a };
+};

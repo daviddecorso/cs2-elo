@@ -14,6 +14,14 @@ describe("seriesWinProbability", () => {
         expect(seriesWinProbability(0.7, 5) + seriesWinProbability(0.3, 5)).toBeCloseTo(1, 10);
     });
 
+    it("softens multi-map series by mapTemp and leaves Bo1 alone", () => {
+        expect(seriesWinProbability(0.7, 1, 0.5)).toBeCloseTo(0.7, 10);
+        expect(seriesWinProbability(0.7, 3, 1)).toBeCloseTo(seriesWinProbability(0.7, 3), 10);
+        const softened = 1 / (1 + Math.sqrt(0.3 / 0.7));
+        expect(seriesWinProbability(0.7, 3, 0.5)).toBeCloseTo(seriesWinProbability(softened, 3), 10);
+        expect(seriesWinProbability(0.5, 5, 0.5)).toBeCloseTo(0.5, 10);
+    });
+
     it("scores Bo2 as Bo3 and Bo7 as Bo5", () => {
         expect(seriesLength(2)).toBe(3);
         expect(seriesLength(7)).toBe(5);

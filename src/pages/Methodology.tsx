@@ -55,7 +55,7 @@ export const Methodology = () => {
                     </p>
                     <p>
                         A series forecast averages the map win probability over the active map pool and converts it into a Bo1, Bo3 or Bo5
-                        probability. Liquipedia&apos;s API doesn&apos;t expose map vetoes, so the model doesn&apos;t try to predict them. Parameters
+                        probability, softened for Bo3 and Bo5 because maps in the same series aren&apos;t independent. Liquipedia&apos;s API doesn&apos;t expose map vetoes, so the model doesn&apos;t try to predict them. Parameters
                         are tuned on 2024–2025 and scored on later series that tuning never saw.
                     </p>
                 </Prose>

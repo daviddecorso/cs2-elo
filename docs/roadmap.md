@@ -16,10 +16,12 @@ VRS is close but not at the gate defined in [vrs-verification.md](vrs-verificati
 See [elo-model.md](elo-model.md).
 
 - [x] **Finish the backfill** for 2023-10 → 2026-04 and freeze it into `data/history/`.
-- [x] **Tune and run the gate.** It passes: 0.6148 vs 0.6489 on 8,490 2026 series (elo-model.md).
-- [x] **Check cross-region calibration.** Tuned Elo beats VRS there too (0.6342 vs 0.6505, 651 series).
-- [x] **Stand-in down-weighting.** Tuning kept `standInK` at 1, so there's no down-weight.
-- [ ] **Widen `tierGap`'s search range.** Tuning stopped at 375 of a 400 maximum.
+- [x] **Tune and run the gate.** It passes: 0.6135 vs 0.6489 on 8,490 2026 series (elo-model.md).
+- [x] **Check cross-region calibration.** Tuned Elo beats VRS there too (0.6271 vs 0.6505, 651 series).
+- [x] **Stand-in down-weighting.** Tuning settled on `standInK` 1.2, so stand-in series get slightly more weight, not less.
+- [x] **Widen `tierGap`'s search range.** With an 800 ceiling it settled at 475.
+- [x] **Fix Bo3/Bo5 overconfidence** with `seriesMapTemp` (elo-experiments.md).
+- [ ] **Tier 2 calibration.** Slope 0.54 on 377 series; check the tier classification first.
 - [ ] **Veto proxy (v2).** Blocked on missing veto data. Try the map-play-share proxy only after v1 passes.
 - [ ] **Hand-check `data/elo/vrsTeamMap.json`.** It was generated from player overlap on the 2026-10-05 snapshot.
 

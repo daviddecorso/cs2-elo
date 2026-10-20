@@ -27,6 +27,7 @@ The nightly `Update data` workflow runs steps 1, 2, 5, 7 and 8 (without tuning).
 | [matchdata-pipeline.md](matchdata-pipeline.md) | How Liquipedia data becomes Valve model input, and the decisions behind each rule |
 | [vrs-verification.md](vrs-verification.md) | Snapshot windows, the details-file oracle, current accuracy and the acceptance gate |
 | [elo-model.md](elo-model.md) | Elo feed, model, VRS baseline, gate and results |
+| [elo-experiments.md](elo-experiments.md) | Log of every Elo change tried, kept or rejected, with scores |
 | [roadmap.md](roadmap.md) | Next steps for VRS and Elo |
 
 Liquipedia's usage terms (API key handling, attribution, no scraping) are in `AGENTS.md`.
@@ -43,7 +44,7 @@ npm run verify-vrs -- --date 2026-10-05 --matchdata data/matchdata.json
 npm run diff-details -- --date 2026-10-05 --matchdata data/matchdata.json [--team <name>]
 npm run backfill-liquipedia -- --max-requests 30
 npm run freeze-history
-npm run backtest-elo -- [--tune --write] [--gate]
+npm run backtest-elo -- [--tune --write] [--gate] [--set key=value ...]
 npm run build-elo -- [--update-team-map]
 npm run test:run
 npm run lint

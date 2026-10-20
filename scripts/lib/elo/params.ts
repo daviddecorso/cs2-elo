@@ -35,6 +35,8 @@ export interface EloParams {
     tierGap: number;
     /** K multiplier for series with a player outside the core. */
     standInK: number;
+    /** Map logit multiplier before converting to Bo3/Bo5 odds; below 1 softens the independent-maps binomial. */
+    seriesMapTemp: number;
 }
 
 /** Values before tuning; `npm run backtest-elo -- --tune --write` saves the tuned set to `params.json`, which overrides these. */
@@ -55,6 +57,7 @@ export const STARTING_PARAMS: EloParams = {
     coreWindow: 5,
     tierGap: 100,
     standInK: 1,
+    seriesMapTemp: 1,
 };
 
 export const DEFAULT_PARAMS: EloParams = {

@@ -38,6 +38,12 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
+      # Keeps the Liquipedia store between runs so fetch-liquipedia only refetches recent days.
+      - uses: actions/cache@v4
+        with:
+          path: data/raw
+          key: liquipedia-raw-${{ github.run_id }}
+          restore-keys: liquipedia-raw-
       - name: Fetch Liquipedia data
         env:
           LIQUIPEDIA_API_KEY: ${{ secrets.LIQUIPEDIA_API_KEY }}

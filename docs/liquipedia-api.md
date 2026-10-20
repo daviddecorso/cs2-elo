@@ -75,6 +75,12 @@ Behavior to handle:
 - Results can contain duplicates. Dedupe them in code or use a `groupby`.
 - In multiwiki requests, `limit`, `offset`, `order` and `groupby` apply to each wiki separately.
 
+## Rate limits
+
+Limits are hourly and per wiki and table. The 429 error reads `API key "<key>" limits for wiki "counterstrike" and table "match" exceeded.`, so it **echoes the full API key**, and the client redacts it. The exact quota isn't published on the dashboard. On 2026-10-19, two CI runs plus two local fetches of the full 190-day window (about 55 requests each, mostly `/match` and `/placement`) within ten minutes exceeded the `match` table limit.
+
+`scripts/fetch-liquipedia.ts` keeps a local store in `data/raw/` with a `meta.json` recording its window and the date of its last full refresh. A normal run refetches only the last 14 days, plus any part of the requested window the store doesn't cover. It does a full refresh weekly or with `--full`. Fetched ranges replace stored rows, so edits and deletions carry over. Pages are requested with `order=objectname ASC` so offset pagination stays stable. The nightly workflow persists `data/raw/` with `actions/cache`.
+
 ## Fields
 
 Field lists come from the full documentation on the dashboard. Tables not listed here haven't been transcribed yet.

@@ -55,7 +55,6 @@ const getCacheKey = (endpoint: string, params: Record<string, string>): string =
     return crypto.createHash("sha256").update(raw).digest("hex");
 };
 
-const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
 export const fetchLiquipediaPage = async <T = Record<string, unknown>>(
     endpoint: string,
@@ -86,57 +85,45 @@ export const fetchLiquipediaPage = async <T = Record<string, unknown>>(
         queryUrl.searchParams.set(k, v);
     }
 
-    const maxRetries = 5;
-    let delay = 2000;
+    const response = await fetch(queryUrl.toString(), {
+        method: "GET",
+        headers: {
+            Authorization: `Apikey ${apiKey}`,
+            "User-Agent": "cs2-elo (github.com/daviddecorso/cs2-elo)",
+            "Accept-Encoding": "gzip",
+        },
+    });
 
-    for (let attempt = 0; attempt <= maxRetries; attempt++) {
-        const response = await fetch(queryUrl.toString(), {
-            method: "GET",
-            headers: {
-                Authorization: `Apikey ${apiKey}`,
-                "User-Agent": "cs2-elo (github.com/daviddecorso/cs2-elo)",
-                "Accept-Encoding": "gzip",
-            },
-        });
+    // Liquipedia's error bodies echo the API key.
+    const redact = (text: string) => text.replaceAll(apiKey, "[redacted]");
 
-        if (response.status === 429) {
-            if (attempt === maxRetries) {
-                throw new Error(`Liquipedia API rate limited (429) after ${maxRetries} retries`);
-            }
-            const retryAfterHeader = response.headers.get("retry-after");
-            const waitMs = retryAfterHeader
-                ? Math.max(Number(retryAfterHeader) * 1000, delay)
-                : delay;
-            await sleep(waitMs);
-            delay *= 2;
-            continue;
-        }
-
-        if (!response.ok) {
-            const body = await response.text();
-            throw new Error(
-                `Liquipedia API error: status ${response.status} ${response.statusText}: ${body}`
-            );
-        }
-
-        const data = (await response.json()) as LiquipediaResponse<T>;
-        if (data.error && data.error.length > 0) {
-            throw new Error(`Liquipedia API returned error: ${data.error.join(", ")}`);
-        }
-
-        const result = data.result ?? [];
-
-        if (useCache) {
-            fs.mkdirSync(CACHE_DIR, { recursive: true });
-            const cacheKey = getCacheKey(endpoint, params);
-            const cachePath = path.join(CACHE_DIR, `${cacheKey}.json`);
-            fs.writeFileSync(cachePath, JSON.stringify(result), "utf8");
-        }
-
-        return result;
+    // Limits are hourly per table and retries count against them, so a 429 fails immediately.
+    if (response.status === 429) {
+        throw new Error(`Liquipedia API rate limited (429) on /${endpoint}; wait for the hourly limit to reset`);
     }
 
-    throw new Error(`Liquipedia API request failed after ${maxRetries} retries`);
+    if (!response.ok) {
+        const body = await response.text();
+        throw new Error(
+            `Liquipedia API error: status ${response.status} ${response.statusText}: ${redact(body)}`
+        );
+    }
+
+    const data = (await response.json()) as LiquipediaResponse<T>;
+    if (data.error && data.error.length > 0) {
+        throw new Error(`Liquipedia API returned error: ${redact(data.error.join(", "))}`);
+    }
+
+    const result = data.result ?? [];
+
+    if (useCache) {
+        fs.mkdirSync(CACHE_DIR, { recursive: true });
+        const cacheKey = getCacheKey(endpoint, params);
+        const cachePath = path.join(CACHE_DIR, `${cacheKey}.json`);
+        fs.writeFileSync(cachePath, JSON.stringify(result), "utf8");
+    }
+
+    return result;
 };
 
 export const getRowDedupeKey = (row: Record<string, unknown>): string => {

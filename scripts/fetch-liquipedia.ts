@@ -1,6 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { fetchLiquipediaAll } from "./lib/liquipedia/client.ts";
+import { normalizeCountryIso } from "./lib/vrs/buildMatchdata.ts";
 
 const parseArgs = () => {
     const args = process.argv.slice(2);
@@ -78,14 +79,14 @@ const main = async () => {
     console.log(`Fetched ${placements.length} placements.`);
     fs.writeFileSync(path.join(outDir, "placements.json"), JSON.stringify(placements, null, 2), "utf8");
 
-    // 4. build-matchdata only falls back to /player nationality for match players with no flag
+    // 4. build-matchdata only falls back to /player nationality when the match flag doesn't map to a country
     const playerNames = new Set<string>();
     for (const match of matches as Array<Record<string, unknown>>) {
         const opponents = Array.isArray(match.match2opponents) ? match.match2opponents : [];
         for (const opp of opponents) {
             const players = Array.isArray(opp.match2players) ? opp.match2players : [];
             for (const p of players) {
-                if (p.name && typeof p.name === "string" && !p.flag) {
+                if (p.name && typeof p.name === "string" && !normalizeCountryIso(String(p.flag ?? ""))) {
                     playerNames.add(p.name);
                 }
             }

@@ -15,7 +15,10 @@
         "update-data": "vite-node scripts/update-data.ts",
         "verify-vrs": "vite-node scripts/verify-vrs.ts",
         "validate-matchdata": "vite-node scripts/validate-matchdata.ts",
-        "make-fixture": "vite-node scripts/make-fixture.ts"
+        "make-fixture": "vite-node scripts/make-fixture.ts",
+        "fetch-liquipedia": "vite-node scripts/fetch-liquipedia.ts",
+        "build-matchdata": "vite-node scripts/build-matchdata.ts",
+        "diff-details": "vite-node scripts/diff-details.ts"
     },
     "dependencies": {
         "@fontsource-variable/geist": "^5.3.0",

@@ -365,6 +365,27 @@ export const Standings = () => {
                         )}
                     </TableBody>
                 </DataTable>
+                <div className="mt-4 text-xs text-muted">
+                    Match and tournament data sourced from{" "}
+                    <a
+                        href="https://liquipedia.net/counterstrike/"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="underline hover:text-fg transition-colors"
+                    >
+                        Liquipedia
+                    </a>{" "}
+                    under{" "}
+                    <a
+                        href="https://creativecommons.org/licenses/by-sa/3.0/"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="underline hover:text-fg transition-colors"
+                    >
+                        CC-BY-SA 3.0
+                    </a>
+                    .
+                </div>
             </Section>
         </div>
     );

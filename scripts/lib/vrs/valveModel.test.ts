@@ -1,7 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
-import { computeStandings } from "./valveModel.ts";
+import { computeStandings, getSnapshotWindow } from "./valveModel.ts";
 
 describe("valveModel", () => {
     const fixturePath = path.resolve(process.cwd(), "fixtures/matchdata.synthetic.json");
@@ -61,5 +61,46 @@ describe("valveModel", () => {
         const early = computeStandings(matches, events, "2026-06-01");
 
         expect(early.rosters).not.toEqual(late.rosters);
+    });
+
+    it("derives finished: false for events with endDate after snapshotDate", () => {
+        const matches = JSON.parse(JSON.stringify(rawFixture.matches));
+        const events = JSON.parse(JSON.stringify(rawFixture.events));
+
+        // Mark event 101 as having an endDate after the snapshot
+        events[0].endDate = "2026-10-10";
+        events[0].finished = true;
+
+        const beforeEnd = computeStandings(matches, events, "2026-10-05");
+        const afterEnd = computeStandings(matches, events, "2026-10-15");
+
+        expect(beforeEnd.rosters).not.toEqual(afterEnd.rosters);
+        expect(events[0].finished).toBe(true);
+    });
+
+    it("uses the calibrated window end for published snapshots and 07:00 LA otherwise", () => {
+        expect(getSnapshotWindow("2026-10-05")).toEqual({
+            pullTime: 1791208800,
+            versionTimestamp: 1791208800,
+        });
+        expect(getSnapshotWindow("2026-11-02")).toEqual({
+            pullTime: Date.UTC(2026, 10, 2, 15) / 1000,
+            versionTimestamp: -1,
+        });
+    });
+
+    it("treats an event with a match after the data pull as unfinished", () => {
+        const matches = JSON.parse(JSON.stringify(rawFixture.matches));
+        const events = JSON.parse(JSON.stringify(rawFixture.events));
+        const lateMatch = { ...matches[0], matchStartTime: Date.UTC(2026, 9, 4, 20) / 1000 };
+
+        const base = computeStandings(matches, events, "2026-10-04");
+        const withLate = computeStandings([...matches, lateMatch], events, "2026-10-04");
+
+        const markedUnfinished = events.map((e: { eventId: unknown }) =>
+            e.eventId === lateMatch.eventId ? { ...e, finished: false } : e
+        );
+        expect(withLate.rosters).not.toEqual(base.rosters);
+        expect(computeStandings(matches, markedUnfinished, "2026-10-04").rosters).toEqual(withLate.rosters);
     });
 });

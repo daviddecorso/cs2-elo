@@ -1,0 +1,145 @@
+import fs from "node:fs";
+import path from "node:path";
+import { fetchLiquipediaAll } from "./lib/liquipedia/client.ts";
+
+const parseArgs = () => {
+    const args = process.argv.slice(2);
+    const now = new Date();
+    const defaultToDate = now.toISOString().slice(0, 10);
+    const defaultFromDate = new Date(now.getTime() - 190 * 24 * 60 * 60 * 1000)
+        .toISOString()
+        .slice(0, 10);
+
+    let fromDate = defaultFromDate;
+    let toDate = defaultToDate;
+    let outDir = path.resolve(process.cwd(), "data/raw");
+
+    for (let i = 0; i < args.length; i++) {
+        if (args[i] === "--from" && args[i + 1]) {
+            fromDate = args[++i];
+        } else if (args[i] === "--to" && args[i + 1]) {
+            toDate = args[++i];
+        } else if (args[i] === "--out-dir" && args[i + 1]) {
+            outDir = path.resolve(process.cwd(), args[++i]);
+        }
+    }
+
+    return { fromDate, toDate, outDir };
+};
+
+const getDayBefore = (dateStr: string): string => {
+    const d = new Date(`${dateStr}T00:00:00Z`);
+    d.setUTCDate(d.getUTCDate() - 1);
+    return d.toISOString().slice(0, 10);
+};
+
+const getDayAfter = (dateStr: string): string => {
+    const d = new Date(`${dateStr}T00:00:00Z`);
+    d.setUTCDate(d.getUTCDate() + 1);
+    return d.toISOString().slice(0, 10);
+};
+
+const main = async () => {
+    const { fromDate, toDate, outDir } = parseArgs();
+    fs.mkdirSync(outDir, { recursive: true });
+
+    const prevDate = getDayBefore(fromDate);
+    const nextDate = getDayAfter(toDate);
+
+    console.log(`Fetching Liquipedia CS2 data for window ${fromDate} to ${toDate}...`);
+
+    // 1. Fetch matches
+    console.log("Fetching /match...");
+    const matchConditions = `[[game::cs2]] AND [[finished::1]] AND [[date::>${prevDate} 23:59:59]] AND [[date::<${nextDate} 00:00:00]]`;
+    const matches = await fetchLiquipediaAll("match", {
+        conditions: matchConditions,
+        limit: 500,
+    });
+    console.log(`Fetched ${matches.length} matches.`);
+    fs.writeFileSync(path.join(outDir, "matches.json"), JSON.stringify(matches, null, 2), "utf8");
+
+    // 2. Fetch tournaments
+    console.log("Fetching /tournament...");
+    const tourneyConditions = `[[game::cs2]] AND [[startdate::>${prevDate}]] AND [[startdate::<${nextDate}]]`;
+    const tournaments = await fetchLiquipediaAll("tournament", {
+        conditions: tourneyConditions,
+        limit: 500,
+    });
+    console.log(`Fetched ${tournaments.length} tournaments.`);
+    fs.writeFileSync(path.join(outDir, "tournaments.json"), JSON.stringify(tournaments, null, 2), "utf8");
+
+    // 3. Fetch placements
+    console.log("Fetching /placement...");
+    const placementConditions = `[[game::cs2]] AND [[date::>${prevDate} 23:59:59]] AND [[date::<${nextDate} 00:00:00]]`;
+    const placements = await fetchLiquipediaAll("placement", {
+        conditions: placementConditions,
+        limit: 500,
+    });
+    console.log(`Fetched ${placements.length} placements.`);
+    fs.writeFileSync(path.join(outDir, "placements.json"), JSON.stringify(placements, null, 2), "utf8");
+
+    // 4. Collect player page names from matches and placements
+    console.log("Collecting player names...");
+    const playerNames = new Set<string>();
+
+    for (const match of matches as Array<Record<string, unknown>>) {
+        const opponents = Array.isArray(match.match2opponents) ? match.match2opponents : [];
+        for (const opp of opponents) {
+            const players = Array.isArray(opp.match2players) ? opp.match2players : [];
+            for (const p of players) {
+                if (p.name && typeof p.name === "string") {
+                    playerNames.add(p.name);
+                }
+            }
+        }
+    }
+
+    for (const place of placements as Array<Record<string, unknown>>) {
+        const oppPlayers = place.opponentplayers as Record<string, string> | undefined;
+        if (oppPlayers && typeof oppPlayers === "object") {
+            for (const [k, v] of Object.entries(oppPlayers)) {
+                if (/^p\d+$/.test(k) && typeof v === "string" && v) {
+                    playerNames.add(v);
+                }
+            }
+        }
+    }
+
+    console.log(`Found ${playerNames.size} distinct players. Fetching /player details in batches...`);
+    const nameList = Array.from(playerNames);
+    const batchSize = 50;
+    const playerRows: Array<Record<string, unknown>> = [];
+    const playersFilePath = path.join(outDir, "players.json");
+    if (fs.existsSync(playersFilePath)) {
+        try {
+            const existing = JSON.parse(fs.readFileSync(playersFilePath, "utf8"));
+            if (Array.isArray(existing)) playerRows.push(...existing);
+        } catch {
+            // Ignore corrupted file
+        }
+    }
+
+    try {
+        for (let i = 0; i < nameList.length; i += batchSize) {
+            const batch = nameList.slice(i, i + batchSize);
+            const condition = batch.map((name) => `[[pagename::${name.replace(/ /g, "_")}]]`).join(" OR ");
+            const rows = await fetchLiquipediaAll("player", {
+                conditions: condition,
+                limit: 500,
+            });
+            playerRows.push(...rows);
+        }
+    } catch (err) {
+        console.warn(`Warning: /player fetch stopped early: ${(err as Error).message}`);
+    }
+
+    console.log(`Saved ${playerRows.length} player records.`);
+    fs.writeFileSync(playersFilePath, JSON.stringify(playerRows, null, 2), "utf8");
+
+    console.log(`All raw data written to ${outDir}`);
+};
+
+main().catch((err) => {
+    console.error("fetch-liquipedia failed:", err);
+    process.exit(1);
+});

@@ -29,18 +29,19 @@ describe("valveFidelity", () => {
 
             execFileSync(
                 process.execPath,
-                ["main.js", "[0,1,2]", "../data/matchdata.json", "2026_10_05"],
+                ["main.js", "[0,1,2]", "../data/matchdata.json", "2026_10_04"],
                 {
                     cwd: tempModelDir,
                     stdio: "pipe",
                 }
             );
 
-            const published = readPublishedSnapshot(tempDir, "2026-10-05");
+            // Uncalibrated date, so the wrapper lets Valve end the window at the fixture's latest match like the CLI does.
+            const published = readPublishedSnapshot(tempDir, "2026-10-04");
             const computed = computeStandings(
                 rawFixture.matches,
                 rawFixture.events,
-                "2026-10-05"
+                "2026-10-04"
             );
 
             const report = compareStandings(computed, published, INVITE_CUTOFFS);

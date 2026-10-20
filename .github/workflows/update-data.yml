@@ -38,13 +38,27 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
-      - run: npm run update-data
+      - name: Fetch Liquipedia data
+        env:
+          LIQUIPEDIA_API_KEY: ${{ secrets.LIQUIPEDIA_API_KEY }}
+        run: npm run fetch-liquipedia
+      - name: Build matchdata
+        run: npm run build-matchdata -- --date $(date -u +%Y-%m-%d)
+      - name: Update data
+        env:
+          VRS_MATCHDATA: data/matchdata.json
+        run: npm run update-data
       - run: npm run test:run
+      - uses: actions/upload-artifact@v4
+        with:
+          name: matchdata
+          path: data/matchdata.json
+          retention-days: 7
       - name: Commit data
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add public/data vendor/counter-strike_regional_standings
+          git add public/data vendor/counter-strike_regional_standings data/overrides.json
           if ! git diff --cached --quiet; then
             git commit -m "Update data"
             git pull --rebase

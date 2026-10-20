@@ -42,13 +42,18 @@ git submodule update --init --recursive
 | `verify-vrs` | `npm run verify-vrs` | Run model against matchdata and compare output to published standings |
 | `validate-matchdata` | `npm run validate-matchdata` | Validate `matchdata.json` against the model input contract |
 | `make-fixture` | `npm run make-fixture` | Generate deterministic synthetic `matchdata.json` fixture |
+| `fetch-liquipedia` | `npm run fetch-liquipedia` | Pull the match window from the Liquipedia API into `data/raw/` (needs `LIQUIPEDIA_API_KEY`) |
+| `build-matchdata` | `npm run build-matchdata` | Build `data/matchdata.json` from `data/raw/` and `data/overrides.json` |
+| `diff-details` | `npm run diff-details` | Diff per-roster match lists against Valve's published details files |
 
 ## Layout
 
-- `docs/` — Valve model mechanics, reverse engineering findings, and matchdata schema contract.
+- `data/` — Committed `overrides.json`; gitignored raw Liquipedia rows and built `matchdata.json`.
+- `docs/` — Project docs; start at `docs/overview.md`.
 - `fixtures/` — Committed synthetic test fixtures.
-- `scripts/` — CLI commands and data pipelines (`update-data`, `verify-vrs`, `validate-matchdata`, `make-fixture`).
-- `scripts/lib/vrs/` — Pure VRS model runner, schema validator, snapshot parser, and comparator.
+- `scripts/` — CLI commands and data pipelines (`fetch-liquipedia`, `build-matchdata`, `update-data`, `verify-vrs`, `diff-details`, `validate-matchdata`, `make-fixture`).
+- `scripts/lib/liquipedia/` — Liquipedia API client with on-disk cache.
+- `scripts/lib/vrs/` — Matchdata builder, VRS model runner, schema validator, snapshot and details parsers, and comparator.
 - `site/` — Static deploy configuration (`_headers`, `_redirects`, `404.html`).
 - `src/` — React 19 application, components, and hooks.
 - `src/vrs/` — Shared VRS TypeScript types and invite cutoffs.

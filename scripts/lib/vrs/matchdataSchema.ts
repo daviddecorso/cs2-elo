@@ -120,7 +120,6 @@ export const validateMatchdata = (json: unknown): ValidationResult => {
 
     const isValidCountry = (iso: unknown): boolean => {
         if (typeof iso !== "string" || !iso.trim()) return false;
-        if (iso.toLowerCase() === "world") return true;
         try {
             return typeof region.getCountryRegion(iso) === "number";
         } catch {

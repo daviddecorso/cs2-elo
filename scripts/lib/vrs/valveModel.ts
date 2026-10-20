@@ -6,19 +6,34 @@ import { fileURLToPath } from "node:url";
 import vm from "node:vm";
 import { getRosterKey, type Region, type Roster, type Standings } from "../../../src/vrs/types.ts";
 
+import { parseDetailsFile, type ParsedDetailsFile } from "./valveDetails.ts";
+
 const currentDir = path.dirname(fileURLToPath(import.meta.url));
 const repoRoot = path.resolve(currentDir, "../../../");
 const submodulePath = path.resolve(repoRoot, "vendor/counter-strike_regional_standings");
 const valveModelDir = path.resolve(submodulePath, "model");
 
 let inMemoryJson = "";
+const inMemoryFiles = new Map<string, string>();
+
+export const getInMemoryFiles = (): Map<string, string> => inMemoryFiles;
+
 const fsShim = {
-    readFileSync: () => inMemoryJson,
+    readFileSync: (filePath: string) => {
+        if (filePath.endsWith(".json")) return inMemoryJson;
+        if (inMemoryFiles.has(filePath)) return inMemoryFiles.get(filePath)!;
+        return "";
+    },
+    existsSync: () => true,
+    mkdirSync: () => {},
+    writeFileSync: (filePath: string, content: string) => {
+        inMemoryFiles.set(filePath, content);
+    },
 };
 
 const moduleCache = new Map<string, { exports: unknown }>();
 
-const loadValveCjs = (filePath: string): unknown => {
+export const loadValveCjs = (filePath: string): unknown => {
     let resolved = filePath;
     if (!fs.existsSync(resolved) && fs.existsSync(`${resolved}.js`)) {
         resolved = `${resolved}.js`;
@@ -83,6 +98,18 @@ const getRankingModule = (): ValveRankingModule => {
     return rankingModule;
 };
 
+interface ValveReportModule {
+    generateOutput: (teams: ValveTeam[], regions: number[], strDate: string) => void;
+}
+
+let reportModule: ValveReportModule | null = null;
+const getReportModule = (): ValveReportModule => {
+    if (!reportModule) {
+        reportModule = loadValveCjs(path.join(valveModelDir, "report.js")) as ValveReportModule;
+    }
+    return reportModule;
+};
+
 let cachedValveCommit = "";
 let cachedModelCommit = "";
 
@@ -143,77 +170,148 @@ const regionIdxToName = (idx: number): Region => {
     return "Asia";
 };
 
-/**
- * Pure wrapper around Valve's official Regional Standings model. It isolates
- * Valve's unmodified CommonJS codebase inside a dedicated VM context with an
- * in-memory filesystem shim, guaranteeing that callers' inputs are not mutated
- * and no side effects reach disk. Snapshot cutoff semantics filter matches to
- * those starting strictly before 00:00 America/Los_Angeles on snapshotDate,
- * passing versionTimestamp -1 so the time window aligns with the latest match
- * in the dataset rather than shifting the window end.
- */
+// Valve's data pull runs into the snapshot day, and its window ends at the latest match in that
+// pull. Published snapshots are calibrated from the age weights in their details files.
+const WINDOW_ENDS: Record<string, number> = JSON.parse(
+    fs.readFileSync(path.join(currentDir, "snapshotWindowEnds.json"), "utf8")
+).windowEnds;
+
+const DEFAULT_PULL_HOUR_LA = 7;
+
+export interface SnapshotWindow {
+    /** Unix seconds. Later matches are not in the pull, and their events count as unfinished. */
+    pullTime: number;
+    /** Valve's versionTimestamp; -1 lets Valve end the window at the latest match in the pull. */
+    versionTimestamp: number;
+}
+
+export const getSnapshotWindow = (snapshotDate: string): SnapshotWindow => {
+    validateSnapshotDate(snapshotDate);
+    const calibrated = WINDOW_ENDS[snapshotDate];
+    if (calibrated !== undefined) {
+        return { pullTime: calibrated, versionTimestamp: calibrated };
+    }
+    return {
+        pullTime: getLosAngelesMidnightSeconds(snapshotDate) + DEFAULT_PULL_HOUR_LA * 3600,
+        versionTimestamp: -1,
+    };
+};
+
+interface SnapshotEvent {
+    eventId: string | number;
+    finished?: boolean;
+    endDate?: string;
+}
+
+const prepareSnapshotInput = (
+    matchData: unknown[],
+    eventData: unknown[],
+    snapshotDate: string
+): { json: string; versionTimestamp: number } => {
+    const { pullTime, versionTimestamp } = getSnapshotWindow(snapshotDate);
+    const matches = matchData as Array<{ matchStartTime: number; eventId: string | number }>;
+
+    const eventsWithLaterMatches = new Set(
+        matches.filter((m) => m.matchStartTime > pullTime).map((m) => String(m.eventId))
+    );
+    const events = (eventData as SnapshotEvent[]).map((ev) => {
+        const finished =
+            ev.finished !== false &&
+            !(typeof ev.endDate === "string" && ev.endDate > snapshotDate) &&
+            !eventsWithLaterMatches.has(String(ev.eventId));
+        return finished === ev.finished ? ev : { ...ev, finished };
+    });
+
+    return {
+        json: JSON.stringify({
+            matches: matches.filter((m) => m.matchStartTime <= pullTime),
+            events,
+        }),
+        versionTimestamp,
+    };
+};
+
+const toRoster = (team: ValveTeam): Roster => {
+    const players = team.activeRoster.map((p) => p.nick);
+    const regionIdx = team.region.findIndex((v) => v === 1);
+    const points = team.glickoTeam.rank();
+    const startingValue = team.rankValueSeed;
+
+    return {
+        rosterKey: getRosterKey(players),
+        teamName: team.name,
+        region: regionIdxToName(regionIdx >= 0 ? regionIdx : 0),
+        regionalRank:
+            team.satisfiesRankingCriteria && regionIdx >= 0 ? team.regionalRank[regionIdx] : null,
+        globalRank: team.satisfiesRankingCriteria ? (team.globalRank ?? null) : null,
+        points,
+        factors: {
+            bountyOffered: team.modifiers.bountyOffered,
+            bountyCollected: team.modifiers.bountyCollected,
+            opponentNetwork: team.modifiers.opponentNetwork,
+            lanFactor: team.modifiers.lanFactor,
+        },
+        startingValue,
+        h2hAdjustment: points - startingValue,
+        players,
+    };
+};
+
+const runModel = (
+    matchData: unknown[],
+    eventData: unknown[],
+    snapshotDate: string
+): { standings: Standings; teams: ValveTeam[] } => {
+    const { json, versionTimestamp } = prepareSnapshotInput(matchData, eventData, snapshotDate);
+    inMemoryJson = json;
+
+    const [, teams] = getRankingModule().generateRanking(versionTimestamp, "in-memory-sentinel.json");
+    const { valveCommit, modelCommit } = getSubmoduleCommits();
+
+    return {
+        standings: {
+            snapshotDate,
+            valveCommit,
+            modelCommit,
+            source: "model",
+            generatedAt: new Date().toISOString(),
+            rosters: teams.map(toRoster),
+        },
+        teams,
+    };
+};
+
+/** Window and event completion are evaluated as of Valve's data pull for snapshotDate. */
 export const computeStandings = (
     matchData: unknown[],
     eventData: unknown[],
     snapshotDate: string
-): Standings => {
-    validateSnapshotDate(snapshotDate);
+): Standings => runModel(matchData, eventData, snapshotDate).standings;
 
-    const cutoffSeconds = getLosAngelesMidnightSeconds(snapshotDate);
+export const computeStandingsWithDetails = (
+    matchData: unknown[],
+    eventData: unknown[],
+    snapshotDate: string
+): {
+    standings: Standings;
+    detailsFiles: Map<string, ParsedDetailsFile>;
+    rawMarkdownFiles: Map<string, string>;
+} => {
+    inMemoryFiles.clear();
+    const { standings, teams } = runModel(matchData, eventData, snapshotDate);
+    getReportModule().generateOutput(teams, [0, 1, 2], snapshotDate);
 
-    // Keep only matches before cutoff
-    const filteredMatches = (matchData as Array<{ matchStartTime: number }>).filter(
-        (m) => m.matchStartTime < cutoffSeconds
-    );
+    const detailsFiles = new Map<string, ParsedDetailsFile>();
+    const rawMarkdownFiles = new Map<string, string>();
 
-    // Deep clone and store in memory shim
-    inMemoryJson = JSON.stringify({
-        matches: filteredMatches,
-        events: eventData,
-    });
+    for (const [filePath, content] of inMemoryFiles.entries()) {
+        if (filePath.includes("details/") && filePath.endsWith(".md")) {
+            rawMarkdownFiles.set(filePath, content);
+            const parsed = parseDetailsFile(content);
+            detailsFiles.set(parsed.rosterKey, parsed);
+        }
+    }
 
-    const ranking = getRankingModule();
-    const [, teams] = ranking.generateRanking(-1, "in-memory-sentinel.json");
-
-    const { valveCommit, modelCommit } = getSubmoduleCommits();
-
-    const rosters: Roster[] = teams.map((team) => {
-        const players = team.activeRoster.map((p) => p.nick);
-        const rosterKey = getRosterKey(players);
-        const regionIdx = team.region.findIndex((v) => v === 1);
-        const region = regionIdxToName(regionIdx >= 0 ? regionIdx : 0);
-        const points = team.glickoTeam.rank();
-        const startingValue = team.rankValueSeed;
-        const h2hAdjustment = points - startingValue;
-
-        return {
-            rosterKey,
-            teamName: team.name,
-            region,
-            regionalRank:
-                team.satisfiesRankingCriteria && regionIdx >= 0
-                    ? team.regionalRank[regionIdx]
-                    : null,
-            globalRank: team.satisfiesRankingCriteria ? (team.globalRank ?? null) : null,
-            points,
-            factors: {
-                bountyOffered: team.modifiers.bountyOffered,
-                bountyCollected: team.modifiers.bountyCollected,
-                opponentNetwork: team.modifiers.opponentNetwork,
-                lanFactor: team.modifiers.lanFactor,
-            },
-            startingValue,
-            h2hAdjustment,
-            players,
-        };
-    });
-
-    return {
-        snapshotDate,
-        valveCommit,
-        modelCommit,
-        source: "model",
-        generatedAt: new Date().toISOString(),
-        rosters,
-    };
+    return { standings, detailsFiles, rawMarkdownFiles };
 };
+

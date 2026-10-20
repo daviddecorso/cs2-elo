@@ -1,6 +1,6 @@
 # Valve Regional Standings (VRS) Model Specification
 
-This document details the mechanics, execution model, published file structure, quirks, and exact input data schema for Valve's Counter-Strike 2 Regional Standings model (`vendor/counter-strike_regional_standings` at commit `eec4853`).
+This document details the mechanics, execution model, published file structure, quirks, and exact input data schema for Valve's Counter-Strike 2 Regional Standings model (`vendor/counter-strike_regional_standings` at commit `eec4853`). For how we run it per snapshot and verify the output, see [vrs-verification.md](vrs-verification.md).
 
 ---
 

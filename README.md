@@ -13,6 +13,10 @@ Counter-Strike 2 team Elo ratings, Valve Regional Standings (VRS) projections, a
 - Repository code is licensed under the [MIT License](LICENSE) (c) 2026 David DeCorso.
 - Valve's code in `vendor/counter-strike_regional_standings` is a git submodule tracked under Valve's repository terms and is not covered by this repository's MIT license.
 
+## Data Attribution
+
+Match, tournament, roster and team logo data comes from [Liquipedia](https://liquipedia.net/counterstrike/) via its API and is used under the [CC-BY-SA 3.0](https://creativecommons.org/licenses/by-sa/3.0/) license. The Liquipedia-derived data committed here (`data/history/`, `data/events/`, `data/overrides.json`, `public/data/`, `public/logos/`) is a derivative work and stays under CC-BY-SA 3.0, not the MIT license above. The site credits Liquipedia next to the data it displays.
+
 ## Getting Started
 
 Clone the repository with submodules:
@@ -48,7 +52,7 @@ git submodule update --init --recursive
 
 ## Layout
 
-- `data/` — Committed `overrides.json`; gitignored raw Liquipedia rows and built `matchdata.json`.
+- `data/` — Committed `overrides.json`, `history/` (monthly match archives) and `events/` configs, all Liquipedia-derived (see Data Attribution); gitignored raw Liquipedia rows and built `matchdata.json`.
 - `docs/` — Project docs; start at `docs/overview.md`.
 - `fixtures/` — Committed synthetic test fixtures.
 - `scripts/` — CLI commands and data pipelines (`fetch-liquipedia`, `build-matchdata`, `update-data`, `verify-vrs`, `diff-details`, `validate-matchdata`, `make-fixture`).

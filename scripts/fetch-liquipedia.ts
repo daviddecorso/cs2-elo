@@ -78,46 +78,39 @@ const main = async () => {
     console.log(`Fetched ${placements.length} placements.`);
     fs.writeFileSync(path.join(outDir, "placements.json"), JSON.stringify(placements, null, 2), "utf8");
 
-    // 4. Collect player page names from matches and placements
-    console.log("Collecting player names...");
+    // 4. build-matchdata only falls back to /player nationality for match players with no flag
     const playerNames = new Set<string>();
-
     for (const match of matches as Array<Record<string, unknown>>) {
         const opponents = Array.isArray(match.match2opponents) ? match.match2opponents : [];
         for (const opp of opponents) {
             const players = Array.isArray(opp.match2players) ? opp.match2players : [];
             for (const p of players) {
-                if (p.name && typeof p.name === "string") {
+                if (p.name && typeof p.name === "string" && !p.flag) {
                     playerNames.add(p.name);
                 }
             }
         }
     }
 
-    for (const place of placements as Array<Record<string, unknown>>) {
-        const oppPlayers = place.opponentplayers as Record<string, string> | undefined;
-        if (oppPlayers && typeof oppPlayers === "object") {
-            for (const [k, v] of Object.entries(oppPlayers)) {
-                if (/^p\d+$/.test(k) && typeof v === "string" && v) {
-                    playerNames.add(v);
-                }
-            }
-        }
-    }
-
-    console.log(`Found ${playerNames.size} distinct players. Fetching /player details in batches...`);
-    const nameList = Array.from(playerNames);
-    const batchSize = 50;
-    const playerRows: Array<Record<string, unknown>> = [];
     const playersFilePath = path.join(outDir, "players.json");
+    const playersByPage = new Map<string, Record<string, unknown>>();
     if (fs.existsSync(playersFilePath)) {
         try {
             const existing = JSON.parse(fs.readFileSync(playersFilePath, "utf8"));
-            if (Array.isArray(existing)) playerRows.push(...existing);
+            if (Array.isArray(existing)) {
+                for (const row of existing) playersByPage.set(String(row.pagename), row);
+            }
         } catch {
             // Ignore corrupted file
         }
     }
+
+    // Player rows rarely change, and refetching all of them exceeds Liquipedia's hourly limit.
+    const nameList = Array.from(playerNames).filter((name) => !playersByPage.has(name.replace(/ /g, "_")));
+    console.log(
+        `Found ${playerNames.size} distinct players, ${playersByPage.size} already saved. Fetching ${nameList.length} from /player...`
+    );
+    const batchSize = 50;
 
     try {
         for (let i = 0; i < nameList.length; i += batchSize) {
@@ -127,14 +120,14 @@ const main = async () => {
                 conditions: condition,
                 limit: 500,
             });
-            playerRows.push(...rows);
+            for (const row of rows) playersByPage.set(String(row.pagename), row);
         }
     } catch (err) {
         console.warn(`Warning: /player fetch stopped early: ${(err as Error).message}`);
     }
 
-    console.log(`Saved ${playerRows.length} player records.`);
-    fs.writeFileSync(playersFilePath, JSON.stringify(playerRows, null, 2), "utf8");
+    console.log(`Saved ${playersByPage.size} player records.`);
+    fs.writeFileSync(playersFilePath, JSON.stringify([...playersByPage.values()], null, 2), "utf8");
 
     console.log(`All raw data written to ${outDir}`);
 };

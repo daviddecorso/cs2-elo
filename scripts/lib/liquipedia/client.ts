@@ -49,6 +49,11 @@ const getApiKey = (): string => {
 
 const CACHE_DIR = path.resolve(process.cwd(), ".cache/liquipedia");
 
+let networkRequestCount = 0;
+
+/** Requests that reached the API in this process; cache hits don't count against Liquipedia's limits. */
+export const getNetworkRequestCount = (): number => networkRequestCount;
+
 const getCacheKey = (endpoint: string, params: Record<string, string>): string => {
     const sorted = Object.entries(params).sort(([a], [b]) => a.localeCompare(b));
     const raw = `${endpoint}?${new URLSearchParams(sorted).toString()}`;
@@ -85,6 +90,7 @@ export const fetchLiquipediaPage = async <T = Record<string, unknown>>(
         queryUrl.searchParams.set(k, v);
     }
 
+    networkRequestCount++;
     const response = await fetch(queryUrl.toString(), {
         method: "GET",
         headers: {

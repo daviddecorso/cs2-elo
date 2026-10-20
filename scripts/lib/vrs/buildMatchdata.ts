@@ -1,3 +1,4 @@
+import { makeLineupResolver } from "../lineups.ts";
 import type { ValidationResult } from "./matchdataSchema.ts";
 import { validateMatchdata } from "./matchdataSchema.ts";
 
@@ -426,62 +427,20 @@ const isUntrackedQualifierMatch = (
     return (roundSizes.get(roundKey(m)) ?? 0) > 8 || publisherTier === "Tier 2 Qualifier";
 };
 
-const LINEUP_WINDOW_SECONDS = 21 * 24 * 3600;
-
-// Liquipedia lists every player who appeared in a series (6+ after a substitution) and sometimes
-// fewer than 5; Valve's HLTV data always has the 5-player lineup, which the team's nearby matches predict.
+// Valve's HLTV data always has the 5-player lineup, which the team's nearby matches predict.
 export const resolveLineups = (matches: ValveMatch[]): ValveMatch[] => {
-    const fullLineups = new Map<string, Array<{ t: number; players: ValvePlayer[] }>>();
-    for (const m of matches) {
-        for (const [teamId, players] of [
-            [m.team1Id, m.team1Players],
-            [m.team2Id, m.team2Players],
-        ] as const) {
-            if (players.length !== 5) continue;
-            const key = String(teamId);
-            if (!fullLineups.has(key)) fullLineups.set(key, []);
-            fullLineups.get(key)!.push({ t: m.matchStartTime, players });
-        }
-    }
-
-    const resolve = (teamId: string | number, t: number, listed: ValvePlayer[]): ValvePlayer[] | null => {
-        if (listed.length === 5) return listed;
-        if (listed.length === 0) return null;
-
-        const counts = new Map<string, { player: ValvePlayer; n: number }>();
-        for (const lineup of fullLineups.get(String(teamId)) ?? []) {
-            if (Math.abs(lineup.t - t) > LINEUP_WINDOW_SECONDS) continue;
-            for (const p of lineup.players) {
-                const key = String(p.playerId);
-                const entry = counts.get(key) ?? { player: p, n: 0 };
-                entry.n++;
-                counts.set(key, entry);
-            }
-        }
-        const frequency = (p: ValvePlayer) => counts.get(String(p.playerId))?.n ?? 0;
-
-        if (listed.length > 5) {
-            return listed
-                .map((p, idx) => ({ p, idx }))
-                .sort((a, b) => frequency(b.p) - frequency(a.p) || a.idx - b.idx)
-                .slice(0, 5)
-                .sort((a, b) => a.idx - b.idx)
-                .map(({ p }) => p);
-        }
-
-        const listedIds = new Set(listed.map((p) => String(p.playerId)));
-        const fillers = [...counts.values()]
-            .filter(({ player }) => !listedIds.has(String(player.playerId)))
-            .sort((a, b) => b.n - a.n)
-            .slice(0, 5 - listed.length)
-            .map(({ player }) => player);
-        return listed.length + fillers.length === 5 ? [...listed, ...fillers] : null;
-    };
+    const resolve = makeLineupResolver(
+        matches.flatMap((m) => [
+            { team: String(m.team1Id), t: m.matchStartTime, players: m.team1Players },
+            { team: String(m.team2Id), t: m.matchStartTime, players: m.team2Players },
+        ]),
+        (p) => String(p.playerId)
+    );
 
     const resolved: ValveMatch[] = [];
     for (const m of matches) {
-        const team1Players = resolve(m.team1Id, m.matchStartTime, m.team1Players);
-        const team2Players = resolve(m.team2Id, m.matchStartTime, m.team2Players);
+        const team1Players = resolve(String(m.team1Id), m.matchStartTime, m.team1Players);
+        const team2Players = resolve(String(m.team2Id), m.matchStartTime, m.team2Players);
         if (!team1Players || !team2Players) continue;
         resolved.push(
             team1Players === m.team1Players && team2Players === m.team2Players

@@ -22,6 +22,7 @@ import {
     Section,
     Segmented,
 } from "../components/ui.tsx";
+import { LiquipediaCredit } from "../components/LiquipediaCredit.tsx";
 import type { Region, Roster, RosterFactors, Standings as StandingsData } from "../vrs/types.ts";
 
 const REGIONS: Array<"Global" | Region> = ["Global", "Europe", "Americas", "Asia"];
@@ -365,27 +366,7 @@ export const Standings = () => {
                         )}
                     </TableBody>
                 </DataTable>
-                <div className="mt-4 text-xs text-muted">
-                    Match and tournament data sourced from{" "}
-                    <a
-                        href="https://liquipedia.net/counterstrike/"
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="underline hover:text-fg transition-colors"
-                    >
-                        Liquipedia
-                    </a>{" "}
-                    under{" "}
-                    <a
-                        href="https://creativecommons.org/licenses/by-sa/3.0/"
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="underline hover:text-fg transition-colors"
-                    >
-                        CC-BY-SA 3.0
-                    </a>
-                    .
-                </div>
+                <LiquipediaCredit />
             </Section>
         </div>
     );

@@ -22,5 +22,5 @@
         "noFallthroughCasesInSwitch": true,
         "noUncheckedSideEffectImports": true
     },
-    "include": ["scripts", "src/vrs"]
+    "include": ["scripts", "src/vrs", "src/elo"]
 }

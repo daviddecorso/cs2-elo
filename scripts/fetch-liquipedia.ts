@@ -70,6 +70,54 @@ const fetchDatedTable = async (
     return fetched;
 };
 
+const SQUAD_REFRESH_DAYS = 7;
+const SQUAD_ACTIVE_DAYS = 90;
+const SQUAD_MAX_TIER = 3;
+
+/** Active player squads for teams with a tier 1–3 series in the last 90 days, refetched weekly (about 10 requests). */
+const fetchSquads = async (outDir: string, matches: Array<Record<string, unknown>>, today: string) => {
+    const squadsPath = path.join(outDir, "squads.json");
+    const stored = fs.existsSync(squadsPath)
+        ? (JSON.parse(fs.readFileSync(squadsPath, "utf8")) as { fetched: string; rows: Row[] })
+        : null;
+    if (stored && addDays(stored.fetched, SQUAD_REFRESH_DAYS) > today) {
+        console.log(`Squads fetched ${stored.fetched}; next refresh after ${SQUAD_REFRESH_DAYS} days.`);
+        return;
+    }
+
+    const since = addDays(today, -SQUAD_ACTIVE_DAYS);
+    const teams = new Set<string>();
+    for (const m of matches) {
+        if (String(m.date ?? "") < since || Number(m.liquipediatier) > SQUAD_MAX_TIER) continue;
+        for (const opp of Array.isArray(m.match2opponents) ? m.match2opponents : []) {
+            const page = opp?.teamtemplate?.page;
+            if (typeof page === "string" && page) teams.add(page.replace(/ /g, "_"));
+        }
+    }
+
+    const teamList = [...teams].sort();
+    console.log(`Fetching active squads for ${teamList.length} teams from /squadplayer...`);
+    const rows: Row[] = [];
+    try {
+        for (let i = 0; i < teamList.length; i += 50) {
+            const pages = teamList.slice(i, i + 50).map((t) => `[[pagename::${t}]]`).join(" OR ");
+            rows.push(
+                ...(await fetchLiquipediaAll("squadplayer", {
+                    conditions: `(${pages}) AND [[status::active]] AND [[type::player]]`,
+                    query: "pagename,link,id,role,status,joindate",
+                    order: "objectname ASC",
+                    limit: 500,
+                }))
+            );
+        }
+    } catch (err) {
+        console.warn(`Warning: /squadplayer fetch stopped early, keeping the stored squads: ${(err as Error).message}`);
+        return;
+    }
+    fs.writeFileSync(squadsPath, JSON.stringify({ fetched: today, rows }), "utf8");
+    console.log(`Stored ${rows.length} active squad players.`);
+};
+
 const main = async () => {
     const { fromDate, toDate, outDir, forceFull } = parseArgs();
     fs.mkdirSync(outDir, { recursive: true });
@@ -160,6 +208,8 @@ const main = async () => {
 
     console.log(`Saved ${playersByPage.size} player records.`);
     fs.writeFileSync(playersFilePath, JSON.stringify([...playersByPage.values()], null, 2), "utf8");
+
+    await fetchSquads(outDir, matches as Array<Record<string, unknown>>, today);
 
     const nextMeta: StoreMeta = {
         from: fromDate,

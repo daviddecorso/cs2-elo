@@ -18,7 +18,11 @@
         "make-fixture": "vite-node scripts/make-fixture.ts",
         "fetch-liquipedia": "vite-node scripts/fetch-liquipedia.ts",
         "build-matchdata": "vite-node scripts/build-matchdata.ts",
-        "diff-details": "vite-node scripts/diff-details.ts"
+        "diff-details": "vite-node scripts/diff-details.ts",
+        "backfill-liquipedia": "vite-node scripts/backfill-liquipedia.ts",
+        "freeze-history": "vite-node scripts/freeze-history.ts",
+        "backtest-elo": "vite-node scripts/backtest-elo.ts",
+        "build-elo": "vite-node scripts/build-elo.ts"
     },
     "dependencies": {
         "@fontsource-variable/geist": "^5.3.0",

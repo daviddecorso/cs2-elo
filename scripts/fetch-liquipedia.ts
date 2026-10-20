@@ -9,6 +9,8 @@ import {
     type Row,
     type StoreMeta,
 } from "./lib/liquipedia/rawStore.ts";
+import { fetchUpcoming } from "./lib/liquipedia/upcoming.ts";
+import { loadEventConfigs } from "./lib/sim/config.ts";
 import { normalizeCountryIso } from "./lib/vrs/buildMatchdata.ts";
 
 const parseArgs = () => {
@@ -80,7 +82,9 @@ const fetchSquads = async (outDir: string, matches: Array<Record<string, unknown
     const stored = fs.existsSync(squadsPath)
         ? (JSON.parse(fs.readFileSync(squadsPath, "utf8")) as { fetched: string; rows: Row[] })
         : null;
-    if (stored && addDays(stored.fetched, SQUAD_REFRESH_DAYS) > today) {
+    // Stores written before `objectname` was queried hold one player per team, because rows were deduped by page name.
+    const complete = stored?.rows.every((r) => r.objectname);
+    if (stored && complete && addDays(stored.fetched, SQUAD_REFRESH_DAYS) > today) {
         console.log(`Squads fetched ${stored.fetched}; next refresh after ${SQUAD_REFRESH_DAYS} days.`);
         return;
     }
@@ -104,7 +108,7 @@ const fetchSquads = async (outDir: string, matches: Array<Record<string, unknown
             rows.push(
                 ...(await fetchLiquipediaAll("squadplayer", {
                     conditions: `(${pages}) AND [[status::active]] AND [[type::player]]`,
-                    query: "pagename,link,id,role,status,joindate",
+                    query: "pagename,objectname,link,id,role,status,joindate",
                     order: "objectname ASC",
                     limit: 500,
                 }))
@@ -210,6 +214,12 @@ const main = async () => {
     fs.writeFileSync(playersFilePath, JSON.stringify([...playersByPage.values()], null, 2), "utf8");
 
     await fetchSquads(outDir, matches as Array<Record<string, unknown>>, today);
+
+    try {
+        await fetchUpcoming(outDir, today, loadEventConfigs().map((c) => c.liquipedia));
+    } catch (err) {
+        console.warn(`Warning: upcoming fetch failed, keeping the stored upcoming.json: ${(err as Error).message}`);
+    }
 
     const nextMeta: StoreMeta = {
         from: fromDate,

@@ -4,6 +4,8 @@ import { SettingsMenu } from "./SettingsMenu.tsx";
 const NAV_ITEMS = [
     { path: "/", label: "Standings" },
     { path: "/elo", label: "Elo" },
+    { path: "/events", label: "Events" },
+    { path: "/major-invites", label: "Major invites" },
     { path: "/methodology", label: "Methodology" },
 ];
 
@@ -34,7 +36,7 @@ export const AppShell = () => {
 
                         <nav className="hidden xl:flex h-12 items-center gap-1">
                             {NAV_ITEMS.map(({ path, label }) => (
-                                <Link key={path} to={path} className={navLinkClass(pathname === path)}>
+                                <Link key={path} to={path} className={navLinkClass(pathname === path || pathname.startsWith(`${path}/`))}>
                                     {label}
                                 </Link>
                             ))}
@@ -46,7 +48,7 @@ export const AppShell = () => {
 
                 <nav className="xl:hidden h-10 border-t border-line flex px-4 sm:px-6 lg:px-8 overflow-x-auto">
                     {NAV_ITEMS.map(({ path, label }) => (
-                        <Link key={path} to={path} className={navLinkClass(pathname === path)}>
+                        <Link key={path} to={path} className={navLinkClass(pathname === path || pathname.startsWith(`${path}/`))}>
                             {label}
                         </Link>
                     ))}

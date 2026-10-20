@@ -1,0 +1,18 @@
+{
+    "slug": "pgl-major-singapore-2026",
+    "name": "PGL Major Singapore 2026",
+    "liquipedia": "PGL/2026/Singapore",
+    "snapshotDate": "2026-11-02",
+    "snapshotEstimated": false,
+    "previousMajor": {
+        "event": "iem-cologne-2026",
+        "slots": {
+            "stage3": { "Europe": 6, "Americas": 2, "Asia": 0 },
+            "stage2": { "Europe": 6, "Americas": 1, "Asia": 1 }
+        }
+    },
+    "stage1": { "Europe": 6, "Americas": 6, "Asia": 4 },
+    "minRetained": 3,
+    "source": "Liquipedia's VRS (Nov. 2026) participant slots, which match the regions of Cologne 2026's top 8 and 9th–16th",
+    "verified": false
+}

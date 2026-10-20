@@ -14,6 +14,39 @@ An entry is kept only if it lowers gate log loss. Tuning moves of under 0.0005 c
 - A LAN vs online split for `seriesMapTemp`.
 - Walk-forward validation (tune on 2024, score 2025) to check that the parameters are stable across years.
 
+## 2026-10-20: Simulator rating noise — per-event form rejected, horizon drift kept
+
+**Question:** The tournament simulator ([simulator.md](simulator.md)) holds Elo fixed. Should each simulation draw a strength offset per team that's shared across its matches? The offset has to describe real correlation that the per-series odds don't already include. Elo's series odds are already calibrated as marginals, so any extra noise also flattens every single match. `npm run fit-sim-noise` measures both candidates.
+
+**Per-event form (rejected).** The method of moments on residual covariance between a team's series in the same event: σ² = Σ rᵢrⱼ / Σ gᵢgⱼ over pairs, where g is the series probability's slope per Elo point. Jackknife SEs are over team-events.
+
+| Period | Team-events | Series pairs | σ² (Elo²) |
+| --- | --- | --- | --- |
+| 2024 | 13,404 | 112,707 | 610 ± 369 |
+| 2025 | 13,270 | 94,647 | −12 ± 369 |
+| 2026 | 12,012 | 49,342 | −619 ± 448 |
+
+None of these is distinguishable from 0. Within an event, a team's results don't share form beyond what Elo's in-event updates already capture.
+
+**Horizon drift (kept).** Var(rating(t+h) − rating(t)) per team over 2025–2026 grows linearly with h:
+
+| h (days) | 7 | 15 | 30 | 45 | 60 | 90 | 120 |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| Var (Elo²) | 1,768 | 2,502 | 3,565 | 4,605 | 5,519 | 6,939 | 8,448 |
+
+- The slope is q ≈ 58 Elo²/day, about σ 42 at 30 days. The intercept of about 1,700 is Elo's update jitter, which saturates, so only the slope is real drift. It includes roster changes.
+- The simulator draws each team's offset as a random walk with variance q per day, sampled at each event's start. A team that drifts up for one event stays up for later events in the same simulation.
+- No sharpening is applied, because drift is uncertainty the today-ratings genuinely don't have. At horizon 0 (an event in progress), predictions are plain Elo.
+
+**Cologne 2026 check** (`npm run backtest-sim`, Elo frozen at the event start, horizon 0, 10,000 runs), against coin flips:
+
+| Model | Placement log loss | Champion Brier | Playoffs Brier |
+| --- | --- | --- | --- |
+| Elo | 1.960 | 0.0354 | 0.1438 |
+| Coin flip | 2.146 | 0.0285 | 0.1557 |
+
+The champion Brier is one outcome (Falcons) and is noise at this sample size.
+
 ## 2026-10-20: Series map temperature (`seriesMapTemp`) — kept
 
 **Change:** Before the Bo3/Bo5 binomial, scale the pool-average map logit by `seriesMapTemp`. Bo1 and per-map predictions are unchanged, and so are rating updates. In the same run, `tierGap`'s search ceiling went from 400 to 800 and everything was retuned.

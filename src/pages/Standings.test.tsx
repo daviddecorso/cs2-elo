@@ -8,32 +8,42 @@ import { AppShell } from "../components/AppShell.tsx";
 import { Standings } from "./Standings.tsx";
 import type { Standings as StandingsData } from "../vrs/types.ts";
 
+const latestData = JSON.parse(
+    fs.readFileSync(path.resolve(process.cwd(), "public/data/vrs/latest.json"), "utf8")
+) as StandingsData;
+
+const render = (live: StandingsData | null, url = "/") => {
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    queryClient.setQueryData(["standings", "latest"], latestData);
+    queryClient.setQueryData(["standings", "live"], live);
+    return renderToString(
+        <QueryClientProvider client={queryClient}>
+            <MemoryRouter initialEntries={[url]}>
+                <Routes>
+                    <Route element={<AppShell />}>
+                        <Route path="/" element={<Standings />} />
+                    </Route>
+                </Routes>
+            </MemoryRouter>
+        </QueryClientProvider>
+    );
+};
+
+const liveData: StandingsData = {
+    ...latestData,
+    source: "model",
+    snapshotDate: "2026-10-20",
+    asOf: "2026-10-19",
+    previousSnapshot: latestData.snapshotDate,
+    rosters: latestData.rosters.map((r) => ({
+        ...r,
+        previousRank: r.teamName === "Spirit" ? 3 : r.globalRank,
+    })),
+};
+
 describe("Standings Page", () => {
     it("renders region tabs, rows and footer against latest.json", () => {
-        const latestJsonPath = path.resolve(process.cwd(), "public/data/vrs/latest.json");
-        const raw = fs.readFileSync(latestJsonPath, "utf8");
-        const latestData = JSON.parse(raw) as StandingsData;
-
-        const queryClient = new QueryClient({
-            defaultOptions: {
-                queries: {
-                    retry: false,
-                },
-            },
-        });
-        queryClient.setQueryData(["standings", "latest"], latestData);
-
-        const html = renderToString(
-            <QueryClientProvider client={queryClient}>
-                <MemoryRouter initialEntries={["/"]}>
-                    <Routes>
-                        <Route element={<AppShell />}>
-                            <Route path="/" element={<Standings />} />
-                        </Route>
-                    </Routes>
-                </MemoryRouter>
-            </QueryClientProvider>
-        );
+        const html = render(null);
 
         // Region tabs
         expect(html).toContain("Global");
@@ -51,5 +61,21 @@ describe("Standings Page", () => {
         expect(html).toContain("Valve Published Standings");
         expect(html).toContain("Event data for Regional Standings provided by HLTV.org");
         expect(html).toContain("CS2 Regional Standings model");
+        expect(html).not.toContain("Standings source");
+    });
+
+    it("defaults to live standings with rank change when live.json exists", () => {
+        const html = render(liveData);
+        expect(html).toContain("Standings source");
+        expect(html).toContain("Live as of 2026-10-19");
+        expect(html).toContain("Model Simulation");
+        expect(html).toContain("▲2");
+        expect(html).toContain("Liquipedia");
+    });
+
+    it("shows the published snapshot when asked", () => {
+        const html = render(liveData, "/?view=published");
+        expect(html).toContain("Valve Published Standings");
+        expect(html).not.toContain("▲2");
     });
 });

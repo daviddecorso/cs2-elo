@@ -1,0 +1,42 @@
+{
+    "slug": "pgl-lodz-2027",
+    "name": "PGL Łódź 2027",
+    "liquipedia": "PGL/2027/Łódź",
+    "startDate": "2027-03-18",
+    "endDate": "2027-03-28",
+    "lan": true,
+    "stages": [
+        {
+            "id": "swiss",
+            "name": "Swiss stage",
+            "page": "PGL/2027/Łódź",
+            "sections": ["Round 1", "Round 2", "Round 3", "Round 4", "Round 5"],
+            "format": "swiss",
+            "bestOf": { "default": 3 },
+            "invited": [],
+            "advance": 8,
+            "exits": { "2-3": "9-11", "1-3": "12-14", "0-3": "15-16" }
+        },
+        {
+            "id": "playoffs",
+            "name": "Playoffs",
+            "page": "PGL/2027/Łódź",
+            "sections": ["Playoffs"],
+            "format": "bracket",
+            "bestOf": { "default": 3 },
+            "from": "swiss",
+            "matches": [
+                { "id": "qf1", "teams": ["s1", "s8"] },
+                { "id": "qf2", "teams": ["s4", "s5"] },
+                { "id": "qf3", "teams": ["s2", "s7"] },
+                { "id": "qf4", "teams": ["s3", "s6"] },
+                { "id": "sf1", "teams": ["w:qf1", "w:qf2"] },
+                { "id": "sf2", "teams": ["w:qf3", "w:qf4"] },
+                { "id": "f", "teams": ["w:sf1", "w:sf2"], "bestOf": 5 },
+                { "id": "tp", "teams": ["l:sf1", "l:sf2"] }
+            ],
+            "advance": 0,
+            "exits": { "qf1": "5-8", "qf2": "5-8", "qf3": "5-8", "qf4": "5-8", "tp": "4", "w:tp": "3", "f": "2", "w:f": "1" }
+        }
+    ]
+}

@@ -1,7 +1,9 @@
 {
     "description": "Unix-second end of Valve's data window per published snapshot, solved from the age weights in that snapshot's details files.",
     "windowEnds": {
-        "2026-10-05": 1791208800,
-        "2026-09-07": 1788817680
+        "2026-07-06": 1783346400,
+        "2026-08-03": 1785769920,
+        "2026-09-07": 1788817680,
+        "2026-10-05": 1791208800
     }
 }

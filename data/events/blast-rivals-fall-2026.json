@@ -1,0 +1,64 @@
+{
+    "slug": "blast-rivals-fall-2026",
+    "name": "BLAST Rivals Fall 2026",
+    "liquipedia": "BLAST/Rivals/2026/Fall",
+    "startDate": "2026-11-11",
+    "endDate": "2026-11-15",
+    "lan": true,
+    "stages": [
+        {
+            "id": "groupA",
+            "name": "Group A",
+            "page": "BLAST/Rivals/2026/Fall",
+            "sections": ["Group A"],
+            "format": "bracket",
+            "bestOf": { "default": 3 },
+            "invited": [],
+            "matches": [
+                { "id": "o1", "teams": ["s1", "s2"] },
+                { "id": "o2", "teams": ["s3", "s4"] },
+                { "id": "em", "teams": ["l:o1", "l:o2"] },
+                { "id": "wm", "teams": ["w:o1", "w:o2"] }
+            ],
+            "qualify": ["w:wm", "l:wm", "w:em"],
+            "advance": 3,
+            "exits": { "em": "7-8" }
+        },
+        {
+            "id": "groupB",
+            "name": "Group B",
+            "page": "BLAST/Rivals/2026/Fall",
+            "sections": ["Group B"],
+            "format": "bracket",
+            "bestOf": { "default": 3 },
+            "invited": [],
+            "matches": [
+                { "id": "o1", "teams": ["s1", "s2"] },
+                { "id": "o2", "teams": ["s3", "s4"] },
+                { "id": "em", "teams": ["l:o1", "l:o2"] },
+                { "id": "wm", "teams": ["w:o1", "w:o2"] }
+            ],
+            "qualify": ["w:wm", "l:wm", "w:em"],
+            "advance": 3,
+            "exits": { "em": "7-8" }
+        },
+        {
+            "id": "playoffs",
+            "name": "Playoffs",
+            "page": "BLAST/Rivals/2026/Fall",
+            "sections": ["Playoffs"],
+            "format": "bracket",
+            "bestOf": { "default": 3 },
+            "from": ["groupA", "groupB"],
+            "matches": [
+                { "id": "qf1", "teams": ["s5", "s3"] },
+                { "id": "qf2", "teams": ["s2", "s6"] },
+                { "id": "sf1", "teams": ["s1", "w:qf1"] },
+                { "id": "sf2", "teams": ["s4", "w:qf2"] },
+                { "id": "f", "teams": ["w:sf1", "w:sf2"], "bestOf": 5 }
+            ],
+            "advance": 0,
+            "exits": { "qf1": "5-6", "qf2": "5-6", "sf1": "3-4", "sf2": "3-4", "f": "2", "w:f": "1" }
+        }
+    ]
+}

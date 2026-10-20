@@ -4,6 +4,8 @@ import { AppShell } from "./components/AppShell.tsx";
 import { Standings } from "./pages/Standings.tsx";
 import { EloRankings } from "./pages/EloRankings.tsx";
 import { Methodology } from "./pages/Methodology.tsx";
+import { EventList, EventOdds } from "./pages/EventOdds.tsx";
+import { MajorInvites } from "./pages/MajorInvites.tsx";
 
 const queryClient = new QueryClient({
     defaultOptions: {
@@ -23,6 +25,9 @@ export const App = () => {
                     <Route element={<AppShell />}>
                         <Route path="/" element={<Standings />} />
                         <Route path="/elo" element={<EloRankings />} />
+                        <Route path="/events" element={<EventList />} />
+                        <Route path="/events/:slug" element={<EventOdds />} />
+                        <Route path="/major-invites" element={<MajorInvites />} />
                         <Route path="/methodology" element={<Methodology />} />
                     </Route>
                     <Route path="*" element={<Navigate to="/" replace />} />

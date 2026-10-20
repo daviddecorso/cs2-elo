@@ -27,12 +27,37 @@ See [elo-model.md](elo-model.md).
 
 ## VRS to the gate
 
-- [ ] **Make the gate the pass/fail.** Add a top-50 / cutoff mode to `compareStandings`. `verify-vrs` passes or fails on it, with `--all-calibrated` running every date in `snapshotWindowEnds.json`.
-- [ ] **More snapshots.** Turn the scratch calibration solver into `scripts/calibrate-window.ts`. Calibrate 2026-08-03 and 2026-07-06 (the fetch needs to reach back to early January), then verify across all of them. 2026-11-02 uses the same script once it's published.
+- [x] **Make the gate the pass/fail.** `compareStandings` reports the gate, `verify-vrs` exits on it, and `--all-calibrated` runs every calibrated date. Every snapshot fails today on points error.
+- [x] **More snapshots.** Four snapshots are calibrated and verified (2026-07-06 to 2026-10-05). Verifying 2026-07-06 needs `data/raw/` to reach back to 2026-01-07 (`fetch-liquipedia --from 2026-01-01`). 2026-11-02 uses `calibrate-window` once it's published.
+- [ ] **Esports Nations Cup 2026 qualifiers.** Work out which of these matches HLTV, and so Valve, has, using the match ID gaps in the details files. Drop the rest. They make Echo and Bulgaria unranked on 2026-08-03.
 - [ ] **Fix only what moves the top 50.** Point `diff-details` at the top-50 rosters and their opponents. Allow a per-event override only when it improves every calibrated snapshot.
-- [ ] **Close the factor gaps.** Bounty collected is exact for only 31% of top rosters, and bounty offered misses for 12%. Most of this is likely prize money and club share (`clubShare` is always 0 today). Confirm event by event from the Bounty Offered tables in the details files. Fix bounty offered first, since bounty collected depends on opponents' bounty offered.
+- [x] **Split Majors into stages.** Cologne's event weights and Stage 2 prize dates now match Valve.
+- [ ] **Tier-3 LAN coverage.** DEPO, Omega and other Central Asian rosters have LAN matches Valve doesn't, which inflates the LAN and opponent-network references for every team (vrs-verification.md). Find the events with `diff-details` and work out the rule HLTV follows.
+- [ ] **IEM prize distribution.** Valve's IEM Rio and Atlanta 2026 payouts differ from Liquipedia's with the same total (1st 295k vs 285k, 2nd 170k vs 150k, 9th–12th 20k vs 25k). Add overrides, and a rule if future IEMs follow the same split.
+- [ ] **Generated prize overrides.** Build a script that compares the Bounty Offered tables across all calibrated snapshots and proposes `prizeDistributionOverrides` where they agree, for one-offs like NODWIN Clutch Series #12.
+
+## Simulator and Major invites
+
+See [simulator.md](simulator.md).
+
+- [x] **Simulator core.** Swiss, single and double elimination, GSL and round robin. Major Swiss reproduces every Cologne 2026 pairing.
+- [x] **Rating noise.** Per-event form rejected; horizon drift kept (elo-experiments.md).
+- [x] **VRS layer.** Round trip on Cologne 2026 is exact with the event's lineups. Runs in parallel on worker threads.
+- [x] **Invite allocation** and the `/events` and `/major-invites` pages.
+- [x] **Live standings and Singapore invite odds.** `update-data` writes daily model standings, and `simulate` projects every upcoming invite snapshot. Singapore's (2026-11-02) uses Cologne's fixed slot split.
+- [ ] **Refetch squads.** `squads.json` kept one player per team, because the query lacked `objectname`. The next `fetch-liquipedia` refetches it; until then the intact rule and squad lineups are off.
+- [ ] **PGL Major Singapore participants.** The config is in place with empty `invited` lists. Fill them once Liquipedia lists the 2026-11-02 VRS invites; it must be live before 25 November 2026.
+- [ ] **Buenos Aires invite rule.** Check the inferred split (Stage 3 and 2 from the previous Major's top 8 and 9th–16th, Stage 1 fixed at 6/6/4) and `minRetained` against the rulebook, then set `verified`.
+- [ ] **Configure the other announced events before the snapshot**, each with a prize table. Live: PGL Masters Bucharest 2026, Stake Ranked Episode 5, IEM Beijing 2026. Waiting on participants or the group draw (empty `invited`): BLAST Rivals Fall 2026, PGL Bucharest, Cluj-Napoca and Łódź 2027, ESL Pro League S25, BLAST Open Spring 2027. Not configured:
+  - Stake Ranked Episode 6: no draw yet.
+  - IEM Kraków 2027: its play-in feeds the groups, and which play-in results go where isn't on Liquipedia yet.
+  - BLAST Bounty Winter 2027: the format isn't clear from the brackets.
+  - EXTREMESLAND 2026: Liquipedia shows its groups twice.
+  - Tier 3 events.
+- [ ] **Showmatches in matchdata.** IEM Cologne 2026's Team Germany v Betclic showmatch is `valveRanked` in `data/matchdata.json`. Check whether Valve counts it; if not, add it to `excludedMatches`.
+- [ ] **Close the bounty gaps first** (below). Simulated prize money feeds exactly the factors our reproduction is weakest on.
 
 ## Open items
 
-- Confirm invite cutoffs against Valve's rulebook.
+- Confirm invite cutoffs against Valve's rulebook. `src/vrs/inviteCutoffs.ts`' 16/8/8 doesn't match what Cologne 2026 invited.
 - Once a page showing Liquipedia data is live, send the project link to Liquipedia for verification.

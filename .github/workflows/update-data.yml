@@ -60,6 +60,13 @@ jobs:
         run: |
           npm run build-elo
           npm run backtest-elo
+      - name: Fetch team logos
+        continue-on-error: true
+        run: npm run fetch-logos
+      # A broken event config shouldn't hold back the rest of the nightly data.
+      - name: Simulate events and Major invites
+        continue-on-error: true
+        run: npm run simulate
       - run: npm run test:run
       - uses: actions/upload-artifact@v4
         with:
@@ -70,7 +77,7 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add public/data vendor/counter-strike_regional_standings data/overrides.json data/history
+          git add public/data public/logos vendor/counter-strike_regional_standings data/overrides.json data/history
           if ! git diff --cached --quiet; then
             git commit -m "Update data"
             git pull --rebase

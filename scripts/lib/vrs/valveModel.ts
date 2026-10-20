@@ -176,6 +176,8 @@ const WINDOW_ENDS: Record<string, number> = JSON.parse(
     fs.readFileSync(path.join(currentDir, "snapshotWindowEnds.json"), "utf8")
 ).windowEnds;
 
+export const calibratedSnapshotDates = (): string[] => Object.keys(WINDOW_ENDS).sort();
+
 const DEFAULT_PULL_HOUR_LA = 7;
 
 export interface SnapshotWindow {
@@ -197,6 +199,11 @@ export const getSnapshotWindow = (snapshotDate: string): SnapshotWindow => {
     };
 };
 
+export interface StandingsOptions {
+    /** End the 180-day window at the pull time rather than the latest match, for projected snapshots with no data near the date. */
+    windowEndsAtPull?: boolean;
+}
+
 interface SnapshotEvent {
     eventId: string | number;
     finished?: boolean;
@@ -206,9 +213,12 @@ interface SnapshotEvent {
 const prepareSnapshotInput = (
     matchData: unknown[],
     eventData: unknown[],
-    snapshotDate: string
+    snapshotDate: string,
+    options: StandingsOptions
 ): { json: string; versionTimestamp: number } => {
-    const { pullTime, versionTimestamp } = getSnapshotWindow(snapshotDate);
+    const window = getSnapshotWindow(snapshotDate);
+    const { pullTime } = window;
+    const versionTimestamp = options.windowEndsAtPull ? pullTime : window.versionTimestamp;
     const matches = matchData as Array<{ matchStartTime: number; eventId: string | number }>;
 
     const eventsWithLaterMatches = new Set(
@@ -260,9 +270,10 @@ const toRoster = (team: ValveTeam): Roster => {
 const runModel = (
     matchData: unknown[],
     eventData: unknown[],
-    snapshotDate: string
+    snapshotDate: string,
+    options: StandingsOptions = {}
 ): { standings: Standings; teams: ValveTeam[] } => {
-    const { json, versionTimestamp } = prepareSnapshotInput(matchData, eventData, snapshotDate);
+    const { json, versionTimestamp } = prepareSnapshotInput(matchData, eventData, snapshotDate, options);
     inMemoryJson = json;
 
     const [, teams] = getRankingModule().generateRanking(versionTimestamp, "in-memory-sentinel.json");
@@ -285,8 +296,9 @@ const runModel = (
 export const computeStandings = (
     matchData: unknown[],
     eventData: unknown[],
-    snapshotDate: string
-): Standings => runModel(matchData, eventData, snapshotDate).standings;
+    snapshotDate: string,
+    options: StandingsOptions = {}
+): Standings => runModel(matchData, eventData, snapshotDate, options).standings;
 
 export const computeStandingsWithDetails = (
     matchData: unknown[],

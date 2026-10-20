@@ -9,6 +9,7 @@ import {
     TableBody,
     Row,
     Td,
+    Th,
     SortHeader,
     FactorBar,
 } from "../components/DataTable.tsx";
@@ -22,7 +23,9 @@ import {
     Section,
     Segmented,
 } from "../components/ui.tsx";
+import { Link } from "react-router-dom";
 import { LiquipediaCredit } from "../components/LiquipediaCredit.tsx";
+import { TeamLogo } from "../components/TeamLogo.tsx";
 import type { Region, Roster, RosterFactors, Standings as StandingsData } from "../vrs/types.ts";
 
 const REGIONS: Array<"Global" | Region> = ["Global", "Europe", "Americas", "Asia"];
@@ -46,16 +49,27 @@ const FACTOR_LABELS: Record<keyof RosterFactors, string> = {
     lanFactor: "LAN Wins",
 };
 
-const COLUMN_COUNT = 8;
+type View = "Live" | "Published";
+const VIEWS: View[] = ["Live", "Published"];
 
 const signed = (value: number) => (value >= 0 ? `+${value.toFixed(1)}` : value.toFixed(1));
 
-const fetchLatestStandings = async (): Promise<StandingsData> => {
-    const res = await fetch(`${import.meta.env.BASE_URL}data/vrs/latest.json`);
+/** Null for a missing file: a 404, or the HTML page Vite's dev server returns instead. */
+const fetchStandings = async (file: string): Promise<StandingsData | null> => {
+    const res = await fetch(`${import.meta.env.BASE_URL}data/vrs/${file}.json`);
+    if (res.status === 404 || !res.headers.get("content-type")?.includes("json")) return null;
     if (!res.ok) {
         throw new Error(`Failed to load standings: HTTP ${res.status}`);
     }
     return res.json();
+};
+
+const RankChange = ({ now, before }: { now: number | null; before: number | null | undefined }) => {
+    if (now === null) return null;
+    if (before === null || before === undefined) return <span className="text-accent">new</span>;
+    const diff = before - now;
+    if (diff === 0) return <span className="text-muted/50">–</span>;
+    return <span className={diff > 0 ? "text-up" : "text-down"}>{diff > 0 ? `▲${diff}` : `▼${-diff}`}</span>;
 };
 
 const RosterDetails = ({ roster }: { roster: Roster }) => (
@@ -101,11 +115,20 @@ export const Standings = () => {
     const currentRegion = (queryParams.get("region") as "Global" | Region) || "Global";
     const selectedRegion = REGIONS.includes(currentRegion) ? currentRegion : "Global";
 
-    const { data, isLoading, error } = useQuery({
+    const published = useQuery({
         queryKey: ["standings", "latest"],
-        queryFn: fetchLatestStandings,
+        queryFn: () => fetchStandings("latest"),
         staleTime: 1000 * 60 * 10,
     });
+    const liveQuery = useQuery({
+        queryKey: ["standings", "live"],
+        queryFn: () => fetchStandings("live"),
+        staleTime: 1000 * 60 * 10,
+    });
+    const hasLive = !!liveQuery.data;
+    const view: View = hasLive && queryParams.get("view") !== "published" ? "Live" : "Published";
+    const { data, isLoading, error } = view === "Live" ? liveQuery : published;
+    const isLive = view === "Live";
 
     const { sort, onSort } = useTableSort<SortKey>(SORT_KEYS);
     const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
@@ -183,7 +206,7 @@ export const Standings = () => {
         setQueryParams({ region: region === "Global" ? null : region });
     };
 
-    if (isLoading) {
+    if (isLoading || (!hasLive && liveQuery.isLoading)) {
         return <LoadingBar label="Loading standings…" />;
     }
 
@@ -196,6 +219,8 @@ export const Standings = () => {
     }
 
     const isGlobal = selectedRegion === "Global";
+    const showChange = isLive && isGlobal;
+    const columnCount = showChange ? 9 : 8;
 
     return (
         <div className="space-y-10">
@@ -203,7 +228,7 @@ export const Standings = () => {
                 title="CS2 Regional Standings"
                 subtitle={
                     <>
-                        Snapshot {data.snapshotDate} /{" "}
+                        {isLive ? `Live as of ${data.asOf ?? data.snapshotDate}` : `Snapshot ${data.snapshotDate}`} /{" "}
                         {data.source === "valve-published" ? "Valve Published Standings" : "Model Simulation"}{" "}
                         / model{" "}
                         <a
@@ -217,17 +242,38 @@ export const Standings = () => {
                     </>
                 }
                 actions={
-                    <Segmented
-                        aria-label="Region"
-                        options={REGIONS}
-                        value={selectedRegion}
-                        onChange={handleSelectRegion}
-                    />
+                    <div className="flex flex-wrap gap-2">
+                        {hasLive && (
+                            <Segmented
+                                aria-label="Standings source"
+                                options={VIEWS}
+                                value={view}
+                                onChange={(v) => setQueryParams({ view: v === "Live" ? null : "published" })}
+                            />
+                        )}
+                        <Segmented
+                            aria-label="Region"
+                            options={REGIONS}
+                            value={selectedRegion}
+                            onChange={handleSelectRegion}
+                        />
+                    </div>
                 }
             />
 
+            {isLive && (
+                <p className="text-xs text-muted">
+                    Valve's model run on Liquipedia match data through today. It isn't Valve's ranking: on published
+                    snapshots it places about 45 of the top 50 within two ranks.{" "}
+                    <Link to="/methodology" className="text-accent hover:underline">
+                        Methodology
+                    </Link>
+                    . Change is against the model's own standings at the {data.previousSnapshot} snapshot.
+                </p>
+            )}
+
             <Section
-                title={`${isGlobal ? "Global" : selectedRegion} / ${data.snapshotDate}`}
+                title={`${isGlobal ? "Global" : selectedRegion} / ${isLive ? (data.asOf ?? data.snapshotDate) : data.snapshotDate}`}
                 actions={
                     <span className="text-xs font-mono text-muted">
                         {sortedRosters.length} teams
@@ -245,6 +291,11 @@ export const Standings = () => {
                         >
                             #
                         </SortHeader>
+                        {showChange && (
+                            <Th scope="col" className="w-px" title={`Global rank change since the ${data.previousSnapshot} snapshot`}>
+                                ±
+                            </Th>
+                        )}
                         <SortHeader sortKey="team" sort={sort} onSort={onSort} ascending align="left">
                             Team
                         </SortHeader>
@@ -297,7 +348,7 @@ export const Standings = () => {
                     <TableBody>
                         {sortedRosters.length === 0 ? (
                             <tr>
-                                <td colSpan={COLUMN_COUNT}>
+                                <td colSpan={columnCount}>
                                     <EmptyState>No teams found</EmptyState>
                                 </td>
                             </tr>
@@ -313,12 +364,17 @@ export const Standings = () => {
                                             <Td align="right" className="text-muted">
                                                 {rank ?? "–"}
                                             </Td>
+                                            {showChange && (
+                                                <Td align="right" className="text-[10px]">
+                                                    <RankChange now={roster.globalRank} before={roster.previousRank} />
+                                                </Td>
+                                            )}
                                             <Td className="font-sans">
                                                 <button
                                                     type="button"
                                                     aria-expanded={isExpanded}
                                                     onClick={() => toggleRow(roster.rosterKey)}
-                                                    className="group inline-flex items-center gap-1.5 font-medium text-fg hover:text-accent transition-colors cursor-pointer"
+                                                    className="group inline-flex items-center gap-2 font-medium text-fg hover:text-accent transition-colors cursor-pointer"
                                                 >
                                                     <svg
                                                         viewBox="0 0 16 16"
@@ -328,9 +384,10 @@ export const Standings = () => {
                                                     >
                                                         <path d="M6 3.5 11 8l-5 4.5z" />
                                                     </svg>
+                                                    <TeamLogo team={roster.teamName} />
                                                     {roster.teamName}
                                                 </button>
-                                                <span className="md:hidden block pl-[18px] text-[10px] font-mono text-muted">
+                                                <span className="md:hidden block pl-[44px] text-[10px] font-mono text-muted">
                                                     {players}
                                                 </span>
                                             </Td>
@@ -355,7 +412,7 @@ export const Standings = () => {
                                         </Row>
                                         {isExpanded && (
                                             <tr>
-                                                <td colSpan={COLUMN_COUNT} className="px-3 pt-1 pb-3">
+                                                <td colSpan={columnCount} className="px-3 pt-1 pb-3">
                                                     <RosterDetails roster={roster} />
                                                 </td>
                                             </tr>
@@ -366,7 +423,7 @@ export const Standings = () => {
                         )}
                     </TableBody>
                 </DataTable>
-                <LiquipediaCredit />
+                <LiquipediaCredit what="Standings, roster and team logo data" />
             </Section>
         </div>
     );

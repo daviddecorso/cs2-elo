@@ -5,14 +5,14 @@ export type RawRow = Record<string, unknown>;
 
 const asArray = (v: unknown): RawRow[] => (Array.isArray(v) ? (v as RawRow[]) : []);
 
-const parseTime = (m: RawRow): number => {
+export const parseTime = (m: RawRow): number => {
     const ts = Number((m.extradata as RawRow | undefined)?.timestamp);
     if (ts) return ts;
     const parsed = Date.parse(`${String(m.date ?? "").replace(" ", "T")}Z`);
     return Number.isNaN(parsed) ? 0 : Math.floor(parsed / 1000);
 };
 
-const teamPage = (opp: RawRow): string => {
+export const teamPage = (opp: RawRow): string => {
     const template = opp.teamtemplate as RawRow | undefined;
     return String((template?.page as string) || opp.name || opp.template || "");
 };

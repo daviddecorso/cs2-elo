@@ -181,4 +181,109 @@ describe("compareStandings", () => {
         expect(report.strictMismatches).toEqual([]);
         expect(report.passed).toBe(true);
     });
+
+    describe("gate", () => {
+        const roster = (
+            name: string,
+            globalRank: number | null,
+            regionalRank: number | null,
+            points: number,
+            region: "Europe" | "Americas" | "Asia" = "Europe"
+        ): Standings["rosters"][number] => ({
+            rosterKey: name,
+            teamName: name,
+            region,
+            regionalRank,
+            globalRank,
+            points,
+            factors: { bountyOffered: 0, bountyCollected: 0, opponentNetwork: 0, lanFactor: 0 },
+            startingValue: points,
+            h2hAdjustment: 0,
+            players: [],
+        });
+
+        const smallCutoffs = { Europe: 2, Americas: 1, Asia: 1 };
+
+        it("passes with rank swaps within ±2 that don't cross a cutoff", () => {
+            const published = makeStandings([
+                roster("A", 1, 1, 2000),
+                roster("B", 2, 2, 1990),
+                roster("C", 3, 3, 1980),
+                roster("D", 4, 4, 1970),
+                roster("E", 5, 1, 1960, "Asia"),
+            ]);
+            const model = makeStandings([
+                roster("B", 1, 1, 1995),
+                roster("A", 2, 2, 1993),
+                roster("D", 3, 3, 1972),
+                roster("C", 4, 4, 1978),
+                roster("E", 5, 1, 1960, "Asia"),
+            ]);
+
+            const { gate, passed } = compareStandings(model, published, smallCutoffs);
+            expect(passed).toBe(false);
+            expect(gate.passed).toBe(true);
+            expect(gate.exactRank).toBe(1);
+            expect(gate.withinMaxMiss).toBe(5);
+            expect(gate.meanPointsError).toBeCloseTo((7 + 5 + 2 + 2 + 0) / 5);
+        });
+
+        it("fails on cutoff membership even when ranks are within ±2", () => {
+            const published = makeStandings([
+                roster("A", 1, 1, 2000),
+                roster("B", 2, 2, 1990),
+                roster("C", 3, 3, 1980),
+            ]);
+            const model = makeStandings([
+                roster("A", 1, 1, 2000),
+                roster("C", 2, 2, 1990),
+                roster("B", 3, 3, 1980),
+            ]);
+
+            const { gate } = compareStandings(model, published, smallCutoffs);
+            expect(gate.rankMisses).toEqual([]);
+            expect(gate.cutoffMembership.Europe).toEqual({ cutoff: 2, missing: ["B"], extra: ["C"] });
+            expect(gate.passed).toBe(false);
+        });
+
+        it("counts rank misses beyond ±2 and unranked rosters", () => {
+            const published = makeStandings([
+                roster("A", 1, 1, 2000),
+                roster("B", 2, 2, 1990),
+                roster("C", 3, 3, 1980),
+                roster("D", 4, 4, 1970),
+                roster("E", 5, 5, 1960),
+            ]);
+            const model = makeStandings([
+                roster("A", 1, 1, 2000),
+                roster("B", 2, 2, 1990),
+                roster("D", 3, 3, 1970),
+                roster("E", 4, 4, 1960),
+                roster("C", 6, 6, 1980),
+            ]);
+            const unranked = makeStandings(model.rosters.filter((r) => r.rosterKey !== "C"));
+
+            expect(compareStandings(model, published, smallCutoffs).gate.rankMisses).toEqual([
+                { rosterKey: "C", teamName: "C", publishedRank: 3, modelRank: 6 },
+            ]);
+
+            const { gate } = compareStandings(unranked, published, smallCutoffs);
+            expect(gate.rankMisses).toEqual([{ rosterKey: "C", teamName: "C", publishedRank: 3, modelRank: null }]);
+            expect(gate.meanPointsError).toBeCloseTo(1980 / 5);
+            expect(gate.passed).toBe(false);
+        });
+
+        it("only scores the published top 50", () => {
+            const published = makeStandings(
+                Array.from({ length: 52 }, (_, i) => roster(`T${i + 1}`, i + 1, i + 1, 2000 - i))
+            );
+            const model = makeStandings(
+                published.rosters.map((r) => (r.globalRank! > 50 ? { ...r, globalRank: 60, points: 0 } : r))
+            );
+
+            const { gate } = compareStandings(model, published, smallCutoffs);
+            expect(gate.total).toBe(50);
+            expect(gate.passed).toBe(true);
+        });
+    });
 });

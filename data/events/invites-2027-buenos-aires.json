@@ -1,0 +1,12 @@
+{
+    "slug": "fire-major-buenos-aires-2027",
+    "name": "FiRe Major Buenos Aires 2027",
+    "liquipedia": "",
+    "snapshotDate": "2027-04-05",
+    "snapshotEstimated": true,
+    "previousMajor": { "event": "pgl-major-singapore-2026", "stage3From": "playoffs", "stage2From": "stage3" },
+    "stage1": { "Europe": 6, "Americas": 6, "Asia": 4 },
+    "minRetained": 3,
+    "source": "inferred from the Cologne 2026 and Singapore 2026 invite lists",
+    "verified": false
+}

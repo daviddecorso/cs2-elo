@@ -18,6 +18,8 @@ export interface Roster {
     startingValue: number;
     h2hAdjustment: number;
     players: string[];
+    /** Live standings only: the model's global rank at the latest published snapshot; null if it wasn't ranked then. */
+    previousRank?: number | null;
 }
 
 export interface Standings {
@@ -26,6 +28,9 @@ export interface Standings {
     modelCommit: string;
     source: "valve-published" | "model";
     generatedAt: string;
+    /** Live standings only: date of the latest match in the input, and the published snapshot `previousRank` refers to. */
+    asOf?: string;
+    previousSnapshot?: string;
     rosters: Roster[];
 }
 

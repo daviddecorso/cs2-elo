@@ -14,15 +14,21 @@
         "deploy": "npm run build && wrangler deploy",
         "update-data": "vite-node scripts/update-data.ts",
         "verify-vrs": "vite-node scripts/verify-vrs.ts",
+        "calibrate-window": "vite-node scripts/calibrate-window.ts",
         "validate-matchdata": "vite-node scripts/validate-matchdata.ts",
         "make-fixture": "vite-node scripts/make-fixture.ts",
         "fetch-liquipedia": "vite-node scripts/fetch-liquipedia.ts",
         "build-matchdata": "vite-node scripts/build-matchdata.ts",
+        "fetch-logos": "vite-node scripts/fetch-logos.ts",
         "diff-details": "vite-node scripts/diff-details.ts",
         "backfill-liquipedia": "vite-node scripts/backfill-liquipedia.ts",
         "freeze-history": "vite-node scripts/freeze-history.ts",
         "backtest-elo": "vite-node scripts/backtest-elo.ts",
-        "build-elo": "vite-node scripts/build-elo.ts"
+        "build-elo": "vite-node scripts/build-elo.ts",
+        "fetch-upcoming": "vite-node scripts/fetch-upcoming.ts",
+        "simulate": "vite-node scripts/simulate.ts",
+        "backtest-sim": "vite-node scripts/backtest-sim.ts",
+        "fit-sim-noise": "vite-node scripts/fit-sim-noise.ts"
     },
     "dependencies": {
         "@fontsource-variable/geist": "^5.3.0",

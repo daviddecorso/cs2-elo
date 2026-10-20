@@ -1,0 +1,81 @@
+{
+    "slug": "iem-beijing-2026",
+    "name": "IEM Beijing 2026",
+    "liquipedia": "Intel_Extreme_Masters/2026/Beijing",
+    "startDate": "2026-11-02",
+    "endDate": "2026-11-08",
+    "lan": true,
+    "stages": [
+        {
+            "id": "groupA",
+            "name": "Group A",
+            "page": "Intel_Extreme_Masters/2026/Beijing",
+            "sections": ["Group A"],
+            "format": "bracket",
+            "bestOf": { "default": 3 },
+            "invited": ["Legacy", "The MongolZ", "HEROIC", "B8", "FURIA", "FaZe Clan", "Natus Vincere", "Team Falcons"],
+            "matches": [
+                { "id": "u1", "teams": ["s1", "s2"] },
+                { "id": "u2", "teams": ["s3", "s4"] },
+                { "id": "u3", "teams": ["s5", "s6"] },
+                { "id": "u4", "teams": ["s7", "s8"] },
+                { "id": "l1", "teams": ["l:u1", "l:u2"] },
+                { "id": "l2", "teams": ["l:u3", "l:u4"] },
+                { "id": "u5", "teams": ["w:u1", "w:u2"] },
+                { "id": "u6", "teams": ["w:u3", "w:u4"] },
+                { "id": "l3", "teams": ["w:l1", "l:u6"] },
+                { "id": "l4", "teams": ["w:l2", "l:u5"] },
+                { "id": "uf", "teams": ["w:u5", "w:u6"] },
+                { "id": "lf", "teams": ["w:l3", "w:l4"] }
+            ],
+            "qualify": ["w:uf", "l:uf", "w:lf"],
+            "advance": 3,
+            "exits": { "l1": "13-16", "l2": "13-16", "l3": "9-12", "l4": "9-12", "lf": "7-8" }
+        },
+        {
+            "id": "groupB",
+            "name": "Group B",
+            "page": "Intel_Extreme_Masters/2026/Beijing",
+            "sections": ["Group B"],
+            "format": "bracket",
+            "bestOf": { "default": 3 },
+            "invited": ["MOUZ", "TYLOO", "9z Team", "BetBoom Team", "Aurora Gaming", "Team Liquid", "PARIVISION", "G2 Esports"],
+            "matches": [
+                { "id": "u1", "teams": ["s1", "s2"] },
+                { "id": "u2", "teams": ["s3", "s4"] },
+                { "id": "u3", "teams": ["s5", "s6"] },
+                { "id": "u4", "teams": ["s7", "s8"] },
+                { "id": "l1", "teams": ["l:u1", "l:u2"] },
+                { "id": "l2", "teams": ["l:u3", "l:u4"] },
+                { "id": "u5", "teams": ["w:u1", "w:u2"] },
+                { "id": "u6", "teams": ["w:u3", "w:u4"] },
+                { "id": "l3", "teams": ["w:l1", "l:u6"] },
+                { "id": "l4", "teams": ["w:l2", "l:u5"] },
+                { "id": "uf", "teams": ["w:u5", "w:u6"] },
+                { "id": "lf", "teams": ["w:l3", "w:l4"] }
+            ],
+            "qualify": ["w:uf", "l:uf", "w:lf"],
+            "advance": 3,
+            "exits": { "l1": "13-16", "l2": "13-16", "l3": "9-12", "l4": "9-12", "lf": "7-8" }
+        },
+        {
+            "id": "playoffs",
+            "name": "Playoffs",
+            "page": "Intel_Extreme_Masters/2026/Beijing",
+            "sections": ["Playoffs"],
+            "format": "bracket",
+            "bestOf": { "default": 3 },
+            "from": ["groupA", "groupB"],
+            "matches": [
+                { "id": "qf1", "teams": ["s5", "s3"] },
+                { "id": "qf2", "teams": ["s2", "s6"] },
+                { "id": "sf1", "teams": ["s1", "w:qf1"] },
+                { "id": "sf2", "teams": ["s4", "w:qf2"] },
+                { "id": "f", "teams": ["w:sf1", "w:sf2"], "bestOf": 5 },
+                { "id": "tp", "teams": ["l:sf1", "l:sf2"] }
+            ],
+            "advance": 0,
+            "exits": { "qf1": "5-6", "qf2": "5-6", "tp": "4", "w:tp": "3", "f": "2", "w:f": "1" }
+        }
+    ]
+}

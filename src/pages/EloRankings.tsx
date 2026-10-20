@@ -7,6 +7,7 @@ import { columnOrder, rankOrder } from "../utils/tableSort.ts";
 import { DataTable, Row, SortHeader, TableBody, TableHead, Td } from "../components/DataTable.tsx";
 import { DataRow, EmptyState, Inset, Label, LoadingBar, PageHeader, Section, Segmented } from "../components/ui.tsx";
 import { LiquipediaCredit } from "../components/LiquipediaCredit.tsx";
+import { TeamLogo } from "../components/TeamLogo.tsx";
 import { liquipediaUrl } from "../utils/liquipedia.ts";
 import type { EloRankings as EloRankingsData, EloRoster } from "../elo/types.ts";
 import type { Region } from "../vrs/types.ts";
@@ -54,9 +55,12 @@ const RosterDetails = ({ roster }: { roster: EloRoster }) => {
                         </React.Fragment>
                     ))}
                 </div>
-                <a href={liquipediaUrl(roster.team)} target="_blank" rel="noopener noreferrer" className="text-accent hover:underline">
-                    {roster.team} on Liquipedia
-                </a>
+                <div className="flex items-center gap-1.5 pt-0.5">
+                    <TeamLogo team={roster.team} size={18} />
+                    <a href={liquipediaUrl(roster.team)} target="_blank" rel="noopener noreferrer" className="text-accent hover:underline">
+                        {roster.team} on Liquipedia
+                    </a>
+                </div>
             </div>
             <dl className="space-y-0.5">
                 <Label>Activity</Label>
@@ -204,7 +208,7 @@ export const EloRankings = () => {
                                                     type="button"
                                                     aria-expanded={isExpanded}
                                                     onClick={() => toggle(key)}
-                                                    className="group inline-flex items-center gap-1.5 font-medium text-fg hover:text-accent transition-colors cursor-pointer"
+                                                    className="group inline-flex items-center gap-2 font-medium text-fg hover:text-accent transition-colors cursor-pointer"
                                                 >
                                                     <svg
                                                         viewBox="0 0 16 16"
@@ -214,6 +218,7 @@ export const EloRankings = () => {
                                                     >
                                                         <path d="M6 3.5 11 8l-5 4.5z" />
                                                     </svg>
+                                                    <TeamLogo team={r.team} />
                                                     {r.team}
                                                 </button>
                                                 {r.departed.length > 0 && (
@@ -221,7 +226,7 @@ export const EloRankings = () => {
                                                         roster change
                                                     </span>
                                                 )}
-                                                <span className="md:hidden block pl-[18px] text-[10px] font-mono text-muted">{players}</span>
+                                                <span className="md:hidden block pl-[44px] text-[10px] font-mono text-muted">{players}</span>
                                             </Td>
                                             <Td className="hidden md:table-cell font-sans text-muted">{players}</Td>
                                             <Td align="right" className="text-fg">
@@ -250,7 +255,7 @@ export const EloRankings = () => {
                         )}
                     </TableBody>
                 </DataTable>
-                <LiquipediaCredit what="Match, roster and map data" />
+                <LiquipediaCredit what="Match, roster, map and team logo data" />
             </Section>
         </div>
     );

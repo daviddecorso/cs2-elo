@@ -20,6 +20,7 @@ Project knowledge lives in `docs/<topic>.md`, each opening with an Overview. Sta
 - `docs/vrs-verification.md`: snapshot windows, details oracle, accuracy, the gate
 - `docs/elo-model.md`: Elo feed, model, backtest gate, current results
 - `docs/elo-experiments.md`: every Elo change tried, kept or rejected, with scores
+- `docs/simulator.md`: bracket simulator, VRS projections, Major invite odds, event config
 - `docs/roadmap.md`: next steps
 
 Record decisions in the relevant doc, not in `plans/` (gitignored). Log every Elo experiment in `docs/elo-experiments.md`, including the ones that fail.

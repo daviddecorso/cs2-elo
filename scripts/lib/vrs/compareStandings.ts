@@ -30,8 +30,44 @@ export interface CutoffMismatch {
     publishedRegionalRank: number | null;
 }
 
-export interface ComparisonReport {
+export const GATE = {
+    topN: 50,
+    maxRankMiss: 2,
+    maxMeanPointsError: 5,
+    minSnapshots: 3,
+} as const;
+
+export interface GateRankMiss {
+    rosterKey: string;
+    teamName: string;
+    publishedRank: number;
+    modelRank: number | null;
+}
+
+export interface CutoffMembership {
+    cutoff: number;
+    /** Published at or above the cutoff, model below it. */
+    missing: string[];
+    /** Model at or above the cutoff, published below it. */
+    extra: string[];
+}
+
+export interface GateReport {
     passed: boolean;
+    exactRank: number;
+    withinMaxMiss: number;
+    total: number;
+    /** Published top-N rosters outside ±maxRankMiss, or unranked by the model. */
+    rankMisses: GateRankMiss[];
+    meanPointsError: number;
+    p90PointsError: number;
+    cutoffMembership: Record<Region, CutoffMembership>;
+}
+
+export interface ComparisonReport {
+    /** Strict: exact rank and rounded points for every roster. */
+    passed: boolean;
+    gate: GateReport;
     strictMismatches: StrictMismatch[];
     exactMatchesPerRegion: Record<Region, RegionAgreement>;
     largestRankDeviation: RankDeviation | null;
@@ -176,6 +212,7 @@ export const compareStandings = (
 
     return {
         passed: strictMismatches.length === 0,
+        gate: evaluateGate(model, published, cutoffs),
         strictMismatches,
         exactMatchesPerRegion,
         largestRankDeviation: maxDeviation,
@@ -184,5 +221,68 @@ export const compareStandings = (
             max: maxPointsError,
         },
         cutoffMismatches,
+    };
+};
+
+const quantile = (sorted: number[], q: number): number =>
+    sorted.length === 0 ? 0 : sorted[Math.max(0, Math.ceil(q * sorted.length) - 1)];
+
+const evaluateGate = (
+    model: Standings,
+    published: Standings,
+    cutoffs: Record<Region, number>
+): GateReport => {
+    const modelMap = new Map(model.rosters.map((r) => [r.rosterKey, r]));
+    const top = published.rosters
+        .filter((r): r is typeof r & { globalRank: number } => r.globalRank !== null && r.globalRank <= GATE.topN)
+        .sort((a, b) => a.globalRank - b.globalRank);
+
+    let exactRank = 0;
+    const rankMisses: GateRankMiss[] = [];
+    const pointErrors: number[] = [];
+    for (const p of top) {
+        const m = modelMap.get(p.rosterKey);
+        const modelRank = m?.globalRank ?? null;
+        if (modelRank === p.globalRank) exactRank += 1;
+        if (modelRank === null || Math.abs(modelRank - p.globalRank) > GATE.maxRankMiss) {
+            rankMisses.push({ rosterKey: p.rosterKey, teamName: p.teamName, publishedRank: p.globalRank, modelRank });
+        }
+        // A roster missing from the model counts as having lost all its points.
+        pointErrors.push(Math.abs((m?.points ?? 0) - p.points));
+    }
+    const meanPointsError =
+        pointErrors.length > 0 ? pointErrors.reduce((a, b) => a + b, 0) / pointErrors.length : 0;
+    const p90PointsError = quantile([...pointErrors].sort((a, b) => a - b), 0.9);
+
+    const aboveCutoff = (s: Standings, region: Region) =>
+        new Set(
+            s.rosters
+                .filter((r) => r.region === region && r.regionalRank !== null && r.regionalRank <= cutoffs[region])
+                .map((r) => r.rosterKey)
+        );
+    const teamNames = new Map([...model.rosters, ...published.rosters].map((r) => [r.rosterKey, r.teamName]));
+    const cutoffMembership = {} as Record<Region, CutoffMembership>;
+    for (const region of Object.keys(cutoffs) as Region[]) {
+        const pub = aboveCutoff(published, region);
+        const mod = aboveCutoff(model, region);
+        cutoffMembership[region] = {
+            cutoff: cutoffs[region],
+            missing: [...pub].filter((k) => !mod.has(k)).map((k) => teamNames.get(k) ?? k),
+            extra: [...mod].filter((k) => !pub.has(k)).map((k) => teamNames.get(k) ?? k),
+        };
+    }
+    const cutoffsExact = Object.values(cutoffMembership).every(
+        (c) => c.missing.length === 0 && c.extra.length === 0
+    );
+
+    return {
+        passed: rankMisses.length === 0 && meanPointsError < GATE.maxMeanPointsError && cutoffsExact,
+        exactRank,
+        withinMaxMiss: top.length - rankMisses.length,
+        total: top.length,
+        rankMisses,
+        meanPointsError,
+        p90PointsError,
+        cutoffMembership,
     };
 };

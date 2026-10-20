@@ -1,6 +1,7 @@
 import { makeLineupResolver } from "../lineups.ts";
 import type { ValidationResult } from "./matchdataSchema.ts";
 import { validateMatchdata } from "./matchdataSchema.ts";
+import { isMajorTier, isSplitStagePage, splitMajorStages } from "./majorStages.ts";
 
 export interface ValvePlayer {
     playerId: string | number;
@@ -505,6 +506,9 @@ export const buildMatchdata = (
             return overrides.eventRollups[matchPagename].parentEventId;
         }
         if (matchParent && matchParent.trim() && tournamentDb.has(matchParent)) {
+            if (isMajorTier(tournamentDb.get(matchParent)?.publishertier) && isSplitStagePage(matchPagename)) {
+                return matchPagename;
+            }
             return matchParent.trim();
         }
         return matchPagename;
@@ -578,11 +582,18 @@ export const buildMatchdata = (
 
         // Ensure Event exists in eventMap
         if (!eventMap.has(eventId)) {
-            const tourney = tournamentDb.get(eventId) ?? tournamentDb.get(matchPagename);
+            const tourney =
+                tournamentDb.get(eventId) ??
+                tournamentDb.get(matchPagename) ??
+                (matchParent ? tournamentDb.get(matchParent) : undefined);
             const rawPrize = tourney?.prizepool as number | string | undefined;
             const tourneyType = String(tourney?.type ?? m.type ?? "");
             const lan = tourneyType.toLowerCase() === "offline";
-            const eventName = String(tourney?.name ?? m.tournament ?? eventId);
+            const eventName = String(
+                (eventId === matchPagename && isSplitStagePage(matchPagename) ? m.tournament : tourney?.name) ??
+                    m.tournament ??
+                    eventId
+            );
             const finished = isTourneyFinished(tourney, options.snapshotDate);
             const endDate =
                 typeof tourney?.enddate === "string" && tourney.enddate.trim()
@@ -622,7 +633,10 @@ export const buildMatchdata = (
         const forfeited = m.walkover === "ff";
 
         // Determine valveRanked
-        const tourney = tournamentDb.get(eventId) ?? tournamentDb.get(matchPagename);
+        const tourney =
+            tournamentDb.get(eventId) ??
+            tournamentDb.get(matchPagename) ??
+            (matchParent ? tournamentDb.get(matchParent) : undefined);
         const tourneyPubTier = String(tourney?.publishertier ?? "");
         const matchPubTier = String(m.publishertier ?? "");
         const effectivePubTier = tourneyPubTier || matchPubTier;
@@ -741,6 +755,36 @@ export const buildMatchdata = (
             clubShare: 0,
             qualifiedEvents: [],
         });
+    }
+
+    for (const parent of [...eventMap.values()]) {
+        const parentId = String(parent.eventId);
+        const stageIds = [...eventMap.keys()]
+            .filter((id) => id.startsWith(`${parentId}/`) && isSplitStagePage(id))
+            .sort();
+        if (stageIds.length === 0) continue;
+        const majorIds = [...stageIds, parentId];
+        const lastEventOf = new Map<string, { t: number; eventId: string }>();
+        for (const m of matches) {
+            const eventId = String(m.eventId);
+            if (!majorIds.includes(eventId)) continue;
+            for (const team of [String(m.team1Id), String(m.team2Id)]) {
+                const prev = lastEventOf.get(team);
+                if (!prev || m.matchStartTime > prev.t) lastEventOf.set(team, { t: m.matchStartTime, eventId });
+            }
+        }
+        const playedIds = new Set([...lastEventOf.values()].map((v) => v.eventId));
+        const stages = stageIds.map((id, i) => ({
+            eventId: id,
+            eventName: eventMap.get(id)!.eventName,
+            // A stage is over once any later part of the Major has started.
+            finished: parent.finished || majorIds.slice(i + 1).some((later) => playedIds.has(later)),
+        }));
+        const stageOf = (teamId: string) => {
+            const last = lastEventOf.get(teamId)?.eventId;
+            return last && last !== parentId ? last : null;
+        };
+        for (const ev of splitMajorStages(parent, stages, stageOf)) eventMap.set(String(ev.eventId), ev);
     }
 
     // Apply event overrides and prize overrides

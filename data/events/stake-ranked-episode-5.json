@@ -1,0 +1,36 @@
+{
+    "slug": "stake-ranked-episode-5",
+    "name": "Stake Ranked Episode 5",
+    "liquipedia": "Stake_Ranked/Episode_5",
+    "startDate": "2026-10-27",
+    "endDate": "2026-10-30",
+    "lan": true,
+    "stages": [
+        {
+            "id": "bracket",
+            "name": "Double elimination",
+            "page": "Stake_Ranked/Episode_5",
+            "format": "bracket",
+            "bestOf": { "default": 3 },
+            "invited": ["Astralis", "Fnatic", "BIG", "Magic", "IC Esports", "Team Nemesis", "Eternal Fire", "MIBR"],
+            "matches": [
+                { "id": "u1", "teams": ["s1", "s2"] },
+                { "id": "u2", "teams": ["s3", "s4"] },
+                { "id": "u3", "teams": ["s5", "s6"] },
+                { "id": "u4", "teams": ["s7", "s8"] },
+                { "id": "l1", "teams": ["l:u1", "l:u2"] },
+                { "id": "l2", "teams": ["l:u3", "l:u4"] },
+                { "id": "u5", "teams": ["w:u1", "w:u2"] },
+                { "id": "u6", "teams": ["w:u3", "w:u4"] },
+                { "id": "l3", "teams": ["w:l1", "l:u6"] },
+                { "id": "l4", "teams": ["w:l2", "l:u5"] },
+                { "id": "l5", "teams": ["w:l3", "w:l4"] },
+                { "id": "uf", "teams": ["w:u5", "w:u6"] },
+                { "id": "lf", "teams": ["w:l5", "l:uf"] },
+                { "id": "gf", "teams": ["w:uf", "w:lf"], "bestOf": 5 }
+            ],
+            "advance": 0,
+            "exits": { "l1": "7-8", "l2": "7-8", "l3": "5-6", "l4": "5-6", "l5": "4", "lf": "3", "gf": "2", "w:gf": "1" }
+        }
+    ]
+}

@@ -1,0 +1,950 @@
+{
+ "source": "Liquipedia (CC-BY-SA 3.0): https://liquipedia.net/counterstrike/Intel_Extreme_Masters/2026/Cologne",
+ "seeding": "Invited teams in VRS global rank order at the 2026-05-04 snapshot; later stages add the previous stage's advancers after them.",
+ "stages": [
+  {
+   "page": "Intel_Extreme_Masters/2026/Cologne/Stage_1",
+   "invited": [
+    "GamerLegion",
+    "B8",
+    "HEROIC",
+    "BetBoom Team",
+    "BIG",
+    "M80",
+    "MIBR",
+    "SINNERS Esports",
+    "NRG",
+    "TYLOO",
+    "Sharks Esports",
+    "Gaimin Gladiators",
+    "Team Liquid",
+    "Lynn Vision Gaming",
+    "THUNDERdOWNUNDER",
+    "FlyQuest"
+   ],
+   "matches": [
+    {
+     "round": 2,
+     "teams": [
+      "B8",
+      "THUNDERdOWNUNDER"
+     ],
+     "winner": 0,
+     "t": 1780414500
+    },
+    {
+     "round": 2,
+     "teams": [
+      "GamerLegion",
+      "FlyQuest"
+     ],
+     "winner": 0,
+     "t": 1780423800
+    },
+    {
+     "round": 2,
+     "teams": [
+      "M80",
+      "Sharks Esports"
+     ],
+     "winner": 0,
+     "t": 1780422300
+    },
+    {
+     "round": 2,
+     "teams": [
+      "BetBoom Team",
+      "Team Liquid"
+     ],
+     "winner": 0,
+     "t": 1780428600
+    },
+    {
+     "round": 4,
+     "teams": [
+      "GamerLegion",
+      "BIG"
+     ],
+     "winner": 0,
+     "t": 1780583400
+    },
+    {
+     "round": 4,
+     "teams": [
+      "Lynn Vision Gaming",
+      "MIBR"
+     ],
+     "winner": 1,
+     "t": 1780585500
+    },
+    {
+     "round": 4,
+     "teams": [
+      "M80",
+      "NRG"
+     ],
+     "winner": 0,
+     "t": 1780592400
+    },
+    {
+     "round": 5,
+     "teams": [
+      "TYLOO",
+      "Lynn Vision Gaming"
+     ],
+     "winner": 0,
+     "t": 1780660800
+    },
+    {
+     "round": 5,
+     "teams": [
+      "Team Liquid",
+      "FlyQuest"
+     ],
+     "winner": 1,
+     "t": 1780669800
+    },
+    {
+     "round": 5,
+     "teams": [
+      "NRG",
+      "BIG"
+     ],
+     "winner": 1,
+     "t": 1780678800
+    },
+    {
+     "round": 3,
+     "teams": [
+      "TYLOO",
+      "SINNERS Esports"
+     ],
+     "winner": 0,
+     "t": 1780497600
+    },
+    {
+     "round": 3,
+     "teams": [
+      "Gaimin Gladiators",
+      "HEROIC"
+     ],
+     "winner": 1,
+     "t": 1780506000
+    },
+    {
+     "round": 4,
+     "teams": [
+      "THUNDERdOWNUNDER",
+      "FlyQuest"
+     ],
+     "winner": 1,
+     "t": 1780574400
+    },
+    {
+     "round": 4,
+     "teams": [
+      "TYLOO",
+      "Sharks Esports"
+     ],
+     "winner": 0,
+     "t": 1780574400
+    },
+    {
+     "round": 4,
+     "teams": [
+      "Team Liquid",
+      "HEROIC"
+     ],
+     "winner": 0,
+     "t": 1780592400
+    },
+    {
+     "round": 1,
+     "teams": [
+      "M80",
+      "Lynn Vision Gaming"
+     ],
+     "winner": 0,
+     "t": 1780396200
+    },
+    {
+     "round": 1,
+     "teams": [
+      "SINNERS Esports",
+      "FlyQuest"
+     ],
+     "winner": 1,
+     "t": 1780396200
+    },
+    {
+     "round": 1,
+     "teams": [
+      "B8",
+      "TYLOO"
+     ],
+     "winner": 0,
+     "t": 1780401600
+    },
+    {
+     "round": 1,
+     "teams": [
+      "MIBR",
+      "THUNDERdOWNUNDER"
+     ],
+     "winner": 1,
+     "t": 1780400700
+    },
+    {
+     "round": 1,
+     "teams": [
+      "GamerLegion",
+      "NRG"
+     ],
+     "winner": 0,
+     "t": 1780405500
+    },
+    {
+     "round": 1,
+     "teams": [
+      "HEROIC",
+      "Sharks Esports"
+     ],
+     "winner": 1,
+     "t": 1780404600
+    },
+    {
+     "round": 1,
+     "teams": [
+      "BetBoom Team",
+      "Gaimin Gladiators"
+     ],
+     "winner": 0,
+     "t": 1780408800
+    },
+    {
+     "round": 1,
+     "teams": [
+      "BIG",
+      "Team Liquid"
+     ],
+     "winner": 1,
+     "t": 1780410300
+    },
+    {
+     "round": 2,
+     "teams": [
+      "HEROIC",
+      "Lynn Vision Gaming"
+     ],
+     "winner": 1,
+     "t": 1780414200
+    },
+    {
+     "round": 2,
+     "teams": [
+      "MIBR",
+      "TYLOO"
+     ],
+     "winner": 0,
+     "t": 1780418700
+    },
+    {
+     "round": 2,
+     "teams": [
+      "SINNERS Esports",
+      "NRG"
+     ],
+     "winner": 1,
+     "t": 1780418700
+    },
+    {
+     "round": 2,
+     "teams": [
+      "BIG",
+      "Gaimin Gladiators"
+     ],
+     "winner": 0,
+     "t": 1780426200
+    },
+    {
+     "round": 3,
+     "teams": [
+      "GamerLegion",
+      "BetBoom Team"
+     ],
+     "winner": 1,
+     "t": 1780498200
+    },
+    {
+     "round": 3,
+     "teams": [
+      "M80",
+      "B8"
+     ],
+     "winner": 1,
+     "t": 1780506000
+    },
+    {
+     "round": 3,
+     "teams": [
+      "NRG",
+      "FlyQuest"
+     ],
+     "winner": 0,
+     "t": 1780489800
+    },
+    {
+     "round": 3,
+     "teams": [
+      "Sharks Esports",
+      "Lynn Vision Gaming"
+     ],
+     "winner": 1,
+     "t": 1780489800
+    },
+    {
+     "round": 3,
+     "teams": [
+      "Team Liquid",
+      "MIBR"
+     ],
+     "winner": 1,
+     "t": 1780494000
+    },
+    {
+     "round": 3,
+     "teams": [
+      "THUNDERdOWNUNDER",
+      "BIG"
+     ],
+     "winner": 1,
+     "t": 1780493700
+    }
+   ]
+  },
+  {
+   "page": "Intel_Extreme_Masters/2026/Cologne/Stage_2",
+   "invited": [
+    "FUT Esports",
+    "Team Spirit",
+    "Astralis",
+    "G2 Esports",
+    "Legacy",
+    "paiN Gaming",
+    "Monte",
+    "9z Team"
+   ],
+   "matches": [
+    {
+     "round": 5,
+     "teams": [
+      "Monte",
+      "paiN Gaming"
+     ],
+     "winner": 0,
+     "t": 1781006400
+    },
+    {
+     "round": 5,
+     "teams": [
+      "TYLOO",
+      "Legacy"
+     ],
+     "winner": 1,
+     "t": 1781015400
+    },
+    {
+     "round": 5,
+     "teams": [
+      "BIG",
+      "B8"
+     ],
+     "winner": 1,
+     "t": 1781024400
+    },
+    {
+     "round": 2,
+     "teams": [
+      "FUT Esports",
+      "TYLOO"
+     ],
+     "winner": 0,
+     "t": 1780759800
+    },
+    {
+     "round": 2,
+     "teams": [
+      "Astralis",
+      "9z Team"
+     ],
+     "winner": 1,
+     "t": 1780761000
+    },
+    {
+     "round": 2,
+     "teams": [
+      "G2 Esports",
+      "Monte"
+     ],
+     "winner": 0,
+     "t": 1780764000
+    },
+    {
+     "round": 2,
+     "teams": [
+      "Team Spirit",
+      "MIBR"
+     ],
+     "winner": 0,
+     "t": 1780774800
+    },
+    {
+     "round": 2,
+     "teams": [
+      "paiN Gaming",
+      "BIG"
+     ],
+     "winner": 1,
+     "t": 1780764900
+    },
+    {
+     "round": 2,
+     "teams": [
+      "Legacy",
+      "FlyQuest"
+     ],
+     "winner": 0,
+     "t": 1780769400
+    },
+    {
+     "round": 2,
+     "teams": [
+      "BetBoom Team",
+      "GamerLegion"
+     ],
+     "winner": 0,
+     "t": 1780770600
+    },
+    {
+     "round": 2,
+     "teams": [
+      "B8",
+      "M80"
+     ],
+     "winner": 1,
+     "t": 1780773300
+    },
+    {
+     "round": 4,
+     "teams": [
+      "Monte",
+      "BetBoom Team"
+     ],
+     "winner": 1,
+     "t": 1780929000
+    },
+    {
+     "round": 4,
+     "teams": [
+      "TYLOO",
+      "9z Team"
+     ],
+     "winner": 1,
+     "t": 1780930800
+    },
+    {
+     "round": 4,
+     "teams": [
+      "G2 Esports",
+      "BIG"
+     ],
+     "winner": 0,
+     "t": 1780939500
+    },
+    {
+     "round": 3,
+     "teams": [
+      "Team Spirit",
+      "9z Team"
+     ],
+     "winner": 0,
+     "t": 1780851600
+    },
+    {
+     "round": 3,
+     "teams": [
+      "G2 Esports",
+      "FUT Esports"
+     ],
+     "winner": 1,
+     "t": 1780857900
+    },
+    {
+     "round": 3,
+     "teams": [
+      "Monte",
+      "Legacy"
+     ],
+     "winner": 0,
+     "t": 1780835400
+    },
+    {
+     "round": 3,
+     "teams": [
+      "Astralis",
+      "TYLOO"
+     ],
+     "winner": 1,
+     "t": 1780835400
+    },
+    {
+     "round": 3,
+     "teams": [
+      "MIBR",
+      "BIG"
+     ],
+     "winner": 1,
+     "t": 1780839000
+    },
+    {
+     "round": 3,
+     "teams": [
+      "BetBoom Team",
+      "M80"
+     ],
+     "winner": 0,
+     "t": 1780842300
+    },
+    {
+     "round": 3,
+     "teams": [
+      "B8",
+      "GamerLegion"
+     ],
+     "winner": 0,
+     "t": 1780845600
+    },
+    {
+     "round": 3,
+     "teams": [
+      "FlyQuest",
+      "paiN Gaming"
+     ],
+     "winner": 1,
+     "t": 1780843200
+    },
+    {
+     "round": 1,
+     "teams": [
+      "Astralis",
+      "GamerLegion"
+     ],
+     "winner": 0,
+     "t": 1780741800
+    },
+    {
+     "round": 1,
+     "teams": [
+      "9z Team",
+      "FlyQuest"
+     ],
+     "winner": 0,
+     "t": 1780741800
+    },
+    {
+     "round": 1,
+     "teams": [
+      "FUT Esports",
+      "B8"
+     ],
+     "winner": 0,
+     "t": 1780745400
+    },
+    {
+     "round": 1,
+     "teams": [
+      "paiN Gaming",
+      "TYLOO"
+     ],
+     "winner": 1,
+     "t": 1780746000
+    },
+    {
+     "round": 1,
+     "teams": [
+      "G2 Esports",
+      "M80"
+     ],
+     "winner": 0,
+     "t": 1780749600
+    },
+    {
+     "round": 1,
+     "teams": [
+      "Monte",
+      "BIG"
+     ],
+     "winner": 0,
+     "t": 1780749900
+    },
+    {
+     "round": 1,
+     "teams": [
+      "Team Spirit",
+      "BetBoom Team"
+     ],
+     "winner": 0,
+     "t": 1780753800
+    },
+    {
+     "round": 1,
+     "teams": [
+      "Legacy",
+      "MIBR"
+     ],
+     "winner": 1,
+     "t": 1780754400
+    },
+    {
+     "round": 4,
+     "teams": [
+      "MIBR",
+      "B8"
+     ],
+     "winner": 1,
+     "t": 1780920000
+    },
+    {
+     "round": 4,
+     "teams": [
+      "Astralis",
+      "paiN Gaming"
+     ],
+     "winner": 1,
+     "t": 1780920000
+    },
+    {
+     "round": 4,
+     "teams": [
+      "M80",
+      "Legacy"
+     ],
+     "winner": 1,
+     "t": 1780938900
+    }
+   ]
+  },
+  {
+   "page": "Intel_Extreme_Masters/2026/Cologne/Stage_3",
+   "invited": [
+    "Team Vitality",
+    "Natus Vincere",
+    "Team Falcons",
+    "The MongolZ",
+    "PARIVISION",
+    "Aurora Gaming",
+    "FURIA",
+    "MOUZ"
+   ],
+   "matches": [
+    {
+     "round": 3,
+     "teams": [
+      "B8",
+      "FUT Esports"
+     ],
+     "winner": 1,
+     "t": 1781341200
+    },
+    {
+     "round": 3,
+     "teams": [
+      "PARIVISION",
+      "Legacy"
+     ],
+     "winner": 1,
+     "t": 1781365500
+    },
+    {
+     "round": 3,
+     "teams": [
+      "Team Spirit",
+      "9z Team"
+     ],
+     "winner": 0,
+     "t": 1781376900
+    },
+    {
+     "round": 3,
+     "teams": [
+      "BetBoom Team",
+      "FURIA"
+     ],
+     "winner": 1,
+     "t": 1781372400
+    },
+    {
+     "round": 2,
+     "teams": [
+      "FURIA",
+      "MOUZ"
+     ],
+     "winner": 0,
+     "t": 1781254800
+    },
+    {
+     "round": 2,
+     "teams": [
+      "Team Falcons",
+      "BetBoom Team"
+     ],
+     "winner": 1,
+     "t": 1781277000
+    },
+    {
+     "round": 2,
+     "teams": [
+      "Team Vitality",
+      "9z Team"
+     ],
+     "winner": 1,
+     "t": 1781282700
+    },
+    {
+     "round": 2,
+     "teams": [
+      "Aurora Gaming",
+      "Team Spirit"
+     ],
+     "winner": 1,
+     "t": 1781285100
+    },
+    {
+     "round": 4,
+     "teams": [
+      "MOUZ",
+      "FUT Esports"
+     ],
+     "winner": 1,
+     "t": 1781438400
+    },
+    {
+     "round": 4,
+     "teams": [
+      "The MongolZ",
+      "Monte"
+     ],
+     "winner": 0,
+     "t": 1781438400
+    },
+    {
+     "round": 4,
+     "teams": [
+      "G2 Esports",
+      "Legacy"
+     ],
+     "winner": 0,
+     "t": 1781456400
+    },
+    {
+     "round": 5,
+     "teams": [
+      "9z Team",
+      "The MongolZ"
+     ],
+     "winner": 0,
+     "t": 1781524800
+    },
+    {
+     "round": 5,
+     "teams": [
+      "BetBoom Team",
+      "FUT Esports"
+     ],
+     "winner": 0,
+     "t": 1781533800
+    },
+    {
+     "round": 5,
+     "teams": [
+      "Natus Vincere",
+      "G2 Esports"
+     ],
+     "winner": 1,
+     "t": 1781542800
+    },
+    {
+     "round": 2,
+     "teams": [
+      "The MongolZ",
+      "B8"
+     ],
+     "winner": 0,
+     "t": 1781254800
+    },
+    {
+     "round": 2,
+     "teams": [
+      "PARIVISION",
+      "Monte"
+     ],
+     "winner": 1,
+     "t": 1781263800
+    },
+    {
+     "round": 2,
+     "teams": [
+      "FUT Esports",
+      "G2 Esports"
+     ],
+     "winner": 1,
+     "t": 1781266200
+    },
+    {
+     "round": 2,
+     "teams": [
+      "Natus Vincere",
+      "Legacy"
+     ],
+     "winner": 0,
+     "t": 1781275200
+    },
+    {
+     "round": 3,
+     "teams": [
+      "Natus Vincere",
+      "The MongolZ"
+     ],
+     "winner": 0,
+     "t": 1781341200
+    },
+    {
+     "round": 3,
+     "teams": [
+      "Team Falcons",
+      "Monte"
+     ],
+     "winner": 0,
+     "t": 1781352900
+    },
+    {
+     "round": 3,
+     "teams": [
+      "Aurora Gaming",
+      "G2 Esports"
+     ],
+     "winner": 0,
+     "t": 1781353200
+    },
+    {
+     "round": 3,
+     "teams": [
+      "Team Vitality",
+      "MOUZ"
+     ],
+     "winner": 0,
+     "t": 1781361300
+    },
+    {
+     "round": 1,
+     "teams": [
+      "The MongolZ",
+      "BetBoom Team"
+     ],
+     "winner": 1,
+     "t": 1781168400
+    },
+    {
+     "round": 1,
+     "teams": [
+      "PARIVISION",
+      "9z Team"
+     ],
+     "winner": 1,
+     "t": 1781168400
+    },
+    {
+     "round": 1,
+     "teams": [
+      "Team Vitality",
+      "FUT Esports"
+     ],
+     "winner": 0,
+     "t": 1781179800
+    },
+    {
+     "round": 1,
+     "teams": [
+      "MOUZ",
+      "Legacy"
+     ],
+     "winner": 0,
+     "t": 1781179800
+    },
+    {
+     "round": 1,
+     "teams": [
+      "Team Falcons",
+      "G2 Esports"
+     ],
+     "winner": 0,
+     "t": 1781190300
+    },
+    {
+     "round": 1,
+     "teams": [
+      "FURIA",
+      "B8"
+     ],
+     "winner": 0,
+     "t": 1781187000
+    },
+    {
+     "round": 1,
+     "teams": [
+      "Natus Vincere",
+      "Team Spirit"
+     ],
+     "winner": 1,
+     "t": 1781203200
+    },
+    {
+     "round": 1,
+     "teams": [
+      "Aurora Gaming",
+      "Monte"
+     ],
+     "winner": 0,
+     "t": 1781195400
+    },
+    {
+     "round": 4,
+     "teams": [
+      "BetBoom Team",
+      "Team Vitality"
+     ],
+     "winner": 1,
+     "t": 1781450400
+    },
+    {
+     "round": 4,
+     "teams": [
+      "Aurora Gaming",
+      "9z Team"
+     ],
+     "winner": 0,
+     "t": 1781450400
+    },
+    {
+     "round": 4,
+     "teams": [
+      "Natus Vincere",
+      "Team Falcons"
+     ],
+     "winner": 1,
+     "t": 1781458800
+    }
+   ]
+  }
+ ]
+}

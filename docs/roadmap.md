@@ -6,7 +6,7 @@ VRS is close but not at the gate defined in [vrs-verification.md](vrs-verificati
 
 ## Before Elo
 
-- [ ] **Commit on a branch.** Everything up to the Liquipedia pipeline, agy's work included, plus these docs.
+- [x] **Commit on a branch.** Everything up to the Liquipedia pipeline, agy's work included, plus these docs (`vrs-liquipedia-matchdata`).
 - [ ] **Run the nightly job end to end once.** It needs `LIQUIPEDIA_API_KEY` as a repo secret. The `/player` fetch hit Liquipedia's hourly limit locally. Skip players already in `data/raw/players.json`, and persist `data/raw/players.json` and `.cache/liquipedia/` across runs with `actions/cache`.
 - [ ] **Split the match feed from the VRS projection.** Extract `normalizeMatches` (clean Liquipedia matches keyed by page name) from `buildMatchdata`. A `projectVrs` step owns `valveRanked`, the qualifier rule, lineup resolution, aliases and prize overrides. Elo uses the normalized feed, not Valve's coverage quirks.
 - [ ] **Settle identity.** Page names are the stable IDs. Aliases apply only in the VRS projection.

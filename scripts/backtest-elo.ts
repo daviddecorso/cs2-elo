@@ -2,7 +2,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { EloEngine, type SeriesPrediction } from "./lib/elo/engine.ts";
 import { loadFeed } from "./lib/elo/history.ts";
-import { calibration, score, type Forecast, type Score } from "./lib/elo/metrics.ts";
+import { calibration, calibrationSlope, expectedCalibrationError, logit, score, type Forecast, type Score } from "./lib/elo/metrics.ts";
 import { DEFAULT_PARAMS, TUNED_PARAMS_PATH, type EloParams } from "./lib/elo/params.ts";
 import { findVrsRoster, makeNickLookup, readGlobalSnapshots, snapshotBefore, vrsProbability } from "./lib/elo/vrsBaseline.ts";
 import type { Overrides } from "./lib/vrs/buildMatchdata.ts";
@@ -52,8 +52,9 @@ const STEPS: Step[] = [
     { key: "kMap", step: 2, min: 0, max: 30 },
     { key: "mapShrink", step: 0.01, min: 0, max: 0.2 },
     { key: "coreWindow", step: 1, min: 3, max: 12, integer: true },
-    { key: "tierGap", step: 25, min: 0, max: 400 },
+    { key: "tierGap", step: 25, min: 0, max: 800 },
     { key: "standInK", step: 0.2, min: 0.2, max: 1.6 },
+    { key: "seriesMapTemp", step: 0.05, min: 0.5, max: 1.2 },
 ];
 
 const tune = (start: EloParams): EloParams => {
@@ -85,7 +86,14 @@ const tune = (start: EloParams): EloParams => {
     return best;
 };
 
-let params = DEFAULT_PARAMS;
+// `--set key=value` (repeatable) overrides a parameter for one run, before any tuning.
+let params: EloParams = { ...DEFAULT_PARAMS };
+args.forEach((arg, i) => {
+    if (arg !== "--set") return;
+    const [key, value] = (args[i + 1] ?? "").split("=");
+    if (!(key in params) || value === undefined || Number.isNaN(Number(value))) throw new Error(`Bad --set ${args[i + 1]}`);
+    params = { ...params, [key]: Number(value) };
+});
 if (flag("tune")) {
     params = tune(params);
     if (flag("write")) {
@@ -145,6 +153,35 @@ console.log(fmt("Elo series, gate set", score(elo(gateSet))));
 console.log(fmt("VRS series, gate set", score(vrs(gateSet))));
 console.log(fmt("Elo series, cross-region", score(elo(crossGate))));
 console.log(fmt("VRS series, cross-region", score(vrs(crossGate))));
+
+const diag = (label: string, forecasts: Forecast[]) => {
+    const { slope, intercept } = calibrationSlope(forecasts);
+    const s = score(forecasts);
+    console.log(
+        `  ${label.padEnd(28)} n=${String(s.n).padStart(6)}  logloss=${s.logLoss.toFixed(4)}  slope=${slope.toFixed(3)}  intercept=${intercept.toFixed(3)}  ece=${expectedCalibrationError(forecasts).toFixed(4)}`
+    );
+};
+console.log(`\nCalibration (slope < 1 is overconfident)`);
+diag("train series", elo(train));
+diag("train maps", maps(train));
+diag("test series", elo(test));
+diag("test maps", maps(test));
+diag("test gate set", elo(gateSet));
+for (const bo of [1, 3, 5]) diag(`test Bo${bo}`, elo(test.filter((p) => p.bestOf === bo)));
+diag("test provisional", elo(test.filter((p) => p.minMaps < params.provisionalMaps)));
+diag("test established", elo(test.filter((p) => p.minMaps >= params.provisionalMaps)));
+diag("test idle > 30 days", elo(test.filter((p) => p.idleDays > 30)));
+diag("test idle ≤ 30 days", elo(test.filter((p) => p.idleDays <= 30)));
+for (const tier of [1, 2, 3, 4, 5]) diag(`test tier ${tier}`, elo(test.filter((p) => p.tier === tier)));
+diag("test LAN", elo(test.filter((p) => p.lan)));
+diag("test online", elo(test.filter((p) => !p.lan)));
+
+// Post-hoc temperature fit on train: the ceiling for a pure calibration fix, never applied to published numbers.
+const temperature = calibrationSlope(elo(train)).slope;
+const tempered = (ps: SeriesPrediction[]): Forecast[] => ps.map(({ p, y }) => ({ p: 1 / (1 + Math.exp(-temperature * logit(p))), y }));
+console.log(`\nPost-hoc temperature ${temperature.toFixed(3)} (fit on train)`);
+console.log(fmt("Tempered series, gate set", score(tempered(gateSet))));
+diag("tempered test series", tempered(test));
 
 const eloGate = score(elo(gateSet));
 const vrsGate = score(vrs(gateSet));

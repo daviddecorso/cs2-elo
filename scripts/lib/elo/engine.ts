@@ -35,6 +35,10 @@ export interface SeriesPrediction {
     tier: number;
     lan: boolean;
     ratings: [number, number];
+    /** Maps rated before this series by the less experienced side. */
+    minMaps: number;
+    /** Days since the less recently active side last played. */
+    idleDays: number;
 }
 
 const TIER_ACTIVE_SECONDS = 120 * 24 * 3600;
@@ -130,7 +134,7 @@ export class EloEngine {
             bestOf,
             teams: m.teams,
             lineups: [lineups[0] ?? A.core, lineups[1] ?? B.core],
-            p: seriesWinProbability(pMap, bestOf),
+            p: seriesWinProbability(pMap, bestOf, this.params.seriesMapTemp),
             y: m.winner === 0 ? 1 : 0,
             maps: [],
             crossRegion,
@@ -138,6 +142,8 @@ export class EloEngine {
             tier,
             lan: m.lan,
             ratings: [A.rating, B.rating],
+            minMaps: Math.min(A.maps, B.maps),
+            idleDays: (m.t - Math.min(A.lastT, B.lastT)) / 86400,
         };
 
         const p = this.params;

@@ -1,18 +1,19 @@
 {
     "k": 12,
     "scale": 400,
-    "marginWeight": 0.5,
+    "marginWeight": 0.75,
     "otMargin": 1,
-    "onlineK": 1,
+    "onlineK": 0.9,
     "tierK": 0.9,
-    "crossRegionK": 1.25,
+    "crossRegionK": 1,
     "provisionalK": 2.5,
     "provisionalMaps": 70,
     "regress": 0,
     "newRosterRegress": 0,
     "kMap": 4,
     "mapShrink": 0.02,
-    "coreWindow": 7,
-    "tierGap": 375,
-    "standInK": 1
+    "coreWindow": 6,
+    "tierGap": 475,
+    "standInK": 1.2,
+    "seriesMapTemp": 0.8
 }

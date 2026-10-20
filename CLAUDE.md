@@ -18,6 +18,8 @@ Project knowledge lives in `docs/<topic>.md`, each opening with an Overview. Sta
 - `docs/liquipedia-api.md`: Liquipedia API endpoints and data shapes
 - `docs/matchdata-pipeline.md`: Liquipedia → matchdata rules, overrides, identity
 - `docs/vrs-verification.md`: snapshot windows, details oracle, accuracy, the gate
+- `docs/elo-model.md`: Elo feed, model, backtest gate, current results
+- `docs/elo-experiments.md`: every Elo change tried, kept or rejected, with scores
 - `docs/roadmap.md`: next steps
 
-Record decisions in the relevant doc, not in `plans/` (gitignored).
+Record decisions in the relevant doc, not in `plans/` (gitignored). Log every Elo experiment in `docs/elo-experiments.md`, including the ones that fail.

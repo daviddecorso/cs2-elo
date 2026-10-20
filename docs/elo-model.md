@@ -23,7 +23,7 @@ A map-level team Elo built on the normalized Liquipedia feed. It has to pass one
 - **Lineages.** A rating belongs to a lineage. The lineage's core is the 5 players seen most often in its last `coreWindow` series, with ties going to current core members, so a one-off stand-in doesn't change it. A lineup joins whichever candidate lineage (the team's current one, or any player's) it shares 3+ core players with. This follows a roster across org changes.
 - **Partial changes.** When the core changes by k players, the rating moves `regress · k/5` of the way to the tier mean. The tier mean is the mean rating of rosters active in the last 120 days whose median tier of their last 10 series matches. With fewer than 5 such rosters, it falls back to `1500 − tierGap·(tier−1)`.
 - **New lineages.** The seed is the mean of each player's last core lineage rating (unrated players get the tier mean), then regressed by `newRosterRegress`. `provisionalK` boosts K for a new lineage's first `provisionalMaps` maps.
-- **Series probability (v1).** The map probability is averaged over the active pool (maps with at least 3% of plays in the trailing 60 days), then converted to Bo1/Bo3/Bo5. Bo2 counts as Bo3.
+- **Series probability (v1).** The map probability is averaged over the active pool (maps with at least 3% of plays in the trailing 60 days), then converted to Bo1/Bo3/Bo5. Bo2 counts as Bo3. For Bo3 and Bo5, the map logit is first multiplied by `seriesMapTemp`, because maps within a series aren't independent. Without that step, Bo3 forecasts were overconfident while maps and Bo1 were calibrated.
 
 ## Vetoes
 
@@ -31,7 +31,8 @@ The API has no veto data. None of the 11,462 stored 2026 matches has a veto fiel
 
 ## Backtest and gate (`scripts/backtest-elo.ts`)
 
-- Ratings warm up from 2023-10. `--tune` runs coordinate descent on 2024–2025 series log loss over every parameter except `scale`, which is redundant with K. `--write` saves the result to `scripts/lib/elo/params.json`, which overrides `STARTING_PARAMS`.
+- Ratings warm up from 2023-10. `--tune` runs coordinate descent on 2024–2025 series log loss over every parameter except `scale`, which is redundant with K. `--write` saves the result to `scripts/lib/elo/params.json`, which overrides `STARTING_PARAMS`. `--set key=value` overrides one parameter for a single run. The report ends with calibration slope and ECE by slice (Bo1/3/5, provisional, idle, tier, LAN), plus a post-hoc temperature that serves as a reference point for calibration.
+- Every experiment, kept or rejected, goes in [elo-experiments.md](elo-experiments.md).
 - **VRS baseline** (`vrsBaseline.ts`): uses the latest Valve global snapshot published strictly before the series' UTC day, from the `invitation/` and `live/` tables. Each side's roster is found by 3+ of 5 player overlap, matching Liquipedia page name, display nick or VRS alias nick against Valve's nicks. `p = 1/(1+10^(−Δpoints/s))`, with `s` fit on training series. Snapshots start 2024-08-06.
 - **Gate**: 2026 series where both rosters have VRS points; Elo series log loss must be below VRS. `--gate` exits non-zero on failure. The report also covers Brier, accuracy, all 2026 series, map log loss, stand-in series and cross-region series. `public/data/elo/calibration.json` holds the scores and calibration bins for the methodology page.
 
@@ -45,18 +46,21 @@ Lists rosters with 15+ rated maps and a series in the last 90 days. VRS columns 
 
 | Set | Series | Elo log loss | VRS log loss |
 | --- | --- | --- | --- |
-| Both rosters VRS-ranked (gate) | 8,490 | **0.6148** | 0.6489 |
-| Cross-region | 651 | 0.6342 | 0.6505 |
-| Every 2026 series | 16,838 | 0.5984 | – |
-| Every 2026 map | 35,446 | 0.6284 | – |
+| Both rosters VRS-ranked (gate) | 8,490 | **0.6135** | 0.6489 |
+| Cross-region | 651 | 0.6271 | 0.6505 |
+| Every 2026 series | 16,838 | 0.5968 | – |
+| Every 2026 map | 35,446 | 0.6276 | – |
 
-The untuned starting parameters already passed (0.6341), but they lost to VRS on cross-region series (0.6594). Tuning fixed both. The VRS baseline's fitted scale is 880 points for 10:1 odds.
+Test series calibration slope is 0.993 and ECE is 0.008. The VRS baseline's fitted scale is 880 points for 10:1 odds.
 
-What tuning found (`scripts/lib/elo/params.json`):
+Current parameters (`scripts/lib/elo/params.json`):
 
-- `regress` and `newRosterRegress` went to 0. Pulling a changed roster toward the tier mean doesn't help. The continuity rule plus seeding from players' old ratings is enough.
-- `onlineK` went to 1, so online and LAN maps count the same. `tierK` stayed at 0.9.
-- `crossRegionK` fell to 1.25 from its 1.5 start, so international results still count for more.
-- `standInK` stayed at 1, so down-weighting stand-in series doesn't help. Stand-in series score about the same as the rest.
-- `tierGap` rose to 375, near the top of its search range. Lower-tier newcomers start well below tier 1. `provisionalK` 2.5 over 70 maps lets them move quickly from there.
-- K is 12 per map. OT wins count as a 1-round margin, `marginWeight` is 0.5, `kMap` is 4, `mapShrink` is 0.02, and `coreWindow` is 7 series.
+- K is 12 per map.
+- `seriesMapTemp` is 0.8.
+- `marginWeight` is 0.75, and OT wins count as a 1-round margin.
+- `onlineK` is 0.9, `tierK` is 0.9, `crossRegionK` is 1 and `standInK` is 1.2.
+- `regress` and `newRosterRegress` are 0.
+- `tierGap` is 475, and `provisionalK` 2.5 applies over 70 maps.
+- `kMap` is 4 (pinned by hand), `mapShrink` is 0.02 and `coreWindow` is 6.
+
+How each value was reached, and what was rejected, is in [elo-experiments.md](elo-experiments.md).

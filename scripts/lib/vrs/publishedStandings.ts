@@ -47,7 +47,7 @@ const getSubmoduleCommits = (valveRoot: string): { valveCommit: string; modelCom
     return { valveCommit, modelCommit };
 };
 
-interface StandingsRow {
+export interface StandingsRow {
     rank: number;
     points: number;
     teamName: string;
@@ -55,7 +55,7 @@ interface StandingsRow {
     detailRelativePath: string;
 }
 
-const parseStandingsTable = (content: string): StandingsRow[] => {
+export const parseStandingsTable = (content: string): StandingsRow[] => {
     const rows: StandingsRow[] = [];
     const lines = content.split(/\r?\n/);
     for (const line of lines) {

@@ -1,7 +1,11 @@
 import { Link, Outlet, useLocation } from "react-router-dom";
 import { SettingsMenu } from "./SettingsMenu.tsx";
 
-const NAV_ITEMS = [{ path: "/", label: "Standings" }];
+const NAV_ITEMS = [
+    { path: "/", label: "Standings" },
+    { path: "/elo", label: "Elo" },
+    { path: "/methodology", label: "Methodology" },
+];
 
 const navLinkClass = (active: boolean) =>
     `h-full inline-flex items-center px-3 text-xs font-mono font-medium border-b-2 whitespace-nowrap transition-colors ${

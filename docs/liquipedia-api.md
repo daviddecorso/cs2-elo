@@ -79,7 +79,9 @@ Behavior to handle:
 
 Limits are hourly and per wiki and table. The 429 error reads `API key "<key>" limits for wiki "counterstrike" and table "match" exceeded.`, so it **echoes the full API key**, and the client redacts it. The exact quota isn't published on the dashboard. On 2026-10-19, two CI runs plus two local fetches of the full 190-day window (about 55 requests each, mostly `/match` and `/placement`) within ten minutes exceeded the `match` table limit.
 
-`scripts/fetch-liquipedia.ts` keeps a local store in `data/raw/` with a `meta.json` recording its window and the date of its last full refresh. A normal run refetches only the last 14 days, plus any part of the requested window the store doesn't cover. It does a full refresh weekly or with `--full`. Fetched ranges replace stored rows, so edits and deletions carry over. Pages are requested with `order=objectname ASC` so offset pagination stays stable. The nightly workflow persists `data/raw/` with `actions/cache`.
+`scripts/fetch-liquipedia.ts` keeps a local store in `data/raw/` with a `meta.json` recording its window and the date of its last full refresh. A normal run refetches only the last 14 days, plus any part of the requested window the store doesn't cover. It does a full refresh weekly or with `--full`. Fetched ranges replace stored rows, so edits and deletions carry over. Pages are requested with `order=objectname ASC` so offset pagination stays stable. The nightly workflow persists `data/raw/` with `actions/cache`. Active squads (`/squadplayer`, about 10 requests) are refetched weekly into `data/raw/squads.json`.
+
+History older than the hot window comes from `scripts/backfill-liquipedia.ts`. It fetches one month at a time into `data/raw/archive/` and caps each run with `--max-requests` (default 30). A month costs about 5 requests. Settled months are then committed as normalized `data/history/` files (see [elo-model.md](elo-model.md)), so nothing is ever backfilled twice.
 
 ## Fields
 
@@ -257,7 +259,30 @@ The format of `stream` depends on the `streamurls` and `rawstreams` parameters:
 | `sponsors` | string |
 | `extradata` | json |
 
+### `/squadplayer`
+
+Observed on `Team_Vitality`, 2026-10-19. There is one row per player stint, including former members and staff.
+
+| Field | Notes |
+| --- | --- |
+| `pagename` | Team page, underscored (`Team_Vitality`) |
+| `link` | Player page name (`ApEX`), the same key as `match2players.name` |
+| `id` | Display nick (`apEX`) |
+| `name`, `nationality` | Real name, country name |
+| `role`, `position` | Free text (`Captain`) |
+| `type` | `player` or staff |
+| `status` | `active`, `former`, `inactive` |
+| `joindate`, `leavedate`, `inactivedate` | `YYYY-MM-DD`, with `0000-01-01` when unset |
+| `newteam`, `newteamtemplate`, `teamtemplate` | Destination and versioned team templates |
+
+- `active` can include more than 5 players (analysts or benched players listed as `player`).
+- Grouped conditions work: `([[pagename::A]] OR [[pagename::B]]) AND [[status::active]] AND [[type::player]]`.
+- `extradata` holds display dates with unrendered ref markers. Don't show it.
+
 ## Probed Findings
+
+- **No veto data**: none of the 11,462 2026 matches in the store has a veto field in match `extradata` (keys: `matchsection`, `overturned`, `timezoneoffset`, `featured`, `timestamp`, `hidden`, `timezoneid`, `comment`, `status`) or map `extradata` (`t1halfs`, `t2halfs`, `t1sides`, `t2sides`, `rounds`, `timestamp`, `dateexact`, `displayname`, `nuselo`, `comment`). Map order is known, but not who picked or banned what.
+- **Map `resulttype`**: `np` marks a map that wasn't played. `default` with `walkover: "ff"` marks a forfeited map with 0–0 scores. Some maps carry per-round detail in `extradata.rounds`.
 
 - **Valve-ranked event marking**: `publishertier` on `/tournament` (and `/match`) marks Valve-ranked events (`"Major Championship"`, `"Tier 1"`, `"Tier 1 Qualifier"`, `"Tier 2"`, `"Tier 2 Qualifier"`, `"Wildcard"`). Tournaments with an empty `publishertier` (`""`) are unranked. Tournament `extradata` only contains `startdatetext`, `enddatetext`, and sometimes `series2`.
 - **`/placement` prize rows and qualification links**: `/placement` exposes per-team prize rows keyed by `opponenttemplate` (and `opponentname`), with `prizemoney` in numeric USD. Structured next-event or `qualifiedEvents` links are not directly exposed in `/placement` (`qualifier`, `qualifierpage`, and `qualifierurl` contain human-readable names or URLs rather than parent/child event IDs).

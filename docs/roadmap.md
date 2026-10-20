@@ -2,14 +2,26 @@
 
 ## Overview
 
-VRS is close but not at the gate defined in [vrs-verification.md](vrs-verification.md). Infrastructure work comes first, so VRS fixes land on a committed branch and a feed that Elo can share. Then the VRS work goes after the gate.
+VRS is close but not at the gate defined in [vrs-verification.md](vrs-verification.md). The shared infrastructure is in place and Elo is built. What's left for Elo is the 2024–2025 backfill, tuning, and its own gate.
 
 ## Before Elo
 
 - [x] **Commit on a branch.** Everything up to the Liquipedia pipeline, agy's work included, plus these docs (`vrs-liquipedia-matchdata`).
 - [ ] **Run the nightly job end to end once.** It needs `LIQUIPEDIA_API_KEY` as a repo secret. The `/player` fetch hit Liquipedia's hourly limit locally. Skip players already in `data/raw/players.json`, and persist `data/raw/players.json` and `.cache/liquipedia/` across runs with `actions/cache`.
-- [ ] **Split the match feed from the VRS projection.** Extract `normalizeMatches` (clean Liquipedia matches keyed by page name) from `buildMatchdata`. A `projectVrs` step owns `valveRanked`, the qualifier rule, lineup resolution, aliases and prize overrides. Elo uses the normalized feed, not Valve's coverage quirks.
-- [ ] **Settle identity.** Page names are the stable IDs. Aliases apply only in the VRS projection.
+- [x] **Split the match feed from the VRS projection.** Elo reads `normalizeMatches` in `scripts/lib/elo/normalize.ts` (page-name keyed, no coverage rules). `buildMatchdata` keeps `valveRanked`, the qualifier rule, aliases and prize overrides. Lineup resolution is shared through `scripts/lib/lineups.ts`.
+- [x] **Settle identity.** Elo keys on page names. Aliases apply only in the VRS projection and the VRS baseline's nick lookup.
+
+## Elo
+
+See [elo-model.md](elo-model.md).
+
+- [x] **Finish the backfill** for 2023-10 → 2026-04 and freeze it into `data/history/`.
+- [x] **Tune and run the gate.** It passes: 0.6148 vs 0.6489 on 8,490 2026 series (elo-model.md).
+- [x] **Check cross-region calibration.** Tuned Elo beats VRS there too (0.6342 vs 0.6505, 651 series).
+- [x] **Stand-in down-weighting.** Tuning kept `standInK` at 1, so there's no down-weight.
+- [ ] **Widen `tierGap`'s search range.** Tuning stopped at 375 of a 400 maximum.
+- [ ] **Veto proxy (v2).** Blocked on missing veto data. Try the map-play-share proxy only after v1 passes.
+- [ ] **Hand-check `data/elo/vrsTeamMap.json`.** It was generated from player overlap on the 2026-10-05 snapshot.
 
 ## VRS to the gate
 

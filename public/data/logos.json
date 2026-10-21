@@ -11,6 +11,10 @@
     "slug": "100-thieves",
     "hasDark": true
   },
+  "100RA": {
+    "slug": "100ra",
+    "hasDark": false
+  },
   "1w Team": {
     "slug": "1w-team",
     "hasDark": false
@@ -623,6 +627,10 @@
     "slug": "egoisto-uzbek-team",
     "hasDark": false
   },
+  "Elite Klan": {
+    "slug": "elite-klan",
+    "hasDark": true
+  },
   "elitenergy": {
     "slug": "inox-division",
     "hasDark": false
@@ -1216,7 +1224,7 @@
     "hasDark": false
   },
   "Inner Circle Academy": {
-    "slug": "inner-circle-academy",
+    "slug": "ic-academy",
     "hasDark": false
   },
   "inner circle academy orig": {
@@ -2347,6 +2355,10 @@
     "slug": "100-thieves",
     "hasDark": true
   },
+  "Team 100RA": {
+    "slug": "100ra",
+    "hasDark": false
+  },
   "Team 1w Team": {
     "slug": "1w-team",
     "hasDark": false
@@ -2971,6 +2983,10 @@
     "slug": "egoisto-uzbek-team",
     "hasDark": false
   },
+  "Team Elite Klan": {
+    "slug": "elite-klan",
+    "hasDark": true
+  },
   "Team elitenergy": {
     "slug": "inox-division",
     "hasDark": false
@@ -3568,7 +3584,7 @@
     "hasDark": false
   },
   "Team Inner Circle Academy": {
-    "slug": "inner-circle-academy",
+    "slug": "ic-academy",
     "hasDark": false
   },
   "Team inner circle academy orig": {

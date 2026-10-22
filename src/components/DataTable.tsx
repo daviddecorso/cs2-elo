@@ -12,7 +12,9 @@ const alignClass: Record<Align, string> = {
 export const thClass =
     "py-2 px-3 text-[11px] font-mono uppercase tracking-wider text-muted font-medium whitespace-nowrap";
 export const tdClass = "py-2 px-3 text-xs font-mono whitespace-nowrap";
-const stickyThClass = "sticky-col-edge sticky left-0 z-10 bg-(--table-bg,var(--color-bg))";
+// Tables read their surface from `--table-bg`, which `Card` and `Inset` set; the page background is the default.
+const stickyThClass = "sticky-col-edge sticky left-0 z-30 bg-(--table-bg,var(--color-bg))";
+// Sticky cells must be opaque, so they read the row's background from `--row-bg` set by `Row`.
 const stickyTdClass = "sticky-col-edge sticky left-0 z-10 bg-(--row-bg) transition-colors";
 const rowClass =
     "bg-(--row-bg) transition-colors [--row-bg:var(--table-bg,var(--color-bg))] hover:[--row-bg:var(--color-surface-2)]";
@@ -21,18 +23,31 @@ const highlightedRowClass =
 
 export interface DataTableProps extends React.TableHTMLAttributes<HTMLTableElement> {
     children: React.ReactNode;
+    /** Pins the header below the app header at lg+; narrower screens keep horizontal scroll instead. */
+    stickyHeader?: boolean;
 }
 
-export const DataTable = ({ children, className = "", ...rest }: DataTableProps) => (
-    <div className="overflow-x-auto">
+// Any non-visible overflow makes the wrapper the sticky ancestor, so lg+ drops it to stick against the page.
+const stickyHeaderContainerClass = "overflow-x-auto lg:overflow-visible lg:[&_thead]:top-(--app-header-h)";
+
+export const DataTable = ({ children, className = "", stickyHeader = false, ...rest }: DataTableProps) => (
+    <div className={stickyHeader ? stickyHeaderContainerClass : "overflow-x-auto"}>
         <table className={`w-full text-left border-collapse ${className}`} {...rest}>
             {children}
         </table>
     </div>
 );
 
-export const TableHead = ({ children }: { children: React.ReactNode }) => (
-    <thead className="border-b border-line">
+export const TableHead = ({
+    children,
+    className = "",
+}: {
+    children: React.ReactNode;
+    className?: string;
+}) => (
+    <thead
+        className={`sticky top-0 z-20 bg-(--table-bg,var(--color-bg)) border-b border-line ${className}`}
+    >
         <tr>{children}</tr>
     </thead>
 );
@@ -82,6 +97,7 @@ export interface SortHeaderProps<K extends string> extends CellProps {
     sortKey: K;
     sort: SortState<K>;
     onSort: (key: K) => void;
+    /** The column reads low to high in its default order (ranks), not high to low (ratings). */
     ascending?: boolean;
     children: React.ReactNode;
     className?: string;
@@ -122,6 +138,15 @@ export function SortHeader<K extends string>({
         </Th>
     );
 }
+
+export const ProbabilityBar = ({ p, className = "" }: { p: number; className?: string }) => (
+    <div className={`h-1.5 w-16 bg-surface-2 rounded-full overflow-hidden ${className}`}>
+        <div
+            className="h-full bg-accent"
+            style={{ width: `${Math.min(100, Math.max(0, p * 100))}%` }}
+        />
+    </div>
+);
 
 export const FactorBar = ({ val, className = "" }: { val: number; className?: string }) => (
     <div className={`h-1.5 w-16 bg-surface-2 rounded-full overflow-hidden ${className}`}>

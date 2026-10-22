@@ -1,11 +1,11 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Button, Label, Segmented } from "./ui.tsx";
 import { useOutsidePress } from "../hooks/useOutsidePress.ts";
-import { isDarkTheme, saveTheme } from "../utils/theme.ts";
+import { getThemeChoice, setTheme, type ThemeChoice } from "../utils/theme.ts";
 
 export function SettingsMenu() {
     const [open, setOpen] = useState(false);
-    const [darkMode, setDarkMode] = useState(false);
+    const [themeChoice, setThemeChoice] = useState<ThemeChoice>(getThemeChoice);
     const ref = useRef<HTMLDivElement>(null);
     const close = useCallback(() => setOpen(false), []);
     useOutsidePress(ref, open, close);
@@ -22,10 +22,7 @@ export function SettingsMenu() {
             <Button
                 variant="ghost"
                 size="icon"
-                onClick={() => {
-                    if (!open) setDarkMode(isDarkTheme());
-                    setOpen(!open);
-                }}
+                onClick={() => setOpen((o) => !o)}
                 aria-expanded={open}
                 aria-haspopup="true"
                 aria-label="Settings"
@@ -55,13 +52,15 @@ export function SettingsMenu() {
                         <Label>Theme</Label>
                         <Segmented
                             options={[
+                                { value: "system", label: "System" },
                                 { value: "light", label: "Light" },
                                 { value: "dark", label: "Dark" },
                             ]}
-                            value={darkMode ? "dark" : "light"}
+                            value={themeChoice}
                             onChange={(v) => {
-                                saveTheme(v === "dark");
-                                setDarkMode(v === "dark");
+                                const choice = v as ThemeChoice;
+                                setTheme(choice);
+                                setThemeChoice(choice);
                             }}
                             className="w-full [&>button]:flex-1"
                         />

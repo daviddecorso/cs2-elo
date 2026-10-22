@@ -1,11 +1,12 @@
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
 import { useQueryParams } from "../hooks/useQueryParams.ts";
 import { useTableSort } from "../hooks/useTableSort.ts";
 import { columnOrder, rankOrder } from "../utils/tableSort.ts";
+import { rosterMatches } from "../utils/search.ts";
 import { DataTable, Row, SortHeader, TableBody, TableHead, Td } from "../components/DataTable.tsx";
-import { DataRow, EmptyState, Inset, Label, LoadingBar, PageHeader, Section, Segmented } from "../components/ui.tsx";
+import { DataRow, EmptyState, Inset, Label, LoadingBar, PageHeader, Section, Segmented, TextInput, Tooltip } from "../components/ui.tsx";
 import { LiquipediaCredit } from "../components/LiquipediaCredit.tsx";
 import { TeamLogo } from "../components/TeamLogo.tsx";
 import { liquipediaUrl } from "../utils/liquipedia.ts";
@@ -33,9 +34,11 @@ const Gap = ({ roster }: { roster: EloRoster }) => {
     if (gap === null) return <span className="text-muted">–</span>;
     if (gap === 0) return <span className="text-muted">0</span>;
     return (
-        <span className={gap > 0 ? "text-up" : "text-down"} title={gap > 0 ? "Elo ranks higher than VRS" : "Elo ranks lower than VRS"}>
-            {gap > 0 ? "▲" : "▼"} {Math.abs(gap)}
-        </span>
+        <Tooltip content={gap > 0 ? `Elo ranks ${gap} places higher than VRS` : `Elo ranks ${-gap} places lower than VRS`}>
+            <span className={gap > 0 ? "text-up" : "text-down"}>
+                {gap > 0 ? "▲" : "▼"} {Math.abs(gap)}
+            </span>
+        </Tooltip>
     );
 };
 
@@ -89,10 +92,27 @@ export const EloRankings = () => {
     const { sort, onSort } = useTableSort<SortKey>(SORT_KEYS);
     const [expanded, setExpanded] = useState<Set<string>>(new Set());
 
+    const [query, setQuery] = useState(queryParams.get("q") ?? "");
+    const urlQuery = queryParams.get("q") ?? "";
+    useEffect(() => {
+        setQuery(urlQuery);
+    }, [urlQuery]);
+
+    const handleQueryChange = (q: string) => {
+        setQuery(q);
+        setQueryParams({ q: q || null });
+    };
+
     const { data, isLoading, error } = useQuery({ queryKey: ["elo", "latest"], queryFn: fetchEloRankings });
 
+    const regionRosters = useMemo(() => {
+        return (data?.rosters ?? []).filter((r) => region === "Global" || r.region === region);
+    }, [data, region]);
+
     const rosters = useMemo(() => {
-        const list = (data?.rosters ?? []).filter((r) => region === "Global" || r.region === region);
+        const list = regionRosters.filter((r) =>
+            rosterMatches(r.team, r.players.map((p) => p.nick), query)
+        );
         const opts = (ascending: boolean) => ({ ascending, reversed: sort.reversed });
         return [...list].sort((a, b) => {
             switch (sort.key) {
@@ -115,7 +135,7 @@ export const EloRankings = () => {
                     return rankOrder(a.rank, b.rank, sort.reversed);
             }
         });
-    }, [data, region, sort]);
+    }, [regionRosters, query, sort]);
 
     const toggle = (key: string) =>
         setExpanded((prev) => {
@@ -147,19 +167,34 @@ export const EloRankings = () => {
                     </>
                 }
                 actions={
-                    <Segmented
-                        aria-label="Region"
-                        options={REGIONS}
-                        value={region}
-                        onChange={(r) => setQueryParams({ region: r === "Global" ? null : r })}
-                    />
+                    <div className="flex flex-wrap gap-2">
+                        <TextInput
+                            value={query}
+                            onChange={(e) => handleQueryChange(e.target.value)}
+                            placeholder="Team or player"
+                            aria-label="Filter rosters by team or player"
+                            className="w-44"
+                        />
+                        <Segmented
+                            aria-label="Region"
+                            options={REGIONS}
+                            value={region}
+                            onChange={(r) => setQueryParams({ region: r === "Global" ? null : r })}
+                        />
+                    </div>
                 }
             />
 
             <Section
                 title={`${region} / map-level Elo vs. VRS`}
                 subtitle="Rosters with 15+ rated maps and a series in the last 90 days. Δ is VRS rank minus Elo rank."
-                actions={<span className="text-xs font-mono text-muted">{rosters.length} rosters</span>}
+                actions={
+                    <span className="text-xs font-mono text-muted">
+                        {query.trim()
+                            ? `${rosters.length} of ${regionRosters.length} rosters`
+                            : `${rosters.length} rosters`}
+                    </span>
+                }
             >
                 <DataTable>
                     <TableHead>
@@ -189,7 +224,9 @@ export const EloRankings = () => {
                         {rosters.length === 0 ? (
                             <tr>
                                 <td colSpan={COLUMN_COUNT}>
-                                    <EmptyState>No rosters found</EmptyState>
+                                    <EmptyState>
+                                        {query.trim() ? `No rosters match “${query.trim()}”` : "No rosters found"}
+                                    </EmptyState>
                                 </td>
                             </tr>
                         ) : (
@@ -222,9 +259,11 @@ export const EloRankings = () => {
                                                     {r.team}
                                                 </button>
                                                 {r.departed.length > 0 && (
-                                                    <span className="ml-1.5 text-[10px] font-mono text-heat" title={`Left the squad: ${r.departed.join(", ")}`}>
-                                                        roster change
-                                                    </span>
+                                                    <Tooltip content={`Left the squad: ${r.departed.join(", ")}`}>
+                                                        <span className="ml-1.5 text-[10px] font-mono text-heat">
+                                                            roster change
+                                                        </span>
+                                                    </Tooltip>
                                                 )}
                                                 <span className="md:hidden block pl-[44px] text-[10px] font-mono text-muted">{players}</span>
                                             </Td>

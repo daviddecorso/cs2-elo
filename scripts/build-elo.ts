@@ -58,7 +58,7 @@ if (fs.existsSync(squadsPath)) {
 }
 const departedFrom = (team: string, core: string[]): string[] => {
     const squad = squads.get(team);
-    return squad ? core.filter((p) => !squad.has(p.toLowerCase())).map((p) => feed.players[p]?.nick ?? p) : [];
+    return squad ? core.filter((p) => !squad.has(p.toLowerCase().replace(/_/g, " "))).map((p) => feed.players[p]?.nick ?? p) : [];
 };
 
 const pool = engine.activePool(lastT);

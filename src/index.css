@@ -52,9 +52,75 @@
   --color-heat: var(--heat);
   --color-violet: var(--violet);
   --color-paper: var(--paper);
+  --color-series-2: var(--series-2);
+  --color-series-3: var(--series-3);
+  --color-series-4: var(--series-4);
 
   --font-sans: "Geist Variable", ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --animate-card-in: card-in 220ms ease-out;
+  --animate-ticker-in: ticker-in 300ms ease-out;
+  --animate-ticker-out: ticker-out 300ms ease-in forwards;
+  --animate-score-pop: score-pop 1.2s ease-out both;
+  --animate-ticker-sweep: ticker-sweep 1.2s ease-out both;
+  --animate-fav-glow: fav-glow 3.5s ease-out forwards;
+
   --font-mono: "Geist Mono Variable", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+}
+
+@keyframes card-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+}
+
+@keyframes ticker-in {
+  from {
+    opacity: 0;
+    transform: translateY(-100%);
+  }
+}
+
+@keyframes score-pop {
+  from {
+    opacity: 0;
+    transform: translate(-50%, 4px);
+  }
+  15% {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+    transform: translate(-50%, -6px);
+  }
+}
+
+@keyframes ticker-sweep {
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: translateX(250%);
+  }
+}
+
+@keyframes fav-glow {
+  0%, 30%, 60% {
+    opacity: 1;
+  }
+  15%, 45% {
+    opacity: 0.4;
+  }
+  to {
+    opacity: 0;
+  }
+}
+
+@keyframes ticker-out {
+  to {
+    opacity: 0;
+    transform: translateY(100%);
+  }
 }
 
 body {
@@ -82,4 +148,11 @@ body {
   to {
     box-shadow: inset -1px 0 var(--color-line), 6px 0 8px -6px rgb(0 0 0 / 0.35);
   }
+}
+
+/* Continuous-feed pin holes; hole fill matches the page so it reads as punched through. */
+.tractor-feed {
+  background-image: radial-gradient(circle, var(--bg) 0 4.5px, var(--line) 4.5px 5.5px, transparent 6px);
+  background-size: 100% 1.5rem;
+  background-position: center 0.75rem;
 }

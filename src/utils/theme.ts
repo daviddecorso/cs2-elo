@@ -18,6 +18,27 @@ export const applyTheme = (dark = isDarkTheme()) => {
     document.documentElement.classList.toggle("dark", dark);
 };
 
+export type ThemeChoice = "system" | "light" | "dark";
+
+export const getThemeChoice = (): ThemeChoice => {
+    const stored = storedTheme();
+    if (stored === "dark" || stored === "light") return stored;
+    return "system";
+};
+
+export const setTheme = (choice: ThemeChoice) => {
+    if (choice === "system") {
+        try {
+            localStorage.removeItem(STORAGE_KEY);
+        } catch {
+            // storage unavailable
+        }
+        applyTheme();
+    } else {
+        saveTheme(choice === "dark");
+    }
+};
+
 export const saveTheme = (dark: boolean) => {
     applyTheme(dark);
     try {

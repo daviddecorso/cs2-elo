@@ -2,12 +2,26 @@ import { Link, Outlet, useLocation } from "react-router-dom";
 import { SettingsMenu } from "./SettingsMenu.tsx";
 
 const NAV_ITEMS = [
-    { path: "/", label: "Standings" },
     { path: "/elo", label: "Elo" },
+    { path: "/", label: "Standings", alsoActive: ["/standings"] },
     { path: "/events", label: "Events" },
     { path: "/major-invites", label: "Major invites" },
+    { path: "/model", label: "Model" },
     { path: "/methodology", label: "Methodology" },
 ];
+
+const isPathActive = (
+    currentPath: string,
+    targetPath: string,
+    alsoActive: string[] = []
+) => {
+    if (currentPath === targetPath) return true;
+    if (alsoActive.some((p) => currentPath === p || currentPath.startsWith(`${p}/`))) {
+        return true;
+    }
+    if (targetPath === "/") return false;
+    return currentPath.startsWith(`${targetPath}/`);
+};
 
 const navLinkClass = (active: boolean) =>
     `h-full inline-flex items-center px-3 text-xs font-mono font-medium border-b-2 whitespace-nowrap transition-colors ${
@@ -24,7 +38,7 @@ export const AppShell = () => {
                     <div className="flex items-center justify-between h-12">
                         <div className="flex items-center gap-2 sm:gap-3">
                             <Link
-                                to="/"
+                                to="/elo"
                                 className="font-mono font-bold text-sm tracking-tight text-fg hover:text-accent transition-colors"
                             >
                                 Davelo
@@ -35,8 +49,12 @@ export const AppShell = () => {
                         </div>
 
                         <nav className="hidden xl:flex h-12 items-center gap-1">
-                            {NAV_ITEMS.map(({ path, label }) => (
-                                <Link key={path} to={path} className={navLinkClass(pathname === path || pathname.startsWith(`${path}/`))}>
+                            {NAV_ITEMS.map(({ path, label, alsoActive }) => (
+                                <Link
+                                    key={path}
+                                    to={path}
+                                    className={navLinkClass(isPathActive(pathname, path, alsoActive))}
+                                >
                                     {label}
                                 </Link>
                             ))}
@@ -47,8 +65,12 @@ export const AppShell = () => {
                 </div>
 
                 <nav className="xl:hidden h-10 border-t border-line flex px-4 sm:px-6 lg:px-8 overflow-x-auto">
-                    {NAV_ITEMS.map(({ path, label }) => (
-                        <Link key={path} to={path} className={navLinkClass(pathname === path || pathname.startsWith(`${path}/`))}>
+                    {NAV_ITEMS.map(({ path, label, alsoActive }) => (
+                        <Link
+                            key={path}
+                            to={path}
+                            className={navLinkClass(isPathActive(pathname, path, alsoActive))}
+                        >
                             {label}
                         </Link>
                     ))}

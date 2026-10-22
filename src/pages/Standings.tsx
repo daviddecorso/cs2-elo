@@ -1,8 +1,9 @@
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useQueryParams } from "../hooks/useQueryParams.ts";
 import { useTableSort } from "../hooks/useTableSort.ts";
 import { columnOrder, rankOrder } from "../utils/tableSort.ts";
+import { rosterMatches } from "../utils/search.ts";
 import {
     DataTable,
     TableHead,
@@ -22,6 +23,8 @@ import {
     PageHeader,
     Section,
     Segmented,
+    TextInput,
+    Tooltip,
 } from "../components/ui.tsx";
 import { Link } from "react-router-dom";
 import { LiquipediaCredit } from "../components/LiquipediaCredit.tsx";
@@ -66,10 +69,20 @@ const fetchStandings = async (file: string): Promise<StandingsData | null> => {
 
 const RankChange = ({ now, before }: { now: number | null; before: number | null | undefined }) => {
     if (now === null) return null;
-    if (before === null || before === undefined) return <span className="text-accent">new</span>;
+    if (before === null || before === undefined) {
+        return (
+            <Tooltip content="New to standings this snapshot">
+                <span className="text-accent">new</span>
+            </Tooltip>
+        );
+    }
     const diff = before - now;
     if (diff === 0) return <span className="text-muted/50">–</span>;
-    return <span className={diff > 0 ? "text-up" : "text-down"}>{diff > 0 ? `▲${diff}` : `▼${-diff}`}</span>;
+    return (
+        <Tooltip content={diff > 0 ? `Up ${diff} places from #${before}` : `Down ${-diff} places from #${before}`}>
+            <span className={diff > 0 ? "text-up" : "text-down"}>{diff > 0 ? `▲${diff}` : `▼${-diff}`}</span>
+        </Tooltip>
+    );
 };
 
 const RosterDetails = ({ roster }: { roster: Roster }) => (
@@ -115,6 +128,17 @@ export const Standings = () => {
     const currentRegion = (queryParams.get("region") as "Global" | Region) || "Global";
     const selectedRegion = REGIONS.includes(currentRegion) ? currentRegion : "Global";
 
+    const [query, setQuery] = useState(queryParams.get("q") ?? "");
+    const urlQuery = queryParams.get("q") ?? "";
+    useEffect(() => {
+        setQuery(urlQuery);
+    }, [urlQuery]);
+
+    const handleQueryChange = (q: string) => {
+        setQuery(q);
+        setQueryParams({ q: q || null });
+    };
+
     const published = useQuery({
         queryKey: ["standings", "latest"],
         queryFn: () => fetchStandings("latest"),
@@ -148,8 +172,15 @@ export const Standings = () => {
         return data.rosters.filter((r) => r.region === selectedRegion);
     }, [data, selectedRegion]);
 
+    const matchingRosters = useMemo(() => {
+        if (!query.trim()) return filteredRosters;
+        return filteredRosters.filter((r) =>
+            rosterMatches(r.teamName, r.players, query)
+        );
+    }, [filteredRosters, query]);
+
     const sortedRosters = useMemo(() => {
-        const rosters = [...filteredRosters];
+        const rosters = [...matchingRosters];
         const isGlobal = selectedRegion === "Global";
 
         rosters.sort((a, b) => {
@@ -200,7 +231,7 @@ export const Standings = () => {
         });
 
         return rosters;
-    }, [filteredRosters, selectedRegion, sort]);
+    }, [matchingRosters, selectedRegion, sort]);
 
     const handleSelectRegion = (region: "Global" | Region) => {
         setQueryParams({ region: region === "Global" ? null : region });
@@ -243,6 +274,13 @@ export const Standings = () => {
                 }
                 actions={
                     <div className="flex flex-wrap gap-2">
+                        <TextInput
+                            value={query}
+                            onChange={(e) => handleQueryChange(e.target.value)}
+                            placeholder="Team or player"
+                            aria-label="Filter rosters by team or player"
+                            className="w-44"
+                        />
                         {hasLive && (
                             <Segmented
                                 aria-label="Standings source"
@@ -276,7 +314,9 @@ export const Standings = () => {
                 title={`${isGlobal ? "Global" : selectedRegion} / ${isLive ? (data.asOf ?? data.snapshotDate) : data.snapshotDate}`}
                 actions={
                     <span className="text-xs font-mono text-muted">
-                        {sortedRosters.length} teams
+                        {query.trim()
+                            ? `${sortedRosters.length} of ${filteredRosters.length} teams`
+                            : `${sortedRosters.length} teams`}
                     </span>
                 }
             >
@@ -292,8 +332,10 @@ export const Standings = () => {
                             #
                         </SortHeader>
                         {showChange && (
-                            <Th scope="col" className="w-px" title={`Global rank change since the ${data.previousSnapshot} snapshot`}>
-                                ±
+                            <Th scope="col" className="w-px">
+                                <Tooltip content={`Global rank change since the ${data.previousSnapshot} snapshot`}>
+                                    ±
+                                </Tooltip>
                             </Th>
                         )}
                         <SortHeader sortKey="team" sort={sort} onSort={onSort} ascending align="left">
@@ -349,17 +391,19 @@ export const Standings = () => {
                         {sortedRosters.length === 0 ? (
                             <tr>
                                 <td colSpan={columnCount}>
-                                    <EmptyState>No teams found</EmptyState>
+                                    <EmptyState>
+                                        {query.trim() ? `No teams match “${query.trim()}”` : "No teams found"}
+                                    </EmptyState>
                                 </td>
                             </tr>
                         ) : (
-                            sortedRosters.map((roster) => {
+                            sortedRosters.map((roster, i) => {
                                 const rank = isGlobal ? roster.globalRank : roster.regionalRank;
                                 const isExpanded = expandedRows.has(roster.rosterKey);
                                 const players = roster.players.join(", ");
 
                                 return (
-                                    <React.Fragment key={roster.rosterKey}>
+                                    <React.Fragment key={roster.rosterKey || `unkeyed-${i}`}>
                                         <Row>
                                             <Td align="right" className="text-muted">
                                                 {rank ?? "–"}

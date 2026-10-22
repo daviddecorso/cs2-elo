@@ -1,10 +1,12 @@
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Link, useParams } from "react-router-dom";
+import { useQueryParams } from "../hooks/useQueryParams.ts";
 import { useTableSort } from "../hooks/useTableSort.ts";
 import { columnOrder } from "../utils/tableSort.ts";
+import { textMatches } from "../utils/search.ts";
 import { DataTable, Row, SortHeader, TableBody, TableHead, Td } from "../components/DataTable.tsx";
-import { DataRow, EmptyState, Inset, Label, LoadingBar, PageHeader, Section, Segmented } from "../components/ui.tsx";
+import { DataRow, EmptyState, Inset, Label, LoadingBar, PageHeader, Section, Segmented, TextInput } from "../components/ui.tsx";
 import { Bracket } from "../components/Bracket.tsx";
 import { LiquipediaCredit } from "../components/LiquipediaCredit.tsx";
 import { TeamLogo } from "../components/TeamLogo.tsx";
@@ -48,6 +50,18 @@ const Placements = ({ team, data }: { team: EventOddsTeam; data: EventOddsData }
 
 export const EventOdds = () => {
     const { slug = "" } = useParams();
+    const [queryParams, setQueryParams] = useQueryParams();
+    const [query, setQuery] = useState(queryParams.get("q") ?? "");
+    const urlQuery = queryParams.get("q") ?? "";
+    useEffect(() => {
+        setQuery(urlQuery);
+    }, [urlQuery]);
+
+    const handleQueryChange = (q: string) => {
+        setQuery(q);
+        setQueryParams({ q: q || null });
+    };
+
     const { data, isLoading, error } = useQuery({
         queryKey: ["sim", "event", slug],
         queryFn: () => fetchSimJson<EventOddsData>(`events/${slug}.json`),
@@ -59,6 +73,7 @@ export const EventOdds = () => {
 
     const teams = useMemo(() => {
         if (!data) return [];
+        const matching = data.teams.filter((t) => textMatches(t.team, query));
         const value = (t: EventOddsTeam): number | string | null => {
             if (sort.key === "team") return t.team;
             if (sort.key === "rating") return t.rating;
@@ -66,10 +81,10 @@ export const EventOdds = () => {
             if (sort.key === "win") return t.placements["1"] ?? 0;
             return t.reach[sort.key] ?? 0;
         };
-        return [...data.teams].sort((a, b) =>
+        return [...matching].sort((a, b) =>
             columnOrder(value(a), value(b), { ascending: sort.key === "team", reversed: sort.reversed })
         );
-    }, [data, sort]);
+    }, [data, query, sort]);
 
     if (isLoading) return <LoadingBar label="Loading event odds…" />;
     if (data === null) return <EmptyState>This event hasn't been simulated yet.</EmptyState>;
@@ -104,10 +119,26 @@ export const EventOdds = () => {
                         </a>
                     </>
                 }
+                actions={
+                    <TextInput
+                        value={query}
+                        onChange={(e) => handleQueryChange(e.target.value)}
+                        placeholder="Filter teams"
+                        aria-label="Filter teams"
+                        className="w-44"
+                    />
+                }
             />
             <Section
                 title="Placement odds"
                 subtitle="Each match is drawn from Elo series odds; played results are fixed. A team's rating drifts by one random walk per simulation until the event starts."
+                actions={
+                    <span className="text-xs font-mono text-muted">
+                        {query.trim()
+                            ? `${teams.length} of ${data.teams.length} teams`
+                            : `${teams.length} teams`}
+                    </span>
+                }
             >
                 <DataTable>
                     <TableHead>
@@ -130,7 +161,16 @@ export const EventOdds = () => {
                         </SortHeader>
                     </TableHead>
                     <TableBody>
-                        {teams.map((t) => {
+                        {teams.length === 0 ? (
+                            <tr>
+                                <td colSpan={columns}>
+                                    <EmptyState>
+                                        {query.trim() ? `No teams match “${query.trim()}”` : "No teams found"}
+                                    </EmptyState>
+                                </td>
+                            </tr>
+                        ) : (
+                            teams.map((t) => {
                             const isExpanded = expanded.has(t.team);
                             return (
                                 <React.Fragment key={t.team}>
@@ -178,7 +218,8 @@ export const EventOdds = () => {
                                     )}
                                 </React.Fragment>
                             );
-                        })}
+                        })
+                    )}
                     </TableBody>
                 </DataTable>
                 <LiquipediaCredit what="Brackets, results, prize and team logo data" />

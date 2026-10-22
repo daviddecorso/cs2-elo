@@ -1,11 +1,12 @@
-import { useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
 import { useQueryParams } from "../hooks/useQueryParams.ts";
 import { useTableSort } from "../hooks/useTableSort.ts";
 import { columnOrder } from "../utils/tableSort.ts";
+import { rosterMatches } from "../utils/search.ts";
 import { DataTable, Row, SortHeader, TableBody, TableHead, Td } from "../components/DataTable.tsx";
-import { EmptyState, Inset, Label, LoadingBar, PageHeader, Section, Segmented } from "../components/ui.tsx";
+import { EmptyState, Inset, Label, LoadingBar, PageHeader, Section, Segmented, TextInput, Tooltip } from "../components/ui.tsx";
 import { LiquipediaCredit } from "../components/LiquipediaCredit.tsx";
 import { TeamLogo } from "../components/TeamLogo.tsx";
 import { liquipediaUrl } from "../utils/liquipedia.ts";
@@ -28,13 +29,15 @@ const Pct = ({ p, strong = false }: { p: number; strong?: boolean }) => (
 const RankRange = ({ rank }: { rank: InviteOddsRoster["rank"] }) => {
     const fmt = (n: number) => (n >= 999 ? "unranked" : String(n));
     return (
-        <span title="Median projected regional rank, with the 10th–90th percentile range">
-            <span className="text-fg">{fmt(rank.p50)}</span>
-            <span className="text-muted text-[10px]">
-                {" "}
-                ({fmt(rank.p10)}–{fmt(rank.p90)})
+        <Tooltip content="Median projected regional rank, with the 10th–90th percentile range">
+            <span>
+                <span className="text-fg">{fmt(rank.p50)}</span>
+                <span className="text-muted text-[10px]">
+                    {" "}
+                    ({fmt(rank.p10)}–{fmt(rank.p90)})
+                </span>
             </span>
-        </span>
+        </Tooltip>
     );
 };
 
@@ -43,6 +46,18 @@ export const MajorInvites = () => {
     const requested = queryParams.get("region") as Region | null;
     const region = requested && REGIONS.includes(requested) ? requested : "Europe";
     const { sort, onSort } = useTableSort<SortKey>(SORT_KEYS);
+
+    const [query, setQuery] = useState(queryParams.get("q") ?? "");
+    const urlQuery = queryParams.get("q") ?? "";
+    useEffect(() => {
+        setQuery(urlQuery);
+    }, [urlQuery]);
+
+    const handleQueryChange = (q: string) => {
+        setQuery(q);
+        setQueryParams({ q: q || null });
+    };
+
     const indexQuery = useQuery({ queryKey: ["sim", "invites"], queryFn: () => fetchSimJson<InviteIndexEntry[]>("invites/index.json") });
     const majors = indexQuery.data ?? [];
     const major = majors.find((m) => m.slug === queryParams.get("major")) ?? majors[0];
@@ -55,8 +70,14 @@ export const MajorInvites = () => {
     const isLoading = indexQuery.isLoading || (!!major && oddsQuery.isLoading);
     const error = indexQuery.error ?? oddsQuery.error;
 
+    const regionRosters = useMemo(() => {
+        return (data?.rosters ?? []).filter((r) => r.region === region);
+    }, [data, region]);
+
     const rosters = useMemo(() => {
-        const list = (data?.rosters ?? []).filter((r) => r.region === region);
+        const list = regionRosters.filter((r) =>
+            rosterMatches(r.teamName, r.players, query)
+        );
         const value = (r: InviteOddsRoster): number | string => {
             switch (sort.key) {
                 case "team":
@@ -73,7 +94,7 @@ export const MajorInvites = () => {
         return [...list].sort(
             (a, b) => columnOrder(value(a), value(b), { ascending, reversed: sort.reversed }) || invited(b) - invited(a)
         );
-    }, [data, region, sort]);
+    }, [regionRosters, query, sort]);
 
     if (isLoading) return <LoadingBar label="Loading invite odds…" />;
     if (data === null) {
@@ -104,6 +125,13 @@ export const MajorInvites = () => {
                 }
                 actions={
                     <div className="flex flex-wrap gap-2">
+                        <TextInput
+                            value={query}
+                            onChange={(e) => handleQueryChange(e.target.value)}
+                            placeholder="Team or player"
+                            aria-label="Filter rosters by team or player"
+                            className="w-44"
+                        />
                         {majors.length > 1 && (
                             <Segmented
                                 aria-label="Major"
@@ -163,7 +191,16 @@ export const MajorInvites = () => {
                 </div>
             </Inset>
 
-            <Section title={`${region} invites`} actions={<span className="text-xs font-mono text-muted">{rosters.length} rosters</span>}>
+            <Section
+                title={`${region} invites`}
+                actions={
+                    <span className="text-xs font-mono text-muted">
+                        {query.trim()
+                            ? `${rosters.length} of ${regionRosters.length} rosters`
+                            : `${rosters.length} rosters`}
+                    </span>
+                }
+            >
                 <DataTable>
                     <TableHead>
                         <SortHeader sortKey="rank" sort={sort} onSort={onSort} ascending className="w-px">
@@ -192,7 +229,9 @@ export const MajorInvites = () => {
                         {rosters.length === 0 ? (
                             <tr>
                                 <td colSpan={7}>
-                                    <EmptyState>No rosters</EmptyState>
+                                    <EmptyState>
+                                        {query.trim() ? `No rosters match “${query.trim()}”` : "No rosters found"}
+                                    </EmptyState>
                                 </td>
                             </tr>
                         ) : (
@@ -207,9 +246,11 @@ export const MajorInvites = () => {
                                             <span className="font-medium text-fg">{r.teamName}</span>
                                         </div>
                                         {r.intact === false && (
-                                            <span className="ml-1.5 text-[10px] font-mono text-heat" title="No current squad holds three of these players, so the invite passes down">
-                                                not intact
-                                            </span>
+                                            <Tooltip content="No current squad holds three of these players, so the invite passes down">
+                                                <span className="ml-1.5 text-[10px] font-mono text-heat">
+                                                    not intact
+                                                </span>
+                                            </Tooltip>
                                         )}
                                         <span className="block pl-[28px] text-[10px] font-mono text-muted whitespace-normal">{r.players.join(", ")}</span>
                                     </Td>

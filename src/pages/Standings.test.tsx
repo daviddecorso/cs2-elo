@@ -78,4 +78,14 @@ describe("Standings Page", () => {
         expect(html).toContain("Valve Published Standings");
         expect(html).not.toContain("▲2");
     });
+
+    it("filters rosters by query and shows empty state when nothing matches", () => {
+        const spiritHtml = render(null, "/?q=donk");
+        expect(spiritHtml).toContain("Spirit");
+        expect(spiritHtml).toContain("1 of ");
+
+        const emptyHtml = render(null, "/?q=nonexistentteamxyz");
+        expect(emptyHtml).toContain("No teams match “nonexistentteamxyz”");
+        expect(emptyHtml).toContain("0 of ");
+    });
 });

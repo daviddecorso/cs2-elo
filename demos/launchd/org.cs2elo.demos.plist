@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!-- Template: replace __REPO__ and __HOME__, then install as in docs/demo-pipeline.md (Scheduling). -->
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>org.cs2elo.demos</string>
+    <key>ProgramArguments</key>
+    <array>
+        <string>/bin/zsh</string>
+        <string>-lc</string>
+        <string>cd "__REPO__/demos" &amp;&amp; uv run cs2demos auto</string>
+    </array>
+    <key>StartCalendarInterval</key>
+    <dict>
+        <key>Hour</key>
+        <integer>4</integer>
+        <key>Minute</key>
+        <integer>0</integer>
+    </dict>
+    <key>StandardOutPath</key>
+    <string>__HOME__/Library/Logs/cs2-elo/demos.log</string>
+    <key>StandardErrorPath</key>
+    <string>__HOME__/Library/Logs/cs2-elo/demos.log</string>
+    <key>ProcessType</key>
+    <string>Background</string>
+</dict>
+</plist>

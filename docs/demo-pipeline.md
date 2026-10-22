@@ -26,10 +26,12 @@ uv run cs2demos login
 uv run cs2demos run --event Thunderpick/World_Championship/2026 [--match <hltv id>] [--max-pages 30] [--no-upload]
 uv run cs2demos report --event Thunderpick/World_Championship/2026
 uv run cs2demos reparse --event <page> [--all]
-uv run cs2demos prune [--days 30]
+uv run cs2demos prune [--days 30] [--max-gb 10]
+uv run cs2demos auto [--max-pages 60] [--dry-run]
+uv run cs2demos status
 ```
 
-`--event` is the exact Liquipedia tournament page. Qualifiers and regional stages are separate pages and separate events. `report` exits 0 only when every map is parsed at the current parser version and, with R2, has all its tables uploaded.
+`--event` is a Liquipedia tournament page. It also takes the page's stages (rows whose `parent` is that page). Qualifiers have their own parent, so they're separate events. `report` exits 0 only when every map is parsed at the current parser version and, with R2, has all its tables uploaded.
 
 Extracting archives needs `unar` for HLTV's RAR5 archives (Homebrew's `7zz` ships without the RAR codec) and `7zz` for anything else: `brew install unar sevenzip`.
 
@@ -41,7 +43,13 @@ Decision: HLTV has no API for demos, and its terms don't allow automated access.
 - **A challenge stops the run.** It never retries or works around the challenge. Run `login` again.
 - **Slow.** At least 15 s plus up to 10 s of jitter between requests, one download at a time, and `--max-pages` per run (default 30). An event costs one match page and one download per series.
 - **Every match page is cached** in `data/demos/hltv-cache/`, so reruns don't refetch it.
-- **Liquipedia supplies the HLTV match ID** (`links.hltv`), so the scraper never browses HLTV's results or event pages. Every tier-1 LAN since June 2026 has the link. A match without one is skipped (see open items).
+- **Liquipedia supplies the HLTV match ID** (`links.hltv`).
+  - The hot store has it on every row.
+  - The archive (`data/raw/archive/`) was fetched without `links`. `npm run backfill-hltv-links` fills that gap once, with one links-only `/match` query for tier-1 offline matches from 2025-01 to the hot store's start (2 requests). It writes the committed `data/demos/hltv-links.json`. On 2026-10-22 it linked 919/919 series, so every tier-1 LAN map since 2025 has an ID.
+- **Fallback for a series without a link:** HLTV's results for its day, then the days either side (`/results?startDate=D&endDate=D`, 1–3 pages per day, cached once the day is two days old).
+  - It picks the one result where both team names match the opponent's name, short name or page (case and punctuation ignored, a leading "Team" dropped) and the score matches. The score is maps won, or rounds for a Bo1.
+  - Zero or several candidates skip the series.
+  - A hit is saved to `hltv-links.json` with `source: "hltv-results"`. Validation still catches a wrong join.
 
 ## Data
 
@@ -49,16 +57,24 @@ Local, gitignored, under `data/demos/`:
 
 | Path | Contents |
 | --- | --- |
-| `raw/<hltvMatchId>.<ext>` | Series archives. Kept 30 days (`prune`), and kept longer while any of their maps is quarantined. |
+| `raw/<hltvMatchId>.<ext>` | Series archives (see Raw retention). |
 | `work/<hltvMatchId>/` | Extraction scratch, deleted after each series. |
 | `parquet/` | Staging. Only kept with `--no-upload`. |
-| `hltv-cache/` | HLTV match page HTML. |
+| `hltv-cache/` | HLTV match page HTML and per-day results. |
+| `lp/lan-series.json` | Recent tier-1 LAN rows from the nightly CI artifact. |
 | `manifest.json` | Mirror of the R2 manifest. |
 
 Committed:
 
 - `data/demos/steam-players.json`: SteamID → Liquipedia player page. It holds manual fixes and the auto-matches by in-demo name.
 - `data/demos/unresolved-players.json`: SteamIDs left to fix by hand.
+- `data/demos/hltv-links.json`: Liquipedia match2id → HLTV match ID, for rows without `links.hltv`. This is Liquipedia data (CC-BY-SA), plus results-page joins.
+
+**Raw retention.** A full series is about 0.6–1 GB, and the backfill is about 1,350 series, so raw demos are capped rather than kept for 30 days.
+
+- Quarantined series are always kept.
+- Parsed series are deleted after 30 days, and then oldest first while `raw/` is over 10 GB (`prune --max-gb`). `run` and `auto` prune at the end.
+- A download is refused below 10 GB free disk, and the run stops cleanly.
 
 R2 (bucket in `R2_BUCKET`):
 
@@ -122,11 +138,30 @@ Anything left goes to `unresolved-players.json`. It doesn't quarantine a map.
 awpy, demoparser2 and polars are pinned exactly in `demos/pyproject.toml`. After an upgrade:
 
 1. `uv lock`.
-2. `cs2demos reparse --event <page> --all` for events whose raw demos are still on disk (30 days).
-3. Older events need a fresh download.
+2. `cs2demos reparse --event <page> --all` for events whose raw demos are still on disk (under the retention cap).
+3. Everything else needs a fresh download. `auto` does this on its own, because a map counts as done only at the current parser version.
 
-## Open items
+## Scheduling and backfill
 
-- **Matches without `links.hltv`** are skipped. A fallback needs HLTV's event results pages, joined on team names and date ±1 day.
-- **Schedule** with launchd or a VPS cron once the gate passes. The headed profile only runs unattended while its Cloudflare cookies stay valid.
-- **Backfill** tier-1 LANs for 2025–2026.
+`cs2demos auto` is the scheduled entry point. Its scope is every tier-1 (`liquipediatier` 1) offline event since 2025-01-01, grouped by parent page: 38 events, 1,360 series and 3,043 maps as of 2026-10-22. Each run:
+
+1. Takes a lock (`data/demos/auto.lock`). A second run exits.
+2. Pulls the `lan-series` artifact from the latest successful `Update data` run on main with `gh`. CI's `export-lan-series` step writes it from `data/raw/matches.json`: tier-1 offline rows from the last 30 days, with no extra API calls. This machine has no fresh `data/raw/`, so new events reach it this way. If the pull fails, it uses the copy on disk.
+3. Orders events newest first, dropping events with every map parsed at the current parser version. A just-finished event goes ahead of the backfill.
+4. Works through them in one browser session with a 60-request budget, about 30 series a night. That puts the full backfill at about 45 nights.
+5. Stops on the budget, low disk or a challenge, prunes raw demos, and prints maps parsed and quarantined, requests used and series left.
+
+On a challenge it exits 2 and posts a macOS notification asking you to run `uv run cs2demos login`. `status` prints per-event counts (parsed, quarantined, without an HLTV link) from the local manifest.
+
+**launchd.** `demos/launchd/org.cs2elo.demos.plist` runs `auto` at 04:00 local. It's a LaunchAgent, so it runs in your GUI session and can open the headed browser. A run missed while asleep fires on wake. Install from the repo root:
+
+```bash
+mkdir -p ~/Library/Logs/cs2-elo
+sed -e "s#__REPO__#$PWD#" -e "s#__HOME__#$HOME#" demos/launchd/org.cs2elo.demos.plist > ~/Library/LaunchAgents/org.cs2elo.demos.plist
+launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/org.cs2elo.demos.plist
+launchctl kickstart gui/$(id -u)/org.cs2elo.demos     # one run now
+tail -f ~/Library/Logs/cs2-elo/demos.log
+launchctl bootout gui/$(id -u)/org.cs2elo.demos       # uninstall
+```
+
+Optional: `sudo pmset repeat wake MTWRFSU 03:55:00` wakes the Mac for it. Unattended runs last only while the profile's Cloudflare cookies stay valid.

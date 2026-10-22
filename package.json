@@ -22,6 +22,8 @@
         "fetch-logos": "vite-node scripts/fetch-logos.ts",
         "diff-details": "vite-node scripts/diff-details.ts",
         "backfill-liquipedia": "vite-node scripts/backfill-liquipedia.ts",
+        "backfill-hltv-links": "vite-node scripts/backfill-hltv-links.ts",
+        "export-lan-series": "vite-node scripts/export-lan-series.ts",
         "freeze-history": "vite-node scripts/freeze-history.ts",
         "backtest-elo": "vite-node scripts/backtest-elo.ts",
         "build-elo": "vite-node scripts/build-elo.ts",

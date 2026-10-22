@@ -48,6 +48,16 @@ jobs:
         env:
           LIQUIPEDIA_API_KEY: ${{ secrets.LIQUIPEDIA_API_KEY }}
         run: npm run fetch-liquipedia
+      # Read by the local demo pipeline (`cs2demos auto`), which has no Liquipedia store of its own.
+      - name: Export recent LAN series for demos
+        continue-on-error: true
+        run: npm run export-lan-series
+      - uses: actions/upload-artifact@v4
+        continue-on-error: true
+        with:
+          name: lan-series
+          path: data/lan-series.json
+          retention-days: 7
       - name: Build matchdata
         run: npm run build-matchdata -- --date $(date -u +%Y-%m-%d)
       - name: Update data

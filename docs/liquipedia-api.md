@@ -83,6 +83,8 @@ Limits are hourly and per wiki and table. The 429 error reads `API key "<key>" l
 
 History older than the hot window comes from `scripts/backfill-liquipedia.ts`. It fetches one month at a time into `data/raw/archive/` and caps each run with `--max-requests` (default 30). A month costs about 5 requests. Settled months are then committed as normalized `data/history/` files (see [elo-model.md](elo-model.md)), so nothing is ever backfilled twice.
 
+The archive query leaves out `links` to halve the payload, so archived rows have no HLTV match URLs. For the demo pipeline, `scripts/backfill-hltv-links.ts` fetches only `match2id,links` for tier-1 offline matches from 2025-01 to the hot window's start, which takes 2 requests. It stores them in `data/demos/hltv-links.json` ([demo-pipeline.md](demo-pipeline.md)).
+
 ## Fields
 
 Field lists come from the full documentation on the dashboard. Tables not listed here haven't been transcribed yet.

@@ -31,3 +31,13 @@ plans/
 .cache/
 data/raw/
 data/matchdata.json
+data/lan-series.json
+data/demos/lp/
+data/demos/auto.lock
+data/demos/raw/
+data/demos/work/
+data/demos/parquet/
+data/demos/hltv-cache/
+data/demos/manifest.json
+demos/.venv/
+__pycache__/

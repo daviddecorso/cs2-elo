@@ -57,6 +57,16 @@ See [simulator.md](simulator.md).
 - [ ] **Showmatches in matchdata.** IEM Cologne 2026's Team Germany v Betclic showmatch is `valveRanked` in `data/matchdata.json`. Check whether Valve counts it; if not, add it to `excludedMatches`.
 - [ ] **Close the bounty gaps first** (below). Simulated prize money feeds exactly the factors our reproduction is weakest on.
 
+## Demo pipeline
+
+See [demo-pipeline.md](demo-pipeline.md).
+
+- [x] **Pipeline.** `demos/` downloads, parses, rebuilds rounds, validates, and stores in R2.
+- [x] **Gate.** Thunderpick World Championship 2026: 37/37 maps in R2, with round counts, halves, sides and 5v5 matching Liquipedia.
+- [x] **Matches without an HLTV link.** `backfill-hltv-links` linked all 919 archive series; HLTV's per-day results cover future gaps.
+- [x] **Schedule.** `cs2demos auto` under launchd, fed by the nightly `lan-series` artifact.
+- [ ] **Backfill** 2025–2026 tier-1 LANs: 1,346 series left at 60 requests a night. Install the launchd agent, then watch `cs2demos status`. The artifact exists only once this branch is on main.
+
 ## Open items
 
 - Confirm invite cutoffs against Valve's rulebook. `src/vrs/inviteCutoffs.ts`' 16/8/8 doesn't match what Cologne 2026 invited.

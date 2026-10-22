@@ -247,6 +247,10 @@
     "slug": "bankapepsi",
     "hasDark": false
   },
+  "BARCA esports": {
+    "slug": "barca-esports",
+    "hasDark": false
+  },
   "basement boys": {
     "slug": "basement-boys",
     "hasDark": true
@@ -1078,6 +1082,10 @@
   "GUESS": {
     "slug": "guess",
     "hasDark": true
+  },
+  "Hacha Esports": {
+    "slug": "hacha-esports",
+    "hasDark": false
   },
   "HAVENs": {
     "slug": "havens",
@@ -1959,6 +1967,10 @@
     "slug": "phantom-esports-academy",
     "hasDark": true
   },
+  "Phantom Sense": {
+    "slug": "phantom-sense",
+    "hasDark": true
+  },
   "Playing Ducks": {
     "slug": "playing-ducks",
     "hasDark": false
@@ -2601,6 +2613,10 @@
   },
   "Team bankapepsi 2021 new": {
     "slug": "bankapepsi",
+    "hasDark": false
+  },
+  "Team BARCA esports": {
+    "slug": "barca-esports",
     "hasDark": false
   },
   "Team basement boys": {
@@ -3438,6 +3454,10 @@
   "Team GUESS": {
     "slug": "guess",
     "hasDark": true
+  },
+  "Team Hacha Esports": {
+    "slug": "hacha-esports",
+    "hasDark": false
   },
   "Team HAVENs": {
     "slug": "havens",
@@ -4331,6 +4351,10 @@
     "slug": "phantom-esports-academy",
     "hasDark": true
   },
+  "Team Phantom Sense": {
+    "slug": "phantom-sense",
+    "hasDark": true
+  },
   "Team Playing Ducks": {
     "slug": "playing-ducks",
     "hasDark": false
@@ -4987,6 +5011,10 @@
     "slug": "vp-future",
     "hasDark": false
   },
+  "Team VP.Future 3": {
+    "slug": "vp-future-3",
+    "hasDark": false
+  },
   "Team Walczaki": {
     "slug": "walczaki",
     "hasDark": true
@@ -5345,6 +5373,10 @@
   },
   "VP.Future": {
     "slug": "vp-future",
+    "hasDark": false
+  },
+  "VP.Future 3": {
+    "slug": "vp-future-3",
     "hasDark": false
   },
   "Walczaki": {

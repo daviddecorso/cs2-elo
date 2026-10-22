@@ -34,6 +34,7 @@ The nightly `Update data` workflow runs steps 1, 2, 5, 7, 8 (without tuning), 9 
 | [elo-model.md](elo-model.md) | Elo feed, model, VRS baseline, gate and results |
 | [elo-experiments.md](elo-experiments.md) | Log of every Elo change tried, kept or rejected, with scores |
 | [simulator.md](simulator.md) | Bracket formats, Major Swiss, rating drift, VRS projections, invite rules and event config |
+| [demo-pipeline.md](demo-pipeline.md) | HLTV demos → validated Parquet in R2 (`demos/`, Python) |
 | [roadmap.md](roadmap.md) | Next steps for VRS and Elo |
 
 Liquipedia's usage terms (API key handling, attribution, no scraping) are in `AGENTS.md`.

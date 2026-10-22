@@ -21,6 +21,7 @@ Project knowledge lives in `docs/<topic>.md`, each opening with an Overview. Sta
 - `docs/elo-model.md`: Elo feed, model, backtest gate, current results
 - `docs/elo-experiments.md`: every Elo change tried, kept or rejected, with scores
 - `docs/simulator.md`: bracket simulator, VRS projections, Major invite odds, event config
+- `docs/demo-pipeline.md`: HLTV demos → Parquet in R2, round rebuild, validation, SteamID identity
 - `docs/roadmap.md`: next steps
 
 Record decisions in the relevant doc, not in `plans/` (gitignored). Log every Elo experiment in `docs/elo-experiments.md`, including the ones that fail.

@@ -1543,6 +1543,10 @@
     "slug": "marsborne",
     "hasDark": false
   },
+  "Martians": {
+    "slug": "martians",
+    "hasDark": false
+  },
   "MASONIC": {
     "slug": "masonic",
     "hasDark": true
@@ -1913,6 +1917,10 @@
   },
   "Pandaric eSports": {
     "slug": "pandaric-esports",
+    "hasDark": false
+  },
+  "Pandaric VAPE": {
+    "slug": "pandaric-vape",
     "hasDark": false
   },
   "parivision": {
@@ -3919,6 +3927,10 @@
     "slug": "marsborne",
     "hasDark": false
   },
+  "Team Martians": {
+    "slug": "martians",
+    "hasDark": false
+  },
   "Team MASONIC": {
     "slug": "masonic",
     "hasDark": true
@@ -4297,6 +4309,10 @@
   },
   "Team Pandaric eSports": {
     "slug": "pandaric-esports",
+    "hasDark": false
+  },
+  "Team Pandaric VAPE": {
+    "slug": "pandaric-vape",
     "hasDark": false
   },
   "Team parivision": {

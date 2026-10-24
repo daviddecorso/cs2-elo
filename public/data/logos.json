@@ -2071,6 +2071,10 @@
     "slug": "rebels-gaming",
     "hasDark": false
   },
+  "Rcave": {
+    "slug": "rcave",
+    "hasDark": true
+  },
   "Rebels Gaming": {
     "slug": "rebels-gaming",
     "hasDark": false
@@ -2141,6 +2145,10 @@
   },
   "Royal Foxes Esports": {
     "slug": "royal-foxes-esports",
+    "hasDark": false
+  },
+  "roz kurwiators": {
+    "slug": "roz-kurwiators",
     "hasDark": false
   },
   "Rune Eaters": {
@@ -4463,6 +4471,10 @@
     "slug": "rebels-gaming",
     "hasDark": false
   },
+  "Team Rcave": {
+    "slug": "rcave",
+    "hasDark": true
+  },
   "Team Rebels Gaming": {
     "slug": "rebels-gaming",
     "hasDark": false
@@ -4533,6 +4545,10 @@
   },
   "Team Royal Foxes Esports": {
     "slug": "royal-foxes-esports",
+    "hasDark": false
+  },
+  "Team roz kurwiators": {
+    "slug": "roz-kurwiators",
     "hasDark": false
   },
   "Team Rune Eaters": {

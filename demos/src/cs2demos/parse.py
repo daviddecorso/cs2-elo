@@ -12,23 +12,36 @@ from demoparser2 import DemoParser
 
 from .identity import IdentityTable, match_opponent
 from .liquipedia import LpMap, LpMatch
+from .match_page import cached_page, map_score
 from .rounds import Round, RoundEnd, RoundRebuildError, rebuild_rounds
 from .validate import validate_map
 
-PARSER_VERSION = f"awpy{version('awpy')}-dp{version('demoparser2')}"
+# Bump when the stored columns change, so maps parsed under the old layout count as stale.
+SCHEMA_VERSION = 2
+PARSER_VERSION = f"awpy{version('awpy')}-dp{version('demoparser2')}-s{SCHEMA_VERSION}"
 SNAPSHOT_EVERY_TICKS = 16
 # Scores update on the round-end tick; read them a little later but well inside the post-round delay.
 SCORE_READ_DELAY_TICKS = 32
 SIDE_T, SIDE_CT = 2, 3
 ROUND_TICK_COLUMNS = ("start_tick", "freeze_end_tick", "end_tick", "official_end_tick")
 EVENT_TABLES = {"kills": "kills", "damages": "damages", "grenades": "grenades", "flashes": "blinds", "bomb": "bomb"}
+# demoparser2's round_end reasons → awpy's (reason, reason_name).
+EVENT_REASONS = {
+    "bomb_exploded": (1, "target_bombed"),
+    "bomb_defused": (7, "bomb_defused"),
+    "t_killed": (8, "ct_win"),
+    "ct_killed": (9, "terrorists_win"),
+    "time_ran_out": (12, "target_saved"),
+}
+ROUND_EVENTS = ("round_start", "round_freeze_end", "round_end", "round_officially_ended")
 # awpy's error when a recording stops mid-command, e.g. after a server crash.
 TRUNCATED = re.compile(r"command at byte (\d+) .*unexpected end of data")
 
 SNAPSHOT_COLUMNS = [
     "tick", "steamid", "name", "side", "x", "y", "z", "pitch", "yaw", "velocity",
     "health", "armor", "has_helmet", "has_defuser", "has_bomb", "active_weapon",
-    "money", "equipment_value", "is_crouched", "is_scoped", "is_blinded",
+    "money", "equipment_value", "equipment_value_round_start", "is_crouched", "is_scoped", "is_blinded",
+    "is_defusing", "smoke_grenades", "flashbangs", "he_grenades", "fire_grenades",
 ]
 
 
@@ -53,6 +66,10 @@ class Part:
     events: dict[str, pl.DataFrame]
     last_tick: int
     truncated: bool
+    rounds_from_events: bool = False
+    # Rebuilt from raw events, for when awpy's rounds don't rebuild.
+    event_rounds: pl.DataFrame | None = None
+    event_ends: list[RoundEnd] | None = None
 
 
 def _to_polars(df) -> pl.DataFrame:
@@ -96,7 +113,7 @@ def read_round_ends(rounds: pl.DataFrame, parser: DemoParser, last_tick: int | N
     if last_tick:
         read_ticks = [min(t, last_tick) for t in read_ticks]
     teams = _to_polars(parser.parse_ticks(["team_num", "team_clan_name", "team_rounds_total"], ticks=read_ticks))
-    teams = teams.filter(pl.col("team_num").is_in([SIDE_T, SIDE_CT])).unique(["tick", "team_num"])
+    teams = teams.filter(pl.col("team_num").cast(pl.Int64).is_in([SIDE_T, SIDE_CT])).unique(["tick", "team_num"])
 
     by_tick: dict[int, dict[int, tuple[str, int]]] = {}
     for row in teams.iter_rows(named=True):
@@ -115,6 +132,58 @@ def read_round_ends(rounds: pl.DataFrame, parser: DemoParser, last_tick: int | N
     return ends
 
 
+def rounds_from_events(events: dict[str, pl.DataFrame]) -> pl.DataFrame:
+    """awpy's rounds rebuilt from raw round events. awpy drops every round before the last
+    `begin_new_match`, so a recording that ends on a match restart reads as having none."""
+
+    def ticks(name: str) -> list[int]:
+        df = events.get(name)
+        return sorted(int(t) for t in df["tick"]) if df is not None and "tick" in df.columns else []
+
+    starts, freezes, officials = ticks("round_start"), ticks("round_freeze_end"), ticks("round_officially_ended")
+    ends = events.get("round_end")
+    rows = []
+    prev_official = 0
+    if ends is not None and "winner" in ends.columns:
+        won = ends.filter(pl.col("winner").is_in(["CT", "T"])).sort("tick").rows(named=True)
+        for row, nxt in zip(won, [*won[1:], None]):
+            end = int(row["tick"])
+            next_end = int(nxt["tick"]) if nxt else 2**62
+            # The latest start wins, so a match restart or backup restore mid-round starts it over.
+            start = max([prev_official, *(t for t in starts if t <= end)])
+            official = next((t for t in officials if end <= t < next_end), end)
+            reason, reason_name = EVENT_REASONS.get(row["reason"], (None, row["reason"]))
+            rows.append({
+                "start_tick": start,
+                "freeze_end_tick": max((t for t in freezes if start < t <= end), default=None),
+                "end_tick": end,
+                "official_end_tick": official,
+                "winner": SIDE_CT if row["winner"] == "CT" else SIDE_T,
+                "winner_side": "counter-terrorist" if row["winner"] == "CT" else "terrorist",
+                "reason": reason,
+                "reason_name": reason_name,
+            })
+            prev_official = official
+    schema = {
+        "start_tick": pl.Int32, "freeze_end_tick": pl.Int32, "end_tick": pl.Int32, "official_end_tick": pl.Int32,
+        "winner": pl.Int32, "winner_side": pl.Utf8, "reason": pl.Int32, "reason_name": pl.Utf8,
+    }
+    return pl.DataFrame(rows, schema=schema)
+
+
+def fill_round_starts(rounds: pl.DataFrame) -> pl.DataFrame:
+    """awpy leaves start_tick null when a backup restore hands the round's round_start to a stub
+    'still_in_progress' round; the real round starts where the previous one officially ended."""
+    prev_end = pl.coalesce(pl.col("official_end_tick").shift(1), pl.col("end_tick").shift(1))
+    return rounds.with_columns(
+        pl.coalesce("start_tick", prev_end, "freeze_end_tick", pl.lit(0)).cast(rounds["start_tick"].dtype)
+    )
+
+
+def _event_frames(parser: DemoParser, names: tuple[str, ...]) -> dict[str, pl.DataFrame]:
+    return {n: _to_polars(parser.parse_event(n)) for n in names}
+
+
 def _snapshots(demo: awpy.Demo, parser: DemoParser) -> pl.DataFrame:
     snaps = demo.snapshots(every=SNAPSHOT_EVERY_TICKS)
     snaps = snaps.select([c for c in SNAPSHOT_COLUMNS if c in snaps.columns]).with_columns(
@@ -131,25 +200,36 @@ def _shift(df: pl.DataFrame, offset: int, part: int, columns=("tick",)) -> pl.Da
     return df.with_columns(*(pl.col(c).cast(pl.Int64) + offset for c in present), pl.lit(part, pl.Int32).alias("part"))
 
 
+def _shifted_ends(rounds: pl.DataFrame, parser: DemoParser, playback: int | None, offset: int) -> list[RoundEnd]:
+    return [
+        RoundEnd(e.start_tick + offset, e.end_tick + offset, e.ct_team, e.t_team, e.scores)
+        for e in read_round_ends(rounds, parser, playback)
+    ]
+
+
 def read_part(path: Path, part: int, offset: int) -> Part:
     demo, cut = open_demo(path)
     parser = DemoParser(str(path))
-    rounds = demo.rounds.sort("end_tick")
     playback = None if cut else demo.header.get("playback_ticks")
-    ends = read_round_ends(rounds, parser, int(playback) if playback else None)
+    playback = int(playback) if playback else None
+    event_rounds = fill_round_starts(rounds_from_events(_event_frames(parser, ROUND_EVENTS)).sort("end_tick"))
+    only_events = demo.rounds.is_empty()
+    rounds = event_rounds if only_events else fill_round_starts(demo.rounds.sort("end_tick"))
+    has_alt = not only_events and not event_rounds.is_empty()
     snaps = _snapshots(demo, parser)
     last_tick = max(int(snaps["tick"].max() or 0), int(rounds["end_tick"].max() or 0))
     return Part(
         demo_map=str(demo.header.get("map_name", "")),
-        ends=[
-            RoundEnd(e.start_tick + offset, e.end_tick + offset, e.ct_team, e.t_team, e.scores) for e in ends
-        ],
+        ends=_shifted_ends(rounds, parser, playback, offset),
         rounds=_shift(rounds, offset, part, ROUND_TICK_COLUMNS),
         roster=demo.players.with_columns(_steamid()),
         snaps=_shift(snaps, offset, part),
         events={name: _shift(getattr(demo, attr), offset, part) for name, attr in EVENT_TABLES.items()},
         last_tick=offset + last_tick,
         truncated=cut,
+        rounds_from_events=only_events and not rounds.is_empty(),
+        event_rounds=_shift(event_rounds, offset, part, ROUND_TICK_COLUMNS) if has_alt else None,
+        event_ends=_shifted_ends(event_rounds, parser, playback, offset) if has_alt else None,
     )
 
 
@@ -198,8 +278,17 @@ def parse_map(dem_paths: list[Path], lp_match: LpMatch, lp_map: LpMap, identity:
 
     try:
         kept = rebuild_rounds([e for p in parts for e in p.ends])
+        events_note = None
     except RoundRebuildError as e:
-        return ParsedMap(demo_map, [], failures=[f"round rebuild: {e}"])
+        # awpy can drop every round before a backup restore; the raw events keep them.
+        try:
+            kept = rebuild_rounds([e for p in parts for e in (p.event_ends or p.ends)])
+        except RoundRebuildError:
+            return ParsedMap(demo_map, [], failures=[f"round rebuild: {e}"])
+        for p in parts:
+            if p.event_rounds is not None:
+                p.rounds = p.event_rounds
+        events_note = f"rounds rebuilt from raw events; awpy's: {e}"
 
     all_rounds = pl.concat([p.rounds for p in parts], how="diagonal_relaxed")
     roster = pl.concat([p.roster for p in parts], how="diagonal_relaxed").unique("steamid", keep="last", maintain_order=True)
@@ -221,7 +310,10 @@ def parse_map(dem_paths: list[Path], lp_match: LpMatch, lp_map: LpMap, identity:
         failures.append(f"can't map demo teams {sorted(clans)} to Liquipedia opponents: {opponent_of}")
 
     freeze_end = {int(r["end_tick"]): int(r["freeze_end_tick"] or r["start_tick"]) for r in all_rounds.iter_rows(named=True)}
-    failures += validate_map(lp_map, demo_map, kept, team_by_opponent, _players_per_side(snaps, kept, freeze_end))
+    page = cached_page(lp_match)
+    hltv = map_score(lp_match, lp_map, page) if page else None
+    invalid, notes = validate_map(lp_map, demo_map, kept, team_by_opponent, _players_per_side(snaps, kept, freeze_end), hltv)
+    failures += invalid
 
     windows = _round_windows(kept, all_rounds)
     lp_page = {clan: lp_match.opponents[i].page for clan, i in opponent_of.items() if i is not None}
@@ -257,5 +349,11 @@ def parse_map(dem_paths: list[Path], lp_match: LpMatch, lp_map: LpMap, identity:
         "parser_version": PARSER_VERSION,
     }
     tables = {name: df.with_columns(*(pl.lit(v).alias(k) for k, v in meta.items())) for name, df in tables.items()}
-    notes = [f"part {i + 1} of {len(parts)} cut at its truncated final command" for i, p in enumerate(parts) if p.truncated]
+    notes += [f"part {i + 1} of {len(parts)} cut at its truncated final command" for i, p in enumerate(parts) if p.truncated]
+    notes += [
+        f"part {i + 1} of {len(parts)} rounds rebuilt from raw events; awpy found none"
+        for i, p in enumerate(parts) if p.rounds_from_events
+    ]
+    if events_note:
+        notes.append(events_note)
     return ParsedMap(demo_map, kept, tables, failures, notes)

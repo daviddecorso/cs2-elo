@@ -65,7 +65,17 @@ See [demo-pipeline.md](demo-pipeline.md).
 - [x] **Gate.** Thunderpick World Championship 2026: 37/37 maps in R2, with round counts, halves, sides and 5v5 matching Liquipedia.
 - [x] **Matches without an HLTV link.** `backfill-hltv-links` linked all 919 archive series; HLTV's per-day results cover future gaps.
 - [x] **Schedule.** `cs2demos auto` under launchd, fed by the nightly `lan-series` artifact.
+- [x] **Schema 2.** The utility counts and defuse state in `ticks`, for the win-probability model. Thunderpick has been reparsed. This had to land before the backfill.
 - [ ] **Backfill** 2025–2026 tier-1 LANs: 1,346 series left at 60 requests a night. Install the launchd agent, then watch `cs2demos status`. The artifact exists only once this branch is on main.
+
+## Win probability and WPA
+
+See [win-probability.md](win-probability.md).
+
+- [x] **Pipeline.** `wp/`: nav-mesh distances, game states, the model grid, credit (WPA plus two neutral versions), validation and publish. It runs end to end on Thunderpick.
+- [ ] **Gate run** once the backfill has the 2025 events: `cs2wp train --ablations`, then `credit` and `validate`. Record the results and log every variant in [wp-experiments.md](wp-experiments.md).
+- [ ] **Rare-state calibration.** Check the 1vX retake and late post-plant buckets in the report, and try the fixes queued in the experiments log.
+- [ ] **Site page** for player WPA, with the Liquipedia credit, then send the link to Liquipedia for verification.
 
 ## Open items
 

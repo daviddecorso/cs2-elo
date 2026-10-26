@@ -20,7 +20,7 @@ The gate is one full event with every map parsed: Thunderpick World Championship
 From `demos/`:
 
 ```bash
-uv sync && uv run playwright install chromium
+uv sync
 uv run pytest
 uv run cs2demos login
 uv run cs2demos run --event Thunderpick/World_Championship/2026 [--match <hltv id>] [--max-pages 30] [--no-upload]
@@ -29,6 +29,9 @@ uv run cs2demos reparse --event <page> [--all]
 uv run cs2demos prune [--days 30] [--max-gb 10]
 uv run cs2demos auto [--max-pages 60] [--dry-run]
 uv run cs2demos status
+uv run cs2demos schema [--key 2399384/m1]
+uv run cs2demos match-pages [--event <page>] [--no-upload]
+uv run cs2demos cache [--restore]
 ```
 
 `--event` is a Liquipedia tournament page. It also takes the page's stages (rows whose `parent` is that page). Qualifiers have their own parent, so they're separate events. `report` exits 0 only when every map is parsed at the current parser version and, with R2, has all its tables uploaded.
@@ -42,7 +45,7 @@ Decision: HLTV has no API for demos, and its terms don't allow automated access.
 - **A real, headed browser profile, no fingerprint spoofing.** It's a persistent Chromium profile in `~/.cache/cs2-elo/hltv-profile`, outside the repo. `cs2demos login` opens HLTV and waits while you clear the Cloudflare check by hand.
 - **A challenge stops the run.** It never retries or works around the challenge. Run `login` again.
 - **Slow.** At least 15 s plus up to 10 s of jitter between requests, one download at a time, and `--max-pages` per run (default 30). An event costs one match page and one download per series.
-- **Every match page is cached** in `data/demos/hltv-cache/`, so reruns don't refetch it.
+- **Every match page is cached** in `data/demos/hltv-cache/`, so reruns don't refetch it. The cache is the only copy of pages that cost requests, so `run` and `auto` back it up to R2 at the end, gzipped (about 120 KB a page). `cs2demos cache --restore` brings back whatever is missing locally.
 - **Liquipedia supplies the HLTV match ID** (`links.hltv`).
   - The hot store has it on every row.
   - The archive (`data/raw/archive/`) was fetched without `links`. `npm run backfill-hltv-links` fills that gap once, with one links-only `/match` query for tier-1 offline matches from 2025-01 to the hot store's start (2 requests). It writes the committed `data/demos/hltv-links.json`. On 2026-10-22 it linked 919/919 series, so every tier-1 LAN map since 2025 has an ID.
@@ -61,6 +64,7 @@ Local, gitignored, under `data/demos/`:
 | `work/<hltvMatchId>/` | Extraction scratch, deleted after each series. |
 | `parquet/` | Staging. Only kept with `--no-upload`. |
 | `hltv-cache/` | HLTV match page HTML and per-day results. |
+| `hltv/{veto,series}/<hltvMatchId>.parquet` | Tables from the match page (see Match page data). |
 | `lp/lan-series.json` | Recent tier-1 LAN rows from the nightly CI artifact. |
 | `manifest.json` | Mirror of the R2 manifest. |
 
@@ -80,6 +84,15 @@ R2 (bucket in `R2_BUCKET`):
 
 - `manifest.json`: per map (`<hltvMatchId>/m<n>`), the status (`parsed` or `quarantined`), reason, official score, rounds, prefix and parser version.
 - `v<parserVersion>/<lpPagename>/<hltvMatchId>/m<n>-<map>/<table>.parquet`, zstd compressed. The parser version is in the path, so a re-parse after an upgrade writes a new tree beside the old one.
+- `hltv/veto/<hltvMatchId>.parquet` and `hltv/series/<hltvMatchId>.parquet`: tables from the match page. They aren't parser output, so they have no version.
+- `hltv/cache/<file>.gz`: backup of `hltv-cache/`.
+
+**Match page data.** Some series data exists only on the HLTV match page. It's parsed from `hltv-cache/` and never costs a request. `run` stores it for each series it processes, and `cs2demos match-pages` backfills from the cache (every tier-1 LAN since 2025 by default). HLTV team names are matched like the results fallback, and when only one matches the other team is inferred. A table that fails its check is skipped with a warning.
+
+- `veto`: one row per veto step, from the veto box. Liquipedia has no veto data. Columns: `hltv_match_id`, `lp_match2id`, `step`, `opponent` (Liquipedia opponent 1/2, null for the decider), `team` (HLTV's name), `action` (`ban`, `pick`, `decider`), `map` (`de_*`) and `map_number` (set on the picks and decider that were played). Skipped when the picks plus decider don't start with Liquipedia's played maps in order.
+- `series`: one row per Liquipedia opponent. Columns: `best_of`, `lan` and `note` from the format box (stage, and any map advantage, one per line), plus `team`, `hltv_team_id`, `hltv_rank` and `vrs_rank` from the lineup headers, each with its ranking's date. The HLTV rank is the latest weekly ranking before the match, so the backtest can use it as a baseline without fetching ranking pages. A rank is null when the team is unranked.
+
+On 2026-10-23 the cache held 27 series, and all 27 produced both tables. Not taken: per-map stats tables (Rating 3.0, Round Swing, eco-adjusted K/D, ADR and KAST). They're on the same page and would benchmark WPA credit, so parse them from the cache when `wp/` needs them. Everything else on the page is in Liquipedia or the demos already.
 
 Every table carries `hltv_match_id`, `map_number`, `map`, `lp_match2id`, `lp_pagename`, `tier` and `parser_version`. Event tables carry `round_num`, which is the rebuilt round. Rows from dropped rounds (warmup, knife, replayed) are removed.
 
@@ -90,6 +103,13 @@ Every table carries `hltv_match_id`, `map_number`, `map`, `lp_match2id`, `lp_pag
 | `kills`, `damages`, `grenades`, `bomb` | awpy |
 | `flashes` | awpy `blinds`, rebuilt from flash state because GOTV demos omit `player_blind` |
 | `ticks` | awpy snapshots every 16 ticks (4 Hz) plus demoparser2's `last_place_name` callout |
+
+**Columns that matter downstream.** `uv run cs2demos schema [--key <hltv id>/m<n>]` prints every table's columns for one stored map.
+
+- `damages`: `attacker_*` / `victim_*` (`steamid`, `side` as `counter-terrorist`/`terrorist`, position), `weapon`, `dmg_health`, `dmg_armor`, `health_pre`, `health_post`, `armor_pre`, `armor_post`, `hitgroup`. World damage (falls) has a null attacker. Bomb explosion damage is `weapon == "planted_c4"`.
+- `kills`: `attacker_*`, `victim_*`, `assister_*`, `weapon`, `headshot`, `assist_flash` (the assister flashed the victim), `thrusmoke`, `noscope`, `is_trade`, `victim_traded`.
+- `bomb`: `event` (`pickup`, `drop`, `finish_plant`, `defuse`), `steamid`, `bombsite` (`A`/`B` on plants and defuses), position. There are no explosion rows; use the round's `reason_name` (`target_bombed`).
+- `ticks` (schema 2): `side` as 2 (T) / 3 (CT), position, `health`, `armor`, `has_defuser`, `has_bomb`, `equipment_value`, `equipment_value_round_start`, `money`, `is_defusing`, `smoke_grenades`, `flashbangs`, `he_grenades`, `fire_grenades`.
 
 Displaying any of this on the site needs Liquipedia attribution beside it, because tier, event and roster come from Liquipedia.
 
@@ -109,17 +129,21 @@ Each kept round must add exactly one round to exactly one team.
 - A server restart splits a map into parts (`-p1`, `-p2`). Each part is parsed on its own. Its ticks are then shifted by the length of the parts before it, so `tick` is map-wide, and every table carries `part`.
 - A part cut off mid-write (a crash) makes awpy fail with "unexpected end of data" at a byte offset. The work copy is cut at that command boundary and parsed again, and the manifest notes it. The raw archive is never modified.
 - In PARIVISION vs BetBoom (Thunderpick 2026, Ancient), part 1 crashed after round 16 and part 2 resumed from a backup at round 17. The rebuild stitches them to the official 13–10. A round owns its ticks from its start until the next round starts, so exit frags stay with it.
+- awpy drops every round before the last `begin_new_match`. When a part ends on one (a match restart at the cut-over), awpy finds no rounds in it. That part's rounds are then rebuilt from demoparser2's raw round events, mapped to awpy's columns and reason codes, and the manifest notes it. The event tables aren't affected. This happened on map 2 of Aurora vs 9z and G2 vs NAVI (ESL Pro League S24).
+- awpy can also lose every round before a backup restore. Its table then starts at the restored round (a `still_in_progress` stub), and the rebuild fails with a score jump. When that happens, the rebuild is retried from the raw round events, and the manifest notes it. Each event round starts at the latest `round_start` before its end, so a match restart or a restore replaces the attempts before it. This happened on map 3 of G2 vs BIG (FISSURE Playground 3), restored during round 13.
 
 Halves are 12 rounds each in regulation and 3 in overtime.
 
 ## Validation
 
-`validate.py`. Any failure quarantines the map, records the reason and keeps the raw demo. Fix the rule or the parser, then `reparse`. Never edit outputs by hand.
+`validate.py`. Any failure quarantines the map, records the reason and keeps the raw demo. `run` and `auto` treat a quarantined map as done until the parser version changes, so they never re-download or re-parse it. Fix the rule or the parser, then `reparse`, which retries quarantined maps from the raw demo on disk and leaves already-parsed maps alone unless you pass `--all`. Never edit outputs by hand.
 
 - The demo header's map matches Liquipedia's map.
 - Rounds won per team equal Liquipedia's `scores`, and per half equal `t1halfs`/`t2halfs`.
 - Opponent 1's first-half side equals `t1sides["1"]`.
 - Each round has exactly 5 distinct SteamIDs on each side between freeze end and round end.
+
+Liquipedia's half scores and sides are hand-entered and sometimes wrong (OT halves swapped, a side copied from the previous map). When one disagrees with the demo, the cached HLTV match page breaks the tie: if its regulation halves, first-half side and overtime total agree with the demo, the map passes with the disagreement recorded in its manifest `notes`. HLTV lumps overtime into one score, so the OT split itself is only checked against Liquipedia.
 
 Demo teams map to Liquipedia opponents by roster overlap first, then by clan name against the team page, name and short name.
 
@@ -140,6 +164,8 @@ awpy, demoparser2 and polars are pinned exactly in `demos/pyproject.toml`. After
 1. `uv lock`.
 2. `cs2demos reparse --event <page> --all` for events whose raw demos are still on disk (under the retention cap).
 3. Everything else needs a fresh download. `auto` does this on its own, because a map counts as done only at the current parser version.
+
+The parser version also carries `SCHEMA_VERSION` from `parse.py` (`awpy3.1.1-dp0.42.0-s2`). Bump it whenever the stored columns change. Schema 2 (2026-10-22) added the utility counts, `is_defusing` and `equipment_value_round_start` to `ticks` for the win-probability model. Thunderpick 2026 was reparsed from raw demos on disk. The `-s1` tree stays in R2 next to it.
 
 ## Scheduling and backfill
 

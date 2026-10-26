@@ -2,6 +2,7 @@ import json
 
 from cs2demos.identity import IdentityTable, match_opponent
 from cs2demos.liquipedia import LpMap, LpMatch, LpOpponent, hltv_match_id, parse_match
+from cs2demos.match_page import HltvMapScore
 from cs2demos.rounds import rebuild_rounds
 from cs2demos.validate import validate_map
 
@@ -32,13 +33,13 @@ def full_5v5(n):
 
 def test_valid_map_passes():
     rounds = rebuild_rounds(ends_from(WINNERS))
-    assert validate_map(LP_MAP, "de_mirage", rounds, ("a", "b"), full_5v5(18)) == []
+    assert validate_map(LP_MAP, "de_mirage", rounds, ("a", "b"), full_5v5(18)) == ([], [])
 
 
 def test_wrong_score_sides_and_players_fail():
     rounds = rebuild_rounds(ends_from(WINNERS[:-1]))
     players = {**full_5v5(17), 4: (5, 6)}
-    failures = validate_map(LP_MAP, "de_mirage", rounds, ("b", "a"), players)
+    failures, _ = validate_map(LP_MAP, "de_mirage", rounds, ("b", "a"), players)
     assert any("rounds" in f for f in failures)
     assert any("starts" in f for f in failures)
     assert any("not 5v5" in f for f in failures)
@@ -46,8 +47,23 @@ def test_wrong_score_sides_and_players_fail():
 
 def test_halves_mismatch_fails():
     rounds = rebuild_rounds(ends_from("aaaaaaaabbbb" + "aaaaab"))
-    failures = validate_map(LP_MAP, "de_mirage", rounds, ("a", "b"), full_5v5(18))
+    failures, _ = validate_map(LP_MAP, "de_mirage", rounds, ("a", "b"), full_5v5(18))
     assert failures and all("halves" in f for f in failures)
+
+
+def test_liquipedia_mismatch_passes_when_hltv_agrees_with_demo():
+    rounds = rebuild_rounds(ends_from("aaaaaaaabbbb" + "aaaaab", a_ct_until=0))
+    hltv = HltvMapScore(([8, 5], [4, 1]), "t", (0, 0))
+    failures, notes = validate_map(LP_MAP, "de_mirage", rounds, ("a", "b"), full_5v5(18), hltv)
+    assert failures == []
+    assert len(notes) == 3 and all("HLTV agrees" in n for n in notes)
+
+
+def test_liquipedia_mismatch_fails_when_hltv_disagrees_too():
+    rounds = rebuild_rounds(ends_from("aaaaaaaabbbb" + "aaaaab"))
+    hltv = HltvMapScore(([9, 4], [3, 2]), "ct", (0, 0))
+    failures, _ = validate_map(LP_MAP, "de_mirage", rounds, ("a", "b"), full_5v5(18), hltv)
+    assert len(failures) == 2
 
 
 def test_identity_order(tmp_path):

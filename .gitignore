@@ -38,6 +38,10 @@ data/demos/raw/
 data/demos/work/
 data/demos/parquet/
 data/demos/hltv-cache/
+data/demos/hltv/
 data/demos/manifest.json
+data/demos/mirror/
+data/wp/
 demos/.venv/
+wp/.venv/
 __pycache__/

@@ -15,11 +15,17 @@ class QueuedEvent:
     matches: list[LpMatch]
 
 
-def is_done(manifest: Manifest, m: LpMatch) -> bool:
+def is_map_done(entry: dict | None, retry_quarantined: bool = False) -> bool:
+    """Quarantines only come back on a parser version bump, or a `reparse` from the archive on disk."""
+    if not entry or entry["parser_version"] != PARSER_VERSION:
+        return False
+    return entry["status"] == "parsed" or (entry["status"] == "quarantined" and not retry_quarantined)
+
+
+def is_done(manifest: Manifest, m: LpMatch, retry_quarantined: bool = False) -> bool:
     if not m.hltv_id:
         return False
-    entries = [manifest.get(map_key(m.hltv_id, lp.number)) for lp in m.maps]
-    return all(e and e["status"] == "parsed" and e["parser_version"] == PARSER_VERSION for e in entries)
+    return all(is_map_done(manifest.get(map_key(m.hltv_id, lp.number)), retry_quarantined) for lp in m.maps)
 
 
 def build_queue(events: dict[str, list[LpMatch]], manifest: Manifest, include_done: bool = False) -> list[QueuedEvent]:

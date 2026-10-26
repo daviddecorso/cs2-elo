@@ -7,7 +7,7 @@ from pathlib import Path
 
 from .liquipedia import LpMap
 
-MAP_NUMBER = re.compile(r"[-_]m(\d+)[-_]", re.IGNORECASE)
+MAP_NUMBER = re.compile(r"[-_]m(\d+)(?=[-_])", re.IGNORECASE)
 PART_NUMBER = re.compile(r"[-_]p(\d+)\.dem$", re.IGNORECASE)
 
 
@@ -34,8 +34,9 @@ def group_by_map(dems: list[Path], lp_maps: list[LpMap]) -> dict[int, list[Path]
     """Map number → demo parts in order. Falls back to the map name when the filename has no -mN-."""
     out: dict[int, list[Path]] = {}
     for p in dems:
-        if m := MAP_NUMBER.search(p.name):
-            out.setdefault(int(m.group(1)), []).append(p)
+        # Last match, since team names like M80 also look like -mN-.
+        if numbers := MAP_NUMBER.findall(p.name):
+            out.setdefault(int(numbers[-1]), []).append(p)
             continue
         named = [lp.number for lp in lp_maps if lp.demo_map.removeprefix("de_") in p.name.lower()]
         if len(named) == 1:

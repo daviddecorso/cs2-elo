@@ -4,21 +4,24 @@ Every navigation goes through one rate limiter with a per-run cap. A challenge p
 nothing here retries or tries to get past it automatically.
 """
 
+import asyncio
 import json
 import random
 import re
+import shutil
 import time
 from datetime import date, timedelta
 from pathlib import Path
+from typing import Any, Coroutine
 
-from playwright.sync_api import BrowserContext, Page, sync_playwright
+import nodriver as uc
 
 from .paths import HLTV_CACHE, HLTV_PROFILE
 
 BASE = "https://www.hltv.org"
 MIN_INTERVAL_S = 15.0
 JITTER_S = 10.0
-DOWNLOAD_TIMEOUT_MS = 30 * 60 * 1000
+DOWNLOAD_TIMEOUT_S = 30 * 60
 DEMO_LINK = re.compile(r'(?:href|data-demo-link)="(/download/demo/\d+)"')
 RESULTS_PAGE_SIZE = 100
 RESULTS_MAX_PAGES = 3
@@ -45,9 +48,28 @@ def demo_path_from_html(html: str) -> str | None:
     return m.group(1) if m else None
 
 
-def _is_challenge(page: Page) -> bool:
-    title = page.title().lower()
-    return "just a moment" in title or "attention required" in title or page.locator("#challenge-form, #cf-challenge-running").count() > 0
+async def _is_challenge(tab: uc.Tab) -> bool:
+    try:
+        title = ((await tab.evaluate("document.title")) or "").lower()
+        if "just a moment" in title or "attention required" in title:
+            return True
+        has_cf = await tab.evaluate("Boolean(document.querySelector('#challenge-form, #cf-challenge-running'))")
+        return bool(has_cf)
+    except Exception:
+        return False
+
+
+async def _navigate(tab: uc.Tab, url: str, timeout_s: float = 30.0) -> None:
+    await tab.get(url)
+    deadline = time.monotonic() + timeout_s
+    while time.monotonic() < deadline:
+        try:
+            state = await tab.evaluate("document.readyState")
+            if state in ("interactive", "complete"):
+                return
+        except Exception:
+            pass
+        await asyncio.sleep(0.2)
 
 
 class Hltv:
@@ -56,30 +78,50 @@ class Hltv:
         self.pages_used = 0
         self._last = 0.0
         self._results: dict[str, list[dict]] = {}
-        self._pw = None
-        self._ctx: BrowserContext | None = None
+        self._loop: asyncio.AbstractEventLoop | None = None
+        self._browser: uc.Browser | None = None
 
     def __enter__(self) -> "Hltv":
         return self
 
     def __exit__(self, *exc) -> None:
-        if self._ctx:
-            self._ctx.close()
-        if self._pw:
-            self._pw.stop()
+        if self._browser:
+            process = self._browser._process
+            self._browser.stop()
+            # nodriver's atexit hook stops any browser whose returncode is unset, on the then-closed loop.
+            if process and self._loop and not self._loop.is_closed():
+                try:
+                    self._loop.run_until_complete(asyncio.wait_for(process.wait(), 10))
+                except TimeoutError:
+                    process.kill()
+                    self._loop.run_until_complete(process.wait())
+            self._browser = None
+        if self._loop and not self._loop.is_closed():
+            self._loop.run_until_complete(asyncio.sleep(0.1))
+            self._loop.close()
+            self._loop = None
 
-    def _context(self) -> BrowserContext:
-        if not self._ctx:
+    def _run(self, coro: Coroutine[Any, Any, Any]) -> Any:
+        if not self._loop or self._loop.is_closed():
+            self._loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(self._loop)
+        return self._loop.run_until_complete(coro)
+
+    def _get_browser(self) -> uc.Browser:
+        if not self._browser:
             self.profile.mkdir(parents=True, exist_ok=True)
-            self._pw = sync_playwright().start()
-            self._ctx = self._pw.chromium.launch_persistent_context(
-                str(self.profile), headless=False, accept_downloads=True, viewport={"width": 1280, "height": 900}
+            self._browser = self._run(
+                uc.start(
+                    user_data_dir=str(self.profile),
+                    headless=False,
+                    browser_args=["--window-size=1280,900"],
+                )
             )
-        return self._ctx
+        return self._browser
 
-    def _page(self) -> Page:
-        ctx = self._context()
-        return ctx.pages[0] if ctx.pages else ctx.new_page()
+    def _tab(self) -> uc.Tab:
+        browser = self._get_browser()
+        return browser.main_tab
 
     def _wait_turn(self) -> None:
         if self.pages_used >= self.max_pages:
@@ -91,25 +133,25 @@ class Hltv:
         self.pages_used += 1
 
     def login(self, timeout_s: int = 300) -> None:
-        page = self._page()
-        page.goto(BASE, wait_until="domcontentloaded")
+        tab = self._tab()
+        self._run(_navigate(tab, BASE))
         print("Clear any Cloudflare check in the browser window; waiting...")
         deadline = time.monotonic() + timeout_s
-        while _is_challenge(page) or "hltv" not in page.title().lower():
+        while self._run(_is_challenge(tab)) or "hltv" not in self._run(tab.evaluate("document.title")).lower():
             if time.monotonic() > deadline:
                 raise ChallengeError(f"still on a challenge page after {timeout_s}s")
-            page.wait_for_timeout(2000)
+            time.sleep(2)
 
     def match_page(self, hltv_id: int) -> str:
         cached = self.cache / f"match-{hltv_id}.html"
         if cached.exists():
             return cached.read_text()
         self._wait_turn()
-        page = self._page()
-        page.goto(f"{BASE}/matches/{hltv_id}/match", wait_until="domcontentloaded")
-        if _is_challenge(page):
+        tab = self._tab()
+        self._run(_navigate(tab, f"{BASE}/matches/{hltv_id}/match"))
+        if self._run(_is_challenge(tab)):
             raise ChallengeError("HLTV served a Cloudflare challenge; run `uv run cs2demos login`")
-        html = page.content()
+        html = self._run(tab.get_content())
         self.cache.mkdir(parents=True, exist_ok=True)
         cached.write_text(html)
         return html
@@ -124,11 +166,12 @@ class Hltv:
         rows: dict[int, dict] = {}
         for offset in range(0, RESULTS_PAGE_SIZE * RESULTS_MAX_PAGES, RESULTS_PAGE_SIZE):
             self._wait_turn()
-            page = self._page()
-            page.goto(f"{BASE}/results?startDate={day}&endDate={day}&offset={offset}", wait_until="domcontentloaded")
-            if _is_challenge(page):
+            tab = self._tab()
+            self._run(_navigate(tab, f"{BASE}/results?startDate={day}&endDate={day}&offset={offset}"))
+            if self._run(_is_challenge(tab)):
                 raise ChallengeError("HLTV served a Cloudflare challenge; run `uv run cs2demos login`")
-            found = page.evaluate(RESULTS_JS)
+            raw = self._run(tab.evaluate(f"JSON.stringify(({RESULTS_JS})())"))
+            found = json.loads(raw or "[]")
             rows.update((r["id"], r) for r in found)
             if len(found) < RESULTS_PAGE_SIZE:
                 break
@@ -141,17 +184,28 @@ class Hltv:
     def download(self, demo_path: str, dest_stem: Path) -> Path:
         """Streams through the browser so cookies apply; the file lands as `<dest_stem>.<ext>`."""
         self._wait_turn()
-        page = self._page()
-        with page.expect_download(timeout=DOWNLOAD_TIMEOUT_MS) as info:
-            page.evaluate("url => { window.location.href = url }", BASE + demo_path)
-        download = info.value
-        ext = Path(download.suggested_filename).suffix or ".bin"
-        dest = dest_stem.with_suffix(ext)
-        dest.parent.mkdir(parents=True, exist_ok=True)
-        partial = dest.with_suffix(ext + ".part")
-        download.save_as(partial)
-        if failure := download.failure():
-            partial.unlink(missing_ok=True)
-            raise RuntimeError(f"download of {demo_path} failed: {failure}")
-        partial.rename(dest)
-        return dest
+        tab = self._tab()
+        staging_dir = dest_stem.parent / f".download-{dest_stem.name}"
+        if staging_dir.exists():
+            shutil.rmtree(staging_dir)
+        staging_dir.mkdir(parents=True, exist_ok=True)
+        try:
+            self._run(tab.set_download_path(staging_dir))
+            full_url = BASE + demo_path
+            self._run(tab.evaluate(f"window.location.href = {json.dumps(full_url)}"))
+            deadline = time.monotonic() + DOWNLOAD_TIMEOUT_S
+            while time.monotonic() < deadline:
+                time.sleep(0.5)
+                files = [f for f in staging_dir.iterdir() if f.is_file()]
+                crdownloads = [f for f in files if f.name.endswith(".crdownload")]
+                completed = [f for f in files if not f.name.endswith(".crdownload") and f.stat().st_size > 0]
+                if completed and not crdownloads:
+                    downloaded = completed[0]
+                    ext = downloaded.suffix or ".bin"
+                    dest = dest_stem.with_suffix(ext)
+                    dest.parent.mkdir(parents=True, exist_ok=True)
+                    downloaded.replace(dest)
+                    return dest
+            raise TimeoutError(f"download of {demo_path} timed out")
+        finally:
+            shutil.rmtree(staging_dir, ignore_errors=True)

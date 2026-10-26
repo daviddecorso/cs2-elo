@@ -1543,6 +1543,10 @@
     "slug": "marsborne",
     "hasDark": false
   },
+  "Martians": {
+    "slug": "martians",
+    "hasDark": false
+  },
   "MASONIC": {
     "slug": "masonic",
     "hasDark": true
@@ -1915,6 +1919,10 @@
     "slug": "pandaric-esports",
     "hasDark": false
   },
+  "Pandaric VAPE": {
+    "slug": "pandaric-vape",
+    "hasDark": false
+  },
   "parivision": {
     "slug": "parivision",
     "hasDark": false
@@ -2063,6 +2071,10 @@
     "slug": "rebels-gaming",
     "hasDark": false
   },
+  "Rcave": {
+    "slug": "rcave",
+    "hasDark": true
+  },
   "Rebels Gaming": {
     "slug": "rebels-gaming",
     "hasDark": false
@@ -2133,6 +2145,10 @@
   },
   "Royal Foxes Esports": {
     "slug": "royal-foxes-esports",
+    "hasDark": false
+  },
+  "roz kurwiators": {
+    "slug": "roz-kurwiators",
     "hasDark": false
   },
   "Rune Eaters": {
@@ -3919,6 +3935,10 @@
     "slug": "marsborne",
     "hasDark": false
   },
+  "Team Martians": {
+    "slug": "martians",
+    "hasDark": false
+  },
   "Team MASONIC": {
     "slug": "masonic",
     "hasDark": true
@@ -4299,6 +4319,10 @@
     "slug": "pandaric-esports",
     "hasDark": false
   },
+  "Team Pandaric VAPE": {
+    "slug": "pandaric-vape",
+    "hasDark": false
+  },
   "Team parivision": {
     "slug": "parivision",
     "hasDark": false
@@ -4447,6 +4471,10 @@
     "slug": "rebels-gaming",
     "hasDark": false
   },
+  "Team Rcave": {
+    "slug": "rcave",
+    "hasDark": true
+  },
   "Team Rebels Gaming": {
     "slug": "rebels-gaming",
     "hasDark": false
@@ -4517,6 +4545,10 @@
   },
   "Team Royal Foxes Esports": {
     "slug": "royal-foxes-esports",
+    "hasDark": false
+  },
+  "Team roz kurwiators": {
+    "slug": "roz-kurwiators",
     "hasDark": false
   },
   "Team Rune Eaters": {

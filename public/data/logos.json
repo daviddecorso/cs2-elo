@@ -181,7 +181,7 @@
   },
   "Ataks": {
     "slug": "ataks",
-    "hasDark": false
+    "hasDark": true
   },
   "Atpūties": {
     "slug": "havens",
@@ -478,6 +478,10 @@
   "Coalesce": {
     "slug": "coalesce",
     "hasDark": true
+  },
+  "Coinstep United": {
+    "slug": "coinstep-united",
+    "hasDark": false
   },
   "Copenhagen Wolves": {
     "slug": "copenhagen-wolves-american-organization",
@@ -1517,6 +1521,10 @@
   },
   "maestro": {
     "slug": "maestro-korean-team",
+    "hasDark": false
+  },
+  "Maestro": {
+    "slug": "team-maestro",
     "hasDark": false
   },
   "maestro (Korean team)": {
@@ -2565,7 +2573,7 @@
   },
   "Team Ataks": {
     "slug": "ataks",
-    "hasDark": false
+    "hasDark": true
   },
   "Team Atpūties": {
     "slug": "havens",
@@ -2862,6 +2870,10 @@
   "Team Coalesce": {
     "slug": "coalesce",
     "hasDark": true
+  },
+  "Team Coinstep United": {
+    "slug": "coinstep-united",
+    "hasDark": false
   },
   "Team Copenhagen Wolves": {
     "slug": "copenhagen-wolves-american-organization",
@@ -3909,6 +3921,10 @@
   },
   "Team maestro": {
     "slug": "maestro-korean-team",
+    "hasDark": false
+  },
+  "Team Maestro": {
+    "slug": "team-maestro",
     "hasDark": false
   },
   "Team maestro (Korean team)": {

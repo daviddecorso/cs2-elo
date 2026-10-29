@@ -1059,6 +1059,10 @@
     "slug": "glitchtech-esports",
     "hasDark": false
   },
+  "GLORE": {
+    "slug": "glore",
+    "hasDark": false
+  },
   "Gothboiclique": {
     "slug": "gothboiclique",
     "hasDark": false
@@ -1524,7 +1528,7 @@
     "hasDark": false
   },
   "Maestro": {
-    "slug": "team-maestro",
+    "slug": "maestro",
     "hasDark": false
   },
   "maestro (Korean team)": {
@@ -3455,6 +3459,10 @@
     "slug": "glitchtech-esports",
     "hasDark": false
   },
+  "Team GLORE": {
+    "slug": "glore",
+    "hasDark": false
+  },
   "Team Gothboiclique": {
     "slug": "gothboiclique",
     "hasDark": false
@@ -3924,7 +3932,7 @@
     "hasDark": false
   },
   "Team Maestro": {
-    "slug": "team-maestro",
+    "slug": "maestro",
     "hasDark": false
   },
   "Team maestro (Korean team)": {

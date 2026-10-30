@@ -860,7 +860,11 @@
     "hasDark": false
   },
   "Fluxo": {
-    "slug": "fluxo-w7m",
+    "slug": "fluxo",
+    "hasDark": true
+  },
+  "fluxo w7m": {
+    "slug": "fluxo",
     "hasDark": true
   },
   "Fluxo W7M": {
@@ -3260,7 +3264,11 @@
     "hasDark": false
   },
   "Team Fluxo": {
-    "slug": "fluxo-w7m",
+    "slug": "fluxo",
+    "hasDark": true
+  },
+  "Team fluxo w7m": {
+    "slug": "fluxo",
     "hasDark": true
   },
   "Team Fluxo W7M": {

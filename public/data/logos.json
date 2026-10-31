@@ -860,7 +860,7 @@
     "hasDark": false
   },
   "Fluxo": {
-    "slug": "fluxo",
+    "slug": "fluxo-w7m",
     "hasDark": true
   },
   "fluxo w7m": {
@@ -1970,6 +1970,10 @@
   "PCIFIC": {
     "slug": "wraith-pcific",
     "hasDark": false
+  },
+  "PENTA Club": {
+    "slug": "penta-club",
+    "hasDark": true
   },
   "Perfecto Club": {
     "slug": "perfecto-club",
@@ -3264,7 +3268,7 @@
     "hasDark": false
   },
   "Team Fluxo": {
-    "slug": "fluxo",
+    "slug": "fluxo-w7m",
     "hasDark": true
   },
   "Team fluxo w7m": {
@@ -4386,6 +4390,10 @@
   "Team PCIFIC": {
     "slug": "wraith-pcific",
     "hasDark": false
+  },
+  "Team PENTA Club": {
+    "slug": "penta-club",
+    "hasDark": true
   },
   "Team Perfecto Club": {
     "slug": "perfecto-club",

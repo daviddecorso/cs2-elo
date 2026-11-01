@@ -1591,6 +1591,10 @@
     "slug": "maybe-ukrainian-team",
     "hasDark": false
   },
+  "MCE": {
+    "slug": "team-mce",
+    "hasDark": false
+  },
   "Metizport": {
     "slug": "metizport",
     "hasDark": false
@@ -1824,8 +1828,8 @@
     "hasDark": true
   },
   "NuTorious": {
-    "slug": "nutorious",
-    "hasDark": true
+    "slug": "f5-esports",
+    "hasDark": false
   },
   "Oasis Gaming": {
     "slug": "oasis-gaming",
@@ -4003,6 +4007,10 @@
     "slug": "maybe-ukrainian-team",
     "hasDark": false
   },
+  "Team MCE": {
+    "slug": "team-mce",
+    "hasDark": false
+  },
   "Team Metizport": {
     "slug": "metizport",
     "hasDark": false
@@ -4244,8 +4252,8 @@
     "hasDark": true
   },
   "Team NuTorious": {
-    "slug": "nutorious",
-    "hasDark": true
+    "slug": "f5-esports",
+    "hasDark": false
   },
   "Team Oasis Gaming": {
     "slug": "oasis-gaming",
@@ -5116,7 +5124,7 @@
     "hasDark": false
   },
   "Team WBT Academy": {
-    "slug": "whitebit-academy",
+    "slug": "whitebit-team",
     "hasDark": false
   },
   "Team Wept Xyloid Melancholy": {
@@ -5194,6 +5202,10 @@
   "TEAM XDM": {
     "slug": "team-xdm",
     "hasDark": true
+  },
+  "Team Xept": {
+    "slug": "xept",
+    "hasDark": false
   },
   "Team XI": {
     "slug": "xi-esport",
@@ -5480,7 +5492,7 @@
     "hasDark": false
   },
   "WBT Academy": {
-    "slug": "whitebit-academy",
+    "slug": "whitebit-team",
     "hasDark": false
   },
   "Wept Xyloid Melancholy": {
@@ -5550,6 +5562,10 @@
   "XDM": {
     "slug": "team-xdm",
     "hasDark": true
+  },
+  "Xept": {
+    "slug": "xept",
+    "hasDark": false
   },
   "XI": {
     "slug": "xi-esport",

@@ -12,7 +12,7 @@ from pathlib import Path
 
 from .archive import extract, group_by_map
 from .backlog import build_queue, is_done, is_map_done
-from .hltv import ChallengeError, Hltv, PageBudgetExhausted, demo_path_from_html
+from .hltv import ChallengeError, Hltv, PageBudgetExhausted, ServerError, demo_path_from_html
 from .identity import IdentityTable
 from .liquipedia import LpMatch, load_event, load_lan_events, load_steam_ids, resolve_from_results, save_link
 from .parse import PARSER_VERSION, parse_map
@@ -133,7 +133,11 @@ def run_matches(matches: list[LpMatch], hltv: Hltv, manifest: Manifest, identity
         if is_done(manifest, m):
             continue
         print(f"{label} ({m.hltv_id})")
-        archive = raw_archive(m.hltv_id) or fetch_archive(hltv, m)
+        try:
+            archive = raw_archive(m.hltv_id) or fetch_archive(hltv, m)
+        except ServerError as e:
+            print(f"  {e}; retrying next run")
+            continue
         if archive:
             process_match(m, archive, manifest, identity, r2)
 

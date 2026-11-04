@@ -73,6 +73,9 @@ class Part:
 
 
 def _to_polars(df) -> pl.DataFrame:
+    # demoparser2 returns [] rather than an empty frame for an event the demo never fires.
+    if isinstance(df, list):
+        return pl.DataFrame()
     return df if isinstance(df, pl.DataFrame) else pl.from_pandas(df)
 
 

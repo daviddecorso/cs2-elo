@@ -22,6 +22,8 @@ BASE = "https://www.hltv.org"
 MIN_INTERVAL_S = 15.0
 JITTER_S = 10.0
 DOWNLOAD_TIMEOUT_S = 30 * 60
+BROWSER_START_ATTEMPTS = 3
+SERVER_ERROR_TITLE = re.compile(r"<title>[^<]*\|\s*5\d\d:")
 DEMO_LINK = re.compile(r'(?:href|data-demo-link)="(/download/demo/\d+)"')
 RESULTS_PAGE_SIZE = 100
 RESULTS_MAX_PAGES = 3
@@ -41,6 +43,15 @@ class ChallengeError(Exception):
 
 class PageBudgetExhausted(Exception):
     pass
+
+
+class ServerError(Exception):
+    pass
+
+
+def is_server_error(html: str) -> bool:
+    """Cloudflare's 5xx pages, e.g. "hltv.org | 520: Web server is returning an unknown error"."""
+    return bool(SERVER_ERROR_TITLE.search(html))
 
 
 def demo_path_from_html(html: str) -> str | None:
@@ -110,14 +121,34 @@ class Hltv:
     def _get_browser(self) -> uc.Browser:
         if not self._browser:
             self.profile.mkdir(parents=True, exist_ok=True)
-            self._browser = self._run(
-                uc.start(
+            self._browser = self._run(self._start_browser())
+        return self._browser
+
+    async def _start_browser(self) -> uc.Browser:
+        # nodriver gives Chrome ~3s to open its debug port, which a cold start after a Chrome update can miss.
+        for attempt in range(1, BROWSER_START_ATTEMPTS + 1):
+            try:
+                return await uc.start(
                     user_data_dir=str(self.profile),
                     headless=False,
                     browser_args=["--window-size=1280,900"],
                 )
-            )
-        return self._browser
+            except Exception:
+                if attempt == BROWSER_START_ATTEMPTS:
+                    raise
+                # The Chrome that missed the deadline is still running and holds the profile lock.
+                registered = uc.util.get_registered_instances()
+                for stray in [b for b in registered if not b.info]:
+                    registered.discard(stray)
+                    if stray._process and stray._process.returncode is None:
+                        stray._process.terminate()
+                        try:
+                            await asyncio.wait_for(stray._process.wait(), 10)
+                        except TimeoutError:
+                            stray._process.kill()
+                            await stray._process.wait()
+                print(f"Chrome didn't open its debug port in time; retrying ({attempt}/{BROWSER_START_ATTEMPTS - 1})")
+        raise AssertionError("unreachable")
 
     def _tab(self) -> uc.Tab:
         browser = self._get_browser()
@@ -144,14 +175,16 @@ class Hltv:
 
     def match_page(self, hltv_id: int) -> str:
         cached = self.cache / f"match-{hltv_id}.html"
-        if cached.exists():
-            return cached.read_text()
+        if cached.exists() and not is_server_error(html := cached.read_text()):
+            return html
         self._wait_turn()
         tab = self._tab()
         self._run(_navigate(tab, f"{BASE}/matches/{hltv_id}/match"))
         if self._run(_is_challenge(tab)):
             raise ChallengeError("HLTV served a Cloudflare challenge; run `uv run cs2demos login`")
         html = self._run(tab.get_content())
+        if is_server_error(html):
+            raise ServerError(f"HLTV match {hltv_id} returned a server error page")
         self.cache.mkdir(parents=True, exist_ok=True)
         cached.write_text(html)
         return html

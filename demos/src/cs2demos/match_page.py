@@ -8,6 +8,7 @@ from pathlib import Path
 
 import polars as pl
 
+from .hltv import is_server_error
 from .liquipedia import LpMap, LpMatch, _names, _norm
 from .paths import HLTV_CACHE
 
@@ -203,7 +204,10 @@ def series_table(m: LpMatch, info: SeriesInfo) -> pl.DataFrame:
 
 def cached_page(m: LpMatch, cache: Path = HLTV_CACHE) -> str | None:
     page = cache / f"match-{m.hltv_id}.html"
-    return page.read_text() if m.hltv_id and page.exists() else None
+    if not (m.hltv_id and page.exists()):
+        return None
+    html = page.read_text()
+    return None if is_server_error(html) else html
 
 
 def match_page_tables(m: LpMatch, page: str) -> dict[str, pl.DataFrame]:

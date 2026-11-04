@@ -4,7 +4,7 @@ import polars as pl
 
 from cs2demos.archive import group_by_map
 from cs2demos.liquipedia import LpMap
-from cs2demos.parse import SIDE_CT, SIDE_T, _side_code, assign_rounds, fill_round_starts, rounds_from_events
+from cs2demos.parse import SIDE_CT, SIDE_T, _side_code, _to_polars, assign_rounds, fill_round_starts, rounds_from_events
 
 
 def lp(n, name, demo):
@@ -95,3 +95,7 @@ def test_fill_round_starts_after_restore_stub():
         schema={c: pl.Int32 for c in ("start_tick", "freeze_end_tick", "end_tick", "official_end_tick")},
     )
     assert fill_round_starts(rounds)["start_tick"].to_list() == [500, 96601, 96909]
+
+
+def test_to_polars_accepts_empty_event_list():
+    assert _to_polars([]).is_empty()

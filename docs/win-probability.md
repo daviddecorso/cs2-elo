@@ -11,10 +11,12 @@
 **Gate.** On maps dated after the training window, the `full` XGBoost model must meet all three:
 
 - test log loss ≤ 0.535 (the paper's 0.5353)
-- every 1/100-wide calibration bin with at least 1,000 states within 0.03 of the diagonal
+- every 1/100-wide calibration bin with at least 1,000 states within the bin-gap limit of the diagonal
 - a logistic calibration slope in [0.95, 1.05]
 
-**Status (2026-10-23):** not run yet. R2 holds one event (Thunderpick World Championship 2026, 37 maps, all in the test window). The gate needs the 2025 tier-1 LAN backfill, about 45 nights of `cs2demos auto`. The pipeline runs end to end on Thunderpick with a split inside that event ([wp-experiments.md](wp-experiments.md)).
+The bin-gap limit is the larger of the paper's 0.03 and the noise limit (`evaluate.bin_gap_noise`). States in a round share one outcome, so a bin's gap carries round-level noise far beyond what its state count suggests. The noise limit resamples whole test rounds 200 times, centres each bin's gap on the observed one, and takes the p95 of the max gap. That's the largest gap a perfectly calibrated model would show 95% of the time. On the 2026 H2 dry run (9,564 rounds) the limit is 0.070. Under a flat 0.03, even a perfect model would fail.
+
+**Status (2026-11-04):** not run yet. All 2026 events are parsed, but 2025 (the training window) has 5 of about 1,730 maps. A 2026-only dry run (train H1, test H2) fails calibration: XGBoost memorizes rounds and loses to logistic regression ([wp-experiments.md](wp-experiments.md)).
 
 ## Commands
 
@@ -82,8 +84,15 @@ The paper's grid: XGBoost with 100 trees, `hist`, `max_depth` in {6, 8, 10, 12} 
 
 Two XGBoost models are fit:
 
-- `replication`: the paper's 14 inputs
+- `replication`: the paper's 14 inputs on the paper's grid
 - `full`: the paper's 14 inputs plus the CS2 additions
+
+To prevent round memorization:
+- **Constant weighting**: every state is weighted rounds ÷ states, so the weights sum to the round count and `min_child_weight` reads on a per-round scale. Weighting by 1/states-in-round was tried and dropped: T-won rounds are longer (392 vs 340 states), so it biased the model toward CT ([wp-experiments.md](wp-experiments.md)).
+- **Regularized grid with early stopping (`GRID_FULL`)**: `max_depth` in {3, 4, 5, 6}, `min_child_weight` in {1, 5, 20, 50} (on the weighted scale), `learning_rate` 0.05, `subsample` 0.5, `colsample_bytree` 0.8, and `n_estimators` 2000 with `early_stopping_rounds=50` on the validation fold. The final model refits on all of train with the best iteration tree count.
+- **Monotone constraints**: `ct_alive`, `ct_hp`, `ct_kits` are +1; `t_alive`, `t_hp` are −1; all others 0.
+- **Scope**: `full` and every ablation use this recipe. `replication` keeps the paper's grid, unweighted with 100 trees.
+- **Map exposure**: test maps with fewer than 500 training rounds are reported next to unseen test maps, along with an informational secondary gate readout excluding them.
 
 The test report (`data/wp/models/<model>/report.json`) has:
 
@@ -92,7 +101,7 @@ The test report (`data/wp/models/<model>/report.json`) has:
 - the 100-bin calibration curve, its ECE and slope
 - calibration per (CT alive, T alive, planted) bucket, flagged under 50 rounds or with a gap over 0.05
 - per-map scores
-- maps missing from train
+- maps missing from train and low-exposure test maps (<500 training rounds)
 - gain importance normalized to 100, to compare with the paper's Figure 7
 
 Fixes to try if rare buckets are miscalibrated are listed in [wp-experiments.md](wp-experiments.md).

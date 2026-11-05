@@ -38,10 +38,45 @@ def round_bootstrap(df: pl.DataFrame, p: np.ndarray, n: int = 200, seed: int = 0
             "brier": [float(np.quantile(brs, 0.025)), float(np.quantile(brs, 0.975))]}
 
 
+def _bin_index(p: np.ndarray, bins: int) -> np.ndarray:
+    return np.clip(np.digitize(p, np.linspace(0, 1, bins + 1)) - 1, 0, bins - 1)
+
+
+def bin_gap_noise(df: pl.DataFrame, p: np.ndarray, n: int = 200, seed: int = 0, bins: int = BINS) -> float:
+    """p95 of the max bin gap a perfectly calibrated model would show on this test set.
+
+    States in a round share one outcome, so a bin's gap has round-level sampling noise far above what its state count
+    suggests. Resampling whole rounds and centring each bin's gap on the observed one gives that noise's distribution.
+    """
+    idx = _bin_index(p, bins)
+    g = (
+        pl.DataFrame({
+            "r": df.select(pl.struct("key", "round_num").rank("dense")).to_series().to_numpy() - 1,
+            "b": idx, "p": p, "y": df["ct_win"].cast(pl.Float64).to_numpy(),
+        })
+        .group_by("r", "b").agg(pl.len().alias("n"), pl.col("p").sum(), pl.col("y").sum())
+    )
+    r, b = g["r"].to_numpy(), g["b"].to_numpy()
+    cnt, ps, ys = (g[c].to_numpy().astype(float) for c in ("n", "p", "y"))
+
+    def gaps(w: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
+        wr = w[r]
+        tot = np.bincount(b, wr * cnt, bins)
+        return (np.bincount(b, wr * ps, bins) - np.bincount(b, wr * ys, bins)) / np.maximum(tot, 1e-9), tot
+
+    rounds = int(r.max()) + 1
+    g0, n0 = gaps(np.ones(rounds))
+    eligible = n0 >= MIN_BIN_STATES
+    if not eligible.any():
+        return float("nan")
+    rng = np.random.default_rng(seed)
+    null_max = [np.abs(gaps(rng.poisson(1.0, rounds).astype(float))[0] - g0)[eligible].max() for _ in range(n)]
+    return float(np.quantile(null_max, 0.95))
+
+
 def calibration(y: np.ndarray, p: np.ndarray, bins: int = BINS) -> dict:
     """Equal-width bins: predicted vs observed, the largest gap over bins with enough states, and the logistic slope."""
-    edges = np.linspace(0, 1, bins + 1)
-    idx = np.clip(np.digitize(p, edges) - 1, 0, bins - 1)
+    idx = _bin_index(p, bins)
     curve = []
     for b in range(bins):
         m = idx == b

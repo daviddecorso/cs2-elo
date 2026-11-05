@@ -32,7 +32,19 @@ ABLATIONS = {
     + [f"{s}_{u}" for s in ("ct", "t") for u in ("smokes", "flashes", "hes", "fires")],
 }
 GRID = [{"max_depth": d, "min_child_weight": w} for d in (6, 8, 10, 12) for w in (1, 3, 5, 7)]
+GRID_FULL = [
+    {"max_depth": d, "min_child_weight": w, "learning_rate": 0.05, "subsample": 0.5, "colsample_bytree": 0.8}
+    for d in (3, 4, 5, 6)
+    for w in (1, 5, 20, 50)
+]
 PAPER_LOG_LOSS = 0.535
+PAPER_BIN_GAP = 0.03
+
+
+def _monotone_constraints(features: list[str]) -> tuple[int, ...]:
+    pos = {"ct_alive", "ct_hp", "ct_kits"}
+    neg = {"t_alive", "t_hp"}
+    return tuple(1 if f in pos else (-1 if f in neg else 0) for f in features)
 
 
 def _state_dir(ref: MapRef):
@@ -80,15 +92,49 @@ def _xy(df: pl.DataFrame, features: list[str], maps: list[str]):
     x = df.select(features).to_pandas()
     x["map"] = pd.Categorical(x["map"], categories=maps)
     x["bomb_site"] = pd.Categorical(x["bomb_site"], categories=["none", "A", "B"])
-    return x, df["ct_win"].cast(pl.Int8).to_numpy()
+    y = df["ct_win"].cast(pl.Int8).to_numpy()
+    # Rounds per state, constant so the total weight equals the round count without reweighting by round length:
+    # T-won rounds run longer, so 1/states-in-round leaned the model toward CT.
+    if "key" in df.columns and "round_num" in df.columns and not df.is_empty():
+        rounds = df.select(pl.struct("key", "round_num").n_unique()).item()
+        w = np.full(df.height, rounds / df.height, dtype=float)
+    else:
+        w = np.ones(df.height, dtype=float)
+    return x, y, w
 
 
-def _fit_xgb(x, y, params: dict):
+def _fit_xgb(
+    x,
+    y,
+    params: dict,
+    sample_weight=None,
+    n_estimators: int = 100,
+    eval_set=None,
+    early_stopping_rounds: int | None = None,
+    monotone_constraints: tuple[int, ...] | None = None,
+):
     from xgboost import XGBClassifier
 
-    model = XGBClassifier(n_estimators=100, tree_method="hist", enable_categorical=True, eval_metric="logloss",
-                          n_jobs=-1, **params)
-    return model.fit(x, y)
+    kw = dict(
+        n_estimators=n_estimators,
+        tree_method="hist",
+        enable_categorical=True,
+        eval_metric="logloss",
+        n_jobs=-1,
+        **params,
+    )
+    if early_stopping_rounds is not None:
+        kw["early_stopping_rounds"] = early_stopping_rounds
+    if monotone_constraints is not None:
+        kw["monotone_constraints"] = monotone_constraints
+    model = XGBClassifier(**kw)
+    fit_kw = {}
+    if sample_weight is not None:
+        fit_kw["sample_weight"] = sample_weight
+    if eval_set is not None:
+        fit_kw["eval_set"] = eval_set
+        fit_kw["verbose"] = False
+    return model.fit(x, y, **fit_kw)
 
 
 def _fit_logistic(train: pl.DataFrame, maps: list[str]):
@@ -126,6 +172,23 @@ def split(refs: list[MapRef], test_from: str) -> tuple[list[MapRef], list[MapRef
     return train_refs[:cut], train_refs[cut:] or train_refs[-1:], train_refs, test_refs
 
 
+def _gate(df: pl.DataFrame, p: np.ndarray) -> dict:
+    """The paper's 0.03 bin gap is the floor; the limit rises to what round-level noise alone produces on this test set."""
+    y = df["ct_win"].cast(pl.Int8).to_numpy()
+    log_loss, cal = ev.scores(y, p)["log_loss"], ev.calibration(y, p)
+    limit = max(PAPER_BIN_GAP, ev.bin_gap_noise(df, p))
+    return {
+        "log_loss": log_loss, "paper": PAPER_LOG_LOSS, "max_bin_gap": cal["max_gap"], "bin_gap_limit": limit,
+        "slope": cal["slope"],
+        "passed": bool(log_loss <= PAPER_LOG_LOSS and cal["max_gap"] <= limit and 0.95 <= cal["slope"] <= 1.05),
+    }
+
+
+def _gate_line(g: dict) -> str:
+    return (f"{g['log_loss']:.4f} vs {g['paper']}, max bin gap {g['max_bin_gap']:.3f} vs {g['bin_gap_limit']:.3f}, "
+            f"slope {g['slope']:.3f} -> {'PASS' if g['passed'] else 'FAIL'}")
+
+
 def train(test_from: str, out: str, ablations: bool = False) -> int:
     fit_refs, val_refs, train_refs, test_refs = split(catalog(), test_from)
     if not train_refs or not test_refs:
@@ -134,6 +197,8 @@ def train(test_from: str, out: str, ablations: bool = False) -> int:
     fit, val, train_df, test = (_load(x, "grid") for x in (fit_refs, val_refs, train_refs, test_refs))
     maps = sorted(train_df["map"].unique().to_list())
     unseen = sorted(set(test["map"].unique().to_list()) - set(maps))
+    train_rounds = dict(train_df.group_by("map").agg(pl.struct("key", "round_num").n_unique().alias("n")).iter_rows())
+    low_exposure = sorted(m for m in test["map"].unique().to_list() if train_rounds.get(m, 0) < 500)
 
     reports = []
     rate = train_df.group_by("map").agg(pl.col("ct_win").cast(pl.Float64).mean().alias("p"))
@@ -143,41 +208,87 @@ def train(test_from: str, out: str, ablations: bool = False) -> int:
 
     models_dir = MODELS / out
     models_dir.mkdir(parents=True, exist_ok=True)
+
+    full_p = None
     variants = {**FEATURES, **(ABLATIONS if ablations else {})}
     for name, features in variants.items():
-        xf, yf = _xy(fit, features, maps)
-        xv, yv = _xy(val, features, maps)
+        xf, yf, wf = _xy(fit, features, maps)
+        xv, yv, _ = _xy(val, features, maps)
+        xt, yt, wt = _xy(train_df, features, maps)
+        xs, _, _ = _xy(test, features, maps)
+
+        # `replication` keeps the paper's recipe; everything else gets the regularized one.
+        is_rep = name == "replication"
+        grid = GRID if is_rep else GRID_FULL
+        sw_fit = None if is_rep else wf
+        sw_train = None if is_rep else wt
+        es_rounds = None if is_rep else 50
+        eval_s = None if is_rep else [(xv, yv)]
+        n_est_search = 100 if is_rep else 2000
+        mc = None if is_rep else _monotone_constraints(features)
+
         tried = []
-        for params in GRID:
-            m = _fit_xgb(xf, yf, params)
-            tried.append({**params, "val_log_loss": ev.scores(yv, m.predict_proba(xv)[:, 1])["log_loss"]})
+        for p_grid in grid:
+            m = _fit_xgb(
+                xf,
+                yf,
+                p_grid,
+                sample_weight=sw_fit,
+                n_estimators=n_est_search,
+                eval_set=eval_s,
+                early_stopping_rounds=es_rounds,
+                monotone_constraints=mc,
+            )
+            v_loss = ev.scores(yv, m.predict_proba(xv)[:, 1])["log_loss"]
+            score_item = {**p_grid, "val_log_loss": v_loss}
+            if getattr(m, "best_iteration", None) is not None:
+                score_item["best_iteration"] = int(m.best_iteration)
+            tried.append(score_item)
+
         best = min(tried, key=lambda t: t["val_log_loss"])
-        params = {k: best[k] for k in ("max_depth", "min_child_weight")}
-        xt, yt = _xy(train_df, features, maps)
-        model = _fit_xgb(xt, yt, params)
+        params = {k: v for k, v in best.items() if k not in ("val_log_loss", "best_iteration")}
+        n_est_final = (int(best["best_iteration"]) + 1) if "best_iteration" in best else 100
+
+        model = _fit_xgb(
+            xt,
+            yt,
+            params,
+            sample_weight=sw_train,
+            n_estimators=n_est_final,
+            monotone_constraints=mc,
+        )
         model.save_model(models_dir / f"{name}.json")
-        xs, _ = _xy(test, features, maps)
-        r = _report(f"xgboost_{name}", test, model.predict_proba(xs)[:, 1])
+
+        p_test = model.predict_proba(xs)[:, 1]
+        if name == "full":
+            full_p = p_test
+
+        r = _report(f"xgboost_{name}", test, p_test)
         gain = model.get_booster().get_score(importance_type="gain")
         total = sum(gain.values()) or 1
-        r.update({"params": params, "grid": tried, "features": features,
+        r_params = dict(params)
+        if "best_iteration" in best:
+            r_params["best_iteration"] = best["best_iteration"]
+            r_params["n_estimators"] = n_est_final
+        r.update({"params": r_params, "grid": tried, "features": features,
                   "importance": {f: round(100 * gain.get(f, 0) / total, 1) for f in features}})
         reports.append(r)
 
-    full = next(r for r in reports if r["model"] == "xgboost_full")
-    cal = full["calibration"]
-    gate = {
-        "log_loss": full["log_loss"], "paper": PAPER_LOG_LOSS, "max_bin_gap": cal["max_gap"], "slope": cal["slope"],
-        "passed": bool(full["log_loss"] <= PAPER_LOG_LOSS and cal["max_gap"] <= 0.03 and 0.95 <= cal["slope"] <= 1.05),
-    }
+    gate = _gate(test, full_p)
+    secondary_gate = None
+    if low_exposure:
+        mask = ~test["map"].is_in(low_exposure)
+        if mask.any():
+            secondary_gate = {**_gate(test.filter(mask), full_p[mask.to_numpy()]), "excluded_maps": low_exposure}
     meta = {
         "built": date.today().isoformat(), "test_from": test_from, "nav_release": NAV_RELEASE, "maps": maps,
         "unseen_test_maps": unseen,
+        "low_exposure_test_maps": low_exposure,
         "split": {"fit": [fit_refs[0].date, fit_refs[-1].date] if fit_refs else None,
                   "validation": [val_refs[0].date, val_refs[-1].date], "test": [test_refs[0].date, test_refs[-1].date]},
         "maps_count": {"train": len(train_refs), "test": len(test_refs)},
         "states": {"train": train_df.height, "test": test.height},
-        "gate": gate, "reports": reports,
+        "gate": gate, "secondary_gate": secondary_gate, "reports": reports,
     }
     (models_dir / "report.json").write_text(json.dumps(meta, indent=2, default=float))
     print(f"train {len(train_refs)} maps ({train_df.height} states) to {train_refs[-1].date}; "
@@ -185,17 +296,20 @@ def train(test_from: str, out: str, ablations: bool = False) -> int:
     for r in reports:
         print(f"  {r['model']:<22} log loss {r['log_loss']:.4f} [{r['ci']['log_loss'][0]:.4f}, {r['ci']['log_loss'][1]:.4f}]"
               f"  brier {r['brier']:.4f}  auc {r['auc']:.4f}  slope {r['calibration']['slope']:.3f}")
-    print(f"Gate: {gate['log_loss']:.4f} vs {PAPER_LOG_LOSS}, max bin gap {gate['max_bin_gap']:.3f}, "
-          f"slope {gate['slope']:.3f} -> {'PASS' if gate['passed'] else 'FAIL'}")
+    print(f"Gate: {_gate_line(gate)}")
+    if secondary_gate:
+        print(f"Gate (excluding {', '.join(low_exposure)}): {_gate_line(secondary_gate)}")
     if unseen:
         print(f"  maps in test but not train: {', '.join(unseen)}")
+    if low_exposure:
+        print(f"  test maps with <500 train rounds: {', '.join(low_exposure)}")
     return 0 if gate["passed"] else 2
 
 
 def _predict(model, features: list[str], maps: list[str], events: pl.DataFrame, prefix: str) -> np.ndarray:
     cols = {f"{prefix}_{c}": c for c in features if f"{prefix}_{c}" in events.columns}
     frame = events.select(*(pl.col(k).alias(v) for k, v in cols.items()), *(c for c in features if c not in cols.values()))
-    x, _ = _xy(frame.with_columns(pl.lit(False).alias("ct_win")), features, maps)
+    x, _, _ = _xy(frame.with_columns(pl.lit(False).alias("ct_win")), features, maps)
     return model.predict_proba(x)[:, 1]
 
 

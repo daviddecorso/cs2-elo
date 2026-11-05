@@ -64,6 +64,16 @@ describe("EloEngine", () => {
         expect(la.rating + lb.rating).toBeCloseTo(3000, 6);
     });
 
+    it("records each map's pre-map ratings, updated between maps of a series", () => {
+        const engine = new EloEngine(params, players);
+        const [series] = engine.run([match(0, ["A", "B"], [roster("n"), roster("o")], 0, [[13, 5], [13, 9]])]);
+        const [first, second] = series.maps;
+        expect(first.ratings).toEqual([1500, 1500]);
+        expect(second.ratings[0]).toBeGreaterThan(1500);
+        expect(second.ratings[0] + second.ratings[1]).toBeCloseTo(3000, 6);
+        expect(second.p).toBeCloseTo(expectedScore(second.ratings[0] - second.ratings[1], params.scale), 10);
+    });
+
     it("keeps the lineage through a one-series stand-in and flags it", () => {
         const a = roster("c");
         const b = roster("d");

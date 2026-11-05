@@ -1,5 +1,6 @@
-"""Parquet output, R2 upload and the per-map manifest."""
+"""Parquet output, R2 upload, the per-map manifest and the HLTV cache backup."""
 
+import gzip
 import json
 import os
 import shutil
@@ -8,9 +9,10 @@ from pathlib import Path
 
 import polars as pl
 
-from .paths import MANIFEST, REPO_ROOT
+from .paths import HLTV_CACHE, MANIFEST, REPO_ROOT
 
 MANIFEST_KEY = "manifest.json"
+HLTV_CACHE_PREFIX = "hltv/cache/"
 
 
 def map_key(hltv_id: int, map_number: int) -> str:
@@ -59,6 +61,20 @@ class R2:
             keys.append(key)
         return keys
 
+    def upload_file(self, path: Path, key: str) -> None:
+        self.client.upload_file(str(path), self.bucket, key)
+
+    def put_bytes(self, key: str, body: bytes) -> None:
+        self.client.put_object(Bucket=self.bucket, Key=key, Body=body)
+
+    def get_bytes(self, key: str) -> bytes:
+        return self.client.get_object(Bucket=self.bucket, Key=key)["Body"].read()
+
+    def download(self, key: str, dest: Path) -> Path:
+        dest.parent.mkdir(parents=True, exist_ok=True)
+        self.client.download_file(self.bucket, key, str(dest))
+        return dest
+
     def list_keys(self, prefix: str) -> list[str]:
         keys: list[str] = []
         for page in self.client.get_paginator("list_objects_v2").paginate(Bucket=self.bucket, Prefix=prefix):
@@ -97,3 +113,27 @@ class Manifest:
         self.path.write_text(json.dumps(data, indent=2) + "\n")
         if self.r2:
             self.r2.put_json(MANIFEST_KEY, data)
+
+
+def backup_hltv_cache(r2: R2, cache: Path = HLTV_CACHE) -> int:
+    """Gzips cached files R2 doesn't have yet. A cached file is never rewritten, so presence is enough."""
+    stored = set(r2.list_keys(HLTV_CACHE_PREFIX))
+    uploaded = 0
+    for path in sorted(cache.glob("*")):
+        key = f"{HLTV_CACHE_PREFIX}{path.name}.gz"
+        if path.is_file() and key not in stored:
+            r2.put_bytes(key, gzip.compress(path.read_bytes()))
+            uploaded += 1
+    return uploaded
+
+
+def restore_hltv_cache(r2: R2, cache: Path = HLTV_CACHE) -> int:
+    """Downloads backed-up files missing locally; never overwrites."""
+    cache.mkdir(parents=True, exist_ok=True)
+    restored = 0
+    for key in r2.list_keys(HLTV_CACHE_PREFIX):
+        dest = cache / key.removeprefix(HLTV_CACHE_PREFIX).removesuffix(".gz")
+        if not dest.exists():
+            dest.write_bytes(gzip.decompress(r2.get_bytes(key)))
+            restored += 1
+    return restored

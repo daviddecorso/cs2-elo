@@ -283,7 +283,7 @@ Observed on `Team_Vitality`, 2026-10-19. There is one row per player stint, incl
 
 ## Probed Findings
 
-- **No veto data**: none of the 11,462 2026 matches in the store has a veto field in match `extradata` (keys: `matchsection`, `overturned`, `timezoneoffset`, `featured`, `timestamp`, `hidden`, `timezoneid`, `comment`, `status`) or map `extradata` (`t1halfs`, `t2halfs`, `t1sides`, `t2sides`, `rounds`, `timestamp`, `dateexact`, `displayname`, `nuselo`, `comment`). Map order is known, but not who picked or banned what.
+- **No veto data**: none of the 11,462 2026 matches in the store has a veto field in match `extradata` (keys: `matchsection`, `overturned`, `timezoneoffset`, `featured`, `timestamp`, `hidden`, `timezoneid`, `comment`, `status`) or map `extradata` (`t1halfs`, `t2halfs`, `t1sides`, `t2sides`, `rounds`, `timestamp`, `dateexact`, `displayname`, `nuselo`, `comment`). Map order is known, but not who picked or banned what. The demo pipeline takes vetoes from HLTV instead (`docs/demo-pipeline.md`, Match page data).
 - **Map `resulttype`**: `np` marks a map that wasn't played. `default` with `walkover: "ff"` marks a forfeited map with 0–0 scores. Some maps carry per-round detail in `extradata.rounds`.
 
 - **Valve-ranked event marking**: `publishertier` on `/tournament` (and `/match`) marks Valve-ranked events (`"Major Championship"`, `"Tier 1"`, `"Tier 1 Qualifier"`, `"Tier 2"`, `"Tier 2 Qualifier"`, `"Wildcard"`). Tournaments with an empty `publishertier` (`""`) are unranked. Tournament `extradata` only contains `startdatetext`, `enddatetext`, and sometimes `series2`.

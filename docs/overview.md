@@ -21,6 +21,11 @@ Simulator ([simulator.md](simulator.md)):
 9. `fetch-liquipedia` also refreshes `data/raw/upcoming.json`: upcoming tournaments, plus unfinished matches and prize tables for events configured in `data/events/`.
 10. `npm run simulate` plays out each configured bracket from Elo and writes `public/data/sim/events/`. For each upcoming invite snapshot (`data/events/invites-*.json`), it then runs Valve's model on the simulated results and writes `public/data/sim/invites/`.
 
+Win probability ([win-probability.md](win-probability.md)), local only:
+
+11. `npm run export-map-elo` writes each played map's pre-map Elo to `data/wp/elo-maps.jsonl`.
+12. In `wp/`, `cs2wp sync`, `states`, `train`, `credit`, `validate` and `publish` take the demo tables in R2 to round win probability, WPA and `public/data/wpa/players.json`.
+
 The nightly `Update data` workflow runs steps 1, 2, 5, 7, 8 (without tuning), 9 and 10.
 
 ## Docs
@@ -35,6 +40,8 @@ The nightly `Update data` workflow runs steps 1, 2, 5, 7, 8 (without tuning), 9 
 | [elo-experiments.md](elo-experiments.md) | Log of every Elo change tried, kept or rejected, with scores |
 | [simulator.md](simulator.md) | Bracket formats, Major Swiss, rating drift, VRS projections, invite rules and event config |
 | [demo-pipeline.md](demo-pipeline.md) | HLTV demos → validated Parquet in R2 (`demos/`, Python) |
+| [win-probability.md](win-probability.md) | Round win-probability model, WPA credit rules, gate and validation (`wp/`, Python) |
+| [wp-experiments.md](wp-experiments.md) | Log of every win-probability change tried, kept or rejected |
 | [roadmap.md](roadmap.md) | Next steps for VRS and Elo |
 
 Liquipedia's usage terms (API key handling, attribution, no scraping) are in `AGENTS.md`.

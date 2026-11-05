@@ -29,7 +29,8 @@ export interface SeriesPrediction {
     p: number;
     /** 1 if teams[0] won. */
     y: 0 | 1;
-    maps: Array<{ map: string; p: number; y: 0 | 1 }>;
+    /** `ratings` are each side's rating plus its offset for that map, before the map is played. */
+    maps: Array<{ map: string; p: number; y: 0 | 1; ratings: [number, number] }>;
     crossRegion: boolean;
     standIn: boolean;
     tier: number;
@@ -152,7 +153,11 @@ export class EloEngine {
         for (const map of m.maps) {
             const expected = this.mapProbability(A, B, map.map, m.t);
             const y = map.rounds[0] > map.rounds[1] ? 1 : 0;
-            prediction.maps.push({ map: map.map, p: expected, y });
+            const ratings: [number, number] = [
+                A.rating + (A.mapOffsets.get(map.map) ?? 0),
+                B.rating + (B.mapOffsets.get(map.map) ?? 0),
+            ];
+            prediction.maps.push({ map: map.map, p: expected, y, ratings });
 
             const edge = (A.rating - B.rating) * (y ? 1 : -1);
             const mult = marginMultiplier(mapMargin(map.rounds, p.otMargin), edge, p.marginWeight);

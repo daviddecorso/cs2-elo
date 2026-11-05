@@ -11,13 +11,14 @@ from datetime import date, timedelta
 from pathlib import Path
 
 from .archive import extract, group_by_map
-from .backlog import build_queue, is_done
-from .hltv import ChallengeError, Hltv, PageBudgetExhausted, demo_path_from_html
+from .backlog import build_queue, is_done, is_map_done
+from .hltv import ChallengeError, Hltv, PageBudgetExhausted, ServerError, demo_path_from_html
 from .identity import IdentityTable
 from .liquipedia import LpMatch, load_event, load_lan_events, load_steam_ids, resolve_from_results, save_link
 from .parse import PARSER_VERSION, parse_map
-from .paths import AUTO_LOCK, LAN_SERIES, PARQUET, RAW_DEMOS, REPO_ROOT, STEAM_PLAYERS, UNRESOLVED_PLAYERS, WORK
-from .store import R2, Manifest, map_key, object_prefix, write_tables
+from .paths import AUTO_LOCK, LAN_SERIES, PARQUET, RAW_DEMOS, REPO_ROOT, STEAM_PLAYERS, UNRESOLVED_PLAYERS, HLTV_TABLES, WORK
+from .store import R2, Manifest, backup_hltv_cache, map_key, object_prefix, restore_hltv_cache, write_tables
+from .match_page import cached_page, match_page_tables
 
 RAW_RETENTION_DAYS = 30
 RAW_CAP_GB = 10
@@ -60,12 +61,31 @@ def resolve_link(hltv: Hltv, m: LpMatch) -> int | None:
     return None
 
 
-def process_match(m: LpMatch, archive: Path, manifest: Manifest, identity: IdentityTable, r2: R2 | None) -> None:
+def store_match_page(m: LpMatch, r2: R2 | None) -> list[str]:
+    """Writes the tables parsed from the cached HLTV match page; never fetches. Returns their names."""
+    page = cached_page(m)
+    if page is None:
+        return []
+    tables = match_page_tables(m, page)
+    for name, df in tables.items():
+        path = HLTV_TABLES / name / f"{m.hltv_id}.parquet"
+        path.parent.mkdir(parents=True, exist_ok=True)
+        df.write_parquet(path, compression="zstd")
+        if r2:
+            r2.upload_file(path, f"hltv/{name}/{path.name}")
+    return list(tables)
+
+
+def process_match(m: LpMatch, archive: Path, manifest: Manifest, identity: IdentityTable, r2: R2 | None,
+                  redo_parsed: bool = False) -> None:
+    store_match_page(m, r2)
     work = WORK / str(m.hltv_id)
     try:
         groups = group_by_map(extract(archive, work), m.maps)
         for lp_map in m.maps:
             key = map_key(m.hltv_id, lp_map.number)
+            if not redo_parsed and is_map_done(manifest.get(key), retry_quarantined=True):
+                continue
             base = {"lp_match2id": m.match2id, "lp_pagename": m.pagename, "map": lp_map.demo_map,
                     "official": list(lp_map.scores), "parser_version": PARSER_VERSION}
             parts = groups.get(lp_map.number, [])
@@ -113,7 +133,11 @@ def run_matches(matches: list[LpMatch], hltv: Hltv, manifest: Manifest, identity
         if is_done(manifest, m):
             continue
         print(f"{label} ({m.hltv_id})")
-        archive = raw_archive(m.hltv_id) or fetch_archive(hltv, m)
+        try:
+            archive = raw_archive(m.hltv_id) or fetch_archive(hltv, m)
+        except ServerError as e:
+            print(f"  {e}; retrying next run")
+            continue
         if archive:
             process_match(m, archive, manifest, identity, r2)
 
@@ -134,6 +158,8 @@ def drive(matches: list[LpMatch], max_pages: int, manifest: Manifest, identity: 
     finally:
         identity.save(STEAM_PLAYERS, UNRESOLVED_PLAYERS)
         prune_raw(manifest, RAW_RETENTION_DAYS, RAW_CAP_GB)
+        if r2:
+            backup_hltv_cache(r2)
     return code, hltv.pages_used
 
 
@@ -189,9 +215,9 @@ def cmd_reparse(args) -> int:
     try:
         for m in matches:
             archive = m.hltv_id and raw_archive(m.hltv_id)
-            if archive and (args.all or not is_done(manifest, m)):
+            if archive and (args.all or not is_done(manifest, m, retry_quarantined=True)):
                 print(f"{m.opponents[0].name} vs {m.opponents[1].name} ({m.hltv_id})")
-                process_match(m, archive, manifest, identity, r2)
+                process_match(m, archive, manifest, identity, r2, redo_parsed=args.all)
     finally:
         identity.save(STEAM_PLAYERS, UNRESOLVED_PLAYERS)
     return 0
@@ -320,6 +346,48 @@ def cmd_status(args) -> int:
     return 0
 
 
+def cmd_schema(args) -> int:
+    """Prints every table's columns and dtypes for one stored map."""
+    import polars as pl
+
+    r2 = R2()
+    manifest = Manifest(r2)
+    parsed = {k: e for k, e in manifest.maps.items() if e["status"] == "parsed"}
+    key = args.key or next(iter(sorted(parsed)), None)
+    entry = parsed.get(key) if key else None
+    if not entry:
+        print(f"no parsed map {key!r} in the manifest")
+        return 1
+    print(f"{key} ({entry['prefix']}, {entry['parser_version']})")
+    with tempfile.TemporaryDirectory() as tmp:
+        for k in entry["keys"]:
+            df = pl.read_parquet(r2.download(k, Path(tmp) / k.rsplit("/", 1)[1]))
+            print(f"\n{k.rsplit('/', 1)[1]}: {df.height} rows")
+            for name, dtype in df.schema.items():
+                print(f"  {name}: {dtype}")
+    return 0
+
+
+def cmd_match_pages(args) -> int:
+    if args.event:
+        matches = load_event(args.event)
+    else:
+        matches = [m for ms in load_lan_events().values() for m in ms]
+    r2 = None if args.no_upload else R2()
+    stored = [name for m in matches if m.hltv_id for name in store_match_page(m, r2)]
+    print(f"{len(matches)} series: {stored.count('veto')} vetoes, {stored.count('series')} series rows stored")
+    return 0
+
+
+def cmd_cache(args) -> int:
+    r2 = R2()
+    if args.restore:
+        print(f"{restore_hltv_cache(r2)} files restored to data/demos/hltv-cache/")
+    else:
+        print(f"{backup_hltv_cache(r2)} files backed up to R2")
+    return 0
+
+
 def main() -> None:
     ap = argparse.ArgumentParser(prog="cs2demos")
     sub = ap.add_subparsers(dest="cmd", required=True)
@@ -344,8 +412,16 @@ def main() -> None:
     p.add_argument("--days", type=int, default=RAW_RETENTION_DAYS)
     p.add_argument("--max-gb", type=float, default=RAW_CAP_GB)
     p.add_argument("--no-upload", action="store_true", help="Use the local manifest only")
+    p = sub.add_parser("schema", help="Print the columns and dtypes of every table for one map in R2")
+    p.add_argument("--key", help="Manifest key, e.g. 2399384/m1 (default: the first parsed map)")
+    p = sub.add_parser("match-pages", help="Store vetoes and series info from cached HLTV match pages; never fetches")
+    p.add_argument("--event", help="Liquipedia tournament page (default: every tier-1 LAN since 2025)")
+    p.add_argument("--no-upload", action="store_true", help="Keep Parquet in data/demos/hltv/ only")
+    p = sub.add_parser("cache", help="Back up data/demos/hltv-cache/ to R2, or restore what's missing locally")
+    p.add_argument("--restore", action="store_true")
 
     args = ap.parse_args()
     handlers = {"login": cmd_login, "run": cmd_run, "reparse": cmd_reparse, "prune": cmd_prune,
-                "report": cmd_report, "auto": cmd_auto, "status": cmd_status}
+                "report": cmd_report, "auto": cmd_auto, "status": cmd_status, "schema": cmd_schema,
+                "match-pages": cmd_match_pages, "cache": cmd_cache}
     sys.exit(handlers[args.cmd](args))

@@ -2,7 +2,7 @@ import json
 import os
 import time
 
-from cs2demos.backlog import build_queue
+from cs2demos.backlog import build_queue, is_done
 from cs2demos.cli import prune_raw
 from cs2demos.liquipedia import LpMap, LpMatch, LpOpponent, load_event, load_lan_events, resolve_from_results
 from cs2demos.parse import PARSER_VERSION
@@ -105,6 +105,18 @@ def test_build_queue_newest_first_and_drops_done(tmp_path):
     queue = build_queue(events, manifest)
     assert [(e.page, e.start, e.end) for e in queue] == [("New", "2026-10-15", "2026-10-18"), ("Old", "2025-02-01", "2025-02-01")]
     assert [e.page for e in build_queue(events, manifest, include_done=True)] == ["New", "Done", "Old"]
+
+
+def test_quarantined_series_is_done_until_retried(tmp_path):
+    manifest = manifest_with(tmp_path, {
+        "10/m1": {"status": "parsed", "parser_version": PARSER_VERSION},
+        "11/m1": {"status": "quarantined", "parser_version": PARSER_VERSION},
+        "12/m1": {"status": "quarantined", "parser_version": "old"},
+    })
+    parsed, quarantined, stale = (lp_match(str(i), "2026-10-01", hltv_id=i) for i in (10, 11, 12))
+    assert is_done(manifest, parsed) and is_done(manifest, parsed, retry_quarantined=True)
+    assert is_done(manifest, quarantined) and not is_done(manifest, quarantined, retry_quarantined=True)
+    assert not is_done(manifest, stale)
 
 
 def test_prune_raw_size_cap_keeps_quarantined(tmp_path):

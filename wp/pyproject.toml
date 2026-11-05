@@ -1,0 +1,32 @@
+[project]
+name = "cs2wp"
+version = "0.1.0"
+description = "Round win probability and WPA from CS2 demo tables (Xenopoulos et al. 2020, extended)"
+requires-python = ">=3.12"
+dependencies = [
+    "cs2demos",
+    "numpy>=2.0",
+    "polars>=2.0",
+    "pyarrow>=16",
+    "scikit-learn==1.7.2",
+    "xgboost==3.0.5",
+]
+
+[project.scripts]
+cs2wp = "cs2wp.cli:main"
+
+[tool.uv.sources]
+cs2demos = { path = "../demos", editable = true }
+
+[dependency-groups]
+dev = ["pytest>=9.1.1"]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/cs2wp"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

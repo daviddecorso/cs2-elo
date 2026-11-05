@@ -30,7 +30,8 @@
         "fetch-upcoming": "vite-node scripts/fetch-upcoming.ts",
         "simulate": "vite-node scripts/simulate.ts",
         "backtest-sim": "vite-node scripts/backtest-sim.ts",
-        "fit-sim-noise": "vite-node scripts/fit-sim-noise.ts"
+        "fit-sim-noise": "vite-node scripts/fit-sim-noise.ts",
+        "export-map-elo": "vite-node scripts/export-map-elo.ts"
     },
     "dependencies": {
         "@fontsource-variable/geist": "^5.3.0",

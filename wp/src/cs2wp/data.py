@@ -33,8 +33,8 @@ class MapRef:
     def dir(self) -> Path:
         return MIRROR / self.prefix
 
-    def table(self, name: str) -> pl.DataFrame:
-        return pl.read_parquet(self.dir / f"{name}.parquet")
+    def table(self, name: str, columns: list[str] | None = None) -> pl.DataFrame:
+        return pl.read_parquet(self.dir / f"{name}.parquet", columns=columns)
 
     @property
     def slug(self) -> str:

@@ -31,17 +31,21 @@ def map_stats(ref: MapRef, roster: pl.DataFrame) -> pl.DataFrame:
         .agg(pl.col("hp_dmg").sum().alias("damage"))
     )
     # KAST: a kill, an assist, survival or being traded, per round.
-    per_round = []
-    for (rnd,), g in roster.group_by("round_num"):
-        rk = kills.filter(pl.col("round_num") == rnd)
-        killed = set(rk.filter(enemy & (pl.col("attacker_steamid") > 0))["attacker_steamid"].to_list())
-        helped = set(rk.filter(enemy & pl.col("assister_steamid").is_not_null())["assister_steamid"].to_list())
-        died = set(rk["victim_steamid"].to_list())
-        traded = set(rk.filter(pl.col("victim_traded"))["victim_steamid"].to_list())
-        for sid in g["steamid"]:
-            per_round.append({"steamid": sid, "kast": sid in killed or sid in helped or sid not in died or sid in traded})
-    kast = pl.DataFrame(per_round, schema={"steamid": pl.UInt64, "kast": pl.Boolean}).group_by("steamid").agg(
-        pl.col("kast").sum().alias("kast_rounds")
+    rn_dtype = roster.schema["round_num"]
+    rk = kills.with_columns(pl.col("round_num").cast(rn_dtype))
+    killed = rk.filter(enemy & (pl.col("attacker_steamid") > 0)).select("round_num", pl.col("attacker_steamid").alias("steamid")).unique().with_columns(pl.lit(True).alias("_k"))
+    helped = rk.filter(enemy & pl.col("assister_steamid").is_not_null()).select("round_num", pl.col("assister_steamid").alias("steamid")).unique().with_columns(pl.lit(True).alias("_a"))
+    died = rk.filter(pl.col("victim_steamid") > 0).select("round_num", pl.col("victim_steamid").alias("steamid")).unique().with_columns(pl.lit(True).alias("_d"))
+    traded = rk.filter(pl.col("victim_traded") & (pl.col("victim_steamid") > 0)).select("round_num", pl.col("victim_steamid").alias("steamid")).unique().with_columns(pl.lit(True).alias("_t"))
+    kast = (
+        roster.select("round_num", "steamid")
+        .join(killed, on=["round_num", "steamid"], how="left")
+        .join(helped, on=["round_num", "steamid"], how="left")
+        .join(died, on=["round_num", "steamid"], how="left")
+        .join(traded, on=["round_num", "steamid"], how="left")
+        .with_columns((pl.col("_k").fill_null(False) | pl.col("_a").fill_null(False) | ~pl.col("_d").fill_null(False) | pl.col("_t").fill_null(False)).alias("kast"))
+        .group_by("steamid")
+        .agg(pl.col("kast").sum().alias("kast_rounds"))
     )
     out = rounds
     for t in (kpr, deaths, assists, dealt, kast):

@@ -1,9 +1,10 @@
 import math
 
 import numpy as np
+import polars as pl
 
-from cs2wp.nav import dijkstra
-from cs2wp.states import CT, T, side_features
+from cs2wp.nav import LOOKUP_GRID, SiteDistance, dijkstra
+from cs2wp.states import CT, T, _matrix, _player_slices, _round_matrices, side_features
 
 
 def test_side_features_count_only_alive_players():
@@ -31,3 +32,44 @@ def test_dijkstra_walks_edges_backwards_to_the_nearest_source():
     reverse = {2: [(1, 1.0)], 3: [(2, 1.0), (4, 5.0)], 1: [(3, 1.0)]}
     dist = dijkstra({3}, reverse)
     assert dist == {3: 0.0, 2: 1.0, 1: 2.0, 4: 5.0}
+
+
+def test_round_matrices_match_single_column_matrix_and_handle_missing_data():
+    snaps = pl.DataFrame({
+        "steamid": [10, 20, 10, 20, 10],
+        "tick": [100, 100, 132, 164, 196],
+        "health": [100.0, 80.0, 60.0, None, 40.0],
+        "util": [2.0, 1.0, 1.0, 0.0, 0.0],
+    })
+    players = [10, 20, 30]
+    ticks = np.array([64, 100, 140, 196])
+    slices = _player_slices(snaps, players, ("health", "util", "missing_col"))
+    mats = _round_matrices(slices, players, ticks, ("health", "util", "missing_col"))
+    for col in ("health", "util", "missing_col"):
+        np.testing.assert_allclose(mats[col], _matrix(snaps, players, ticks, col), equal_nan=True)
+
+
+def test_vectorized_distances_match_scalar_area_lookup():
+    class StubNav:
+        def find_area(self, pos):
+            x, y, _ = pos
+            return 1 if abs(x) < 10 and abs(y) < 10 else None
+
+    sd = SiteDistance.__new__(SiteDistance)
+    sd.nav = StubNav()
+    sd._ids = np.array([2], dtype=np.int64)
+    sd._xy = np.array([[50.0, 0.0]], dtype=np.float64)
+    sd._dist = {"A": {1: 0.0, 2: 120.0}}
+    sd.site_centroid = {"A": (0.0, 0.0, 0.0)}
+    sd._cache = {}
+    sd.stats = {"area": 0, "snapped": 0, "missed": 0}
+
+    xs = np.array([1.0, 2.0, 60.0, 60.5, 500.0])
+    ys = np.array([1.0, 2.0, 0.0, 0.5, 500.0])
+    zs = np.zeros_like(xs)
+    out = sd.distances(xs, ys, zs)
+    assert out["graph_A"][:2].tolist() == [0.0, 0.0]
+    assert out["graph_A"][2:4].tolist() == [120.0, 120.0]
+    assert math.isnan(out["graph_A"][4])
+    assert sd.stats == {"area": 2, "snapped": 2, "missed": 1}
+    assert len(sd._cache) == len({(round(x / LOOKUP_GRID), round(y / LOOKUP_GRID), 0) for x, y in zip(xs, ys)})

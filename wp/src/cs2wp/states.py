@@ -26,9 +26,16 @@ def _plants(bomb: pl.DataFrame) -> pl.DataFrame:
 
 def map_plants(refs: list[MapRef]) -> dict[str, pl.DataFrame]:
     """Every finished plant per map name: they mark where each site's nav areas are."""
+    from concurrent.futures import ThreadPoolExecutor
+
     out: dict[str, list[pl.DataFrame]] = {}
-    for ref in refs:
-        out.setdefault(ref.map, []).append(_plants(ref.table("bomb")))
+    if len(refs) <= 16:
+        for ref in refs:
+            out.setdefault(ref.map, []).append(_plants(ref.table("bomb")))
+    else:
+        with ThreadPoolExecutor(max_workers=8) as ex:
+            for m, df in ex.map(lambda r: (r.map, _plants(r.table("bomb"))), refs, chunksize=32):
+                out.setdefault(m, []).append(df)
     return {m: pl.concat(dfs) for m, dfs in out.items()}
 
 
@@ -52,6 +59,11 @@ def side_features(hp: np.ndarray, side: np.ndarray, f: dict[str, np.ndarray]) ->
             )
     ct_mask = (side == CT)[None, :] & (hp > 0)
     out["ct_kits"] = np.where(ct_mask, f["kit"], 0).sum(axis=1).astype(np.float32)
+    # Nearest alive CT holding a kit; with ct_graph_* this gives the fastest possible defuse (features.py).
+    kit_mask = ct_mask & (np.nan_to_num(f["kit"]) > 0)
+    for name in ("graph_A", "graph_B"):
+        best = np.where(kit_mask, f[name], np.inf).min(axis=1)
+        out[f"ct_kit_{name.lower()}"] = np.where(np.isfinite(best), best, np.nan).astype(np.float32)
     defusing = f.get("defusing")
     out["ct_defusing"] = (
         np.where(ct_mask, np.nan_to_num(defusing), 0).max(axis=1).astype(np.float32)
@@ -77,18 +89,47 @@ def _snapshots(ref: MapRef, sites: SiteDistance) -> pl.DataFrame:
 FIELDS = ("graph_A", "graph_B", "euclid_A", "euclid_B", "util", *UTILITY, "kit", "defusing")
 
 
+def _player_slices(
+    snaps: pl.DataFrame, players: list[int], cols: tuple[str, ...]
+) -> dict[int, tuple[np.ndarray, dict[str, np.ndarray]]]:
+    sids = snaps["steamid"].to_numpy()
+    ticks = snaps["tick"].to_numpy()
+    arrays = {c: snaps[c].cast(pl.Float32).fill_null(np.nan).to_numpy() for c in cols if c in snaps.columns}
+    out: dict[int, tuple[np.ndarray, dict[str, np.ndarray]]] = {}
+    for sid in players:
+        pos = np.flatnonzero(sids == sid)
+        if len(pos):
+            out[sid] = (ticks[pos], {c: arr[pos] for c, arr in arrays.items()})
+    return out
+
+
+def _round_matrices(
+    slices: dict[int, tuple[np.ndarray, dict[str, np.ndarray]]],
+    players: list[int],
+    ticks: np.ndarray,
+    cols: tuple[str, ...],
+) -> dict[str, np.ndarray]:
+    """(ticks, players) values of `cols`, carrying each player's last snapshot forward."""
+    n, p = len(ticks), len(players)
+    out = {c: np.full((n, p), np.nan, np.float32) for c in cols}
+    for j, sid in enumerate(players):
+        entry = slices.get(sid)
+        if entry is None:
+            continue
+        t, col_arrays = entry
+        idx = np.searchsorted(t, ticks, side="right") - 1
+        valid = idx >= 0
+        clipped = np.clip(idx, 0, None)
+        for c in cols:
+            arr = col_arrays.get(c)
+            if arr is not None:
+                out[c][:, j] = np.where(valid, arr[clipped], arr[0])
+    return out
+
+
 def _matrix(snaps: pl.DataFrame, players: list[int], ticks: np.ndarray, col: str) -> np.ndarray:
     """(ticks, players) values of `col`, carrying each player's last snapshot forward."""
-    out = np.full((len(ticks), len(players)), np.nan, np.float32)
-    for j, sid in enumerate(players):
-        rows = snaps.filter(pl.col("steamid") == sid)
-        if rows.is_empty() or col not in rows.columns:
-            continue
-        t = rows["tick"].to_numpy()
-        v = rows[col].cast(pl.Float32).fill_null(np.nan).to_numpy()
-        idx = np.searchsorted(t, ticks, side="right") - 1
-        out[:, j] = np.where(idx >= 0, v[np.clip(idx, 0, None)], v[0] if len(v) else np.nan)
-    return out
+    return _round_matrices(_player_slices(snaps, players, (col,)), players, ticks, (col,))[col]
 
 
 def build(ref: MapRef, sites: SiteDistance) -> tuple[pl.DataFrame, pl.DataFrame, pl.DataFrame]:
@@ -98,12 +139,15 @@ def build(ref: MapRef, sites: SiteDistance) -> tuple[pl.DataFrame, pl.DataFrame,
     kills = ref.table("kills")
     bomb = ref.table("bomb")
     snaps = _snapshots(ref, sites).sort("tick")
+    snap_ticks = snaps["tick"].to_numpy()
     elo = dict(ref.elo)
 
     grids, events, rosters = [], [], []
     for r in rounds.iter_rows(named=True):
         start, end = int(r["freeze_end_tick"] or r["start_tick"]), int(r["end_tick"])
-        in_round = snaps.filter(pl.col("tick").is_between(start, end))
+        lo = int(np.searchsorted(snap_ticks, start, side="left"))
+        hi = int(np.searchsorted(snap_ticks, end, side="right"))
+        in_round = snaps.slice(lo, hi - lo)
         first = in_round.filter(pl.col("tick") == in_round["tick"].min()) if not in_round.is_empty() else in_round
         if first.is_empty():
             continue
@@ -133,17 +177,19 @@ def build(ref: MapRef, sites: SiteDistance) -> tuple[pl.DataFrame, pl.DataFrame,
                 "since_plant": np.where(planted, (t - (plant_tick or 0)) / TICK_RATE, np.nan).astype(np.float32),
             }
 
+        slices = _player_slices(in_round, players, (*FIELDS, "health"))
+
         # Grid: every snapshot strictly before the round is decided.
         grid_ticks = np.unique(in_round.filter(pl.col("tick") < end)["tick"].to_numpy())
         if len(grid_ticks):
-            f = {c: _matrix(in_round, players, grid_ticks, c) for c in FIELDS}
-            hp = _matrix(in_round, players, grid_ticks, "health")
+            f = _round_matrices(slices, players, grid_ticks, (*FIELDS, "health"))
+            hp = f.pop("health")
             feats = side_features(np.nan_to_num(hp), side, f)
             after = grid_ticks >= plant_tick if plant_tick is not None else np.zeros(len(grid_ticks), bool)
             grids.append(pl.DataFrame({**{k: [v] * len(grid_ticks) for k, v in base.items()}, "tick": grid_ticks,
                                        **bomb_state(grid_ticks, after), **feats}))
 
-        events.append(_round_events(ref, r, base, start, end, players, side, in_round, damages, kills, rb, bomb_state))
+        events.append(_round_events(ref, r, base, start, end, players, side, slices, damages, kills, rb, bomb_state))
 
     grid = pl.concat(grids, how="diagonal_relaxed") if grids else pl.DataFrame()
     ev = pl.concat([e for e in events if not e.is_empty()], how="diagonal_relaxed") if any(not e.is_empty() for e in events) else pl.DataFrame()
@@ -151,7 +197,7 @@ def build(ref: MapRef, sites: SiteDistance) -> tuple[pl.DataFrame, pl.DataFrame,
     return grid, ev, roster
 
 
-def _round_events(ref, r, base, start, end, players, side, in_round, damages, kills, rb, bomb_state) -> pl.DataFrame:
+def _round_events(ref, r, base, start, end, players, side, slices, damages, kills, rb, bomb_state) -> pl.DataFrame:
     """One row per damage, plant or defuse, with the state just before (`pre_*`) and just after (`post_*`)."""
     index = {p: j for j, p in enumerate(players)}
     dmg = damages.filter(
@@ -188,7 +234,9 @@ def _round_events(ref, r, base, start, end, players, side, in_round, damages, ki
     steps.sort(key=lambda s: (s["tick"], s["order"]))
 
     ticks = np.array([s["tick"] for s in steps])
-    f = {c: _matrix(in_round, players, ticks, c) for c in FIELDS}
+    if isinstance(slices, pl.DataFrame):
+        slices = _player_slices(slices, players, FIELDS)
+    f = _round_matrices(slices, players, ticks, FIELDS)
     n, p = len(steps), len(players)
     hp_pre, hp_post = np.zeros((n, p), np.float32), np.zeros((n, p), np.float32)
     planted_pre, planted_post, defused = np.zeros(n, bool), np.zeros(n, bool), np.zeros(n, bool)

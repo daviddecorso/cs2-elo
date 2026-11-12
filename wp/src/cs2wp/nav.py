@@ -92,16 +92,52 @@ class SiteDistance:
 
     def distances(self, xs: np.ndarray, ys: np.ndarray, zs: np.ndarray) -> dict[str, np.ndarray]:
         """`graph_<site>` (nav path length, NaN off the mesh or without that site) and `euclid_<site>` per position."""
-        areas = [self.area(x, y, z) for x, y, z in zip(xs, ys, zs)]
+        n = len(xs)
         out: dict[str, np.ndarray] = {}
+        if n == 0:
+            for site in SITES:
+                out[f"graph_{site}"] = np.empty(0, dtype=np.float64)
+                out[f"euclid_{site}"] = np.empty(0, dtype=np.float64)
+            return out
+
+        keys = np.column_stack([
+            np.rint(xs / LOOKUP_GRID).astype(np.int64),
+            np.rint(ys / LOOKUP_GRID).astype(np.int64),
+            np.rint(zs / LOOKUP_GRID).astype(np.int64),
+        ])
+        uniq_keys, first_idx, inv, counts = np.unique(
+            keys, axis=0, return_index=True, return_inverse=True, return_counts=True
+        )
+        uniq_areas: list[int | None] = [None] * len(uniq_keys)
+        for u, idx in enumerate(first_idx):
+            key = (int(uniq_keys[u, 0]), int(uniq_keys[u, 1]), int(uniq_keys[u, 2]))
+            if key not in self._cache:
+                x, y, z = float(xs[idx]), float(ys[idx]), float(zs[idx])
+                found = self.nav.find_area((x, y, z))
+                kind = "area"
+                if found is None:
+                    d2 = ((self._xy - (x, y)) ** 2).sum(axis=1)
+                    i = int(d2.argmin())
+                    found = int(self._ids[i]) if d2[i] <= SNAP_RADIUS**2 else None
+                    kind = "snapped" if found is not None else "missed"
+                self._cache[key] = (found, kind)
+            found, kind = self._cache[key]
+            self.stats[kind] += int(counts[u])
+            uniq_areas[u] = found
+
         for site in SITES:
             dist = self._dist.get(site)
-            out[f"graph_{site}"] = np.array(
-                [dist.get(a, math.nan) if dist is not None and a is not None else math.nan for a in areas]
-            )
+            if dist is None:
+                out[f"graph_{site}"] = np.full(n, math.nan, dtype=np.float64)
+            else:
+                uniq_dist = np.array(
+                    [dist.get(a, math.nan) if a is not None else math.nan for a in uniq_areas],
+                    dtype=np.float64,
+                )
+                out[f"graph_{site}"] = uniq_dist[inv]
             c = self.site_centroid.get(site)
             out[f"euclid_{site}"] = (
-                np.sqrt((xs - c[0]) ** 2 + (ys - c[1]) ** 2 + (zs - c[2]) ** 2) if c else np.full(len(xs), math.nan)
+                np.sqrt((xs - c[0]) ** 2 + (ys - c[1]) ** 2 + (zs - c[2]) ** 2) if c else np.full(n, math.nan)
             )
         return out
 

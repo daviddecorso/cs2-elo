@@ -72,3 +72,13 @@ def test_attribute_carries_all_three_versions():
         pl.lit("kill").alias("event"), pl.lit(0.2).alias("v"), pl.lit(0.1).alias("v_event"), pl.lit(0.05).alias("v_mancount"))
     out = attribute(f)
     assert out.select("steamid", "wpa", "nwpa_event", "nwpa_mancount").rows() == [(1, 0.2, 0.1, 0.05), (2, -0.2, -0.1, -0.05)]
+
+
+def test_wpa_opp_values_each_player_with_their_own_team_at_average():
+    f = frame([{"lethal": True}])
+    own = {"ct": (np.array([0.5]), np.array([0.8])), "t": (np.array([0.4]), np.array([0.55]))}
+    valued = with_values(f, np.array([0.5]), np.array([0.7]), own).with_columns(
+        pl.lit(0.1).alias("v_event"), pl.lit(0.05).alias("v_mancount"))
+    rows = attribute(valued).select("steamid", "wpa", "wpa_opp").rows()
+    assert rows[0] == (1, pytest.approx(0.2), pytest.approx(0.3))
+    assert rows[1] == (2, pytest.approx(-0.2), pytest.approx(-0.15))

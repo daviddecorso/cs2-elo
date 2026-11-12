@@ -3,6 +3,7 @@
 Nothing here fetches: a series without a cached page simply has no HLTV numbers.
 """
 
+from functools import lru_cache
 import re
 from pathlib import Path
 
@@ -12,6 +13,8 @@ from cs2demos.paths import HLTV_CACHE
 
 TAB = re.compile(r'<div class="(\d+) dynamic-map-name-full" id="\d+">([^<]+)</div>')
 SECTION = re.compile(r'<div class="stats-content" id="(\d+)-content">')
+TABLE = re.compile(r"<table\b([^>]*)>(.*?)</table>", re.S)
+TR = re.compile(r"<tr\b[^>]*>(.*?)</tr>", re.S)
 ROW = re.compile(
     r'<a href="/player/(\d+)/[^"]*"[^>]*>.*?<span class="player-nick">([^<]+)</span>.*?'
     r'<td class="roundSwing[^"]*">([^<]*)</td>.*?<td class="rating[^"]*">([^<]+)</td>',
@@ -34,14 +37,34 @@ def parse_match_page(html: str) -> list[dict]:
     out = []
     for i, (pos, sid) in enumerate(starts):
         end = starts[i + 1][0] if i + 1 < len(starts) else len(html)
-        for pid, nick, swing, rating in ROW.findall(html[pos:end]):
-            try:
-                r = float(rating)
-            except ValueError:
+        seen: set[int] = set()
+        for attrs, tbody in TABLE.findall(html[pos:end]):
+            # HLTV renders totalstats followed by hidden ctstats and tstats tables per team.
+            if "ctstats" in attrs or "tstats" in attrs:
                 continue
-            out.append({"mapstats_id": int(sid), "map_name": names.get(sid, ""), "hltv_player": int(pid),
-                        "nick": nick.strip(), "swing": _pct(swing), "rating3": r})
+            for tr in TR.findall(tbody):
+                if "roundSwing" not in tr:
+                    continue
+                m = ROW.search(tr)
+                if not m:
+                    continue
+                pid_s, nick, swing, rating = m.groups()
+                pid = int(pid_s)
+                if pid in seen:
+                    continue
+                try:
+                    r = float(rating)
+                except ValueError:
+                    continue
+                seen.add(pid)
+                out.append({"mapstats_id": int(sid), "map_name": names.get(sid, ""), "hltv_player": pid,
+                            "nick": nick.strip(), "swing": _pct(swing), "rating3": r})
     return out
+
+
+@lru_cache(maxsize=2048)
+def _cached_rows(page: Path) -> list[dict]:
+    return parse_match_page(page.read_text(errors="replace"))
 
 
 def _norm(s: str | None) -> str:
@@ -55,7 +78,7 @@ def ratings_for(hltv_match_id: int, demo_map: str, occurrence: int, players: pl.
     empty = pl.DataFrame(schema={"steamid": pl.UInt64, "rating3": pl.Float64, "swing": pl.Float64})
     if not page.exists():
         return empty
-    rows = [r for r in parse_match_page(page.read_text(errors="replace")) if demo_map_name(r["map_name"]) == demo_map]
+    rows = [r for r in _cached_rows(page) if demo_map_name(r["map_name"]) == demo_map]
     ids = sorted({r["mapstats_id"] for r in rows})
     if occurrence >= len(ids):
         return empty

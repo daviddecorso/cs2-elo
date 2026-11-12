@@ -119,3 +119,67 @@ def by_map(df: pl.DataFrame, p: np.ndarray) -> list[dict]:
     for (m,), g in d.group_by("map"):
         out.append({"map": m, **scores(g["ct_win"].cast(pl.Int8).to_numpy(), g["p"].to_numpy())})
     return sorted(out, key=lambda r: r["map"])
+
+
+def intercept_shift(logit: np.ndarray, y: np.ndarray) -> float:
+    """The shift b that makes mean(sigmoid(logit + b)) match the observed rate, by Newton's method."""
+    b = 0.0
+    for _ in range(50):
+        q = 1 / (1 + np.exp(-(logit + b)))
+        step = (y - q).sum() / max((q * (1 - q)).sum(), 1e-9)
+        b += step
+        if abs(step) < 1e-8:
+            break
+    return float(b)
+
+
+# Team equipment value at the end of buy time, in dollars.
+ECO_BELOW, FORCE_BELOW = 5_000, 20_000
+# MR12 regulation; overtime halves start with fixed money, so they have no pistol round.
+PISTOL_ROUNDS = (1, 13)
+ELO_GAP_EDGES = [-200, -100, -50, 0, 50, 100, 200]
+READOUT_MIN_ROUNDS = 50
+READOUT_MAX_GAP = 0.05
+
+
+def _buy(col: str) -> pl.Expr:
+    return (pl.when(pl.col(col) < ECO_BELOW).then(pl.lit("eco"))
+            .when(pl.col(col) < FORCE_BELOW).then(pl.lit("force")).otherwise(pl.lit("full")))
+
+
+def _calib_by(d: pl.DataFrame, by: str) -> list[dict]:
+    """Signed gap (predicted − observed) per group; flagged when the group has enough rounds and |gap| is large."""
+    out = (
+        d.group_by(by)
+        .agg(pl.struct("key", "round_num").n_unique().alias("rounds"), pl.len().alias("states"),
+             pl.col("p").mean().alias("pred"), pl.col("ct_win").cast(pl.Float64).mean().alias("obs"))
+        .with_columns((pl.col("pred") - pl.col("obs")).alias("gap"))
+        .with_columns(((pl.col("rounds") >= READOUT_MIN_ROUNDS) & (pl.col("gap").abs() > READOUT_MAX_GAP)).alias("flagged"))
+        .sort(by)
+    )
+    return out.to_dicts()
+
+
+def readouts(df: pl.DataFrame, p: np.ndarray) -> dict[str, list[dict]]:
+    """Calibration by map, by buy type (CT/T: eco, force, full; pistol rounds apart) and by pre-map Elo gap (CT − T)."""
+    labels = ([f"<{ELO_GAP_EDGES[0]}"] + [f"{a}..{b}" for a, b in zip(ELO_GAP_EDGES, ELO_GAP_EDGES[1:])]
+              + [f">{ELO_GAP_EDGES[-1]}"])
+    elo = pl.col("elo_diff_ct")
+    d = df.select("key", "round_num", "map", "ct_win", "ct_equip", "t_equip", "elo_diff_ct").with_columns(
+        pl.Series("p", p),
+        pl.when(pl.col("round_num").is_in(PISTOL_ROUNDS)).then(pl.lit("pistol"))
+        .otherwise(pl.concat_str(_buy("ct_equip"), pl.lit("/"), _buy("t_equip"))).alias("buy"),
+        pl.when(elo.is_null() | elo.is_nan()).then(pl.lit("no rating"))
+        .otherwise(elo.cut(ELO_GAP_EDGES, labels=labels).cast(pl.Utf8)).alias("elo_gap"),
+    )
+    return {"map": _calib_by(d, "map"), "buy": _calib_by(d, "buy"), "elo_gap": _calib_by(d, "elo_gap")}
+
+
+def readout_lines(r: dict[str, list[dict]]) -> list[str]:
+    lines = []
+    for name, rows in r.items():
+        lines.append(f"  by {name}:")
+        for row in rows:
+            lines.append(f"    {str(row[name]):<14} pred {row['pred']:.3f} obs {row['obs']:.3f} gap {row['gap']:+.3f} "
+                         f"({row['rounds']} rounds){' FLAG' if row['flagged'] else ''}")
+    return lines

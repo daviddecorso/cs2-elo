@@ -30,13 +30,24 @@ def event_kind(events: pl.DataFrame) -> pl.Expr:
     )
 
 
-def with_values(events: pl.DataFrame, p_pre: np.ndarray, p_post: np.ndarray) -> pl.DataFrame:
-    """Adds `v`: the change in the actor's side's win probability (the victim's, for self damage)."""
-    post = np.where(np.isnan(events["terminal"].to_numpy()), p_post, events["terminal"].to_numpy())
-    events = events.with_columns(pl.Series("p_pre", p_pre), pl.Series("p_post", post), event_kind(events).alias("event"))
-    ct_delta = pl.col("p_post") - pl.col("p_pre")
+def with_values(
+    events: pl.DataFrame, p_pre: np.ndarray, p_post: np.ndarray, own_average: dict[str, tuple[np.ndarray, np.ndarray]] | None = None
+) -> pl.DataFrame:
+    """Adds `v`: the change in the actor's side's win probability (the victim's, for self damage).
+
+    `own_average` maps "ct" or "t" to (p_pre, p_post) from the model with that side's team at league-average Elo and
+    the opponent at its own. Each becomes `v_opp_<side>`, on the same actor-side sign as `v`.
+    """
+    terminal = events["terminal"].to_numpy()
     side = pl.when(pl.col("event") == "self_damage").then(pl.col("victim_side")).otherwise(pl.col("actor_side"))
-    return events.with_columns(pl.when(side == CT).then(ct_delta).otherwise(-ct_delta).alias("v"))
+    sign = pl.when(side == CT).then(1.0).otherwise(-1.0)
+    events = events.with_columns(pl.Series("p_pre", p_pre), pl.Series("p_post", np.where(np.isnan(terminal), p_post, terminal)),
+                                 event_kind(events).alias("event"))
+    events = events.with_columns((sign * (pl.col("p_post") - pl.col("p_pre"))).alias("v"))
+    for s, (pre, post) in (own_average or {}).items():
+        delta = np.where(np.isnan(terminal), post, terminal) - pre
+        events = events.with_columns((sign * pl.Series(delta)).alias(f"v_opp_{s}"))
+    return events
 
 
 def neutral_tables(train_events: pl.DataFrame) -> dict[str, pl.DataFrame]:
@@ -98,6 +109,16 @@ def shares(e: dict) -> list[tuple[int, str, float]]:
 
 
 VALUES = {"wpa": "v", "nwpa_event": "v_event", "nwpa_mancount": "v_mancount"}
+# Shares that go to the side opposite the one `v` is measured for.
+OPPOSITE_ROLES = {"death", "damaged", "trade_return", "plant_against", "defuse_against"}
+
+
+def _wpa_opp(e: dict, role: str, w: float) -> float | None:
+    """The player's share valued with their own team at league-average Elo, so credit isn't discounted by their team's strength."""
+    v_side = e["victim_side"] if e["event"] == "self_damage" else e["actor_side"]
+    own_ct = (v_side == CT) != (role in OPPOSITE_ROLES)
+    v = e.get("v_opp_ct" if own_ct else "v_opp_t")
+    return None if v is None else w * v
 
 
 def attribute(events: pl.DataFrame) -> pl.DataFrame:
@@ -110,7 +131,79 @@ def attribute(events: pl.DataFrame) -> pl.DataFrame:
         for sid, role, w in shares(e):
             if sid is None:
                 continue
-            rows.append({**base, "steamid": sid, "role": role, **{out: w * e[col] for out, col in VALUES.items()}})
+            rows.append({**base, "steamid": sid, "role": role, **{out: w * e[col] for out, col in VALUES.items()},
+                         "wpa_opp": _wpa_opp(e, role, w)})
     schema = {"key": pl.Utf8, "date": pl.Utf8, "round_num": pl.Int64, "seq": pl.Int64, "event": pl.Utf8,
-              "steamid": pl.UInt64, "role": pl.Utf8, **{out: pl.Float64 for out in VALUES}}
+              "steamid": pl.UInt64, "role": pl.Utf8, **{out: pl.Float64 for out in VALUES}, "wpa_opp": pl.Float64}
     return pl.DataFrame(rows, schema=schema)
+
+
+# XGBoost predicts in float32, so sums over a round carry rounding near 1e-8.
+CONSERVATION_TOL = 1e-6
+# Roles whose credit has no counterpart on the other side, so a side's total drifts from its probability change.
+LEAKY_ROLES = ("trade_return", "self_damage", "team_damage")
+
+
+def conservation(events: pl.DataFrame, credits: pl.DataFrame, roster: pl.DataFrame, p0: pl.DataFrame) -> pl.DataFrame:
+    """Per round, whether each side's summed WPA equals its outcome minus its win probability at the first state.
+
+    In CT terms, ct_win − p0 = events + drift + end exactly, where `events` sums each event's p_post − p_pre,
+    `drift` is probability that moved between events (time, movement, utility; credited to nobody) and `end` is
+    ct_win minus the last event's p_post (nonzero when the bomb explodes or time runs out). Credit covers `events`,
+    less `leak_ct`/`leak_t`: trade returns, self and team damage, world damage and players missing from the roster.
+
+    `p0`: round_num, ct_win, p0. `events`: valued (with_values) events. Returns one row per round in `p0`.
+    """
+    e = events.filter(pl.col("v").is_not_null() & pl.col("v").is_not_nan()).sort("round_num", "seq")
+    per = e.group_by("round_num").agg(
+        (pl.col("p_post") - pl.col("p_pre")).sum().alias("events"),
+        pl.col("p_pre").first().alias("first_pre"),
+        (pl.col("p_pre").shift(-1) - pl.col("p_post")).sum().alias("between"),
+        pl.col("p_post").last().alias("last_post"),
+        pl.len().alias("n_events"),
+    )
+    sides = credits.join(roster.select("round_num", "steamid", "side"), on=["round_num", "steamid"], how="left")
+    by_side = sides.group_by("round_num").agg(
+        pl.col("wpa").filter(pl.col("side") == CT).sum().alias("credit_ct"),
+        pl.col("wpa").filter(pl.col("side") != CT).sum().alias("credit_t"),
+        pl.col("wpa").filter(pl.col("side").is_null()).sum().alias("unrostered"),
+        pl.col("wpa").filter(pl.col("role") == "trade_return").sum().alias("trade_return"),
+        pl.col("role").is_in(["self_damage", "team_damage"]).sum().alias("self_team_events"),
+        ((pl.col("role") == "defuse").any() & ~(pl.col("role") == "defuse_against").any()).alias("lone_defuse"),
+    )
+    y = pl.col("ct_win").cast(pl.Float64)
+    r = (
+        p0.join(per, on="round_num", how="left").join(by_side, on="round_num", how="left")
+        .with_columns(pl.col("events", "between", "credit_ct", "credit_t", "unrostered", "trade_return").fill_null(0.0),
+                      pl.col("n_events", "self_team_events").fill_null(0), pl.col("lone_defuse").fill_null(False))
+        .with_columns(
+            (y - pl.col("p0")).alias("target"),
+            pl.when(pl.col("n_events") > 0).then(pl.col("first_pre") - pl.col("p0") + pl.col("between"))
+            .otherwise(0.0).alias("drift"),
+            (y - pl.coalesce(pl.col("last_post"), pl.col("p0"))).alias("end"),
+        )
+        .with_columns(
+            (pl.col("credit_ct") - pl.col("events")).alias("leak_ct"),
+            (pl.col("credit_t") + pl.col("events")).alias("leak_t"),
+            (pl.col("target") - pl.col("events") - pl.col("drift") - pl.col("end")).alias("identity_error"),
+        )
+    )
+    def big(c: str) -> pl.Expr:
+        return pl.col(c).abs() > CONSERVATION_TOL
+
+    tol = CONSERVATION_TOL
+    reasons = pl.concat_list(
+        pl.when(pl.col("n_events") == 0).then(pl.lit("no events")),
+        pl.when(big("drift")).then(pl.lit("drift between events")),
+        pl.when(big("end")).then(pl.lit("round ended without a deciding event")),
+        pl.when(big("trade_return")).then(pl.lit("trade return")),
+        pl.when(pl.col("self_team_events") > 0).then(pl.lit("self or team damage")),
+        pl.when(big("unrostered")).then(pl.lit("credit to a player off the roster")),
+        pl.when(pl.col("lone_defuse")).then(pl.lit("defuse with no T alive")),
+        pl.when((big("leak_ct") | big("leak_t")) & ~big("trade_return") & (pl.col("self_team_events") == 0)
+                & ~big("unrostered") & ~pl.col("lone_defuse")).then(pl.lit("other attribution leak")),
+    ).list.drop_nulls()
+    passed = ((pl.col("credit_ct") - pl.col("target")).abs() <= tol) & ((pl.col("credit_t") + pl.col("target")).abs() <= tol)
+    return r.with_columns(passed.alias("passed"), reasons.alias("reasons")).select(
+        "round_num", "ct_win", "p0", "target", "events", "drift", "end", "credit_ct", "credit_t", "leak_ct", "leak_t",
+        "trade_return", "self_team_events", "unrostered", "n_events", "identity_error", "passed", "reasons")

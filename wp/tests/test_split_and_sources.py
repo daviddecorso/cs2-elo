@@ -26,10 +26,13 @@ def test_elo_join_handles_a_map_played_twice():
 PAGE = """
 <div class="241616 dynamic-map-name-full" id="241616">Inferno</div>
 <div class="stats-content" id="all-content"><a href="/player/1/a">x</a></div>
-<div class="stats-content" id="241616-content"><table><tr><td class="players">
+<div class="stats-content" id="241616-content"><table class="table totalstats"><tr><td class="players">
 <a href="/player/20394/luchov"><div>Luciano '<span class="player-nick">luchov</span>' Herrera</div></a></td>
 <td class="kd text-center traditional-data">38-20</td><td class="roundSwing text-center won">+6.61%</td>
-<td class="adr text-center traditional-data">97.4</td><td class="rating text-center ratingPositive">1.61</td></tr></table></div>
+<td class="adr text-center traditional-data">97.4</td><td class="rating text-center ratingPositive">1.61</td></tr></table>
+<table class="table ctstats hidden"><tr><td class="players">
+<a href="/player/20394/luchov"><div>Luciano '<span class="player-nick">luchov</span>' Herrera</div></a></td>
+<td class="roundSwing text-center won">+9.00%</td><td class="rating text-center ratingPositive">1.90</td></tr></table></div>
 """
 
 

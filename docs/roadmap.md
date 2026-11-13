@@ -66,15 +66,22 @@ See [demo-pipeline.md](demo-pipeline.md).
 - [x] **Matches without an HLTV link.** `backfill-hltv-links` linked all 919 archive series; HLTV's per-day results cover future gaps.
 - [x] **Schedule.** `cs2demos auto` under launchd, fed by the nightly `lan-series` artifact.
 - [x] **Schema 2.** The utility counts and defuse state in `ticks`, for the win-probability model. Thunderpick has been reparsed. This had to land before the backfill.
-- [ ] **Backfill** 2025–2026 tier-1 LANs: 1,346 series left at 60 requests a night. Install the launchd agent, then watch `cs2demos status`. The artifact exists only once this branch is on main.
+- [x] **Backfill** 2025–2026 tier-1 LANs: 3,113/3,140 maps parsed as of 2026-11-11, 27 quarantined.
 
 ## Win probability and WPA
 
 See [win-probability.md](win-probability.md).
 
 - [x] **Pipeline.** `wp/`: nav-mesh distances, game states, the model grid, credit (WPA plus two neutral versions), validation and publish. It runs end to end on Thunderpick.
-- [ ] **Gate run** once the backfill has the 2025 events: `cs2wp train --ablations`, then `credit` and `validate`. Record the results and log every variant in [wp-experiments.md](wp-experiments.md).
-- [ ] **Rare-state calibration.** Check the 1vX retake and late post-plant buckets in the report, and try the fixes queued in the experiments log.
+- [x] **Gate run** (2026-11-11): FAIL on max bin gap, 0.045 vs a 0.043 limit; log loss and slope pass. The cause is a CT win-rate shift from 2025 to 2026, not overfitting ([wp-experiments.md](wp-experiments.md)).
+- [x] **Base-rate drift.** The CT shift is within-map and dates from mid-2025. Walk-forward with recency weighting passes the gate with `full_plant_clock` (0.040 vs 0.041).
+- [x] **Adopt `ct_bomb_graph`** under the amended protocol (log loss non-worse within CI, and a flagged bucket improves).
+- [x] **Out-of-sample credit.** 2026 maps use their month's walk-forward fold and 2025 maps a monthly cross-fit. Every row carries `model_version`, and credit is frozen until a `--recredit`.
+- [x] **Monthly job and patch file** (`cs2wp monthly`, `wp/patches.json`).
+- [ ] **Schedule `cs2wp monthly`** (launchd, like `cs2demos auto`) and fill in `wp/patches.json` with verified economy patch dates.
+- [ ] **Rare-state calibration.** 5v4 post-plant undervalues CT only with 2+ kits (−13 to −22 points). Try a kits × CTs-alive or kits × bomb-time interaction.
+- [ ] **Uncredited drift.** Events credit CT about +0.07 a round and drift takes it back uncredited, so side- and role-split WPA is biased. Decide whether to spread drift across alive players.
+- [ ] **Full states rebuild.** The PGL Masters plants moved the site centroids, so `euclid_*` is stale on older maps. The production model doesn't use it; `cs2wp states` refreshes it in about 3 hours.
 - [ ] **Site page** for player WPA, with the Liquipedia credit, then send the link to Liquipedia for verification.
 
 ## Open items

@@ -6,17 +6,181 @@ A log of every change tried on the win-probability model ([win-probability.md](w
 
 **Protocol:**
 
-1. Train on 2025 maps with `uv run cs2wp train --ablations`.
-2. Judge on test log loss (2026+).
-3. Check calibration by bucket as well as overall.
+1. Gate with `uv run cs2wp walk-forward --variant <name> --model <dir>`, which retrains monthly with recency weighting and pools the 2026+ months. `uv run cs2wp train --ablations` still runs the fixed 2025 → 2026 split for comparison.
+2. Judge on pooled walk-forward log loss.
+3. Check calibration by bucket, map, buy type and Elo gap as well as overall.
 
-A variant replaces `full` only if it lowers test log loss without worsening a flagged bucket. Moves under 0.001 count as noise.
+A variant replaces the base when either holds, without worsening any other flagged bucket:
 
-## Queued for the first full run
+- It lowers log loss by more than 0.001.
+- Its log loss is non-worse within the base's 95% round-bootstrap CI, and calibration improves in at least one flagged bucket.
 
-- Graph vs Euclidean distance (`full_euclid`).
-- Each CS2 addition dropped: `full_no_elo`, `full_no_kits`, `full_no_util`.
-- Additions: `full_plant_clock` (seconds since plant, for late post-plant), `full_defusing` and `full_util_types`.
+Moves under 0.001 count as noise. The second rule was added on 2026-11-12, because a feature can fix calibration in rare states without moving pooled log loss.
+
+## 2026-11-12: `defuse_margin` rejected; drop `None` from `HALF_LIVES` (latest)
+
+**`defuse_margin` rejected.** Tested `base_defuse_margin` (`full_plant_clock_bomb_dist` plus `defuse_margin` = `40 - since_plant - min(ct_bomb_graph/250 + 10, ct_kit_bomb_graph/250 + 5)`):
+
+- Pooled walk-forward log loss moved from `0.4482` to `0.4480` (−0.0002, well inside the 95% CI `[0.4445, 0.4518]`), and max bin gap was `0.040` vs `0.039` (fail).
+- Both flagged post-plant buckets remained flagged: `5v3` at `0.637` vs `0.694` (gap `−0.057`, 313 rounds) and `5v4` at `0.311` vs `0.375` (gap `−0.065`, 405 rounds).
+- Removed `base_defuse_margin` and `defuse_margin` from `walkforward.py` and `features.py`.
+
+**`HALF_LIVES` changed from `(None, 365, 180, 90)` to `(365, 180, 90)`.** Re-running `production` on CUDA failed the pooled bin-gap gate (`0.0496` vs `0.0392`, log loss `0.4482`) because CUDA's quantile sketch and `subsample=0.5` PRNG flipped three ~0.0001 validation ties (`2026-06`: `0.44579` vs `0.44592`; `2026-07`: `0.44532` vs `0.44542`; `2026-09`: `0.44781` vs `0.44799`) to `half_life=None` (zero decay, weighting early-2025 pre-shift rounds equally with 2026). Even on CPU, `None` vs `365` sat within `0.00003–0.00015` on the 90-day validation slice across four folds. Dropping `None` enforces at least mild recency decay on every fold so validation noise cannot revert a 2026 fold to unweighted early-2025 data, keeping GPU training reliable. Also fixed `duels.py` (`--device`, default `auto`), pinned `seed=0` in `_train_booster` / `_fit_xgb`, and reset `XGBClassifier` to `cpu` after CUDA fit before DataFrame `predict_proba`.
+
+*Pending re-run on CUDA:* `walk-forward`, `cross-fit`, `monthly --force`, `credit --recredit`, `validate`, `baselines`, `war --publish`, `validate-war`.
+
+## 2026-11-12: `ct_bomb_graph` adopted; production models and out-of-sample credit
+
+**Adoption.** `ct_bomb_graph` passes the amended protocol above: log loss +0.0002, inside the CI, and 2v1 and 4v3 cleared. The base is now `full_plant_clock_bomb_dist` (`walkforward.BASE`).
+
+**Production run** (`--model production`): 97 PGL Masters Bucharest 2026 maps (2026-10-24 to 31) got Elo rows from a fresh Liquipedia fetch and are now included, 3,112 maps in all.
+
+| | Log loss | Max bin gap (limit) | Slope | Gate |
+| --- | --- | --- | --- | --- |
+| Walk-forward, 2026-01 to 2026-10 (11.0M states) | 0.4483 | 0.034 (0.039) | 1.029 | **PASS** |
+| + weekly intercept | 0.4484 | 0.033 (0.039) | 1.025 | PASS |
+| Cross-fit, 2025 (a check, not a gate: each model saw later months) | 0.4459 | 0.041 (0.033) | 0.995 | fail |
+
+- **Per month:** 9 of 10 months are within their own limit. October misses by 0.001 (0.095 vs 0.094). It's 5,014 rounds, the largest month, and includes PGL Masters. The first `cs2wp monthly` run (2026-11-12) flagged this miss as designed and trained the November live fold (no decay, 564 trees). October's readouts show nothing flagged; Anubis (−0.044) is the largest gap.
+- **Half-life picks:** 365 days in 6 folds, 180 in 3, 90 in 1 (May).
+- **Cross-fit:** the 2025 miss is one bin over the floor. Cross-fit models use a fixed tree count and half-life from the latest fold, with no per-month tuning. 5v3 and 5v4 sit within 2.5 points there, against 6–7 in 2026.
+- **Readouts** (pooled walk-forward, flagged at |gap| > 0.05 with 50+ rounds): nothing is flagged.
+  - By map, every gap is under 0.012, and all are slightly negative (CT under-predicted). Nuke (−0.012) and Mirage (−0.011) are the largest, the two maps whose CT rate rose most.
+  - By buy type, every cell is within 0.02. Pistols are +0.002; full/force is −0.016 on 5,003 rounds.
+  - By Elo gap, every bin is within 0.013. The 50–200 bins (CT favored) under-predict CT by 0.013.
+
+**5v3 / 5v4 post-plant diagnostic** (walk-forward predictions, by time left on the bomb and CT kits; no new features tried):
+
+- **5v4:** the miss is in kits. With 0–1 kits CT is within 4 points. With 2 kits it's −13 points, with 3+ it's −22. As kits rise, the prediction only goes from 0.19 to 0.44, while the observed rate goes from 0.20 to 0.66.
+- **5v3:** no clean slice. It's off most with 0–1 kits (−9 and −17), and observed rates don't rise with kits (0.80 at 1 kit, 0.65 at 3+). That looks like noise on about 100 rounds per slice.
+- **Both:** the miss sits in the first 20 s after the plant (−5 to −10 points). The last 20 s are within 4 points with or without `ct_bomb_graph`.
+- **Next to try:** an interaction the depth-4 trees can't build from `ct_kits` alone, such as kits × CTs alive or kits × time left on the bomb.
+
+**Out-of-sample credit.** Every map is now credited by a model that never saw it: its month's walk-forward fold from 2026, its month's cross-fit model in 2025. Each row carries `model_version`, and credited maps are frozen.
+
+Validation over the 2026 window (1,404 maps, 192 players with 300+ rounds):
+
+| Metric | Month-to-month r | r with K/D |
+| --- | --- | --- |
+| WPA | 0.444 | 0.821 |
+| nWPA (event) | 0.403 | 0.936 |
+| nWPA (man count) | 0.403 | 0.898 |
+| Rating 2.0 (approx.) | 0.466 | 0.945 |
+| Rating 3.0 | 0.448 | 0.877 |
+
+WPA month-to-month stability rose from 0.432 with the fixed-split `latest` model to 0.444.
+
+**Conservation** (67,425 rounds): 2 rounds conserve exactly. Every other round has probability that moves between events, which nobody is credited for.
+
+- **Accounting:** the decomposition ct_win − p0 = events + drift + end holds on every round (max error 1.5e-8, float32).
+- **Sizes:** in absolute value, events carry 97% of the outcome-minus-start total, drift 21% and end 2%. Drift and events largely cancel.
+- **CT bias:** per round, events move CT win probability +0.074 on average, and drift takes back −0.076. Rounds start calibrated (mean ct_win − p0 is −0.0002). So CT players collect about +0.07 a round from events, and T players lose it only through uncredited drift: as a round goes on without a kill, CT's chances fall.
+- **Attribution leaks** on top of that: trade returns (+0.098 a round, both sides), self and team damage (34k rounds), and defuses with no T alive (7.6k rounds). CT's summed credit averages +0.112 a round and T's −0.014.
+- **Impact:** each player plays both halves, so the side bias mostly washes out of per-player totals. It doesn't wash out of side-split or role comparisons; CT anchors versus T entries would be skewed.
+- **Fix to consider:** spread drift across alive players, as a time-and-position term.
+
+## 2026-11-11: Walk-forward gate with recency weighting
+
+**Question:** the fixed 2025 → 2026 split fails on base-rate drift. Does a model retrained monthly with recency weighting stay calibrated through 2026? The fixed split is kept as it is. Moving it until the gate passes would be tuning to the test set.
+
+**Cause first: the shift is within maps, not from the map pool.** CT round win rate rose on every map with real volume:
+
+| Map | 2025 | 2026 | Δ |
+| --- | --- | --- | --- |
+| Mirage | 0.514 | 0.570 | +0.056 |
+| Anubis | 0.443 | 0.478 | +0.035 |
+| Nuke | 0.549 | 0.581 | +0.032 |
+| Dust2 | 0.484 | 0.510 | +0.026 |
+| Ancient | 0.502 | 0.526 | +0.024 |
+| Inferno | 0.505 | 0.521 | +0.017 |
+| Overpass | 0.547 | 0.557 | +0.009 |
+
+Scoring 2025's per-map rates on 2026's map mix moves CT from 0.507 to only 0.511, against the observed 0.537, so the mix explains about 0.4 of the 2.9 points. By month, CT won 47–50% from January to May 2025 and 52–56% from June 2025 on. The change landed mid-2025, most likely with a patch, so the 2025-only model averaged two eras. A step that recent is what recency weighting handles, so no patch-era feature was tried.
+
+**Method:** `cs2wp walk-forward` (`walkforward.py`).
+
+- Each month of 2026 (2026-01 to 2026-10) is a fold. It trains on every map before the month and scores that month.
+- Recency weighting decays each state's weight exponentially by age. The half-life is picked per fold from {none, 365, 180, 90} days on the last 90 days before the month. The test month is never used.
+- Tree settings are fixed at the 2025-only grid pick: depth 4, child weight 5, learning rate 0.05, subsample 0.5, colsample 0.8. Tree count comes from early stopping on the same validation window.
+- The gate runs on all ten months' predictions pooled. Each month also gets its own gap and noise limit.
+- **Intercept recalibration** (reported, not adopted): every Monday, a logistic intercept is refit on the trailing 1,500 out-of-sample rounds and added to that week's logits. Two warm-up folds (2025-11, 2025-12) supply January's history and aren't scored.
+
+**Results** (10.2M states, 2026-01-22 to 2026-10-18):
+
+| Model | Log loss | 95% CI | Max bin gap (limit) | Slope | ECE | Gate |
+| --- | --- | --- | --- | --- | --- | --- |
+| Fixed split, `full` (previous entry) | 0.4519 | 0.4483–0.4556 | 0.045 (0.043) | 1.042 | 0.013 | FAIL |
+| Walk-forward, `full_plant_clock` | **0.4485** | 0.4451–0.4523 | 0.040 (0.041) | 1.023 | 0.011 | **PASS** |
+| + weekly intercept | 0.4486 | | 0.039 (0.043) | 1.020 | | PASS |
+| Walk-forward, `+ ct_bomb_graph` | 0.4487 | 0.4445–0.4530 | 0.040 (0.041) | 1.027 | 0.010 | PASS |
+| + weekly intercept | 0.4488 | | 0.030 (0.044) | 1.024 | | PASS |
+
+- **Gate: PASS, by a thin margin** (0.040 against 0.041). The pooled intercept falls from +0.064 to +0.039. Per-fold intercepts run −0.05 to +0.11.
+- **Half-life:** seven of the ten `full_plant_clock` folds pick 365 days, one picks 180 days and two pick no decay. Mild decay is enough. The `ct_bomb_graph` run's picks are spread from 90 days to none.
+- **Per month** (`full_plant_clock`): 8 of 10 months are within their own noise limit. The two misses are September (0.128 vs 0.124) and October (0.156 vs 0.120). The weekly intercept brings both under the limit but worsens January and April. Each month has only 100–240 maps, so monthly limits run 0.10–0.30 and are a coarse check.
+- **Weekly intercept:** pooled it changes little (gap 0.040 → 0.039), because walk-forward already absorbs the drift. Keep it as a fallback for a sudden patch shift; don't adopt it.
+- **Post-plant buckets** (CT alive v T alive; predicted vs observed):
+
+  | Bucket | Rounds | Fixed split, plant clock | Walk-forward, plant clock | + `ct_bomb_graph` |
+  | --- | --- | --- | --- | --- |
+  | 2v1 | 2,488 | 0.771 vs 0.708 | 0.766 (flagged) | 0.746 (clear) |
+  | 4v3 | 1,029 | 0.418 vs 0.494 | 0.435 (flagged) | 0.445 (clear) |
+  | 5v3 | 298 | 0.616 vs 0.689 | 0.635 (flagged) | 0.624 (flagged) |
+  | 5v4 | 386 | 0.295 vs 0.382 | 0.305 (flagged) | 0.311 (flagged) |
+
+  The plant clock alone barely moves these. CT distance to the planted site (`ct_bomb_graph`, derived from `ct_graph_a/b` and `bomb_site` with no state rebuild) clears 2v1 and 4v3 and lowers ECE. Pooled log loss is unchanged (+0.0002). 5v3 and 5v4 still undervalue CT by 6–7 points, on under 400 rounds each, and the recalibration doesn't fix them.
+- **Verdict:**
+  - Walk-forward with recency weighting replaces the fixed split as the gate.
+  - `full_plant_clock` is the base.
+  - `ct_bomb_graph` doesn't clear the log-loss bar in the protocol, but it clears two flagged buckets at no cost. Adopting it needs a decision.
+
+## 2026-11-11: First full-scale gate run
+
+**Data:** `train --ablations` with the defaults.
+
+- Train on 1,709 maps from 2025-01-23 to 2025-12-14 (13.5M states). Fit runs to 2025-08-23, and the grid-search validation fold covers 2025-08-24 to 12-14.
+- Test on 1,307 maps from 2026-01-22 to 2026-10-18 (10.2M states).
+- 3,015 of 3,113 parsed maps are used. The 97 PGL Masters 2026 maps have no Elo row yet, and the de_contact showmatch has no nav mesh.
+
+| Model | Test log loss | 95% CI | AUC | Slope |
+| --- | --- | --- | --- | --- |
+| Map average | 0.6957 | 0.6946–0.6969 | 0.528 | 0.275 |
+| Logistic | 0.4739 | 0.4702–0.4781 | 0.846 | 0.992 |
+| XGBoost replication | 0.4684 | 0.4639–0.4725 | 0.846 | 0.860 |
+| XGBoost full | **0.4519** | 0.4483–0.4556 | 0.858 | 1.042 |
+| full_euclid | 0.4521 | 0.4476–0.4558 | 0.857 | 1.023 |
+| full_no_elo | 0.4545 | 0.4501–0.4583 | 0.855 | 1.020 |
+| full_no_kits | 0.4532 | 0.4493–0.4567 | 0.857 | 1.024 |
+| full_no_util | 0.4519 | 0.4480–0.4556 | 0.858 | 1.027 |
+| full_plant_clock | 0.4495 | 0.4457–0.4540 | 0.859 | 1.041 |
+| full_defusing | 0.4519 | 0.4481–0.4562 | 0.858 | 1.036 |
+| full_util_types | 0.4518 | 0.4480–0.4555 | 0.858 | 1.037 |
+
+- **Gate: FAIL**, narrowly. Log loss is 0.4519 against 0.535, and the slope is 1.042. The max bin gap is 0.045 against a noise limit of 0.043. Excluding de_cache (under 500 training rounds), the secondary readout passes at 0.043 vs 0.043, slope 1.038. Grid pick: depth 4, child weight 5, 406 trees.
+- **Cause: base-rate drift, not overfitting.** CTs won 50.9% of 2025 rounds (37,205) and 53.7% of 2026 rounds (28,103). Mean CT equipment also rose (22.0k → 22.6k) while T equipment fell, but the model already sees equipment. Every bin over the limit is CT under-predicted in the 0.20–0.75 range, by 0.035–0.045, and the intercept is +0.064 (dryrun-constant, trained on H1 2026, was −0.084). ECE improves from 0.018 to 0.013.
+- **Rare states mostly fixed by scale.** Of the seven buckets flagged in dryrun-constant (50+ rounds), four clear: 1v1 and 1v2 without a plant, and 2v2 and 4v3 post-plant. Three remain:
+  - 2v1 post-plant: 0.769 predicted vs 0.708 observed (2,488 rounds)
+  - 5v3 post-plant: 0.611 vs 0.689 (298 rounds)
+  - 5v4 post-plant: 0.272 vs 0.382 (386 rounds)
+
+  The model still undervalues CT in man-up retakes, and now also overvalues CT in 2v1 retakes.
+- **Ablations:**
+  - Only `full_plant_clock` clears the 0.001 bar (−0.0024), but its CI overlaps `full`. Since it targets the post-plant buckets that remain flagged, it is the first candidate to adopt.
+  - Dropping Elo (+0.0026) or kits (+0.0013) hurts, so both stay.
+  - `full_euclid`, `full_no_util`, `full_defusing` and `full_util_types` are noise (|Δ| ≤ 0.0002).
+- **Nav coverage:** 99.88% of positions resolve on average, and early-2025 versions resolve as well as 2026. The pinned release 2000934 covers the full window.
+- **Validation** (1,307 test maps, 181 players with 300+ rounds):
+
+  | Metric | Month-to-month r | r with K/D |
+  | --- | --- | --- |
+  | WPA | 0.432 | 0.816 |
+  | nWPA event | 0.396 | 0.935 |
+  | nWPA mancount | 0.395 | 0.893 |
+  | Rating 2.0 (approx.) | 0.470 | 0.947 |
+  | Rating 3.0 | 0.455 | 0.881 |
+  | Swing | 0.432 | 0.886 |
+
+  WPA stability (0.432) beats the paper's 0.40 and ties Swing, but stays below both HLTV ratings.
 
 ## 2026-11-05: Noise-aware bin gate
 

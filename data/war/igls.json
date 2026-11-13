@@ -1,0 +1,96 @@
+{
+  "100 Thieves": [{ "player": "Gizmy" }],
+  "1w Team": [{ "player": "Nafany" }],
+  "3DMAX": [{ "player": "Maka" }],
+  "5star eSports": [{ "player": "NEUZ" }],
+  "9z Team": [{ "player": "Max" }],
+  "Alliance": [{ "player": "Twist" }],
+  "Astralis": [{ "player": "HooXi" }],
+  "Aurora Gaming": [
+    { "player": "MAJ3R", "to": "2026-06-20" },
+    { "player": "Kyxsan", "from": "2026-07-08" }
+  ],
+  "B8": [{ "player": "Alex666" }],
+  "BC.Game Esports": [
+    { "player": "MUTiRiS", "to": "2026-02-02" },
+    { "player": "ElectroNic", "from": "2026-05-11", "to": "2026-06-29" },
+    { "player": "Magisk", "from": "2026-06-30" }
+  ],
+  "BIG": [{ "player": "BlameF" }],
+  "BetBoom Team": [{ "player": "Boombl4" }],
+  "DENDELE CS": [{ "player": "Gafolo" }],
+  "FURIA": [{ "player": "FalleN" }],
+  "FUT Esports": [{ "player": "Krabeni" }],
+  "FaZe Clan": [
+    { "player": "Karrigan", "to": "2026-03-20" },
+    { "player": "Twistzz", "from": "2026-03-21" }
+  ],
+  "Fisher College": [{ "player": "AlekS" }],
+  "Fluxo": [{ "player": "ArT" }],
+  "FlyQuest": [{ "player": "INS", "to": "2026-09-01" }, { "player": "AliStair", "from": "2026-09-02" }],
+  "G2 Esports": [{ "player": "HuNter-" }],
+  "Gaimin Gladiators": [{ "player": "JOTA" }],
+  "GamerLegion": [
+    { "player": "Ztr", "to": "2025-12-12" },
+    { "player": "Snax", "from": "2025-12-13" }
+  ],
+  "Gentle Mates": [{ "player": "Alex_(Spanish_player)" }],
+  "HEROIC": [{ "player": "Chr1zN" }],
+  "HOTU": [{ "player": "Dukefissura" }],
+  "IC Esports": [{ "player": "Onic" }],
+  "Imperial Esports": [{ "player": "VINI" }],
+  "JiJieHao": [{ "player": "Sinnopsyy" }],
+  "K27": [{ "player": "X5G7V" }],
+  "Legacy": [
+    { "player": "Lux", "to": "2026-01-29" },
+    { "player": "ArT", "from": "2026-02-03" }
+  ],
+  "Luminosity Gaming": [{ "player": "Lux" }],
+  "Lynn Vision Gaming": [{ "player": "Westmelon" }],
+  "M80": [{ "player": "S1n" }],
+  "MIBR": [{ "player": "LNZ" }],
+  "MOUZ": [
+    { "player": "Brollan", "to": "2026-04-30" },
+    { "player": "XertioN", "from": "2026-05-01", "to": "2026-05-31" },
+    { "player": "Brollan", "from": "2026-06-01", "to": "2026-06-14" },
+    { "player": "XertioN", "from": "2026-06-15" }
+  ],
+  "Monte": [{ "player": "Gizmy", "to": "2026-10-13" }, { "player": "Sdy", "from": "2026-10-14" }],
+  "NRG": [
+    { "player": "Daps", "to": "2025-12-31" },
+    { "player": "Nitr0", "from": "2026-01-01" }
+  ],
+  "Natus Vincere": [{ "player": "Aleksib" }],
+  "Ninjas in Pyjamas": [{ "player": "Snappi" }],
+  "PARIVISION": [{ "player": "Jame" }],
+  "Passion UA": [{ "player": "JT" }],
+  "RED Canids": [{ "player": "Drop" }],
+  "Rare Atom": [{ "player": "Summer" }],
+  "SINNERS Esports": [{ "player": "Beastik" }],
+  "Sharks Esports": [{ "player": "Gafolo" }],
+  "ShindeN": [{ "player": "Tom1jed" }],
+  "THUNDERdOWNUNDER": [{ "player": "Dexter" }],
+  "TYLOO": [{ "player": "Mercury" }],
+  "Team Falcons": [
+    { "player": "Kyxsan", "to": "2026-04-19" },
+    { "player": "Karrigan", "from": "2026-04-20" }
+  ],
+  "Team Germany": [{ "player": "S1n" }],
+  "Team Liquid": [
+    { "player": "Siuhy", "to": "2026-06-05" },
+    { "player": "JT", "from": "2026-07-22" }
+  ],
+  "Team Poland": [{ "player": "Innocent" }],
+  "Team Spirit": [{ "player": "Magixx" }],
+  "Team StRoGo": [{ "player": "Perfecto" }],
+  "Team Vitality": [{ "player": "ApEX" }],
+  "Team buster": [{ "player": "NeaLaN" }],
+  "The Huns Esports": [
+    { "player": "Nin9", "to": "2026-01-05" },
+    { "player": "Controlez", "from": "2026-01-06" }
+  ],
+  "The MongolZ": [{ "player": "BLitz" }],
+  "Wildcard": [{ "player": "NEMANHA" }],
+  "magic": [{ "player": "SFade8" }],
+  "paiN Gaming": [{ "player": "Biguzera" }]
+}

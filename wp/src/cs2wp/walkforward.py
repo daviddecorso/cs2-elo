@@ -31,29 +31,27 @@ from .pipeline import (
 
 # The tree settings the 2025-only grid picked for `full` (wp-experiments.md, 2026-11-11); only the half-life is tuned.
 PARAMS = {"max_depth": 4, "min_child_weight": 5, "learning_rate": 0.05, "subsample": 0.5, "colsample_bytree": 0.8}
-# Days; None is no decay.
-HALF_LIVES = (None, 365, 180, 90)
+# Days; at least mild decay on every fold so 0.0001 validation ties can't revert 2026 folds to unweighted early-2025 data.
+HALF_LIVES = (365, 180, 90)
 VALIDATION_DAYS = 90
 # Months scored before test_from only so the recalibration has trailing history on the first test week.
 WARMUP_MONTHS = 2
 # Adopted 2026-11-12 under the amended protocol (wp-experiments.md).
 BASE = "full_plant_clock_bomb_dist"
 VARIANTS = {**FEATURES, **ABLATIONS, BASE: FEATURES["full"] + ["since_plant", "ct_bomb_graph"]}
-VARIANTS["base_defuse_margin"] = VARIANTS[BASE] + ["defuse_margin"]
 # (CT alive, T alive, planted): the post-plant buckets still flagged at full scale.
 BUCKETS = [(2, 1, 1), (4, 3, 1), (5, 3, 1), (5, 4, 1)]
 # Bomb seconds left at or above this count as early post-plant in the bucket split.
 EARLY_PLANT_LEFT = 20
 ID = ["key", "round_num", "date", "map", "ct_win", "ct_alive", "t_alive", "bomb_planted", "since_plant", "ct_equip",
       "t_equip", "elo_diff_ct"]
-DERIVED = {"ct_bomb_graph", "defuse_margin"}
-DERIVED_INPUTS = ["bomb_site", "since_plant", "ct_graph_a", "ct_graph_b", "ct_kit_graph_a", "ct_kit_graph_b"]
+DERIVED = {"ct_bomb_graph"}
+DERIVED_INPUTS = ["bomb_site", "ct_graph_a", "ct_graph_b"]
 
 
 def _load_all(features: list[str], month_prefix: str | None = None) -> pl.DataFrame:
-    inputs = DERIVED_INPUTS if "defuse_margin" in features else DERIVED_INPUTS[:4]
     keep = list(dict.fromkeys(ID + features))
-    stored = [c for c in dict.fromkeys(keep + inputs) if c not in DERIVED]
+    stored = [c for c in dict.fromkeys(keep + DERIVED_INPUTS) if c not in DERIVED]
     frames = []
     for ref in catalog():
         if month_prefix is not None and not ref.date.startswith(month_prefix):

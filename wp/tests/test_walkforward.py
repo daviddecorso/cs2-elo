@@ -8,7 +8,7 @@ import xgboost as xgb
 from cs2wp import evaluate as ev
 from cs2wp.book import design, monday, recal_on
 from cs2wp.pipeline import _make_qdm, _predict_booster, _predict_frame, _train_booster, resolve_device
-from cs2wp.walkforward import _month_end, _months, _next_month, _weights, recalibrate
+from cs2wp.walkforward import HALF_LIVES, VARIANTS, _month_end, _months, _next_month, _weights, recalibrate
 
 
 def _states(dates: list[str]) -> pl.DataFrame:
@@ -16,6 +16,8 @@ def _states(dates: list[str]) -> pl.DataFrame:
 
 
 def test_weights_keep_round_total_and_halve_per_half_life():
+    assert None not in HALF_LIVES and HALF_LIVES == (365, 180, 90)
+    assert "base_defuse_margin" not in VARIANTS
     df = _states(["2026-01-01", "2025-12-02"])
     w = _weights(df, "2026-01-01", 30)
     assert np.isclose(w.sum(), 2)

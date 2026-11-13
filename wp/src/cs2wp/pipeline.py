@@ -248,6 +248,7 @@ def _train_booster(
         "device": resolve_device(device),
         "objective": "binary:logistic",
         "eval_metric": "logloss",
+        "seed": 0,
         "nthread": 0,
         **params,
     }
@@ -290,12 +291,14 @@ def _fit_xgb(
 ):
     from xgboost import XGBClassifier
 
+    resolved = resolve_device(device)
     kw = dict(
         n_estimators=n_estimators,
         tree_method="hist",
-        device=resolve_device(device),
+        device=resolved,
         enable_categorical=True,
         eval_metric="logloss",
+        seed=0,
         n_jobs=-1,
         **params,
     )
@@ -310,7 +313,12 @@ def _fit_xgb(
     if eval_set is not None:
         fit_kw["eval_set"] = eval_set
         fit_kw["verbose"] = False
-    return model.fit(x, y, **fit_kw)
+    model.fit(x, y, **fit_kw)
+    # Switch predictor device back to CPU so predict_proba on pandas DataFrames avoids CUDA->CPU mismatch warnings.
+    if resolved != "cpu":
+        model.set_params(device="cpu")
+        model.get_booster().set_param({"device": "cpu"})
+    return model
 
 
 def _fit_logistic(train: pl.DataFrame, maps: list[str]):

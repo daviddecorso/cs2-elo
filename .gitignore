@@ -34,6 +34,8 @@ data/matchdata.json
 data/lan-series.json
 data/demos/lp/
 data/demos/auto.lock
+data/demos/proxies.txt
+data/demos/.proxy-state.json
 data/demos/raw/
 data/demos/work/
 data/demos/parquet/
@@ -42,6 +44,8 @@ data/demos/hltv/
 data/demos/manifest.json
 data/demos/mirror/
 data/wp/
+data/war/*.parquet
+data/war/reports/
 demos/.venv/
 wp/.venv/
 __pycache__/

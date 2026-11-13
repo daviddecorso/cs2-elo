@@ -109,7 +109,7 @@ def cmd_baselines(args) -> int:
 def cmd_duels(args) -> int:
     from .duels import build
 
-    return build(args.ablations)
+    return build(args.ablations, device=args.device)
 
 
 def cmd_igls(args) -> int:
@@ -198,6 +198,7 @@ def main() -> None:
     sub.add_parser("baselines", help="Average credit per round for each map, side and role, partially pooled")
     p = sub.add_parser("duels", help="Expected duel wins from weapons, peeker vs holder, flashes, HP and distance")
     p.add_argument("--ablations", action="store_true", help="Also cross-fit the model without each input group")
+    p.add_argument("--device", choices=["auto", "cpu", "cuda"], default="auto", help="XGBoost device")
     sub.add_parser("igls", help="Tag per-map IGLs from data/war/igls.json and cross-check local Liquipedia data")
     p = sub.add_parser("war", help="Player WAA/WAR with zero-sum IGL adjustment and round-bootstrap intervals")
     p.add_argument("--from", dest="window_from", help="Only maps on or after YYYY-MM-DD")

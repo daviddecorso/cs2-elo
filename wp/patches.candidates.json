@@ -1,0 +1,1160 @@
+{
+  "fetched": "2026-11-12",
+  "since": "2025-01-01",
+  "candidates": [
+    {
+      "date": "2025-01-25",
+      "title": "Seasons Change",
+      "url": "https://steamstore-a.akamaihd.net/news/externalpost/steam_community_announcements/1789580505354868",
+      "type": "economy",
+      "types": [
+        "economy"
+      ],
+      "evidence": [
+        {
+          "type": "economy",
+          "line": "Season Two comes with some changes. Train is in and Vertigo is out, the M4A4 is a bit less expensive, and the FAMAS has some improvements to its standing and crouching accuracy (along with a price cut)."
+        }
+      ]
+    },
+    {
+      "date": "2025-01-28",
+      "title": "Counter-Strike 2 Update",
+      "url": "https://steamstore-a.akamaihd.net/news/externalpost/steam_community_announcements/1790214123031344",
+      "type": "economy",
+      "types": [
+        "economy",
+        "map_pool",
+        "mechanics",
+        "cosmetic"
+      ],
+      "evidence": [
+        {
+          "type": "economy",
+          "line": "M4A4 price reduced to $2,900"
+        },
+        {
+          "type": "economy",
+          "line": "FAMAS accuracy improved and price reduced to $1,950"
+        },
+        {
+          "type": "map_pool",
+          "line": "Train has been added to the Active Duty map pool"
+        },
+        {
+          "type": "map_pool",
+          "line": "Vertigo has been removed from the Active Duty map pool"
+        },
+        {
+          "type": "mechanics",
+          "line": "Increased brightness of carried C4 in UI"
+        },
+        {
+          "type": "cosmetic",
+          "line": "Added a new radar dynamic zoom option that will grow or shrink the radar to include your team mates, bomb and other detected elements"
+        }
+      ]
+    },
+    {
+      "date": "2025-02-04",
+      "title": "Counter-Strike 2 Update",
+      "url": "https://steamstore-a.akamaihd.net/news/externalpost/steam_community_announcements/1790214123227566",
+      "type": "cosmetic",
+      "types": [
+        "cosmetic"
+      ],
+      "evidence": [
+        {
+          "type": "cosmetic",
+          "line": "Improved dynamic radar scale to snap size when a newly discovered enemy/C4 enters radar view, but still shrink gradually when enemy/C4 disappears and enough time passes."
+        }
+      ]
+    },
+    {
+      "date": "2025-02-06",
+      "title": "Counter-Strike 2 Update",
+      "url": "https://steamstore-a.akamaihd.net/news/externalpost/steam_community_announcements/1790848102633267",
+      "type": "cosmetic",
+      "types": [
+        "cosmetic"
+      ],
+      "evidence": [
+        {
+          "type": "cosmetic",
+          "line": "Fixed a case where inspect or reload button presses could cause prediction errors."
+        }
+      ]
+    },
+    {
+      "date": "2025-05-07",
+      "title": "Counter-Strike 2 Update",
+      "url": "https://steamstore-a.akamaihd.net/news/externalpost/steam_community_announcements/1799088287813512",
+      "type": "cosmetic",
+      "types": [
+        "cosmetic"
+      ],
+      "evidence": [
+        {
+          "type": "cosmetic",
+          "line": "Defusal Group Alpha: Dust 2, Mirage, Inferno, Vertigo."
+        },
+        {
+          "type": "cosmetic",
+          "line": "Defusal Group Delta: Train, Anubis, Ancient, Overpass, Nuke."
+        }
+      ]
+    },
+    {
+      "date": "2025-05-12",
+      "title": "Counter-Strike 2 Update",
+      "url": "https://steamstore-a.akamaihd.net/news/externalpost/steam_community_announcements/1799088287971196",
+      "type": "cosmetic",
+      "types": [
+        "cosmetic"
+      ],
+      "evidence": [
+        {
+          "type": "cosmetic",
+          "line": "Fixed a bug where searching for Defusal Group Alpha would lead to Anubis and Defusal Group Delta would lead to Vertigo."
+        }
+      ]
+    },
+    {
+      "date": "2025-07-02",
+      "title": "Counter-Strike 2 Update",
+      "url": "https://steamstore-a.akamaihd.net/news/externalpost/steam_community_announcements/1803527891716520",
+      "type": "cosmetic",
+      "types": [
+        "cosmetic"
+      ],
+      "evidence": [
+        {
+          "type": "cosmetic",
+          "line": "Fixed community maps not reloading correctly with \"restart\" command."
+        }
+      ]
+    },
+    {
+      "date": "2025-07-16",
+      "title": "Counter-Strike 2 Update",
+      "url": "https://steamstore-a.akamaihd.net/news/externalpost/steam_community_announcements/1805431065285705",
+      "type": "economy",
+      "types": [
+        "economy",
+        "map_pool"
+      ],
+      "evidence": [
+        {
+          "type": "economy",
+          "line": "In Competitive modes, Counter-Terrorists now receive a $50 team award for each Terrorist eliminated in a round"
+        },
+        {
+          "type": "map_pool",
+          "line": "Added Overpass to the Active Duty Map Pool"
+        },
+        {
+          "type": "map_pool",
+          "line": "Removed Anubis from the Active Duty Map Pool"
+        }
+      ]
+    },
+    {
+      "date": "2025-07-16",
+      "title": "Season Two: Episode One",
+      "url": "https://steamstore-a.akamaihd.net/news/externalpost/steam_community_announcements/1805431065285704",
+      "type": "economy",
+      "types": [
+        "economy",
+        "map_pool"
+      ],
+      "evidence": [
+        {
+          "type": "economy",
+          "line": "There are a few gameplay changes with Season Three. Fire from the incendiary grenade now spreads faster, occupying space rapidly to counter rushing Ts. The MP9 has gotten a bit of a nerf, with a harder to control spray and substantially less jumping accuracy. There's also a change to the CT economy:"
+        },
+        {
+          "type": "map_pool",
+          "line": "With the new season comes an update to the Active Duty Map Pool: Overpass is back in, and Anubis is out."
+        }
+      ]
+    },
+    {
+      "date": "2025-07-28",
+      "title": "Counter-Strike 2 Update",
+      "url": "https://steamstore-a.akamaihd.net/news/externalpost/steam_community_announcements/1806064758749864",
+      "type": "mechanics",
+      "types": [
+        "mechanics",
+        "cosmetic"
+      ],
+      "evidence": [
+        {
+          "type": "mechanics",
+          "line": "Shotgun reloads will no longer resume automatically after being interrupted"
+        },
+        {
+          "type": "cosmetic",
+          "line": "The animation system in CS2 is in the process of being upgraded to AnimGraph2, which requires reauthoring existing game content. Today's update replaces all first-person animations, including weapon deploy, firing, reload, and inspect animations"
+        },
+        {
+          "type": "cosmetic",
+          "line": "Various improvements to weapon reload and draw sounds in conjunction with AnimGraph2 updates."
+        }
+      ]
+    },
+    {
+      "date": "2025-07-30",
+      "title": "Counter-Strike 2 Update",
+      "url": "https://steamstore-a.akamaihd.net/news/externalpost/steam_community_announcements/1806698490631712",
+      "type": "cosmetic",
+      "types": [
+        "cosmetic"
+      ],
+      "evidence": [
+        {
+          "type": "cosmetic",
+          "line": "Fixed a case where weapons could be fired prematurely due to a redeploy after a reload"
+        },
+        {
+          "type": "cosmetic",
+          "line": "Speculative fix for a rare case where the dropped bomb appears in the wrong location"
+        }
+      ]
+    },
+    {
+      "date": "2025-07-31",
+      "title": "Counter-Strike 2 Update",
+      "url": "https://steamstore-a.akamaihd.net/news/externalpost/steam_community_announcements/1806698490665367",
+      "type": "mechanics",
+      "types": [
+        "mechanics"
+      ],
+      "evidence": [
+        {
+          "type": "mechanics",
+          "line": "Weapons can be fired immediately after a redeploy if reloading was cancelled before adding ammo."
+        }
+      ]
+    },
+    {
+      "date": "2025-08-14",
+      "title": "Counter-Strike 2 Update",
+      "url": "https://steamstore-a.akamaihd.net/news/externalpost/steam_community_announcements/1808061939350653",
+      "type": "mechanics",
+      "types": [
+        "mechanics"
+      ],
+      "evidence": [
+        {
+          "type": "mechanics",
+          "line": "Sawed-off shotgun deploy modified and fixed shell penetration on reload."
+        },
+        {
+          "type": "mechanics",
+          "line": "Fixed XM1014 blocking crosshair during reload."
+        }
+      ]
+    },
+    {
+      "date": "2025-09-25",
+      "title": "Counter-Strike 2 Update",
+      "url": "https://steamstore-a.akamaihd.net/news/externalpost/steam_community_announcements/1811772772226733",
+      "type": "cosmetic",
+      "types": [
+        "cosmetic"
+      ],
+      "evidence": [
+        {
+          "type": "cosmetic",
+          "line": "Fixed point_script entity to no longer potentially crash after an unsuccessful reload from an invalid script while running the game in tools mode."
+        },
+        {
+          "type": "cosmetic",
+          "line": "Changed point_script entity to hold onto the memory value returned by an Instance.OnBeforeReload callback until the next successful reload instead of forgetting it if the reload is unsuccessful."
+        },
+        {
+          "type": "cosmetic",
+          "line": "Added Instance.OnBombDefuse"
+        }
+      ]
+    },
+    {
+      "date": "2025-10-01",
+      "title": "Counter-Strike 2 Update",
+      "url": "https://steamstore-a.akamaihd.net/news/externalpost/steam_community_announcements/1811772772457461",
+      "type": "cosmetic",
+      "types": [
+        "cosmetic"
+      ],
+      "evidence": [
+        {
+          "type": "cosmetic",
+          "line": "Death count in scoreboard will now increment when players die to C4 bomb detonation."
+        },
+        {
+          "type": "cosmetic",
+          "line": "Added Instance.OnScriptReload"
+        },
+        {
+          "type": "cosmetic",
+          "line": "Deprecated Instance.OnReload and Instance.OnBeforeReload"
+        },
+        {
+          "type": "cosmetic",
+          "line": "Added Instance.OnGunReload"
+        }
+      ]
+    },
+    {
+      "date": "2025-10-02",
+      "title": "Counter-Strike 2 Update",
+      "url": "https://steamstore-a.akamaihd.net/news/externalpost/steam_community_announcements/1811772772490482",
+      "type": "cosmetic",
+      "types": [
+        "cosmetic"
+      ],
+      "evidence": [
+        {
+          "type": "cosmetic",
+          "line": "Fixed a bug where old callbacks could be invoked after a script reload."
+        },
+        {
+          "type": "cosmetic",
+          "line": "Fixed a bug where new callbacks could be invoked multiple times after a script reload."
+        },
+        {
+          "type": "cosmetic",
+          "line": "Fixed Instance.OnGunReload and Instance.OnGunFire not working for XM1014, Nova, and Sawed-Off."
+        }
+      ]
+    },
+    {
+      "date": "2025-10-13",
+      "title": "Counter-Strike 2 Pre-Release Update",
+      "url": "https://steamstore-a.akamaihd.net/news/externalpost/steam_community_announcements/1813041031352604",
+      "type": "cosmetic",
+      "types": [
+        "cosmetic"
+      ],
+      "evidence": [
+        {
+          "type": "cosmetic",
+          "line": "Defusing C4 will now lower the viewmodel weapon, prevent scoping, and delay firing the weapon by 150ms after exiting the defuse."
+        }
+      ]
+    },
+    {
+      "date": "2025-10-14",
+      "title": "Counter-Strike 2 Update",
+      "url": "https://steamstore-a.akamaihd.net/news/externalpost/steam_community_announcements/1813674388884503",
+      "type": "mechanics",
+      "types": [
+        "mechanics",
+        "cosmetic"
+      ],
+      "evidence": [
+        {
+          "type": "mechanics",
+          "line": "C4 will no longer detonate in the middle of halftime intermission or after the end of the match."
+        },
+        {
+          "type": "cosmetic",
+          "line": "Defusing C4 will now lower the viewmodel weapon, prevent scoping, and delay firing the weapon by 150ms after exiting the defuse."
+        }
+      ]
+    },
+    {
+      "date": "2025-10-22",
+      "title": "Counter-Strike 2 Update",
+      "url": "https://steamstore-a.akamaihd.net/news/externalpost/steam_community_announcements/1814309641424632",
+      "type": "cosmetic",
+      "types": [
+        "cosmetic"
+      ],
+      "evidence": [
+        {
+          "type": "cosmetic",
+          "line": "Adding Retakes as official game mode supporting Defusal Group Alpha and Defusal Group Delta maps on official matchmaking servers."
+        }
+      ]
+    },
+    {
+      "date": "2025-10-22",
+      "title": "Re-Retakes",
+      "url": "https://steamstore-a.akamaihd.net/news/externalpost/steam_community_announcements/1814309641424631",
+      "type": "mechanics",
+      "types": [
+        "mechanics",
+        "cosmetic"
+      ],
+      "evidence": [
+        {
+          "type": "mechanics",
+          "line": "In this classic game mode, each round drops you in to a fast-paced 4v3 after-plant scenario. Select your loadout card each round, check the map to coordinate with your teammates, and use your resources wisely to defuse (or defend) the planted bomb."
+        },
+        {
+          "type": "cosmetic",
+          "line": "The bomb has been planted and you're running out of time. It's the return of retakes!"
+        }
+      ]
+    },
+    {
+      "date": "2025-11-12",
+      "title": "Counter-Strike 2 Update",
+      "url": "https://steamstore-a.akamaihd.net/news/externalpost/steam_community_announcements/1816215235365196",
+      "type": "cosmetic",
+      "types": [
+        "cosmetic"
+      ],
+      "evidence": [
+        {
+          "type": "cosmetic",
+          "line": "Enabled the pulsing light on the C4 view model."
+        }
+      ]
+    },
+    {
+      "date": "2025-11-12",
+      "title": "The Starladder Budapest Major 2025",
+      "url": "https://steamstore-a.akamaihd.net/news/externalpost/steam_community_announcements/1816215235365195",
+      "type": "map_pool",
+      "types": [
+        "map_pool"
+      ],
+      "evidence": [
+        {
+          "type": "map_pool",
+          "line": "All three stages of the StarLadder Budapest Major will be played in front of live crowds at MTK Sportpark, and for the first time at a Counter-Strike Major, the Grand Finals will be best of five. Now more than ever, the Major Champions will need to prove their quality by winning three maps in the Ac"
+        }
+      ]
+    },
+    {
+      "date": "2025-11-14",
+      "title": "Counter-Strike 2 Update",
+      "url": "https://steamstore-a.akamaihd.net/news/externalpost/steam_community_announcements/1816307528930061",
+      "type": "mechanics",
+      "types": [
+        "mechanics",
+        "cosmetic"
+      ],
+      "evidence": [
+        {
+          "type": "mechanics",
+          "line": "Fixed ability to plant C4 while standing on top of a teammate."
+        },
+        {
+          "type": "cosmetic",
+          "line": "Fixed a rendering bug on transparent charms attached to planted C4 or dropped weapons."
+        }
+      ]
+    },
+    {
+      "date": "2025-12-06",
+      "title": "CS2 Workshop Update",
+      "url": "https://steamstore-a.akamaihd.net/news/externalpost/steam_community_announcements/1818118366178075",
+      "type": "cosmetic",
+      "types": [
+        "cosmetic"
+      ],
+      "evidence": [
+        {
+          "type": "cosmetic",
+          "line": "Weapon finish: $35,000.00 USD"
+        },
+        {
+          "type": "cosmetic",
+          "line": "Sticker: $6,000.00 USD"
+        },
+        {
+          "type": "cosmetic",
+          "line": "Charm: $6,000.00 USD"
+        }
+      ]
+    },
+    {
+      "date": "2026-01-21",
+      "title": "Counter-Strike 2 Update",
+      "url": "https://steamstore-a.akamaihd.net/news/externalpost/steam_community_announcements/1822556746157780",
+      "type": "economy",
+      "types": [
+        "economy",
+        "map_pool"
+      ],
+      "evidence": [
+        {
+          "type": "economy",
+          "line": "Reduced price by $100."
+        },
+        {
+          "type": "economy",
+          "line": "Reduced price of the PP-Bizon by $100."
+        },
+        {
+          "type": "map_pool",
+          "line": "Added Anubis to the Active Duty Map Pool"
+        },
+        {
+          "type": "map_pool",
+          "line": "Removed Train from the Active Duty Map Pool"
+        }
+      ]
+    },
+    {
+      "date": "2026-03-16",
+      "title": "Counter-Strike 2 Update",
+      "url": "https://steamstore-a.akamaihd.net/news/externalpost/steam_community_announcements/1826992588602521",
+      "type": "cosmetic",
+      "types": [
+        "cosmetic"
+      ],
+      "evidence": [
+        {
+          "type": "cosmetic",
+          "line": "tab in their Inventory. For those players, containers can only be opened via X-ray Scanner. The X-Ray Scanner will come preloaded with a one-time exclusive non-tradable \"Genuine P250 | X-ray\", which must be claimed before using the X-Ray Scanner to reveal items in other containers."
+        }
+      ]
+    },
+    {
+      "date": "2026-03-18",
+      "title": "Counter-Strike 2 Update",
+      "url": "https://steamstore-a.akamaihd.net/news/externalpost/steam_community_announcements/1827626365751572",
+      "type": "mechanics",
+      "types": [
+        "mechanics"
+      ],
+      "evidence": [
+        {
+          "type": "mechanics",
+          "line": "Reloading has been refactored to encourage more careful consideration of the use of ammo. When you reload a magazine-fed weapon, all remaining ammo in the magazine is discarded and a new, full magazine is taken from the reserves."
+        }
+      ]
+    },
+    {
+      "date": "2026-03-18",
+      "title": "Guns, Guides, and Games",
+      "url": "https://steamstore-a.akamaihd.net/news/externalpost/steam_community_announcements/1827626365751571",
+      "type": "mechanics",
+      "types": [
+        "mechanics"
+      ],
+      "evidence": [
+        {
+          "type": "mechanics",
+          "line": "From reloading to custom games, today's update will give you plenty to think about."
+        },
+        {
+          "type": "mechanics",
+          "line": "Reload"
+        },
+        {
+          "type": "mechanics",
+          "line": "When you reload in CS2, the leftover ammo in your magazine is dumped back into an essentially endless reserve supply. And so the decision to reload has never offered significant trade-offs—in a safe position with enough time, you might reload after firing a single bullet, or half a mag, or after fir"
+        },
+        {
+          "type": "mechanics",
+          "line": "We think the decision to reload should have higher stakes, so in today's update reloading has been redesigned. Now, when you reload, you'll drop the used magazine and discard all of its remaining ammo. Instead of 'topping off' your weapon with a few bullets, a new full magazine will be taken from th"
+        }
+      ]
+    },
+    {
+      "date": "2026-04-01",
+      "title": "Counter-Strike 2 Update",
+      "url": "https://steamstore-a.akamaihd.net/news/externalpost/steam_community_announcements/1828894815556043",
+      "type": "cosmetic",
+      "types": [
+        "cosmetic"
+      ],
+      "evidence": [
+        {
+          "type": "cosmetic",
+          "line": "New c4 equip sound."
+        }
+      ]
+    },
+    {
+      "date": "2026-04-14",
+      "title": "Counter-Strike 2 Update",
+      "url": "https://steamstore-a.akamaihd.net/news/externalpost/steam_community_announcements/1830163047252212",
+      "type": "cosmetic",
+      "types": [
+        "cosmetic"
+      ],
+      "evidence": [
+        {
+          "type": "cosmetic",
+          "line": "Fixed head wobbling when planting C4"
+        }
+      ]
+    },
+    {
+      "date": "2026-04-24",
+      "title": "Counter-Strike 2 Update",
+      "url": "https://steamstore-a.akamaihd.net/news/externalpost/steam_community_announcements/1830797770237569",
+      "type": "cosmetic",
+      "types": [
+        "cosmetic"
+      ],
+      "evidence": [
+        {
+          "type": "cosmetic",
+          "line": "Fixed XM1014 shells flickering when starting a reload."
+        },
+        {
+          "type": "cosmetic",
+          "line": "Adjusted thirdperson bomb plant animation to more closely match firstperson animation."
+        }
+      ]
+    },
+    {
+      "date": "2026-04-28",
+      "title": "Counter-Strike 2 Update",
+      "url": "https://steamstore-a.akamaihd.net/news/externalpost/steam_community_announcements/1831432155563523",
+      "type": "cosmetic",
+      "types": [
+        "cosmetic"
+      ],
+      "evidence": [
+        {
+          "type": "cosmetic",
+          "line": "Talon and Karambit knives are now held correctly while defusing."
+        },
+        {
+          "type": "cosmetic",
+          "line": "Fixed issue where C4 equip sound was not getting interrupted by other equip sounds."
+        }
+      ]
+    },
+    {
+      "date": "2026-04-29",
+      "title": "Counter-Strike 2 Update",
+      "url": "https://steamstore-a.akamaihd.net/news/externalpost/steam_community_announcements/1831432155566354",
+      "type": "mechanics",
+      "types": [
+        "mechanics",
+        "cosmetic"
+      ],
+      "evidence": [
+        {
+          "type": "mechanics",
+          "line": "Bomb explosion radius increased."
+        },
+        {
+          "type": "cosmetic",
+          "line": "Fixed a case where money was subtracted from the wrong player during bot takeover."
+        }
+      ]
+    },
+    {
+      "date": "2026-04-30",
+      "title": "Counter-Strike 2 Update",
+      "url": "https://steamstore-a.akamaihd.net/news/externalpost/steam_community_announcements/1831432155569878",
+      "type": "mechanics",
+      "types": [
+        "mechanics"
+      ],
+      "evidence": [
+        {
+          "type": "mechanics",
+          "line": "Fixed some spots where bomb would be unreachable when dropped."
+        },
+        {
+          "type": "mechanics",
+          "line": "Fixed issue that caused defuse-cables from completely occluded players to also be occluded."
+        }
+      ]
+    },
+    {
+      "date": "2026-05-18",
+      "title": "Counter-Strike 2 Update",
+      "url": "https://steamstore-a.akamaihd.net/news/externalpost/steam_community_announcements/1832700592799760",
+      "type": "cosmetic",
+      "types": [
+        "cosmetic"
+      ],
+      "evidence": [
+        {
+          "type": "cosmetic",
+          "line": "Added CSPlayerController.AddMoneySpendableNow"
+        },
+        {
+          "type": "cosmetic",
+          "line": "Added CSPlayerController.GetMoneySpendableNow"
+        },
+        {
+          "type": "cosmetic",
+          "line": "Added CSPlayerController.AddMoneyEarnedForNextRound"
+        },
+        {
+          "type": "cosmetic",
+          "line": "Added CSPlayerController.GetMoneyEarnedForNextRound"
+        }
+      ]
+    },
+    {
+      "date": "2026-05-22",
+      "title": "IEM Cologne 2026",
+      "url": "https://steamstore-a.akamaihd.net/news/externalpost/steam_community_announcements/1833334318570412",
+      "type": "cosmetic",
+      "types": [
+        "cosmetic"
+      ],
+      "evidence": [
+        {
+          "type": "cosmetic",
+          "line": "The Major Shop has undergone some major renovation--now you can directly get any sticker you want (at prices set by demand). Holo Furia logo? You got it. Foil Donk autograph? No problem."
+        },
+        {
+          "type": "cosmetic",
+          "line": "You can purchase tokens and redeem them for any sticker you want. The prices of stickers will depend on relative demand (when lots of players buy a particular sticker, its price goes up and other sticker prices go down), but if you're worried that a sticker might drop in price right after you buy it"
+        },
+        {
+          "type": "cosmetic",
+          "line": "Q. How are sticker prices set?"
+        },
+        {
+          "type": "cosmetic",
+          "line": "The prices of all stickers depend on relative demand. This means that if one sticker is purchased disproportionately more than another, its price will go up and the other sticker's price will go down. After a large number of stickers are sold, all sticker prices will update (you'll get a warning if "
+        },
+        {
+          "type": "cosmetic",
+          "line": "Tokens are a little less convenient than just paying for stickers outright. But the reality is that if stickers could be refunded after being purchased, then the sticker prices would not accurately represent real demand."
+        },
+        {
+          "type": "cosmetic",
+          "line": "No. Tokens are only purchased when you're buying stickers and do not already have enough tokens in your balance. In that case, you'll be asked to purchase the exact number of tokens required (minimum 100, which is $0.99 USD) to complete your transaction."
+        },
+        {
+          "type": "cosmetic",
+          "line": "Q. What if the sticker price goes down after I redeem my tokens?"
+        },
+        {
+          "type": "cosmetic",
+          "line": "If the price of any redeemed sticker decreases by 25 tokens or more within the next 24 hours, we'll automatically issue you a refund of tokens for the difference between your redemption price and the lowest price in that period. Refunds are automatically credited to your tokens balance after one wee"
+        },
+        {
+          "type": "cosmetic",
+          "line": "Q. How are souvenir prices determined?"
+        },
+        {
+          "type": "cosmetic",
+          "line": "Souvenir prices are determined by two factors: the demand for the specific gold team and autograph stickers involved, and the rarity of the weapon you choose for your souvenir."
+        }
+      ]
+    },
+    {
+      "date": "2026-06-10",
+      "title": "Counter-Strike 2 Update",
+      "url": "https://steamstore-a.akamaihd.net/news/externalpost/steam_community_announcements/1835236783558731",
+      "type": "cosmetic",
+      "types": [
+        "cosmetic"
+      ],
+      "evidence": [
+        {
+          "type": "cosmetic",
+          "line": "Added display of lowest and highest sticker price in the last 7 days in the Cologne 2026 Major Shop."
+        }
+      ]
+    },
+    {
+      "date": "2026-07-08",
+      "title": "Counter-Strike 2 Update",
+      "url": "https://steamstore-a.akamaihd.net/news/externalpost/steam_community_announcements/1836506165581827",
+      "type": "map_pool",
+      "types": [
+        "map_pool",
+        "mechanics"
+      ],
+      "evidence": [
+        {
+          "type": "map_pool",
+          "line": "Added Cache to the Active Duty Map Pool"
+        },
+        {
+          "type": "map_pool",
+          "line": "Removed Overpass from the Active Duty Map Pool"
+        },
+        {
+          "type": "mechanics",
+          "line": "Re-designed effective range and extent of C4 explosion damage on all official defusal-mode maps."
+        }
+      ]
+    },
+    {
+      "date": "2026-07-08",
+      "title": "Season 5, Armory, and More",
+      "url": "https://steamstore-a.akamaihd.net/news/externalpost/steam_community_announcements/1836506165581825",
+      "type": "map_pool",
+      "types": [
+        "map_pool",
+        "mechanics"
+      ],
+      "evidence": [
+        {
+          "type": "map_pool",
+          "line": "Cache has officially arrived, and replaces Overpass in the active duty map pool. Put your hard-earned strats to the test and rise through the Premier ranks in CS2's newest battlefield."
+        },
+        {
+          "type": "mechanics",
+          "line": "Season 5 has arrived with some explosive changes to CS2--bomb damage has been completely reworked."
+        },
+        {
+          "type": "mechanics",
+          "line": "Now, when the bomb detonates, an explosive wave of destruction will flow from the bombsite through the map. As before, if you're too close to the bomb when it explodes, you're toast--but the shockwave dissipates around corners and doesn't go through walls, so at a certain distance you can use your w"
+        }
+      ]
+    },
+    {
+      "date": "2026-07-09",
+      "title": "Counter-Strike 2 Update",
+      "url": "https://steamstore-a.akamaihd.net/news/externalpost/steam_community_announcements/1836506165584645",
+      "type": "mechanics",
+      "types": [
+        "mechanics",
+        "cosmetic"
+      ],
+      "evidence": [
+        {
+          "type": "mechanics",
+          "line": "Removed map-wide minimum one point of damage from new C4 explosions."
+        },
+        {
+          "type": "mechanics",
+          "line": "New C4 explosions now apply more force to dropped weapons."
+        },
+        {
+          "type": "cosmetic",
+          "line": "Fixed a case where new C4 damage was calculated incorrectly near boundaries to other map areas."
+        }
+      ]
+    },
+    {
+      "date": "2026-07-20",
+      "title": "Counter-Strike 2 Update",
+      "url": "https://steamstore-a.akamaihd.net/news/externalpost/steam_community_announcements/1838407329267700",
+      "type": "mechanics",
+      "types": [
+        "mechanics"
+      ],
+      "evidence": [
+        {
+          "type": "mechanics",
+          "line": "The bomb damage health preview is now revealed when the bomb becomes audible."
+        },
+        {
+          "type": "mechanics",
+          "line": "The bomb explosion now interacts with smoke grenade clouds and molotov/incendiary fire. "
+        }
+      ]
+    },
+    {
+      "date": "2026-07-29",
+      "title": "Cologne 2026: Ranked Series",
+      "url": "https://steamstore-a.akamaihd.net/news/externalpost/steam_community_announcements/1839676055881226",
+      "type": "cosmetic",
+      "types": [
+        "cosmetic"
+      ],
+      "evidence": [
+        {
+          "type": "cosmetic",
+          "line": "The original dynamic pricing system determined the relative interest in players and teams, but it didn't produce reasonable prices. So the Ranked stickers have a lower price, but with the same relationship between players and teams as the Event Series stickers (as of today's update)."
+        }
+      ]
+    },
+    {
+      "date": "2026-08-03",
+      "title": "Counter-Strike 2 Update",
+      "url": "https://steamstore-a.akamaihd.net/news/externalpost/steam_community_announcements/1839676055895877",
+      "type": "cosmetic",
+      "types": [
+        "cosmetic"
+      ],
+      "evidence": [
+        {
+          "type": "cosmetic",
+          "line": "Added CSPlantedC4.GetDefuser"
+        },
+        {
+          "type": "cosmetic",
+          "line": "Added CSPlantedC4.IsDefused"
+        },
+        {
+          "type": "cosmetic",
+          "line": "Added CSPlantedC4.GetDefuseStartTime"
+        },
+        {
+          "type": "cosmetic",
+          "line": "Added CSPlantedC4.GetDefuseFinishTime"
+        },
+        {
+          "type": "cosmetic",
+          "line": "Added CSPlayerPawn.HasDefuser"
+        },
+        {
+          "type": "cosmetic",
+          "line": "Added CSPlayerPawn.SetHasDefuser"
+        },
+        {
+          "type": "cosmetic",
+          "line": "Fixed a bug where Instance.RegisterCheatCommand would not work on script reload."
+        }
+      ]
+    },
+    {
+      "date": "2026-08-24",
+      "title": "Counter-Strike 2 Update",
+      "url": "https://steamstore-a.akamaihd.net/news/externalpost/steam_community_announcements/1841579228676851",
+      "type": "cosmetic",
+      "types": [
+        "cosmetic"
+      ],
+      "evidence": [
+        {
+          "type": "cosmetic",
+          "line": "Maintains state during tools mode reloads."
+        },
+        {
+          "type": "cosmetic",
+          "line": "Added Instance.OnBombDefuseStart"
+        },
+        {
+          "type": "cosmetic",
+          "line": "Added Instance.OnBombDefuseAbort"
+        },
+        {
+          "type": "cosmetic",
+          "line": "Added CSPlayerPawn.GetDefuseTarget"
+        },
+        {
+          "type": "cosmetic",
+          "line": "Added C4.GetPlantStartTime"
+        },
+        {
+          "type": "cosmetic",
+          "line": "Added C4.GetPlantFinishTime"
+        },
+        {
+          "type": "cosmetic",
+          "line": "Added C4.AbortPlant"
+        },
+        {
+          "type": "cosmetic",
+          "line": "Deprecated defuser from Instance.OnBombDefuse event"
+        }
+      ]
+    },
+    {
+      "date": "2026-09-22",
+      "title": "Rush Hour",
+      "url": "https://steamstore-a.akamaihd.net/news/externalpost/steam_community_announcements/1844751498216926",
+      "type": "mechanics",
+      "types": [
+        "mechanics"
+      ],
+      "evidence": [
+        {
+          "type": "mechanics",
+          "line": "There are some gameplay adjustments in today's update to add a bit of stealth to your game-time decisions. Reloading can now be performed silently (by holding the reload key), but with a cost--silent reloads take quite a bit longer. And for those of you who love scoping your scoped weapons, you'll n"
+        }
+      ]
+    },
+    {
+      "date": "2026-09-22",
+      "title": "Counter-Strike 2 Update",
+      "url": "https://steamstore-a.akamaihd.net/news/externalpost/steam_community_announcements/1844751498216924",
+      "type": "mechanics",
+      "types": [
+        "mechanics",
+        "cosmetic"
+      ],
+      "evidence": [
+        {
+          "type": "mechanics",
+          "line": "Players can now reload silently (but slowly) by pressing and holding the reload key."
+        },
+        {
+          "type": "cosmetic",
+          "line": "Added support for applying stickers to C4."
+        },
+        {
+          "type": "cosmetic",
+          "line": "Added AddTeamMoney API method."
+        }
+      ]
+    },
+    {
+      "date": "2026-09-23",
+      "title": "Counter-Strike 2 Update",
+      "url": "https://steamstore-a.akamaihd.net/news/externalpost/steam_community_announcements/1844751498219795",
+      "type": "cosmetic",
+      "types": [
+        "cosmetic"
+      ],
+      "evidence": [
+        {
+          "type": "cosmetic",
+          "line": "Fixed a case where left-handed viewmodels would animate incorrectly while silent reloading."
+        },
+        {
+          "type": "cosmetic",
+          "line": "Fixed a case where thirdperson player models would animate too fast while silent reloading."
+        },
+        {
+          "type": "cosmetic",
+          "line": "Fixed a case where firstperson Dual Berettas would animate incorrectly while reloading."
+        }
+      ]
+    },
+    {
+      "date": "2026-09-24",
+      "title": "Counter-Strike 2 Update",
+      "url": "https://steamstore-a.akamaihd.net/news/externalpost/steam_community_announcements/1844751498222773",
+      "type": "cosmetic",
+      "types": [
+        "cosmetic"
+      ],
+      "evidence": [
+        {
+          "type": "cosmetic",
+          "line": "Fixed a case where it was possible to get a slightly faster silent reload by tapping the reload button before holding it."
+        },
+        {
+          "type": "cosmetic",
+          "line": "Fixed a case where it was possible to use silent reload to fire shotguns faster than normal."
+        }
+      ]
+    },
+    {
+      "date": "2026-09-25",
+      "title": "Counter-Strike 2 Update",
+      "url": "https://steamstore-a.akamaihd.net/news/externalpost/steam_community_announcements/1844751498226015",
+      "type": "cosmetic",
+      "types": [
+        "cosmetic"
+      ],
+      "evidence": [
+        {
+          "type": "cosmetic",
+          "line": "Fixed some cases where loud reloads would persist while trying to stealth reload."
+        }
+      ]
+    },
+    {
+      "date": "2026-10-08",
+      "title": "Counter-Strike 2 Update",
+      "url": "https://steamstore-a.akamaihd.net/news/externalpost/steam_community_announcements/1846018067931597",
+      "type": "mechanics",
+      "types": [
+        "mechanics",
+        "cosmetic"
+      ],
+      "evidence": [
+        {
+          "type": "mechanics",
+          "line": "Reduced the time for AUG reload by half second"
+        },
+        {
+          "type": "cosmetic",
+          "line": "Added a ping icon for dropped defuse kits"
+        },
+        {
+          "type": "cosmetic",
+          "line": "Fixed the sound event during silent reload for Desert Eagle"
+        }
+      ]
+    },
+    {
+      "date": "2026-10-14",
+      "title": "Counter-Strike 2 Update",
+      "url": "https://steamstore-a.akamaihd.net/news/externalpost/steam_community_announcements/1846651706675829",
+      "type": "cosmetic",
+      "types": [
+        "cosmetic"
+      ],
+      "evidence": [
+        {
+          "type": "cosmetic",
+          "line": "Updated AUG reload animations for standing and crouch reloads to better match new reload duration"
+        }
+      ]
+    },
+    {
+      "date": "2026-10-22",
+      "title": "Counter-Strike 2 Update",
+      "url": "https://steamstore-a.akamaihd.net/news/externalpost/steam_community_announcements/1847286114034398",
+      "type": "cosmetic",
+      "types": [
+        "cosmetic"
+      ],
+      "evidence": [
+        {
+          "type": "cosmetic",
+          "line": "Moved Instance.IsWarmupPeriod, IsFreezePeriod, IsTeamIntroPeriod, GetRoundsPlayed, GetRoundRemainingTime, SetRoundRemainingTime and AddTeamMoney to GameRules"
+        },
+        {
+          "type": "cosmetic",
+          "line": "Added support for GameRules.AddTeamMoney with CSTeamMoneyReason.NONE and an amount"
+        },
+        {
+          "type": "cosmetic",
+          "line": "Fixed a crash in GameRules.AddTeamMoney with CSTeamMoneyReason.NONE"
+        },
+        {
+          "type": "cosmetic",
+          "line": "Fixed CSTeamMoneyReason enum values not matching point_script.d.ts"
+        }
+      ]
+    },
+    {
+      "date": "2026-10-28",
+      "title": "Counter-Strike 2 Update",
+      "url": "https://steamstore-a.akamaihd.net/news/externalpost/steam_community_announcements/1847920302232686",
+      "type": "mechanics",
+      "types": [
+        "mechanics",
+        "cosmetic"
+      ],
+      "evidence": [
+        {
+          "type": "mechanics",
+          "line": "Added an option to switch Silent Reload Mode between Hold and Toggle. With toggle enabled, once the silent reload starts you can let go of the reload button. To cancel a silent reload and go back to a fast reload, you can tap the reload button again."
+        },
+        {
+          "type": "cosmetic",
+          "line": "Fixed various cases where the first sound of a reload was audible irrespective if a user requested a silent reload or not."
+        }
+      ]
+    },
+    {
+      "date": "2026-11-05",
+      "title": "Counter-Strike 2 Update",
+      "url": "https://steamstore-a.akamaihd.net/news/externalpost/steam_community_announcements/1848557880481353",
+      "type": "cosmetic",
+      "types": [
+        "cosmetic"
+      ],
+      "evidence": [
+        {
+          "type": "cosmetic",
+          "line": "Bomb defusal in Retakes mode will now instantly finish when there is sufficient time remaining in the round and no active utility remains to prevent the defuse."
+        }
+      ]
+    },
+    {
+      "date": "2026-11-11",
+      "title": "Counter-Strike 2 Update",
+      "url": "https://steamstore-a.akamaihd.net/news/externalpost/steam_community_announcements/1849192144180746",
+      "type": "cosmetic",
+      "types": [
+        "cosmetic"
+      ],
+      "evidence": [
+        {
+          "type": "cosmetic",
+          "line": "Fixed some cases of popping and glitching when switching weapons and reloading at extreme angles"
+        }
+      ]
+    }
+  ]
+}

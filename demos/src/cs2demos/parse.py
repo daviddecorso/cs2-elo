@@ -148,7 +148,12 @@ def rounds_from_events(events: dict[str, pl.DataFrame]) -> pl.DataFrame:
     rows = []
     prev_official = 0
     if ends is not None and "winner" in ends.columns:
-        won = ends.filter(pl.col("winner").is_in(["CT", "T"])).sort("tick").rows(named=True)
+        won = (
+            ends.with_columns(pl.col("winner").cast(pl.Utf8, strict=False))
+            .filter(pl.col("winner").is_in(["CT", "T"]))
+            .sort("tick")
+            .rows(named=True)
+        )
         for row, nxt in zip(won, [*won[1:], None]):
             end = int(row["tick"])
             next_end = int(nxt["tick"]) if nxt else 2**62

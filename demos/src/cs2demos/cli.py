@@ -143,10 +143,11 @@ def run_matches(matches: list[LpMatch], hltv: Hltv, manifest: Manifest, identity
 
 
 def drive(matches: list[LpMatch], max_pages: int, manifest: Manifest, identity: IdentityTable,
-          r2: R2 | None) -> tuple[int, int]:
+          r2: R2 | None, proxy: str | None = None, rotate: bool = False,
+          proxy_index: int | None = None) -> tuple[int, int]:
     """Runs until done or a stop condition. Returns (exit code, HLTV requests used)."""
     code = 0
-    hltv = Hltv(max_pages)
+    hltv = Hltv(max_pages, proxy=proxy, rotate=rotate, proxy_index=proxy_index)
     try:
         with hltv:
             run_matches(matches, hltv, manifest, identity, r2)
@@ -181,8 +182,15 @@ def prune_raw(manifest: Manifest, days: int, max_gb: float, raw_dir: Path = RAW_
     return deleted
 
 
+def _get_proxy(args) -> str | None:
+    if getattr(args, "no_proxy", False):
+        return ""
+    return getattr(args, "proxy", None)
+
+
 def cmd_login(args) -> int:
-    with Hltv(max_pages=1) as hltv:
+    with Hltv(max_pages=1, proxy=_get_proxy(args), rotate=getattr(args, "rotate", False),
+              proxy_index=getattr(args, "proxy_index", None)) as hltv:
         hltv.login()
     print("Profile saved.")
     return 0
@@ -204,7 +212,9 @@ def cmd_run(args) -> int:
     if not setup:
         return 1
     matches, manifest, identity, r2 = setup
-    return drive(matches, args.max_pages, manifest, identity, r2)[0]
+    return drive(matches, args.max_pages, manifest, identity, r2,
+                 proxy=_get_proxy(args), rotate=getattr(args, "rotate", False),
+                 proxy_index=getattr(args, "proxy_index", None))[0]
 
 
 def cmd_reparse(args) -> int:
@@ -322,7 +332,9 @@ def cmd_auto(args) -> int:
 
         before = {k: e.get("updated") for k, e in manifest.maps.items()}
         identity = IdentityTable.load(load_steam_ids(), STEAM_PLAYERS)
-        code, used = drive([m for e in queue for m in e.matches], args.max_pages, manifest, identity, r2)
+        code, used = drive([m for e in queue for m in e.matches], args.max_pages, manifest, identity, r2,
+                           proxy=_get_proxy(args), rotate=getattr(args, "rotate", False),
+                           proxy_index=getattr(args, "proxy_index", None))
         changed = [e["status"] for k, e in manifest.maps.items() if before.get(k) != e.get("updated")]
         left = sum(not is_done(manifest, m) for e in queue for m in e.matches)
         print(f"\n{changed.count('parsed')} maps parsed, {changed.count('quarantined')} quarantined, "
@@ -391,7 +403,11 @@ def cmd_cache(args) -> int:
 def main() -> None:
     ap = argparse.ArgumentParser(prog="cs2demos")
     sub = ap.add_subparsers(dest="cmd", required=True)
-    sub.add_parser("login", help="Open HLTV in the saved browser profile to clear Cloudflare by hand")
+    p_login = sub.add_parser("login", help="Open HLTV in the saved browser profile to clear Cloudflare by hand")
+    p_login.add_argument("--proxy", help="Upstream proxy URL, comma-separated list, or file (default: $HLTV_PROXY)")
+    p_login.add_argument("--no-proxy", action="store_true", help="Bypass configured proxy and connect directly")
+    p_login.add_argument("--proxy-index", type=int, help="Select proxy by 0-based index from the pool")
+    p_login.add_argument("--rotate", action="store_true", help="Advance to next proxy in the pool for this run")
     for name, help_ in (("run", "Download, parse, validate and store an event's demos"),
                         ("reparse", "Re-run parse/validate/store from raw demos on disk"),
                         ("report", "Per-map status for an event; exits 0 only if every map is parsed")):
@@ -401,12 +417,20 @@ def main() -> None:
         p.add_argument("--no-upload", action="store_true", help="Keep Parquet locally in data/demos/parquet/")
         if name == "run":
             p.add_argument("--max-pages", type=int, default=30, help="HLTV requests allowed this run")
+            p.add_argument("--proxy", help="Upstream proxy URL, comma-separated list, or file (default: $HLTV_PROXY)")
+            p.add_argument("--no-proxy", action="store_true", help="Bypass configured proxy and connect directly")
+            p.add_argument("--proxy-index", type=int, help="Select proxy by 0-based index from the pool")
+            p.add_argument("--rotate", action="store_true", help="Advance to next proxy in the pool for this run")
         if name == "reparse":
             p.add_argument("--all", action="store_true", help="Also re-run maps already parsed at this version")
     p = sub.add_parser("auto", help="Scheduled run: new tier-1 LANs first, then the backfill, within a request budget")
     p.add_argument("--max-pages", type=int, default=AUTO_MAX_PAGES, help="HLTV requests allowed this run")
     p.add_argument("--dry-run", action="store_true", help="Print the queue without opening a browser")
     p.add_argument("--no-upload", action="store_true", help="Keep Parquet locally in data/demos/parquet/")
+    p.add_argument("--proxy", help="Upstream proxy URL, comma-separated list, or file (default: $HLTV_PROXY)")
+    p.add_argument("--no-proxy", action="store_true", help="Bypass configured proxy and connect directly")
+    p.add_argument("--proxy-index", type=int, help="Select proxy by 0-based index from the pool")
+    p.add_argument("--rotate", action="store_true", help="Advance to next proxy in the pool for this run")
     sub.add_parser("status", help="Per-event map counts for every tier-1 LAN since 2025, from the local manifest")
     p = sub.add_parser("prune", help="Delete parsed raw demos older than --days or beyond --max-gb, oldest first")
     p.add_argument("--days", type=int, default=RAW_RETENTION_DAYS)

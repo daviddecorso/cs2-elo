@@ -5,6 +5,7 @@ from cs2demos.hltv import Hltv, PageBudgetExhausted, demo_path_from_html, is_ser
 def test_server_error_page_is_not_a_match_page(tmp_path):
     error = "<html><head><title>hltv.org | 520: Web server is returning an unknown error</title>"
     assert is_server_error(error)
+    assert is_server_error("<title>www.hltv.org</title><div id='main-frame-error'></div>")
     assert not is_server_error("<title>Falcons vs. M80 at CS Asia Championships 2026 | HLTV.org</title>")
 
     hltv = Hltv(max_pages=0, profile=tmp_path / "profile", cache=tmp_path / "cache")
@@ -30,3 +31,12 @@ def test_page_budget_exhausted(tmp_path):
     hltv.pages_used = 1
     with pytest.raises(PageBudgetExhausted):
         hltv._wait_turn()
+
+
+def test_hltv_proxy_lifecycle(tmp_path):
+    hltv = Hltv(max_pages=0, profile=tmp_path / "profile", cache=tmp_path / "cache",
+                proxy="http://user:pass@127.0.0.1:8080")
+    with hltv:
+        assert hltv._proxy_rotator is not None
+        assert hltv._proxy_rotator.port is not None
+    assert hltv._proxy_rotator is None

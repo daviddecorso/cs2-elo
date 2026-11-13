@@ -99,3 +99,16 @@ def test_fill_round_starts_after_restore_stub():
 
 def test_to_polars_accepts_empty_event_list():
     assert _to_polars([]).is_empty()
+
+
+def test_rounds_from_events_null_winner_float_column():
+    events = {
+        "round_start": pl.DataFrame({"round": [1], "tick": [1]}),
+        "round_freeze_end": pl.DataFrame({"tick": [1275]}),
+        "round_end": pl.DataFrame(
+            {"reason": [None], "round": [0], "tick": [1], "winner": [None]},
+            schema={"reason": pl.Float64, "round": pl.UInt32, "tick": pl.Int32, "winner": pl.Float64},
+        ),
+        "round_officially_ended": pl.DataFrame(),
+    }
+    assert rounds_from_events(events).is_empty()

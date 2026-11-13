@@ -17,6 +17,7 @@ from typing import Any, Coroutine
 import nodriver as uc
 
 from .paths import HLTV_CACHE, HLTV_PROFILE
+from .proxy import ProxyRotator
 
 BASE = "https://www.hltv.org"
 MIN_INTERVAL_S = 15.0
@@ -50,8 +51,8 @@ class ServerError(Exception):
 
 
 def is_server_error(html: str) -> bool:
-    """Cloudflare's 5xx pages, e.g. "hltv.org | 520: Web server is returning an unknown error"."""
-    return bool(SERVER_ERROR_TITLE.search(html))
+    """Cloudflare's 5xx pages or browser network error pages."""
+    return bool(SERVER_ERROR_TITLE.search(html)) or "main-frame-error" in html or "<title>www.hltv.org</title>" in html
 
 
 def demo_path_from_html(html: str) -> str | None:
@@ -64,14 +65,39 @@ async def _is_challenge(tab: uc.Tab) -> bool:
         title = ((await tab.evaluate("document.title")) or "").lower()
         if "just a moment" in title or "attention required" in title:
             return True
-        has_cf = await tab.evaluate("Boolean(document.querySelector('#challenge-form, #cf-challenge-running'))")
+        has_cf = await tab.evaluate("Boolean(document.querySelector('#challenge-form, #cf-challenge-running, #challenge-stage'))")
         return bool(has_cf)
+    except Exception:
+        return False
+
+
+async def _is_error_page(tab: uc.Tab) -> bool:
+    try:
+        title = ((await tab.evaluate("document.title")) or "").lower()
+        data = await tab.evaluate("Boolean(document.querySelector('#main-frame-error, .error-code'))")
+        return bool(data) or title == "www.hltv.org"
+    except Exception:
+        return False
+
+
+async def _is_page_ready(tab: uc.Tab) -> bool:
+    """Checks if real HLTV content has successfully loaded, not a challenge or error page."""
+    try:
+        return bool(await tab.evaluate("""(() => {
+            const title = (document.title || '').toLowerCase();
+            const hasError = Boolean(document.querySelector('#main-frame-error, .error-code')) || title === 'www.hltv.org';
+            const hasChallenge = Boolean(document.querySelector('#challenge-form, #cf-challenge-running, #challenge-stage'))
+                || title.includes('just a moment') || title.includes('attention required');
+            const hasDom = Boolean(document.querySelector('.navbar, .nav-content, footer, .bgPadding'));
+            return !hasError && !hasChallenge && hasDom;
+        })()"""))
     except Exception:
         return False
 
 
 async def _navigate(tab: uc.Tab, url: str, timeout_s: float = 30.0) -> None:
     await tab.get(url)
+    await asyncio.sleep(0.5)
     deadline = time.monotonic() + timeout_s
     while time.monotonic() < deadline:
         try:
@@ -84,15 +110,26 @@ async def _navigate(tab: uc.Tab, url: str, timeout_s: float = 30.0) -> None:
 
 
 class Hltv:
-    def __init__(self, max_pages: int, profile: Path = HLTV_PROFILE, cache: Path = HLTV_CACHE) -> None:
+    def __init__(self, max_pages: int, profile: Path = HLTV_PROFILE, cache: Path = HLTV_CACHE,
+                 proxy: str | None = None, rotate: bool = False, proxy_index: int | None = None) -> None:
         self.max_pages, self.profile, self.cache = max_pages, profile, cache
+        self.proxy_spec = proxy
+        self.rotate = rotate
+        self.proxy_index = proxy_index
         self.pages_used = 0
         self._last = 0.0
         self._results: dict[str, list[dict]] = {}
         self._loop: asyncio.AbstractEventLoop | None = None
         self._browser: uc.Browser | None = None
+        self._proxy_rotator: ProxyRotator | None = None
 
     def __enter__(self) -> "Hltv":
+        rotator = ProxyRotator(self.proxy_spec, rotate=self.rotate, index=self.proxy_index)
+        if rotator.is_enabled():
+            rotator.start()
+            self._proxy_rotator = rotator
+            if rotator.current:
+                print(f"Using proxy [{rotator.index}] {rotator.current.masked}")
         return self
 
     def __exit__(self, *exc) -> None:
@@ -107,6 +144,9 @@ class Hltv:
                     process.kill()
                     self._loop.run_until_complete(process.wait())
             self._browser = None
+        if self._proxy_rotator:
+            self._proxy_rotator.stop()
+            self._proxy_rotator = None
         if self._loop and not self._loop.is_closed():
             self._loop.run_until_complete(asyncio.sleep(0.1))
             self._loop.close()
@@ -126,12 +166,15 @@ class Hltv:
 
     async def _start_browser(self) -> uc.Browser:
         # nodriver gives Chrome ~3s to open its debug port, which a cold start after a Chrome update can miss.
+        browser_args = ["--window-size=1280,900"]
+        if self._proxy_rotator and self._proxy_rotator.is_enabled() and self._proxy_rotator.port:
+            browser_args.append(f"--proxy-server=http://127.0.0.1:{self._proxy_rotator.port}")
         for attempt in range(1, BROWSER_START_ATTEMPTS + 1):
             try:
                 return await uc.start(
                     user_data_dir=str(self.profile),
                     headless=False,
-                    browser_args=["--window-size=1280,900"],
+                    browser_args=browser_args,
                 )
             except Exception:
                 if attempt == BROWSER_START_ATTEMPTS:
@@ -168,9 +211,9 @@ class Hltv:
         self._run(_navigate(tab, BASE))
         print("Clear any Cloudflare check in the browser window; waiting...")
         deadline = time.monotonic() + timeout_s
-        while self._run(_is_challenge(tab)) or "hltv" not in self._run(tab.evaluate("document.title")).lower():
+        while not self._run(_is_page_ready(tab)):
             if time.monotonic() > deadline:
-                raise ChallengeError(f"still on a challenge page after {timeout_s}s")
+                raise ChallengeError(f"still on a challenge or error page after {timeout_s}s")
             time.sleep(2)
 
     def match_page(self, hltv_id: int) -> str:
@@ -180,8 +223,14 @@ class Hltv:
         self._wait_turn()
         tab = self._tab()
         self._run(_navigate(tab, f"{BASE}/matches/{hltv_id}/match"))
-        if self._run(_is_challenge(tab)):
-            raise ChallengeError("HLTV served a Cloudflare challenge; run `uv run cs2demos login`")
+        # Give Turnstile up to 8s to auto-resolve before raising ChallengeError
+        deadline = time.monotonic() + 8.0
+        while self._run(_is_challenge(tab)):
+            if time.monotonic() > deadline:
+                raise ChallengeError("HLTV served a Cloudflare challenge; run `uv run cs2demos login`")
+            time.sleep(0.5)
+        if self._run(_is_error_page(tab)):
+            raise ServerError(f"HLTV match {hltv_id} failed with browser network error")
         html = self._run(tab.get_content())
         if is_server_error(html):
             raise ServerError(f"HLTV match {hltv_id} returned a server error page")
@@ -201,8 +250,13 @@ class Hltv:
             self._wait_turn()
             tab = self._tab()
             self._run(_navigate(tab, f"{BASE}/results?startDate={day}&endDate={day}&offset={offset}"))
-            if self._run(_is_challenge(tab)):
-                raise ChallengeError("HLTV served a Cloudflare challenge; run `uv run cs2demos login`")
+            deadline = time.monotonic() + 8.0
+            while self._run(_is_challenge(tab)):
+                if time.monotonic() > deadline:
+                    raise ChallengeError("HLTV served a Cloudflare challenge; run `uv run cs2demos login`")
+                time.sleep(0.5)
+            if self._run(_is_error_page(tab)):
+                raise ServerError(f"HLTV results for {day} failed with browser network error")
             raw = self._run(tab.evaluate(f"JSON.stringify(({RESULTS_JS})())"))
             found = json.loads(raw or "[]")
             rows.update((r["id"], r) for r in found)

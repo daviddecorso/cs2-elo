@@ -18,8 +18,8 @@ Real dates: Valve published the PGL Major Singapore invitation snapshot on 2 Nov
 | 3. Simulator, VRS projections, Major odds | Built and live; Singapore participants pending |
 | 4. Demo pipeline | **Gate passed**; backfill in progress |
 | 5. Win probability and WPA | **Walk-forward gate passed** (2026-11-12); out-of-sample credit & monthly job built; WPA page not yet live |
-| 6. Player WAR | Items 1–8 built; WAA, usage and conversion live at `/war` on `production`; team factor & roster-change test open |
-| 7. Team and tactics metrics | Not started (upstream drift and duel tables exist) |
+| 6. Player WAR | Items 1–8 built; WAA, usage and conversion live at `/war` on `production`; team factor & APM built (`cs2wp team-factor`, gates not passed at 90% CI); roster-change test open |
+| 7. Team and tactics metrics | Player-version RW over expected built & gated (`cs2wp team-factor`, Stage 1 gate failed on current archive); rest not started |
 
 ### Changes from the old plan
 
@@ -341,7 +341,8 @@ Candidates, not built:
 - **WAA & IGL adjustment** (`cs2wp war`): centers IGLs and non-IGLs at 0.0000 / 100 rds per side (CT IGL +0.82, non-IGL −0.21; T IGL +0.84, non-IGL −0.23), preserving caller variance (bLitz +8.13, huNter +7.71 vs FalleN −6.84, karrigan −22.37). Empirical OLS gives 5.68 round-wins per map win. `--replacement-rate` hooks into linear WAR shifts.
 - **Bootstrap uncertainty & publishing** (`cs2wp war --publish`): 1,000 multinomial round resamples generate 90% (p5, p95) intervals. Live at `/war` defaulting to `wpa_opp` ("WPA (team-neutral)"), with role/credit filters, IntervalBar, expandable details, and CC-BY-SA Liquipedia credits. WAA (WPA) correlates 0.467 with K/D (vs HLTV 3.0 at 0.870 and Rating 2.0 at 0.945), split-half `r = 0.312` (Spearman-Brown 0.476), and 300+-round month-to-month `r = 0.401`.
 - **Resources: usage and conversion** (`cs2wp usage`): each player-round's credit above the role baseline splits exactly into team context, usage (the player's own equipment, gun, utility and inferred drops, valued by a cross-fit model) and conversion. Conversion's split-half `k` is 1,042 rounds against 984 for `wpa_opp` WAA, so it shipped to `/war` with 90% intervals. Usage is a stable role trait (`k` 94). Flash, smoke and trade support are reported beside the split, not in it. Details in [war.md](war.md#resources-usage-and-conversion).
-- **Not yet built:** team factor / residual APM, replacement-level baseline from tier-2 demos, stand-in and role-transition checks, and IGL-change teammate deltas.
+- **Team factor & APM (`cs2wp team-factor`, gates not passed):** out-of-sample `wpa_opp` expectation residuals, Ridge team factors (`lp_team × IGL stint`), sparse player/calling APM (`--igl-adjustment apm`), and Stage 1–2 validation built, staying off `/war` and behind the `fixed` default until 90% CIs clear zero (see [war.md](war.md#team-factor)).
+- **Not yet built:** replacement-level baseline from tier-2 demos, roster-change Elo-seeding test, stand-in and role-transition checks, and IGL-change teammate deltas.
 
 ## Phase 7: Team and tactics metrics
 
@@ -366,7 +367,7 @@ Every round outcome splits into four layers: economy and map, duel execution (ai
 
 **Definitions that need detail**
 
-- **Round wins over expected, two versions.** The economy version measures overall strength, skill plus tactics. The player version uses summed prior-window WAR as the strength term, so the residual is the team factor. Neither includes team Elo, because Elo absorbs whatever tactics produce and the stat would drift to zero.
+- **Round wins over expected, two versions.** The economy version measures overall strength, skill plus tactics. The player version uses summed out-of-sample `wpa_opp` WAR as the strength term (`cs2wp team-factor`), so the residual is the team factor. Neither includes team Elo, because Elo absorbs whatever tactics produce and the stat would drift to zero. Stage 1 split-half reliability across alternating series currently yields `r = 0.239` (90% CI `-0.017` to `+0.467`), so it stays gated behind more demo coverage.
 - **Luck-adjusted Elo.** Re-score each map with every duel credited at its expected win probability instead of its outcome, sum per team into an expected round margin, and feed the Elo update a weighted blend of actual and expected margin. Tune the weight with the football-site backtest loop. Check whether a player's duel results above expectation carry from one map to the next within an event: if they do, part of the residual is form, and actual results deserve more weight. Expected goals predicts future results better than actual goals in hockey; this is the same idea for CS.
 - **Veto value lost.** At each veto step, compute the team's series win probability for every option still available using map-specific Elo, then take the best option's probability minus the chosen option's. Sum per team per season. Judge by expected value at the time, never by results. Separately, test hidden information: if below-model picks keep beating map Elo, the team knows something the model does not.
 - **Execute detection.** Three or more Ts entering a site within a few seconds with utility thrown into it. Measure site take success and post-plant conversion, controlling for economy and Elo.

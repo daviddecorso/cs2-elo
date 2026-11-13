@@ -8,10 +8,9 @@ from sklearn.linear_model import LogisticRegression
 
 from .baselines import VERSIONS
 from .data import MapRef, catalog
-from .igls import assign_igls, load_table as load_igl_table
-from .paths import IGLS, ROLE_ROUNDS, WAR_REPORTS
+from .paths import WAR_REPORTS
 from .pipeline import player_rounds
-from .war import apply_igl_adjustment, fit_igl_adjustment, join_usage, map_outcomes
+from .war import load_adjusted, map_outcomes
 
 # The usage split is scored on the version whose WAA `k` sets the site gate for conversion.
 TERM_VERSION = "wpa_opp"
@@ -49,10 +48,12 @@ def player_maps(adjusted: pl.DataFrame, box: pl.DataFrame) -> pl.DataFrame:
          else pl.lit(None, pl.Float64)).alias(f"num_{t}")
         for t, c in term.items()
     ]
+    has_igl = "is_igl" in rows.columns
     war = rows.group_by("key", "steamid").agg(
         pl.col("date").first(),
         pl.col("event").first(),
         pl.col("lp_team").first(),
+        (pl.col("is_igl").any() if has_igl else pl.lit(False)).alias("is_igl"),
         pl.col("rounds").sum(),
         *(pl.col(f"{v}_rw").sum().alias(f"num_{v}") for v in VERSIONS),
         *term_exprs,
@@ -193,6 +194,117 @@ def shrunk_rates(prior: pl.DataFrame, ks: dict[str, float]) -> pl.DataFrame:
     return agg.select("steamid", pl.col("rounds").alias("prior_rounds"), *cols)
 
 
+def map_lineups(
+    refs: list[MapRef],
+    pm: pl.DataFrame,
+    scores_or_outcomes: pl.DataFrame,
+    ks: dict[str, float],
+    test_from: str = "",
+    within_ks: dict[str, float] | None = None,
+    mode: str = "prior",
+    require_elo: bool = False,
+    include_sides: bool = False,
+) -> pl.DataFrame:
+    """One row per map: both lineups' steamids and IGLs, optional scores/Elo, and out-of-sample rate differences.
+
+    `mode='prior'` uses maps dated strictly before each event starts; `mode='loeo'` uses every other event.
+    """
+    if mode not in ("prior", "loeo"):
+        raise ValueError(f"Unknown mode: {mode}")
+    if within_ks is not None:
+        pm = with_team_deviation(pm)
+    starts = dict(pm.group_by("event").agg(pl.col("date").min()).iter_rows())
+    keys_event = dict(pm.select("key", "event").unique("key").iter_rows())
+    lineups = {k: g for (k,), g in pm.group_by("key")}
+    has_igl = "is_igl" in pm.columns
+    has_scores = "rounds_won" in scores_or_outcomes.columns and "rounds" in scores_or_outcomes.columns
+    score_lookup = {(r["key"], r["lp_team"]): r for r in scores_or_outcomes.iter_rows(named=True)}
+    teams_by_key: dict[str, list[str]] = {}
+    for k, t in score_lookup:
+        teams_by_key.setdefault(k, []).append(t)
+    by_event: dict[str, list[MapRef]] = {}
+    for ref in refs:
+        if ref.date >= test_from and ref.key in keys_event:
+            by_event.setdefault(keys_event[ref.key], []).append(ref)
+
+    features = _features(within_ks is not None)
+    rows = []
+    for event, event_refs in by_event.items():
+        other = pm.filter(pl.col("date") < starts[event]) if mode == "prior" else pm.filter(pl.col("event") != event)
+        rates = shrunk_rates(other, ks)
+        if within_ks is not None:
+            devs = shrunk_rates(other.select("steamid", "rounds", *(pl.col(f"dev_{m}").alias(f"num_{m}") for m in METRICS)), within_ks)
+            rates = rates.join(devs.select("steamid", *(pl.col(m).alias(f"within_{m}") for m in METRICS)), on="steamid", how="left")
+        for ref in event_refs:
+            if len(ref.elo) == 2:
+                (a, ra), (b, rb) = ref.elo
+                elo_a, elo_b, elo_logit = float(ra), float(rb), (ra - rb) * math.log(10) / 400
+            elif require_elo:
+                continue
+            else:
+                ts = sorted(teams_by_key.get(ref.key, ()))
+                if len(ts) != 2:
+                    continue
+                a, b = ts
+                elo_a = elo_b = elo_logit = None
+            if (ref.key, a) not in score_lookup or (ref.key, b) not in score_lookup:
+                continue
+            key_lu = lineups[ref.key]
+            lu = key_lu.select("steamid", "lp_team").join(rates, on="steamid", how="left").fill_null(0)
+            side = {t: lu.filter(pl.col("lp_team") == t) for t in (a, b)}
+            if side[a].height < 5 or side[b].height < 5:
+                continue
+            n_cov = int((side[a]["prior_rounds"] >= COVERED_ROUNDS).sum() + (side[b]["prior_rounds"] >= COVERED_ROUNDS).sum())
+            raw_side = {t: key_lu.filter(pl.col("lp_team") == t) for t in (a, b)}
+
+            def _igl(df: pl.DataFrame) -> int | None:
+                if not has_igl:
+                    return None
+                ids = df.filter(pl.col("is_igl"))["steamid"].to_list()
+                return int(ids[0]) if len(ids) == 1 else None
+
+            sc_a, sc_b = score_lookup[(ref.key, a)], score_lookup[(ref.key, b)]
+            rds = int(sc_a["rounds"]) if has_scores else None
+            rw_a = int(sc_a["rounds_won"]) if has_scores else None
+            rw_b = int(sc_b["rounds_won"]) if has_scores else None
+            share_a = float(rw_a) / float(rds) if (has_scores and rds) else None
+            row = {
+                "key": ref.key, "series": ref.key.split("/")[0], "event": event, "date": ref.date,
+                "team_a": a, "team_b": b,
+                "steamids_a": [int(s) for s in side[a]["steamid"].to_list()],
+                "steamids_b": [int(s) for s in side[b]["steamid"].to_list()],
+                "igl_a": _igl(raw_side[a]), "igl_b": _igl(raw_side[b]),
+                "rounds": rds, "rounds_won_a": rw_a, "rounds_won_b": rw_b,
+                "share_a": share_a, "share_diff": (share_a - 0.5) if share_a is not None else None,
+                "y": float(sc_a["won"]),
+                "elo_a": elo_a, "elo_b": elo_b, "elo_logit": elo_logit,
+                "covered": float(n_cov / 10),
+                "all_covered": side[a].height == 5 and side[b].height == 5 and n_cov == 10,
+            }
+            for f in features:
+                sa, sb = 100.0 * float(side[a][f].sum()), 100.0 * float(side[b][f].sum())
+                row[f] = sa - sb
+                if include_sides:
+                    row[f"{f}_a"] = sa
+                    row[f"{f}_b"] = sb
+            rows.append(row)
+    side_schema = {f"{f}_{s}": pl.Float64 for f in features for s in ("a", "b")} if include_sides else {}
+    schema = {
+        "key": pl.String, "series": pl.String, "event": pl.String, "date": pl.String,
+        "team_a": pl.String, "team_b": pl.String,
+        "steamids_a": pl.List(pl.UInt64), "steamids_b": pl.List(pl.UInt64),
+        "igl_a": pl.UInt64, "igl_b": pl.UInt64,
+        "rounds": pl.Int64, "rounds_won_a": pl.Int64, "rounds_won_b": pl.Int64,
+        "share_a": pl.Float64, "share_diff": pl.Float64,
+        "y": pl.Float64,
+        "elo_a": pl.Float64, "elo_b": pl.Float64, "elo_logit": pl.Float64,
+        "covered": pl.Float64, "all_covered": pl.Boolean,
+        **{f: pl.Float64 for f in features},
+        **side_schema,
+    }
+    return pl.DataFrame(rows, schema_overrides=schema) if rows else pl.DataFrame(schema=schema)
+
+
 def lineup_rows(refs: list[MapRef], pm: pl.DataFrame, outcomes: pl.DataFrame, ks: dict[str, float], test_from: str,
                 within_ks: dict[str, float] | None = None) -> pl.DataFrame:
     """One row per test map: Elo logit for the first Elo team, its result, and lineup differences in each prior metric.
@@ -200,43 +312,8 @@ def lineup_rows(refs: list[MapRef], pm: pl.DataFrame, outcomes: pl.DataFrame, ks
     With `within_ks`, also `within_<m>`: the lineup difference in prior within-team deviations, shrunk by those `k`.
     Prior data is every map dated before the map's event starts, so nothing from the same event leaks in.
     """
-    if within_ks is not None:
-        pm = with_team_deviation(pm)
-    starts = dict(pm.group_by("event").agg(pl.col("date").min()).iter_rows())
-    keys_event = dict(pm.select("key", "event").unique("key").iter_rows())
-    lineups = {k: g for (k,), g in pm.group_by("key")}
-    won = {(r["key"], r["lp_team"]): r["won"] for r in outcomes.iter_rows(named=True)}
-    by_event: dict[str, list[MapRef]] = {}
-    for ref in refs:
-        if ref.date >= test_from and ref.key in keys_event:
-            by_event.setdefault(keys_event[ref.key], []).append(ref)
-
-    rows = []
-    for event, event_refs in by_event.items():
-        prior = pm.filter(pl.col("date") < starts[event])
-        rates = shrunk_rates(prior, ks)
-        if within_ks is not None:
-            devs = shrunk_rates(prior.select("steamid", "rounds", *(pl.col(f"dev_{m}").alias(f"num_{m}") for m in METRICS)), within_ks)
-            rates = rates.join(devs.select("steamid", *(pl.col(m).alias(f"within_{m}") for m in METRICS)), on="steamid", how="left")
-        for ref in event_refs:
-            if len(ref.elo) != 2:
-                continue
-            (a, ra), (b, rb) = ref.elo
-            if (ref.key, a) not in won or (ref.key, b) not in won:
-                continue
-            lu = lineups[ref.key].select("steamid", "lp_team").join(rates, on="steamid", how="left").fill_null(0)
-            side = {t: lu.filter(pl.col("lp_team") == t) for t in (a, b)}
-            if side[a].height < 5 or side[b].height < 5:
-                continue
-            row = {
-                "key": ref.key, "series": ref.key.split("/")[0], "event": event, "date": ref.date,
-                "y": won[(ref.key, a)], "elo_logit": (ra - rb) * math.log(10) / 400,
-                "covered": float(((side[a]["prior_rounds"] >= COVERED_ROUNDS).sum() + (side[b]["prior_rounds"] >= COVERED_ROUNDS).sum()) / 10),
-            }
-            for f in _features(within_ks is not None):
-                row[f] = 100.0 * float(side[a][f].sum() - side[b][f].sum())
-            rows.append(row)
-    return pl.DataFrame(rows)
+    cols = ["key", "series", "event", "date", "y", "elo_logit", "covered", *_features(within_ks is not None)]
+    return map_lineups(refs, pm, outcomes, ks, test_from=test_from, within_ks=within_ks, mode="prior", require_elo=True).select(cols)
 
 
 def _features(within: bool) -> list[str]:
@@ -379,12 +456,7 @@ def team_context_lines(tc: dict, min_rounds: int) -> list[str]:
 
 
 def build(test_from: str = DEFAULT_TEST_FROM, min_rounds: int = MIN_PLAYER_ROUNDS) -> int:
-    rr = pl.read_parquet(ROLE_ROUNDS)
-    igls = pl.read_parquet(IGLS) if IGLS.exists() else assign_igls(rr, load_igl_table())
-    joined = join_usage(rr.join(igls.select("key", "steamid", "is_igl"), on=["key", "steamid"], how="left").with_columns(
-        pl.col("is_igl").fill_null(False)
-    ))
-    adjusted = apply_igl_adjustment(joined, fit_igl_adjustment(joined))
+    adjusted, _ = load_adjusted()
     refs = catalog()
     pm = player_maps(adjusted, player_rounds(refs))
 

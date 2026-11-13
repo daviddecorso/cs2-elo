@@ -147,6 +147,7 @@ def cmd_war(args) -> int:
             model=args.model,
             publish=args.publish,
             allow_ungated=args.allow_ungated,
+            igl_adjustment=args.igl_adjustment,
         )
     except (UnmappedTeams, AmbiguousIGL) as e:
         print(e, file=sys.stderr)
@@ -157,6 +158,12 @@ def cmd_validate_war(args) -> int:
     from .warcheck import build
 
     return build(test_from=args.test_from, min_rounds=args.min_rounds)
+
+
+def cmd_team_factor(args) -> int:
+    from .teamfactor import build
+
+    return build(min_rounds=args.min_rounds, resamples=args.resamples, publish=args.publish)
 
 
 def main() -> None:
@@ -229,9 +236,15 @@ def main() -> None:
     p.add_argument("--model", help="Model directory under data/wp/models/ for gate checks when publishing")
     p.add_argument("--publish", action="store_true", help="Write public/data/war/players.json")
     p.add_argument("--allow-ungated", action="store_true", help="Allow publishing provisional JSON before Phase 5 gate")
+    p.add_argument("--igl-adjustment", choices=["fixed", "apm"], default="fixed",
+                   help="Fixed league offset (default) or per-IGL calling deviation from `cs2wp team-factor`")
     p = sub.add_parser("validate-war", help="WAR split-half reliability, and whether prior lineup WAR adds to Elo")
     p.add_argument("--test-from", default="2026-03-01", help="Score maps on or after YYYY-MM-DD")
     p.add_argument("--min-rounds", type=int, default=300)
+    p = sub.add_parser("team-factor", help="Team-map residual, adjusted plus-minus, and IGL calling attribution")
+    p.add_argument("--min-rounds", type=int, default=300)
+    p.add_argument("--resamples", type=int, default=1000)
+    p.add_argument("--publish", action="store_true", help="Write public/data/war/teams.json if Stage 1 gate passes")
 
     args = ap.parse_args()
     handlers = {"sync": cmd_sync, "states": cmd_states, "train": cmd_train, "credit": cmd_credit,
@@ -239,7 +252,8 @@ def main() -> None:
                 "patch-candidates": cmd_patch_candidates, "patch-report": cmd_patch_report,
                 "validate": cmd_validate, "publish": cmd_publish, "positions": cmd_positions, "roles": cmd_roles,
                 "validate-roles": cmd_validate_roles, "baselines": cmd_baselines, "duels": cmd_duels,
-                "usage": cmd_usage, "igls": cmd_igls, "war": cmd_war, "validate-war": cmd_validate_war}
+                "usage": cmd_usage, "igls": cmd_igls, "war": cmd_war, "validate-war": cmd_validate_war,
+                "team-factor": cmd_team_factor}
     sys.exit(handlers[args.cmd](args))
 
 

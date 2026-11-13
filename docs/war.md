@@ -2,7 +2,7 @@
 
 ## Overview
 
-Phase 6 of [spec.md](spec.md): wins above replacement, comparing each player with a replacement in the same role. Built so far: **CT positions** (item 1), **T roles** (item 2), **role validation** (item 3), **role baselines** (item 4), **expected duels** (item 5), **IGL tags** (item 6), **Wins Above Average & replacement hook** (item 7), and **bootstrap uncertainty & web publishing** (item 8). The code lives in `wp/` (`cs2wp positions`, `cs2wp roles`, `cs2wp validate-roles`, `cs2wp baselines`, `cs2wp duels`, `cs2wp igls`, `cs2wp war`, `cs2wp validate-war`). The public site publishes provisional WAA rankings at `/war` (`public/data/war/players.json`).
+Phase 6 of [spec.md](spec.md): wins above replacement, comparing each player with a replacement in the same role. Built so far: **CT positions** (item 1), **T roles** (item 2), **role validation** (item 3), **role baselines** (item 4), **expected duels** (item 5), **IGL tags** (item 6), **Wins Above Average & replacement hook** (item 7), **bootstrap uncertainty & web publishing** (item 8), and **team factor & APM** (`cs2wp team-factor`, gated off-site). The code lives in `wp/` (`cs2wp positions`, `cs2wp roles`, `cs2wp validate-roles`, `cs2wp baselines`, `cs2wp duels`, `cs2wp igls`, `cs2wp usage`, `cs2wp war`, `cs2wp validate-war`, `cs2wp team-factor`). The public site publishes provisional WAA rankings at `/war` (`public/data/war/players.json`).
 
 ## CT positions
 
@@ -303,6 +303,8 @@ Post-adjustment verification:
 
 **Replacement-level hook.** The CLI supports `--replacement-rate <float>`. Specifying a non-zero rate shifts `<version>_rw` by $(\text{rate} \times \text{rounds})$ linearly, switching the metric label from `WAA` to `WAR` without recomputing baselines or re-running credits.
 
+**IGL adjustment mode (`--igl-adjustment {fixed,apm}`).** `fixed` (the default) applies $\delta_{s,g}$ only. `apm` keeps that overall level and adds the centered per-IGL calling deviation $\theta_{\text{call}}$ from [Team factor](#team-factor) on the player's tagged IGL maps so both `<v>_rw` and `<v>_conversion_rw` absorb the calling term (`context + usage + conversion_rw == rw` stays exact and the rounds-weighted IGL mean remains `0.0000`), widening IGL 90% intervals by $\theta_{\text{call}}$'s series-bootstrap SE. Default stays `fixed` until Stage 2's lineup-change gate passes.
+
 ## Uncertainty (round-level bootstrap)
 
 For each player, played rounds are resampled with replacement using multinomial weights (1,000 resamples, seeded):
@@ -488,3 +490,49 @@ The React application renders the live WAA leaderboards at route `/war`:
 - Expandable player details showing CT map callouts, duel counts, kills above expected, context / usage / conversion with their sum, the resource detail (equipment share by buy type, AWP rounds, drops received and given, duels with team flash or smoke, deaths traded), and backlinks to Liquipedia player/team pages.
 - Provisional banner noting the 2026 dry-run credit source pending Phase 5 demo backfill completion.
 - Full CC-BY-SA Liquipedia and HLTV demo attribution.
+
+## Team factor
+
+`wp/src/cs2wp/teamfactor.py`. Measures round-wins over player-WAR expectation (`team-map-residuals.parquet`), estimates Ridge team factors `τ` (`team-factors.parquet`), fits sparse player/calling adjusted plus-minus `θ` (`player-apm.parquet`), and runs both shipping gates (`data/war/reports/team-factor.md`).
+
+```
+cd wp
+uv run cs2wp team-factor   # writes data/war/team-map-residuals.parquet, team-factors.parquet, player-apm.parquet, reports/team-factor.md
+```
+
+**Design constraints.**
+- **Out-of-sample expectation, no team Elo.** Same-map WPA credits sum to round outcomes minus drift, so expectation uses out-of-sample shrunk player rates (`loeo` across all other events by default; `prior` strictly before the event start for forward tests) with team-neutral `wpa_opp` as the primary credit and no Elo in the expectation.
+- **Unidentifiable average calling level.** Every 5-man lineup has one tagged IGL, so a constant caller offset cancels in $A - B$. Only differences *between* IGLs are identified from plus-minus; replacing the fixed offset keeps "the average IGL is league average (`0.0000`)" as the baseline level and adds centered per-IGL deviations on top.
+
+**Stage 1: Team-map residual & team factor `τ`.** Across 3,111 5v5 maps, `2,671` (`85.9%` of maps, `96.7%` of player slots) have all 10 players at `>= 100` out-of-sample rounds (`r_win = 5.68`). Linear `share − 0.5 = β·x` is fit leave-one-event-out weighted by rounds with no intercept, giving antisymmetric residuals `rounds × (share − 0.5 − β·x)`. Ridge (`residual = τ_A − τ_B`) fits `lp_team × IGL stint` (and plain `lp_team`), penalized by alternating-series split-half `k` with series-bootstrap 90% CIs.
+
+- **Stage 1 gate: FAIL.** For `wpa_opp` across `58` stints with 300+ rounds, split-half reliability is `r = 0.239`, 90% CI `(-0.017, +0.467)` (`k = 2,285` rounds / `105` maps; plain `lp_team` `r = 0.265`, 90% CI `-0.044, +0.523`, `k = 2,818` rounds / `129` maps across 43 teams). Walk-forward `prior` gain is `+0.40 × 1e-4` (90% CI `-1.11, +1.81`), and correlation with `team Elo − summed-WAR Elo` is `0.616`. Because the 90% CI includes 0, `cs2wp team-factor --publish` does not ship Teams to `/war`.
+
+| Metric (58 stints, 300+ rds) | β | Split-half r (90% CI) | k (rds / maps) | Forward prior gain × 1e-4 (90% CI) | Sanity r |
+| --- | --- | --- | --- | --- | --- |
+| `wpa_opp` (primary) | `1.548` | `0.239 (-0.017, +0.467)` | `2,285 / 105` | `+0.40 (-1.11, +1.81)` | `0.616` |
+| `wpa` | `2.176` | `0.586 (+0.405, +0.724)` | `508 / 23` | `+8.35 (+5.18, +11.36)` | `0.816` |
+| `nwpa_mancount` | `1.689` | `0.378 (+0.139, +0.574)` | `1,185 / 54` | `+2.06 (-0.19, +4.23)` | `0.700` |
+| `nwpa_event` | `1.321` | `0.387 (+0.151, +0.582)` | `1,139 / 52` | `+1.42 (-0.76, +3.52)` | `0.709` |
+| `rating3` | `0.183` | `0.350 (+0.114, +0.550)` | `1,336 / 61` | `+1.33 (-0.77, +3.36)` | `0.677` |
+| `kd_diff` | `0.196` | `0.293 (+0.052, +0.503)` | `1,731 / 79` | `+0.72 (-1.21, +2.63)` | `0.656` |
+
+Raw `wpa` reaches `r = 0.586` mainly because it still mixes opponent/team strength into player credit; `wpa_opp` strips own-team Elo pricing. Spec sense checks line up directionally on `wpa_opp` (`τ / 100 rounds`, 90% CI, maps over expected):
+- Positive calling/tactical environments: The MongolZ (`BLitz`) `+2.10 (+1.24, +3.03)` (`+22.57w`, 275 maps), Team Vitality (`ApEX`) `+0.74 (-0.12, +1.68)` (`+8.53w`, 308 maps), FURIA (`FalleN`) `+0.73 (-0.21, +1.58)` (`+9.40w`, 333 maps).
+- Stint & IGL contrasts: FaZe Clan (`Karrigan`) `+1.08 (-0.04, +2.21)` vs (`Twistzz`) `-0.10 (-0.94, +0.78)`; Team Falcons (`Karrigan`) `+0.65 (-0.19, +1.48)` vs (`Kyxsan`) `-0.14 (-1.16, +0.79)`; MOUZ (`XertioN`, June stint) `+1.53 (+0.39, +2.66)` (`+4.02w`) vs (`Brollan`) `-0.60 (-1.59, +0.35)` (`-4.88w`); G2 (`HuNter-`) `+0.22 (-0.86, +1.38)` vs (`Snax`) `-0.72 (-1.77, +0.35)`; Team Spirit (`Chopper`) `+0.77 (-0.24, +1.63)` vs (`Magixx`) `-0.17 (-1.41, +1.12)`.
+
+**Stage 2: Adjusted plus-minus (`θ_play`, `θ_call`).** Sparse weighted Ridge decomposes the same residual into per-player playing columns and per-IGL calling columns (active only on tagged IGL maps), tuned over `(alpha_play, calling_ratio)` by LOEO MSE:
+- **Calling vs playing shrinkage finding:** LOEO picks `alpha_play = 640,000` rounds and `calling_ratio = 64` (`alpha_call = 10,000` rounds), yielding `+0.299 × 1e-4` LOEO MSE gain over zero vs `+0.096 × 1e-4` peak for playing-only (`ratio = 0`, at `alpha_play = 80,000`) — roughly 3× the out-of-fold gain.
+- **Stage 2 gate: FAIL.** On the `89` maps (`89` series) where a lineup differs from its team's previous lineup, player+calling APM beats Stage 1 stint by `+2.046 × 1e-4`, 90% CI `(-0.805, +5.160)` (not significant). Player `θ_play` split-half across players with `2+` lineups is `-0.133` (`n = 178`; `-0.149` at 300+ rds, `n = 243`), reflecting sparse roster overlap on the current archive. Top calling terms (`θ_call / 100` rounds, 90% CI): `BLitz +1.03 (+0.58, +1.51)`, `XertioN +0.64 (+0.22, +1.07)`, `MAJ3R +0.57 (+0.09, +1.03)`, `Karrigan +0.53 (+0.06, +0.99)`, `HooXi +0.35 (-0.13, +0.80)`, `ApEX +0.34 (-0.11, +0.82)` vs `Brollan -0.34 (-0.79, +0.10)`, `S1n -0.35 (-0.70, -0.04)`, `Nitr0 -0.39 (-0.67, -0.13)`.
+
+**Stage 3: `fixed` vs `apm` side-by-side (`wpa_opp`, `production` model).** Both modes keep IGL mean `-0.0000 / 100`, league mean `+0.0000 / 100`, and `context + usage + conversion_rw == rw` exact; `fixed` remains default.
+
+| Player | `--igl-adjustment fixed` (per 100 / WAA) | `--igl-adjustment apm` (per 100 / WAA) | Shift (`Δ / 100`, CI half-width `Δw`) |
+| --- | --- | --- | --- |
+| `bLitz` | `+0.97 [+0.56, +1.41]` / `+10.67w` | `+1.90 [+1.28, +2.53]` / `+20.97w` | `+0.93`, `+0.40` |
+| `apEX` | `+0.62 [+0.22, +1.00]` / `+7.54w` | `+0.86 [+0.26, +1.49]` / `+10.54w` | `+0.24`, `+0.44` |
+| `FalleN` | `-0.30 [-0.67, +0.06]` / `-4.18w` | `-0.07 [-0.61, +0.57]` / `-0.95w` | `+0.23`, `+0.46` |
+| `karrigan` | `-1.95 [-2.36, -1.55]` / `-20.65w` | `-1.52 [-2.11, -0.88]` / `-16.15w` | `+0.43`, `+0.41` |
+| `xertioN` | `+0.90 [+0.49, +1.32]` / `+11.28w` | `+1.07 [+0.65, +1.51]` / `+13.51w` | `+0.17`, `+0.03` |
+| `Brollan` | `+0.41 [-0.08, +0.89]` / `+3.48w` | `-0.03 [-0.72, +0.62]` / `-0.27w` | `-0.44`, `+0.38` |
+| `ZywOo` (control) | `+2.86 [+2.41, +3.29]` / `+36.57w` | `+2.86 [+2.40, +3.31]` / `+36.69w` | `+0.00` |

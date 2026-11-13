@@ -17,6 +17,7 @@ from .paths import (
     DUEL_SIDES,
     IGLS,
     MODELS,
+    PLAYER_APM,
     PLAYER_WAR,
     PUBLIC_WAR,
     ROLE_ROUNDS,
@@ -83,32 +84,99 @@ def join_usage(rows: pl.DataFrame, path: Path = USAGE) -> pl.DataFrame:
     return rows.join(u.drop(*(f"{v}_trade_return" for v in VERSIONS)), on=["key", "steamid", "side"], how="left")
 
 
-def apply_igl_adjustment(rows: pl.DataFrame, adj: pl.DataFrame, replacement_rate: float = 0.0) -> pl.DataFrame:
+def apply_igl_adjustment(
+    rows: pl.DataFrame,
+    adj: pl.DataFrame,
+    replacement_rate: float = 0.0,
+    igl_calling: pl.DataFrame | None = None,
+) -> pl.DataFrame:
     """Adds `<v>_rw`: round-wins above replacement (or above average when `replacement_rate == 0.0`).
 
-    With usage joined, also `<v>_conversion_rw`: conversion plus the same IGL and replacement terms, so
-    context + usage + conversion_rw = rw.
+    With `igl_calling` (`steamid`, `theta_call`), adds per-IGL calling deviation centered so the
+    rounds-weighted IGL mean stays 0.0, on IGL maps only. With usage joined, also `<v>_conversion_rw`:
+    conversion plus the same IGL and replacement terms, so context + usage + conversion_rw = rw.
     """
     adj_cols = ["side", "is_igl", *(f"{v}_igl_adj" for v in VERSIONS)]
-    shift = lambda v: (pl.col(f"{v}_igl_adj").fill_null(0.0) - replacement_rate) * pl.col("rounds")
-    out = rows.join(adj.select(adj_cols), on=["side", "is_igl"], how="left").with_columns(
-        (pl.col(f"{v}_above") + shift(v)).alias(f"{v}_rw") for v in VERSIONS)
+    out = rows.join(adj.select(adj_cols), on=["side", "is_igl"], how="left")
+    if igl_calling is not None and not igl_calling.is_empty():
+        base = out.filter(pl.col("role").is_not_null()) if "role" in out.columns else out
+        igl_rows = (
+            base.filter(pl.col("is_igl"))
+            .join(igl_calling.select(pl.col("steamid").cast(out.schema["steamid"]), "theta_call"), on="steamid", how="left")
+            .with_columns(pl.col("theta_call").fill_null(0.0))
+        )
+        tot_rds = int(igl_rows["rounds"].sum())
+        mean_call = float((igl_rows["rounds"] * igl_rows["theta_call"]).sum() / tot_rds) if tot_rds > 0 else 0.0
+        call_df = igl_calling.select(
+            pl.col("steamid").cast(out.schema["steamid"]),
+            (pl.col("theta_call") - mean_call).alias("_theta_call"),
+        )
+        out = (
+            out.join(call_df, on="steamid", how="left")
+            .with_columns(
+                pl.when(pl.col("is_igl"))
+                .then(pl.col("_theta_call").fill_null(-mean_call if tot_rds > 0 else 0.0))
+                .otherwise(0.0)
+                .alias("igl_call_adj")
+            )
+            .drop("_theta_call")
+        )
+        shift = lambda v: (pl.col(f"{v}_igl_adj").fill_null(0.0) + pl.col("igl_call_adj") - replacement_rate) * pl.col("rounds")
+    else:
+        shift = lambda v: (pl.col(f"{v}_igl_adj").fill_null(0.0) - replacement_rate) * pl.col("rounds")
+
+    out = out.with_columns((pl.col(f"{v}_above") + shift(v)).alias(f"{v}_rw") for v in VERSIONS)
     if "wpa_conversion" in out.columns:
         out = out.with_columns((pl.col(f"{v}_conversion") + shift(v)).alias(f"{v}_conversion_rw") for v in VERSIONS)
     return out
 
 
-def map_outcomes(refs: list[MapRef]) -> pl.DataFrame:
+def map_scores(refs: list[MapRef]) -> pl.DataFrame:
+    """Per `(key, lp_team)` rounds won, total rounds played, and binary win indicator."""
     rows = []
     for ref in refs:
         rpath = ref.dir / "rounds.parquet"
         if not rpath.exists():
             continue
-        last = pl.read_parquet(rpath, columns=["round_num", "ct_lp_team", "t_lp_team", "winner_lp_team"]).sort("round_num").row(-1, named=True)
+        df = pl.read_parquet(rpath, columns=["round_num", "ct_lp_team", "t_lp_team", "winner_lp_team"])
+        if df.is_empty():
+            continue
+        last = df.sort("round_num").row(-1, named=True)
+        n_rounds = int(df.height)
         for team in (last["ct_lp_team"], last["t_lp_team"]):
             if team:
-                rows.append({"key": ref.key, "lp_team": team, "won": float(team == last["winner_lp_team"])})
-    return pl.DataFrame(rows) if rows else pl.DataFrame(schema={"key": pl.String, "lp_team": pl.String, "won": pl.Float64})
+                rows.append({
+                    "key": ref.key,
+                    "lp_team": team,
+                    "rounds_won": int((df["winner_lp_team"] == team).sum()),
+                    "rounds": n_rounds,
+                    "won": float(team == last["winner_lp_team"]),
+                })
+    schema = {"key": pl.String, "lp_team": pl.String, "rounds_won": pl.Int64, "rounds": pl.Int64, "won": pl.Float64}
+    return pl.DataFrame(rows) if rows else pl.DataFrame(schema=schema)
+
+
+def map_outcomes(refs: list[MapRef]) -> pl.DataFrame:
+    return map_scores(refs).select("key", "lp_team", "won")
+
+
+def load_adjusted(
+    window_from: str | None = None,
+    replacement_rate: float = 0.0,
+    igl_calling: pl.DataFrame | None = None,
+) -> tuple[pl.DataFrame, pl.DataFrame]:
+    """Load role-rounds joined with IGL tags and usage, then apply side x IGL centering."""
+    rr = pl.read_parquet(ROLE_ROUNDS)
+    igls = pl.read_parquet(IGLS) if IGLS.exists() else assign_igls(rr, load_igl_table())
+    joined = join_usage(
+        rr.join(igls.select("key", "steamid", "is_igl"), on=["key", "steamid"], how="left").with_columns(
+            pl.col("is_igl").fill_null(False)
+        )
+    )
+    if window_from:
+        joined = joined.filter(pl.col("date") >= window_from)
+    adj = fit_igl_adjustment(joined)
+    return apply_igl_adjustment(joined, adj, replacement_rate, igl_calling), adj
 
 
 def estimate_rounds_per_win(adjusted_rows: pl.DataFrame, outcomes: pl.DataFrame) -> float:
@@ -140,12 +208,14 @@ def load_round_values(
 
     With `usage_rounds`, also `<v>_<term>_r` for the three terms; conversion carries the IGL and replacement terms.
     """
+    has_call = "igl_call_adj" in adjusted_rows.columns
     meta_cols = [
         "key",
         "steamid",
         "side",
         *(f"{v}_baseline" for v in VERSIONS),
         *(f"{v}_igl_adj" for v in VERSIONS),
+        *(["igl_call_adj"] if has_call else []),
     ]
     meta = adjusted_rows.filter(pl.col("role").is_not_null()).select(meta_cols)
     frames = []
@@ -165,12 +235,13 @@ def load_round_values(
         )
     if not frames:
         return pl.DataFrame()
+    call_shift = pl.col("igl_call_adj").fill_null(0.0) if has_call else pl.lit(0.0)
     out = (
         pl.concat(frames, how="vertical_relaxed")
         .join(meta, on=["key", "steamid", "side"], how="inner")
         .with_columns(
             *(
-                (pl.col(v) - pl.col(f"{v}_baseline") + pl.col(f"{v}_igl_adj") - replacement_rate).alias(f"{v}_rw")
+                (pl.col(v) - pl.col(f"{v}_baseline") + pl.col(f"{v}_igl_adj") + call_shift - replacement_rate).alias(f"{v}_rw")
                 for v in VERSIONS
             )
         )
@@ -181,7 +252,7 @@ def load_round_values(
         out = (out.join(usage_rounds.select("key", pl.col("round_num").cast(out.schema["round_num"]), "steamid", *terms),
                         on=["key", "round_num", "steamid"], how="left")
                .with_columns(*(pl.col(f"{v}_{t}").alias(f"{v}_{t}_r") for v in VERSIONS for t in ("context", "usage")),
-                             *((pl.col(f"{v}_conversion") + pl.col(f"{v}_igl_adj") - replacement_rate)
+                             *((pl.col(f"{v}_conversion") + pl.col(f"{v}_igl_adj") + call_shift - replacement_rate)
                                .alias(f"{v}_conversion_r") for v in VERSIONS)))
         cols += [f"{v}_{t}_r" for v in VERSIONS for t in TERMS]
     return out.select("steamid", "key", "round_num", *cols).sort("steamid", "key", "round_num")
@@ -194,15 +265,18 @@ def bootstrap_players(
     resamples: int = DEFAULT_RESAMPLES,
     seed: int = 0,
     columns: dict[str, str] | None = None,
+    call_se: dict[int, float] | None = None,
 ) -> pl.DataFrame:
     """90% (`p5`, `p95`) and `p50` intervals by resampling each player's played rounds with replacement.
 
     `columns` maps an output prefix to a per-round column; by default each version's `<v>_rw`. Rounds where a
-    column is null count as zero.
+    column is null count as zero. With `call_se`, normal draws widen `rw` and `conversion` columns by each
+    IGL's per-round calling SE scaled by their IGL-round fraction.
     """
     if round_values.is_empty() or not steamids:
         return pl.DataFrame(schema={"steamid": pl.UInt64})
     columns = columns or {v: f"{v}_rw" for v in VERSIONS}
+    call_idx = [j for j, prefix in enumerate(columns) if prefix in VERSIONS or prefix.endswith("_conversion")]
     sub = round_values.filter(pl.col("steamid").is_in(steamids)).sort("steamid", "key", "round_num")
     rng = np.random.default_rng(seed)
     out = []
@@ -212,6 +286,9 @@ def bootstrap_players(
         n_r = len(vals)
         weights = rng.multinomial(n_r, np.full(n_r, 1.0 / n_r), size=resamples).astype(np.float64)
         means = (weights @ vals) / n_r
+        se = call_se.get(sid, 0.0) if call_se else 0.0
+        if se > 0.0 and call_idx:
+            means[:, call_idx] += rng.normal(0.0, se, size=(resamples, 1))
         q = np.quantile(means, [0.05, 0.50, 0.95], axis=0)
         row: dict[str, object] = {"steamid": sid}
         for j, prefix in enumerate(columns):
@@ -799,22 +876,24 @@ def build(
     model: str | None = None,
     publish: bool = False,
     allow_ungated: bool = False,
+    igl_adjustment: str = "fixed",
 ) -> int:
-    rr = pl.read_parquet(ROLE_ROUNDS)
-    igls = pl.read_parquet(IGLS) if IGLS.exists() else assign_igls(rr, load_igl_table())
-    joined = join_usage(rr.join(igls.select("key", "steamid", "is_igl"), on=["key", "steamid"], how="left").with_columns(
-        pl.col("is_igl").fill_null(False)
-    ))
-    has_usage = "wpa_usage" in joined.columns
-    if window_from:
-        joined = joined.filter(pl.col("date") >= window_from)
-    if joined.is_empty():
+    if igl_adjustment not in ("fixed", "apm"):
+        raise ValueError(f"Unknown igl_adjustment: {igl_adjustment}")
+    igl_calling = None
+    if igl_adjustment == "apm":
+        if not PLAYER_APM.exists():
+            print(f"Missing {PLAYER_APM}; run `cs2wp team-factor` first.")
+            return 1
+        igl_calling = pl.read_parquet(PLAYER_APM).filter(pl.col("is_igl_caller")).select("steamid", "theta_call", "theta_call_se")
+
+    adjusted, adj = load_adjusted(window_from=window_from, replacement_rate=replacement_rate, igl_calling=igl_calling)
+    if adjusted.is_empty():
         print("No role-round rows in the requested window; run `cs2wp baselines` first.")
         return 1
+    has_usage = "wpa_usage" in adjusted.columns
 
     refs = [r for r in catalog() if (not window_from or r.date >= window_from)]
-    adj = fit_igl_adjustment(joined)
-    adjusted = apply_igl_adjustment(joined, adj, replacement_rate)
     r_win = estimate_rounds_per_win(adjusted, map_outcomes(refs))
 
     duel_sides = pl.read_parquet(DUEL_SIDES)
@@ -830,7 +909,20 @@ def build(
         usage_rounds = pl.read_parquet(USAGE_ROUNDS)
         columns |= {f"{v}_{t}": f"{v}_{t}_r" for v in VERSIONS for t in TERMS}
     round_vals = load_round_values(refs, adjusted, replacement_rate, usage_rounds)
-    boot = bootstrap_players(round_vals, players["steamid"].to_list(), r_win, resamples=resamples, columns=columns)
+    call_se: dict[int, float] | None = None
+    if igl_calling is not None and not igl_calling.is_empty():
+        valid_adj = adjusted.filter(pl.col("role").is_not_null())
+        igl_frac = (
+            valid_adj.group_by("steamid")
+            .agg((pl.col("rounds").filter(pl.col("is_igl")).sum() / pl.col("rounds").sum()).alias("f_igl"))
+            .join(igl_calling.select(pl.col("steamid").cast(valid_adj.schema["steamid"]), "theta_call_se"), on="steamid", how="inner")
+        )
+        call_se = {
+            int(r["steamid"]): float(r["f_igl"] * r["theta_call_se"])
+            for r in igl_frac.iter_rows(named=True)
+            if r["f_igl"] > 0 and r["theta_call_se"] > 0
+        }
+    boot = bootstrap_players(round_vals, players["steamid"].to_list(), r_win, resamples=resamples, columns=columns, call_se=call_se)
     players = players.join(boot, on="steamid", how="left").sort("wpa_waa", descending=True)
 
     val = validation_metrics(adjusted, duel_sides, box_per_map, players, min_rounds=min_rounds)

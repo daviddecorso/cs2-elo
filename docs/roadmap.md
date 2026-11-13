@@ -89,6 +89,7 @@ See [win-probability.md](win-probability.md).
 - [x] **Run `cs2wp duels` on the GPU machine** for the smoke-support experiment and flash-gift values, then log the result in `docs/war.md`. (Smoke experiment rejected: +0.00003, 90% CI −0.00001 to +0.00008; teammate flashes worth 4,504 kills / 0.67 per 100 player-rounds; `flashGift` published to `players.json`.)
 - [x] **Fold support into the split?** No, for now. Smoke support is rejected (+0.00003 log loss). Teammate flashes (4,504 kills, 0.67 per 100 player-rounds) stay a descriptive `flashGift` stat beside usage and conversion, not part of the split.
 - [ ] **Replacement pool for usage.** `cs2wp usage` compares with the average tier-1 player at each role. Refit the expectations on replacement-level players once tier-2 demos exist.
+- [ ] **Re-run team factor and APM gates after backfill (`cs2wp team-factor`).** Stage 1 (`r = 0.239`, 90% CI `−0.017` to `+0.467`) and Stage 2 (`89` lineup-change maps, 90% CI `−0.805` to `+5.160 × 1e-4`) cross zero on today's archive; re-test after 2025 backfill and tier-2 coverage grow before publishing Teams to `/war` or switching `--igl-adjustment` default from `fixed` to `apm`.
 
 ## Open items
 

@@ -50,7 +50,7 @@ PAPER_BIN_GAP = 0.03
 
 
 def _monotone_constraints(features: list[str]) -> tuple[int, ...]:
-    pos = {"ct_alive", "ct_hp", "ct_kits", "alive_diff", "kit_frac", "kit_time"}
+    pos = {"ct_alive", "ct_hp", "ct_kits"}
     neg = {"t_alive", "t_hp"}
     return tuple(1 if f in pos else (-1 if f in neg else 0) for f in features)
 

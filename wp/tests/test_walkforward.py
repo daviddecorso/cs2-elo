@@ -8,7 +8,18 @@ import xgboost as xgb
 from cs2wp import evaluate as ev
 from cs2wp.book import design, monday, recal_on
 from cs2wp.pipeline import _make_qdm, _predict_booster, _predict_frame, _train_booster, resolve_device
-from cs2wp.walkforward import HALF_LIVES, VARIANTS, _month_end, _months, _next_month, _weights, recalibrate
+from cs2wp.walkforward import (
+    HALF_LIVES,
+    PARAM_SETS,
+    PARAMS,
+    VARIANTS,
+    _bucket_kits,
+    _month_end,
+    _months,
+    _next_month,
+    _weights,
+    recalibrate,
+)
 
 
 def _states(dates: list[str]) -> pl.DataFrame:
@@ -17,7 +28,7 @@ def _states(dates: list[str]) -> pl.DataFrame:
 
 def test_weights_keep_round_total_and_halve_per_half_life():
     assert None not in HALF_LIVES and HALF_LIVES == (365, 180, 90)
-    assert "base_defuse_margin" not in VARIANTS
+    assert not {"base_defuse_margin", "base_alive_kits", "base_kit_time"} & set(VARIANTS)
     df = _states(["2026-01-01", "2025-12-02"])
     w = _weights(df, "2026-01-01", 30)
     assert np.isclose(w.sum(), 2)
@@ -83,6 +94,50 @@ def test_readouts_split_pistols_buys_and_elo_gaps():
     assert {row["buy"] for row in r["buy"]} == {"pistol", "eco/full", "full/full", "force/eco"}
     assert {row["elo_gap"] for row in r["elo_gap"]} == {"100..200", "no rating", "-50..0"}
     assert r["map"][0]["rounds"] == 4
+
+
+def test_param_sets_vary_only_depth_and_child_weight():
+    assert PARAM_SETS["d4w5"] == PARAMS
+    for params in PARAM_SETS.values():
+        assert {k: v for k, v in params.items() if k not in ("max_depth", "min_child_weight")} == {
+            k: v for k, v in PARAMS.items() if k not in ("max_depth", "min_child_weight")}
+
+
+def test_bucket_kits_splits_flagged_buckets_and_pools_three_plus():
+    df = pl.DataFrame({
+        "key": ["a", "a", "b", "c", "d"], "round_num": [1, 1, 1, 1, 1],
+        "ct_alive": [5, 5, 5, 5, 4], "t_alive": [4, 4, 4, 4, 4], "bomb_planted": [True] * 5,
+        "ct_kits": [0, 0, 3, 5, 0], "ct_win": [False, False, True, True, True],
+    })
+    rows = _bucket_kits(df, np.array([0.2, 0.4, 0.5, 0.7, 0.9]))
+    assert [(r["bucket"], r["kits"], r["rounds"]) for r in rows] == [("5v4", "0", 1), ("5v4", "3+", 2)]
+    assert np.isclose(rows[0]["gap"], 0.3)
+    assert np.isclose(rows[1]["gap"], -0.4)
+
+
+def _paired_frame(rounds: int = 400, per_round: int = 20, seed: int = 0):
+    rng = np.random.default_rng(seed)
+    rid = np.repeat(np.arange(rounds), per_round)
+    p = np.repeat(rng.uniform(0.05, 0.95, rounds), per_round)
+    y = np.repeat(rng.random(rounds), per_round) < p
+    group = np.where(np.arange(rid.size) % 2 == 0, rid % 2, -1)
+    return rid, y, p, {"g": group}
+
+
+def test_paired_bootstrap_identical_runs_give_zero_deltas():
+    rid, y, p, groups = _paired_frame()
+    r = ev.paired_bootstrap(rid, y, p, p.copy(), groups, n=50, bins=4)
+    assert r["log_loss"]["delta"] == 0 and r["log_loss"]["ci"] == [0.0, 0.0]
+    assert r["max_bin_gap"]["a"] > 0 and np.allclose(r["max_bin_gap"]["ci"], 0)
+    assert all(np.isclose(row["delta"], 0) and np.allclose(row["ci"], 0) for row in r["groups"]["g"])
+    assert [row["rounds"] for row in r["groups"]["g"]] == [200, 200]
+
+
+def test_paired_bootstrap_shifted_run_gives_an_interval_excluding_zero():
+    rid, y, p, groups = _paired_frame()
+    r = ev.paired_bootstrap(rid, y, p, np.clip(p + 0.15, 0, 0.999), groups, n=100)
+    assert r["log_loss"]["ci"][0] > 0
+    assert all(row["ci"][0] > 0 for row in r["groups"]["g"])
 
 
 def test_quantiledmatrix_booster_saves_and_matches_xgbclassifier():

@@ -35,7 +35,8 @@ uv run pytest
 uv run cs2wp sync               # mirror maps at the current parser version into data/demos/mirror/
 uv run cs2wp states [--map 2399384/m1] [--force]
 uv run cs2wp train [--test-from 2026-01-01] [--model latest] [--ablations]
-uv run cs2wp walk-forward [--variant full_plant_clock_bomb_dist] [--model production]
+uv run cs2wp walk-forward [--variant full_plant_clock_bomb_dist] [--params d4w5] [--model production]
+uv run cs2wp compare [--base production] --model <dir>   # paired round-bootstrap intervals, no training
 uv run cs2wp cross-fit [--model production]
 uv run cs2wp monthly [--model production] [--today YYYY-MM-DD] [--force]
 uv run cs2wp credit [--model production] [--recredit]
@@ -46,6 +47,8 @@ uv run cs2wp publish [--model production] [--upload]
 Training runs (`train`, `walk-forward`, `cross-fit`, `monthly`, `credit --recredit`, `duels`) go on the GPU machine. Push the code, pull it there and run them. Don't run them on the dev Mac.
 
 `train`, `walk-forward` and `monthly` exit 0 on a gate pass and 2 on a fail. `publish` refuses a model that hasn't passed.
+
+`--params` picks the tree settings from `walkforward.PARAM_SETS` and is written into `index.json`, so `cross-fit` and `monthly` reuse it. `compare` runs on the dev Mac. It writes `compare-<base>.json` into the model directory, and it refuses runs whose scored states no longer line up with the local states.
 
 **Monthly job.** Run `npm run export-map-elo`, `cs2wp sync`, `cs2wp states`, `cs2wp monthly`, then `cs2wp credit` early each month. `monthly` does three things:
 

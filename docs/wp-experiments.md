@@ -17,7 +17,44 @@ A variant replaces the base when either holds, without worsening any other flagg
 
 Moves under 0.001 count as noise. The second rule was added on 2026-11-12, because a feature can fix calibration in rare states without moving pooled log loss.
 
-## 2026-11-13: man-advantage × kits features (pending GPU run, latest)
+**Paired comparison (from 2026-11-13).** Judge a variant against the base with `uv run cs2wp compare --base production --model <dir>`. It needs no training. It resamples rounds once for both runs and gives 95% intervals on Δ log loss, Δ max bin gap, and Δ|gap| per bucket and per kit slice of the flagged post-plant buckets. This replaces the unpaired "non-worse within the base's CI" check, which is about ±0.004 wide, and the bin-gap pass or fail on a 0.001 margin. The gate itself still runs in `walk-forward`.
+
+## 2026-11-13: deeper trees for the 5v4 kit slope (pending GPU run, latest)
+
+**Question:** is the 5v4 post-plant miss a capacity problem? The kit gap is in the training data and stable (table below). Fitting it needs planted × CT alive × T alive × kits, which takes a whole depth-4 tree for about 0.4% of rounds. `PARAMS` was picked on the 2025-only grid for `full` and never re-tuned under walk-forward.
+
+**Variants** (`walkforward.PARAM_SETS`, base features, only `max_depth` and `min_child_weight` change):
+
+- `d5w10`: depth 5, min child weight 10.
+- `d6w20`: depth 6, min child weight 20.
+
+Child weight rises with depth, so the extra splits can't isolate a handful of rounds.
+
+**Runs** (GPU machine, then `compare` locally after copying the model directories back):
+
+```
+uv run cs2wp walk-forward --params d5w10 --model depth5
+uv run cs2wp walk-forward --params d6w20 --model depth6
+uv run cs2wp compare --base production --model depth5
+uv run cs2wp compare --base production --model depth6
+```
+
+**Decision rule, fixed before the run.** Adopt a depth variant only if all of these hold:
+
+- The Δ log loss interval does not sit above 0.
+- 5v4 post-plant |gap| improves, and the kits 2 and 3+ slices both move toward observed.
+- No bucket's |gap| worsens by more than 0.005 with an interval excluding 0.
+- The Δ max bin gap interval does not sit above 0.
+
+The 0.005 floor was added after a dry run of `compare`, before any depth result existed. Paired intervals on big buckets exclude 0 for changes of 0.0001: `base_kit_time`, which moved nothing, had six buckets "worse" by +0.0001 to +0.0018 without it.
+
+If neither passes, log both as rejected and stop feature work on these buckets. At 300–400 test rounds, a third round of features would be fitting the test set.
+
+5v3 post-plant is left alone. Its miss is not monotone in kits (−0.10, −0.19, −0.03, +0.07 for 0, 1, 2, 3+) and sits almost entirely in 2026 H2 (−0.102 against −0.023 in H1). At 313 rounds that reads as noise.
+
+**Results:** pending.
+
+## 2026-11-13: man-advantage × kits features, both rejected
 
 **Question:** can 5v4 and 5v3 post-plant borrow strength from the common man-up retakes? The 5v4 miss is in kits (see the 2026-11-12 diagnostic below). At depth 4, the trees need `bomb_planted`, `ct_alive` and `t_alive` splits before `ct_kits` can split, and 400 rounds barely move pooled loss. `defuse_margin` described only the nearest CT, so it pooled nothing.
 
@@ -26,7 +63,42 @@ Moves under 0.001 count as noise. The second rule was added on 2026-11-12, becau
 - `base_alive_kits`: base + `alive_diff` (CT alive − T alive) + `kit_frac` (kits ÷ CT alive). One split puts 5v4 with 4v3, 3v2 and 2v1.
 - `base_kit_time`: base + `kit_time` (kits × bomb seconds left, null before the plant). Targets the early post-plant miss.
 
-**Results:** pending `walk-forward` on the GPU machine.
+**Results** (pooled walk-forward, base `0.44830`, CI `[0.4443, 0.4524]`, max bin gap `0.0376` vs limit `0.0387`):
+
+| Variant | Log loss | Max bin gap / limit | 5v4 post | 5v3 post | Newly flagged |
+|---|---|---|---|---|---|
+| base | `0.44830` | `0.0376 / 0.0387` | `0.309` vs `0.375`* | `0.633` vs `0.694`* | none |
+| `base_alive_kits` | `0.44918` | `0.0500 / 0.0417` (fail) | `0.383` vs `0.375` | `0.735` vs `0.694` | `5v2` post `0.947` vs `0.891`* |
+| `base_kit_time` | `0.44806` | `0.0474 / 0.0388` (fail) | `0.310` vs `0.375`* | `0.633` vs `0.694`* | none |
+
+- **`base_alive_kits` rejected.** It did not confirm the pooling diagnosis (corrected below). `alive_diff` shifts every man-up state toward CT. It overshoots `5v2` post-plant (flagged), `4v2` post-plant (`0.839` vs `0.804`), `5v3` late (`0.50` vs `0.37`, 53 rounds) and pre-plant `1v2` (`0.198` vs `0.161`). Log loss worsened by `0.0009`. The paired interval is `[+0.0003, +0.0013]`, so that is a real loss, not noise. The pooled bin-gap gate fails.
+- **`base_kit_time` rejected.** It changed nothing: all buckets and clock phases are within `0.002` of base. The bin-gap fail at `0.0474` comes with essentially unchanged log loss. The paired interval on Δ max bin gap is `[−0.020, +0.024]`, so the move from `0.0376` cannot be told from noise. The gate's pass or fail on a 0.001 margin is not evidence either way.
+
+**Correction: `base_alive_kits` level-shifted 5v4; it did not fix the kit slope.** 5v4 post-plant, predicted − observed by CT kits:
+
+| Kits | Rounds | base | `base_alive_kits` |
+|---|---|---|---|
+| 0 | 171 | −0.010 | +0.061 |
+| 1 | 92 | −0.026 | +0.048 |
+| 2 | 54 | −0.115 | −0.044 |
+| 3+ | 88 | −0.198 | −0.111 |
+
+The bucket mean lands on target because the low-kit overshoot cancels the high-kit undershoot. The same level shift is what overshoots 5v2, 4v2 and late 5v3. Those are all post-plant, so `alive_diff × bomb_planted` would keep them and spare only pre-plant 1v2.
+
+`kit_frac` pools in the wrong direction. Round-level CT win rate, kits ≥ 2 against kits < 2:
+
+| Bucket | 2025 H1 | 2025 H2 | 2026 H1 | 2026 H2 |
+|---|---|---|---|---|
+| 5v4 post | 0.55 / 0.38 | 0.59 / 0.40 | 0.62 / 0.35 | 0.66 / 0.37 |
+| 4v3 post | 0.55 / 0.49 | 0.61 / 0.49 | 0.62 / 0.46 | 0.65 / 0.47 |
+
+Kits are worth about 23 points at 5v4 and 13 at 4v3. `kit_frac` scores three kits as 0.60 at 5v4 and 0.75 at 4v3, so it tells the model kits matter less at 5v4. The gap shows in every half-year, so this is not 2026 drift, and bucket win rates are flat across the four half-years too. The signal is in the training data; the model under-fits it.
+
+How much this matters: 5v4 post is −0.066 at about 2.8 standard errors and 5v3 is 2.3. Unflagged buckets are further out in standard errors, such as 4v4 pre-plant at −0.025 on 13,533 rounds. The fixed 0.05 flag picks out small buckets.
+
+`alive_diff`, `kit_frac` and `kit_time` were removed from the code. The `alive_kits` and `kit_time` model directories stay for `compare`.
+
+- Next: deeper trees (entry above).
 
 ## 2026-11-12: `defuse_margin` rejected; drop `None` from `HALF_LIVES`
 

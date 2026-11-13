@@ -31,6 +31,13 @@ from .pipeline import (
 
 # The tree settings the 2025-only grid picked for `full` (wp-experiments.md, 2026-11-11); only the half-life is tuned.
 PARAMS = {"max_depth": 4, "min_child_weight": 5, "learning_rate": 0.05, "subsample": 0.5, "colsample_bytree": 0.8}
+# Deeper trees for the planted × CT alive × T alive × kits interaction; child weight rises with depth so the extra
+# splits can't isolate a handful of rounds.
+PARAM_SETS = {
+    "d4w5": PARAMS,
+    "d5w10": {**PARAMS, "max_depth": 5, "min_child_weight": 10},
+    "d6w20": {**PARAMS, "max_depth": 6, "min_child_weight": 20},
+}
 # Days; at least mild decay on every fold so 0.0001 validation ties can't revert 2026 folds to unweighted early-2025 data.
 HALF_LIVES = (365, 180, 90)
 VALIDATION_DAYS = 90
@@ -43,18 +50,17 @@ VARIANTS = {
     **FEATURES,
     **ABLATIONS,
     BASE: _BASE_FEATURES,
-    # Pool 5v4/5v3 retakes with the common man-up buckets (wp-experiments.md, 2026-11-13).
-    "base_alive_kits": _BASE_FEATURES + ["alive_diff", "kit_frac"],
-    "base_kit_time": _BASE_FEATURES + ["kit_time"],
 }
 # (CT alive, T alive, planted): the post-plant buckets still flagged at full scale.
 BUCKETS = [(2, 1, 1), (4, 3, 1), (5, 3, 1), (5, 4, 1)]
 # Bomb seconds left at or above this count as early post-plant in the bucket split.
 EARLY_PLANT_LEFT = 20
-ID = ["key", "round_num", "date", "map", "ct_win", "ct_alive", "t_alive", "bomb_planted", "since_plant", "ct_equip",
-      "t_equip", "elo_diff_ct"]
-DERIVED = {"ct_bomb_graph", "alive_diff", "kit_frac", "kit_time"}
-DERIVED_INPUTS = ["bomb_site", "ct_graph_a", "ct_graph_b", "ct_kits"]
+# CT kit counts in the kit split; the last slice is that many or more.
+KIT_SLICES = (0, 1, 2, 3)
+ID = ["key", "round_num", "date", "map", "ct_win", "ct_alive", "t_alive", "bomb_planted", "since_plant", "ct_kits",
+      "ct_equip", "t_equip", "elo_diff_ct"]
+DERIVED = {"ct_bomb_graph"}
+DERIVED_INPUTS = ["bomb_site", "ct_graph_a", "ct_graph_b"]
 
 
 def _load_all(features: list[str], month_prefix: str | None = None) -> pl.DataFrame:
@@ -118,7 +124,8 @@ def _y(df: pl.DataFrame) -> np.ndarray:
     return df["ct_win"].cast(pl.Int8).to_numpy()
 
 
-def _tune_fit(train: pl.DataFrame, as_of: str, features: list[str], maps: list[str], label: str, device: str = "auto"):
+def _tune_fit(train: pl.DataFrame, as_of: str, features: list[str], maps: list[str], label: str, params: dict,
+              device: str = "auto"):
     """Half-life and tree count from the last VALIDATION_DAYS before `as_of`, then a refit on all of `train`."""
     val_from = (date.fromisoformat(as_of) - timedelta(days=VALIDATION_DAYS)).isoformat()
     fit, val = train.filter(pl.col("date") < val_from), train.filter(pl.col("date") >= val_from)
@@ -134,7 +141,7 @@ def _tune_fit(train: pl.DataFrame, as_of: str, features: list[str], maps: list[s
     for h in HALF_LIVES:
         qdm_fit = xgb.QuantileDMatrix(xf, yf, weight=weights_by_h[h], enable_categorical=True)
         qdm_val = xgb.QuantileDMatrix(xv, yv, ref=qdm_fit, enable_categorical=True)
-        bst = _train_booster(qdm_fit, PARAMS, n_estimators=2000, evals=[(qdm_val, "val")],
+        bst = _train_booster(qdm_fit, params, n_estimators=2000, evals=[(qdm_val, "val")],
                              early_stopping_rounds=50, monotone_constraints=mc, device=resolved)
         best_it = int(bst.best_iteration)
         p_val = bst.predict(qdm_val, iteration_range=(0, best_it + 1))
@@ -151,7 +158,7 @@ def _tune_fit(train: pl.DataFrame, as_of: str, features: list[str], maps: list[s
     qdm_train = _make_qdm(train, features, maps, yt, weight=wt)
     del yt, wt
     gc.collect()
-    model = _train_booster(qdm_train, PARAMS, n_estimators=best["best_iteration"] + 1,
+    model = _train_booster(qdm_train, params, n_estimators=best["best_iteration"] + 1,
                            monotone_constraints=mc, device=resolved)
     del qdm_train
     gc.collect()
@@ -163,11 +170,11 @@ def _rounds(df: pl.DataFrame) -> int:
     return df.select(pl.struct("key", "round_num").n_unique()).item()
 
 
-def _fold(df: pl.DataFrame, month: str, features: list[str], maps: list[str], device: str = "auto"):
+def _fold(df: pl.DataFrame, month: str, features: list[str], maps: list[str], params: dict, device: str = "auto"):
     train = df.filter(pl.col("date") < _month_start(month))
     test = df.filter(pl.col("date").str.starts_with(month))
     train_rounds = dict(train.group_by("map").agg(pl.struct("key", "round_num").n_unique()).iter_rows())
-    model, info = _tune_fit(train, _month_start(month), features, maps, month, device=device)
+    model, info = _tune_fit(train, _month_start(month), features, maps, month, params, device=device)
     del train
     gc.collect()
     p = _predict_frame(model, test, features, maps) if test.height else np.array([])
@@ -234,13 +241,33 @@ def _bucket_clock(df: pl.DataFrame, p: np.ndarray) -> list[dict]:
     return rows
 
 
+def _kit_slice(kits: pl.Expr) -> pl.Expr:
+    top = KIT_SLICES[-1]
+    return pl.when(kits >= top).then(pl.lit(f"{top}+")).otherwise(kits.cast(pl.Int32).cast(pl.Utf8))
+
+
+def _bucket_kits(df: pl.DataFrame, p: np.ndarray) -> list[dict]:
+    """Each flagged post-plant bucket split by CT kits, so a level shift can't pass for a fixed kit slope."""
+    d = df.select("key", "round_num", "ct_alive", "t_alive", "bomb_planted", "ct_kits", "ct_win").with_columns(
+        pl.Series("p", p), _kit_slice(pl.col("ct_kits")).alias("kits"))
+    rows = []
+    for ct, t, planted in BUCKETS:
+        b = d.filter((pl.col("ct_alive") == ct) & (pl.col("t_alive") == t) & (pl.col("bomb_planted") == planted))
+        for (kits,), g in sorted(b.group_by("kits"), key=lambda x: x[0]):
+            rows.append({"bucket": f"{ct}v{t}", "kits": kits, "rounds": _rounds(g), "pred": float(g["p"].mean()),
+                         "obs": float(g["ct_win"].cast(pl.Float64).mean())})
+            rows[-1]["gap"] = rows[-1]["pred"] - rows[-1]["obs"]
+    return rows
+
+
 def _pooled(df: pl.DataFrame, p: np.ndarray, full: bool = True) -> dict:
     y = _y(df)
     r = {**ev.scores(y, p), "calibration": ev.calibration(y, p), "gate": _gate(df, p), "buckets": _bucket_rows(df, p)}
     r["calibration"].pop("curve")
     if full:
         r.update({"ci": ev.round_bootstrap(df, p), "all_buckets": ev.by_bucket(df, p).to_dicts(),
-                  "readouts": ev.readouts(df, p), "bucket_clock": _bucket_clock(df, p)})
+                  "readouts": ev.readouts(df, p), "bucket_clock": _bucket_clock(df, p),
+                  "bucket_kits": _bucket_kits(df, p)})
     return r
 
 
@@ -250,19 +277,21 @@ def _print_buckets(name: str, rows: list[dict]) -> None:
               f"({r['rounds']} rounds){' FLAG' if r['flagged'] else ''}")
 
 
-def walk_forward(test_from: str, out: str, variant: str, device: str = "auto") -> int:
+def walk_forward(test_from: str, out: str, variant: str, param_set: str = "d4w5", device: str = "auto") -> int:
     resolved = resolve_device(device)
-    features = VARIANTS[variant]
+    features, params = VARIANTS[variant], PARAM_SETS[param_set]
     df = _load_all(features)
     maps = sorted(df["map"].unique().to_list())
     warm, test_months = _months(df, test_from)
     root = MODELS / out
     root.mkdir(parents=True, exist_ok=True)
-    index = {"variant": variant, "features": features, "test_from": test_from, "folds": {},
-             "crossfit": _index(root).get("crossfit", {}) if _index(root).get("variant") == variant else {}}
+    old = _index(root)
+    same = old.get("variant") == variant and old.get("params", PARAMS) == params
+    index = {"variant": variant, "features": features, "param_set": param_set, "params": params,
+             "test_from": test_from, "folds": {}, "crossfit": old.get("crossfit", {}) if same else {}}
     preds, folds = [], []
     for month in warm + test_months:
-        model, p, info = _fold(df, month, features, maps, device=resolved)
+        model, p, info = _fold(df, month, features, maps, params, device=resolved)
         index["folds"][month] = _save(root, out, "folds", month, model, info, features, maps)
         del model
         gc.collect()
@@ -287,7 +316,8 @@ def walk_forward(test_from: str, out: str, variant: str, device: str = "auto") -
         f["intercept"] = ev.calibration(_y(m), m["p"].to_numpy())["intercept"]
 
     report = {
-        "built": date.today().isoformat(), "variant": variant, "features": features, "params": PARAMS,
+        "built": date.today().isoformat(), "variant": variant, "features": features, "param_set": param_set,
+        "params": params,
         "half_lives": HALF_LIVES, "validation_days": VALIDATION_DAYS, "recal_rounds": RECAL_ROUNDS,
         "test_from": test_from, "warmup_months": warm, "test_months": test_months,
         "pooled": _pooled(scored, p), "pooled_recal": _pooled(scored, pr, full=False),
@@ -315,8 +345,93 @@ def walk_forward(test_from: str, out: str, variant: str, device: str = "auto") -
     for r in report["pooled"]["bucket_clock"]:
         print(f"  {r['bucket']} post-plant {r['phase']:<5} pred {r['pred']:.3f} obs {r['obs']:.3f} gap {r['gap']:+.3f} "
               f"({r['rounds']} rounds)")
+    for r in report["pooled"]["bucket_kits"]:
+        print(f"  {r['bucket']} post-plant kits {r['kits']:<2} pred {r['pred']:.3f} obs {r['obs']:.3f} "
+              f"gap {r['gap']:+.3f} ({r['rounds']} rounds)")
     print("\n".join(ev.readout_lines(report["pooled"]["readouts"])))
     return 0 if report["pooled"]["gate"]["passed"] else 2
+
+
+def _aligned_states(pred: pl.DataFrame) -> pl.DataFrame | None:
+    """The state rows behind a walk-forward prediction frame. Folds score each month's states in load order, so rows
+    match by position; None when the local states no longer line up (maps added or rebuilt since the run)."""
+    states = _load_all([])
+    parts = []
+    for (month,), pm in pred.group_by("month", maintain_order=True):
+        s = states.filter(pl.col("date").str.starts_with(month))
+        if s.height != pm.height or not (s["key"].equals(pm["key"]) and s["round_num"].equals(pm["round_num"])):
+            print(f"{month}: local states ({s.height} rows) don't line up with the predictions ({pm.height} rows).")
+            return None
+        parts.append(s)
+    return pl.concat(parts)
+
+
+def _comparison_groups(s: pl.DataFrame) -> tuple[dict[str, np.ndarray], dict[str, list[str]]]:
+    keys = ["ct_alive", "t_alive", "bomb_planted"]
+    combos = s.select(keys).unique().sort(keys)
+    names = [f"{int(ct)}v{int(t)} {'post' if planted else 'pre'}" for ct, t, planted in combos.iter_rows()]
+    bucket = (s.select(keys).join(combos.with_row_index("g"), on=keys, how="left", maintain_order="left")["g"]
+              .cast(pl.Int64).to_numpy())
+
+    kit_names, kit = [], np.full(s.height, -1, dtype=np.int64)
+    slice_ = s.select(_kit_slice(pl.col("ct_kits")))[:, 0].to_numpy()
+    for ct, t, planted in BUCKETS:
+        in_bucket = ((s["ct_alive"] == ct) & (s["t_alive"] == t) & (s["bomb_planted"] == planted)).to_numpy()
+        for k in KIT_SLICES:
+            label = f"{k}+" if k == KIT_SLICES[-1] else str(k)
+            kit[in_bucket & (slice_ == label)] = len(kit_names)
+            kit_names.append(f"{ct}v{t} post kits {label}")
+    return {"bucket": bucket, "kits": kit}, {"bucket": names, "kits": kit_names}
+
+
+# Δ|gap| a bucket must also exceed before `compare` calls it worse or better; paired intervals on large buckets
+# exclude 0 for changes of 0.0001.
+MATERIAL_GAP = 0.005
+
+
+def _interval(r: dict, floor: float = 0.0) -> str:
+    lo, hi = r["ci"]
+    mark = " worse" if lo > 0 and r["delta"] > floor else (" better" if hi < 0 and r["delta"] < -floor else "")
+    return f"{r['delta']:+.4f} [{lo:+.4f}, {hi:+.4f}]{mark}"
+
+
+def compare(base: str, model: str, min_rounds: int = 50, resamples: int = 200) -> int:
+    """Paired round bootstrap of two walk-forward runs on the same scored states. No training."""
+    # `monthly` rewrites a month by appending it, so restore month order before matching rows.
+    a, b = (pl.read_parquet(MODELS / m / "walkforward.parquet").filter(pl.col("scored")).sort("month", maintain_order=True)
+            for m in (base, model))
+    cols = ["key", "round_num", "month"]
+    if not a.select(cols).equals(b.select(cols)):
+        print(f"{base} and {model} scored different states; rerun one of them on the current states.")
+        return 1
+    s = _aligned_states(a)
+    if s is None:
+        return 1
+    rid = s.select(pl.struct("key", "round_num").rank("dense")).to_series().to_numpy() - 1
+    groups, names = _comparison_groups(s)
+    r = ev.paired_bootstrap(rid, _y(s), a["p"].to_numpy(), b["p"].to_numpy(), groups, n=resamples)
+    for name, rows in r["groups"].items():
+        for row in rows:
+            row["group"] = names[name][row["group"]]
+    r.update({"base": base, "model": model, "rounds": int(rid.max()) + 1, "states": s.height, "resamples": resamples})
+    (MODELS / model / f"compare-{base}.json").write_text(json.dumps(r, indent=2, default=float))
+
+    print(f"{model} − {base} on {r['rounds']} rounds, {r['states']} states (95% paired round-bootstrap intervals)")
+    print(f"  log loss     {r['log_loss']['a']:.4f} -> {r['log_loss']['b']:.4f}  Δ {_interval(r['log_loss'])}")
+    print(f"  max bin gap  {r['max_bin_gap']['a']:.4f} -> {r['max_bin_gap']['b']:.4f}  Δ {_interval(r['max_bin_gap'])}")
+    print("  Δ|gap| per bucket (signed gap base -> model):")
+    for row in r["groups"]["bucket"]:
+        if row["rounds"] >= min_rounds:
+            print(f"    {row['group']:<9} {row['a']:+.3f} -> {row['b']:+.3f}  Δ {_interval(row, MATERIAL_GAP)} "
+                  f"({row['rounds']} rounds)")
+    print("  Δ|gap| per kit slice:")
+    for row in r["groups"]["kits"]:
+        print(f"    {row['group']:<18} {row['a']:+.3f} -> {row['b']:+.3f}  Δ {_interval(row, MATERIAL_GAP)} "
+              f"({row['rounds']} rounds)")
+    worse = [f"{row['group']} ({row['delta']:+.4f})" for row in r["groups"]["bucket"]
+             if row["rounds"] >= min_rounds and row["ci"][0] > 0 and row["delta"] > MATERIAL_GAP]
+    print(f"  buckets worse by more than {MATERIAL_GAP} with an interval excluding 0: {', '.join(worse) or 'none'}")
+    return 0
 
 
 def cross_fit(out: str, device: str = "auto") -> int:
@@ -331,6 +446,7 @@ def cross_fit(out: str, device: str = "auto") -> int:
     features, test_from = index["features"], index["test_from"]
     latest = index["folds"][max(index["folds"])]
     half_life, trees = latest["half_life"], latest["trees"]
+    params = index.get("params", PARAMS)
     df = _load_all(features)
     maps = sorted(df["map"].unique().to_list())
     months = sorted(m for m in df["date"].str.slice(0, 7).unique().to_list() if m < test_from[:7])
@@ -345,7 +461,7 @@ def cross_fit(out: str, device: str = "auto") -> int:
         qdm_train = _make_qdm(train, features, maps, yt, weight=w)
         del train, yt, w
         gc.collect()
-        model = _train_booster(qdm_train, PARAMS, n_estimators=trees, monotone_constraints=mc, device=resolved)
+        model = _train_booster(qdm_train, params, n_estimators=trees, monotone_constraints=mc, device=resolved)
         del qdm_train
         gc.collect()
         info = {"half_life": half_life, "trees": trees, "train_to": train_to, "train_states": train_states}
@@ -387,7 +503,7 @@ def monthly(out: str, today: str | None = None, force: bool = False, device: str
     for month in (prev, current):
         if month in index["folds"] and not force:
             continue
-        model, _, info = _fold(df, month, features, maps, device=resolved)
+        model, _, info = _fold(df, month, features, maps, index.get("params", PARAMS), device=resolved)
         index["folds"][month] = _save(root, out, "folds", month, model, info, features, maps)
         del model
         gc.collect()

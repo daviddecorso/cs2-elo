@@ -31,7 +31,13 @@ def cmd_train(args) -> int:
 def cmd_walk_forward(args) -> int:
     from .walkforward import walk_forward
 
-    return walk_forward(args.test_from, args.model, args.variant, device=args.device)
+    return walk_forward(args.test_from, args.model, args.variant, args.params, device=args.device)
+
+
+def cmd_compare(args) -> int:
+    from .walkforward import compare
+
+    return compare(args.base, args.model, resamples=args.resamples)
 
 
 def cmd_cross_fit(args) -> int:
@@ -172,7 +178,12 @@ def main() -> None:
     p.add_argument("--test-from", default=TEST_FROM)
     p.add_argument("--model", default=PRODUCTION, help="Directory name under data/wp/models/")
     p.add_argument("--variant", default="full_plant_clock_bomb_dist", help="Feature set from walkforward.VARIANTS")
+    p.add_argument("--params", default="d4w5", help="Tree settings from walkforward.PARAM_SETS")
     p.add_argument("--device", choices=["auto", "cpu", "cuda"], default="auto", help="XGBoost device")
+    p = sub.add_parser("compare", help="Paired round-bootstrap intervals for one walk-forward run against another")
+    p.add_argument("--base", default=PRODUCTION)
+    p.add_argument("--model", required=True, help="Directory name under data/wp/models/")
+    p.add_argument("--resamples", type=int, default=200)
     p = sub.add_parser("cross-fit", help="One model per month before --test-from, trained on every other month")
     p.add_argument("--model", default=PRODUCTION)
     p.add_argument("--device", choices=["auto", "cpu", "cuda"], default="auto", help="XGBoost device")
@@ -224,7 +235,7 @@ def main() -> None:
 
     args = ap.parse_args()
     handlers = {"sync": cmd_sync, "states": cmd_states, "train": cmd_train, "credit": cmd_credit,
-                "walk-forward": cmd_walk_forward, "cross-fit": cmd_cross_fit, "monthly": cmd_monthly,
+                "walk-forward": cmd_walk_forward, "compare": cmd_compare, "cross-fit": cmd_cross_fit, "monthly": cmd_monthly,
                 "patch-candidates": cmd_patch_candidates, "patch-report": cmd_patch_report,
                 "validate": cmd_validate, "publish": cmd_publish, "positions": cmd_positions, "roles": cmd_roles,
                 "validate-roles": cmd_validate_roles, "baselines": cmd_baselines, "duels": cmd_duels,

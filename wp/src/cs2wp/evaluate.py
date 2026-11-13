@@ -31,11 +31,90 @@ def round_bootstrap(df: pl.DataFrame, p: np.ndarray, n: int = 200, seed: int = 0
         "br": (pc - y) ** 2,
     }).group_by("r").agg(pl.col("ll").sum(), pl.col("br").sum(), pl.len().alias("n"))
     ll, br, cnt = per["ll"].to_numpy(), per["br"].to_numpy(), per["n"].to_numpy().astype(float)
-    rng = np.random.default_rng(seed)
-    w = rng.multinomial(len(cnt), np.full(len(cnt), 1 / len(cnt)), size=n).astype(float)
+    w = _round_weights(len(cnt), n, seed)
     lls, brs = (w @ ll) / (w @ cnt), (w @ br) / (w @ cnt)
-    return {"log_loss": [float(np.quantile(lls, 0.025)), float(np.quantile(lls, 0.975))],
-            "brier": [float(np.quantile(brs, 0.025)), float(np.quantile(brs, 0.975))]}
+    return {"log_loss": _ci(lls), "brier": _ci(brs)}
+
+
+def _round_weights(rounds: int, n: int, seed: int) -> np.ndarray:
+    """n resamples of `rounds` rounds with replacement, as a count per round."""
+    rng = np.random.default_rng(seed)
+    return rng.multinomial(rounds, np.full(rounds, 1 / rounds), size=n).astype(float)
+
+
+def _ci(x: np.ndarray) -> list[float]:
+    return [float(np.quantile(x, 0.025)), float(np.quantile(x, 0.975))]
+
+
+def _round_ll(y: np.ndarray, p: np.ndarray) -> np.ndarray:
+    pc = np.clip(p, 1e-6, 1 - 1e-6)
+    return -(y * np.log(pc) + (1 - y) * np.log(1 - pc))
+
+
+class _Cells:
+    """State sums per (round, group), so a group's mean prediction and outcome can be reweighted by resampled rounds."""
+
+    def __init__(self, rid: np.ndarray, group: np.ndarray, groups: int, y: np.ndarray, **preds: np.ndarray):
+        keep = group >= 0
+        f = (pl.DataFrame({"r": rid[keep], "g": group[keep], "y": y[keep], **{k: v[keep] for k, v in preds.items()}})
+             .group_by("r", "g").agg(pl.len().alias("n"), pl.all().sum()))
+        self.r, self.g, self.groups = f["r"].to_numpy(), f["g"].to_numpy(), groups
+        self.sums = {c: f[c].to_numpy().astype(float) for c in ["n", "y", *preds]}
+        self.rounds = np.bincount(self.g, minlength=groups)
+
+    def gaps(self, w: np.ndarray, pred: str) -> tuple[np.ndarray, np.ndarray]:
+        """Signed gap (mean pred − mean outcome) per group and the weighted state count."""
+        wr = w[self.r]
+        tot = np.bincount(self.g, wr * self.sums["n"], self.groups)
+        diff = np.bincount(self.g, wr * (self.sums[pred] - self.sums["y"]), self.groups)
+        return diff / np.maximum(tot, 1e-9), tot
+
+
+def paired_bootstrap(rid: np.ndarray, y: np.ndarray, pa: np.ndarray, pb: np.ndarray, groups: dict[str, np.ndarray],
+                     n: int = 200, seed: int = 0, bins: int = BINS) -> dict:
+    """b against a on the same states, one round resample shared by both: log loss, max bin gap, and |gap| per group.
+
+    `rid` is a dense round index (0..rounds−1) per state. Each entry of `groups` labels states 0..k−1, or −1 for states
+    outside every group. Deltas are b − a, so negative means b is better.
+    """
+    y = y.astype(float)
+    rounds = int(rid.max()) + 1
+    w = _round_weights(rounds, n, seed)
+    ones = np.ones(rounds)
+
+    cnt = np.bincount(rid, minlength=rounds).astype(float)
+    lla, llb = np.bincount(rid, _round_ll(y, pa), rounds), np.bincount(rid, _round_ll(y, pb), rounds)
+    d_ll = (w @ (llb - lla)) / (w @ cnt)
+    out = {"log_loss": {"a": float(lla.sum() / cnt.sum()), "b": float(llb.sum() / cnt.sum()),
+                        "delta": float((llb - lla).sum() / cnt.sum()), "ci": _ci(d_ll)}}
+
+    bin_a = _Cells(rid, _bin_index(pa, bins), bins, y, p=pa)
+    bin_b = _Cells(rid, _bin_index(pb, bins), bins, y, p=pb)
+    elig_a = bin_a.gaps(ones, "p")[1] >= MIN_BIN_STATES
+    elig_b = bin_b.gaps(ones, "p")[1] >= MIN_BIN_STATES
+
+    def max_gap(cells: _Cells, elig: np.ndarray, wi: np.ndarray) -> float:
+        return float(np.abs(cells.gaps(wi, "p")[0])[elig].max()) if elig.any() else float("nan")
+
+    ga, gb = max_gap(bin_a, elig_a, ones), max_gap(bin_b, elig_b, ones)
+    d_gap = np.array([max_gap(bin_b, elig_b, wi) - max_gap(bin_a, elig_a, wi) for wi in w])
+    out["max_bin_gap"] = {"a": ga, "b": gb, "delta": gb - ga, "ci": _ci(d_gap)}
+
+    out["groups"] = {}
+    for name, label in groups.items():
+        k = int(label.max()) + 1 if label.size and label.max() >= 0 else 0
+        if k == 0:
+            out["groups"][name] = []
+            continue
+        cells = _Cells(rid, label, k, y, pa=pa, pb=pb)
+        a0, b0 = cells.gaps(ones, "pa")[0], cells.gaps(ones, "pb")[0]
+        boot = np.array([np.abs(cells.gaps(wi, "pb")[0]) - np.abs(cells.gaps(wi, "pa")[0]) for wi in w])
+        lo, hi = np.quantile(boot, 0.025, axis=0), np.quantile(boot, 0.975, axis=0)
+        out["groups"][name] = [
+            {"group": g, "rounds": int(cells.rounds[g]), "a": float(a0[g]), "b": float(b0[g]),
+             "delta": float(abs(b0[g]) - abs(a0[g])), "ci": [float(lo[g]), float(hi[g])]}
+            for g in range(k) if cells.rounds[g]]
+    return out
 
 
 def _bin_index(p: np.ndarray, bins: int) -> np.ndarray:

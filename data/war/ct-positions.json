@@ -28,7 +28,7 @@
       "TopofMid": "Mid", "Arch": "Mid", "Middle": "Mid", "SecondMid": "Mid", "Underpass": "Mid",
       "Banana": "Banana", "TRamp": "Banana",
       "BombsiteB": "B", "Ruins": "B",
-      "CTSpawn": null
+      "CTSpawn": null, "LowerMid": null
     }
   },
   "de_ancient": {
@@ -73,7 +73,7 @@
       "Connector": "Connector",
       "BombsiteB": "B", "BackofB": "B", "Alley": "B", "Bricks": "B", "OutsideLong": "B", "LowerTunnel": "B",
       "Canal": null, "CTSideUpper": null, "SnipersNest": null, "CTSpawn": null, "Tunnel": null, "TunnelStairs": null,
-      "Ruins": null, "Street": null, "TStairs": null, "TSideUpper": null
+      "Ruins": null, "Street": null, "TStairs": null, "TSideUpper": null, "TSpawn": null
     }
   },
   "de_cache": {
@@ -81,12 +81,14 @@
     "callouts": {
       "BombsiteA": "A", "ForkLift": "A", "Truck": "A", "Quad": "A", "Corner": "A", "Squeaky": "A", "AMain": "A",
       "Toxic": "A", "AHalls": "A", "ABoost": "A", "Lockers": "A", "LongA": "A", "ElectricalBox": "A", "AStairs": "A",
+      "BackEntrance": "A",
       "Mid": "Mid", "Highway": "Mid", "Sandbags": "Mid", "Catwalk": "Mid", "Ladder": "Mid", "Cubby": "Mid",
-      "MidRoof": "Mid", "Garage": "Mid", "Boost": "Mid", "Middle": "Mid", "OutsideA": "Mid",
+      "MidRoof": "Mid", "Garage": "Mid", "Boost": "Mid", "Middle": "Mid", "OutsideA": "Mid", "Street": "Mid",
       "Checkers": "Checkers", "BackHall": "Checkers", "Vents": "Checkers",
       "BombsiteB": "B", "BMain": "B", "TreeRoom": "B", "Headshot": "B", "Rafters": "B", "Heaven": "B", "Bear": "B",
-      "BHalls": "B", "SunRoom": "B", "Useless": "B",
-      "Connector": null, "CTLane": null, "BusStop": null, "CTSpawn": null
+      "BHalls": "B", "SunRoom": "B", "Useless": "B", "Atrium": "B", "BackofB": "B",
+      "Connector": null, "CTLane": null, "BusStop": null, "CTSpawn": null,
+      "TopofMid": null, "FrontRoom": null, "Hell": null, "Outside": null
     }
   },
   "de_train": {
@@ -94,7 +96,19 @@
     "callouts": {
       "BombsiteA": "A", "Tunnels": "A", "ElectricalBox": "A", "TMain": "A", "Ivy": "A", "Alley": "A", "Dumpster": "A",
       "BombsiteB": "B", "BackofB": "B", "Connector": "B", "Entrance": "B",
-      "LongDog": null, "CTSpawn": null, "TSpawn": null
+      "LongDog": null, "CTSpawn": null, "TSpawn": null, "TSideUpper": null, "TStairs": null
+    }
+  },
+  "de_contact": {
+    "positions": ["A", "B"],
+    "callouts": {
+      "bombsitea": "A", "backofa": "A", "yard": "A", "heaven": "A", "tmain": "A", "decon": "A",
+      "amain": "A", "backyard": "A", "catwalk": "A", "computerroom": "A",
+      "bombsiteb": "B", "bmain": "B", "electricalbox": "B", "connector": "B", "outsidetunnel": "B",
+      "storageroom": "B", "bramp": "B", "den": "B", "tunnel": "B", "ctsidelower": "B",
+      "tunnelstairs": "B", "ctsideupper": "B",
+      "ctspawn": null, "TSpawn": null, "tsidelower": null, "short": null, "village": null,
+      "tsideupper": null, "lockerroom": null, "guardhouse": null, "walkway": null
     }
   }
 }

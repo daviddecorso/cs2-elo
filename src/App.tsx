@@ -7,6 +7,7 @@ import { Model } from "./pages/Model.tsx";
 import { Methodology } from "./pages/Methodology.tsx";
 import { EventList, EventOdds } from "./pages/EventOdds.tsx";
 import { MajorInvites } from "./pages/MajorInvites.tsx";
+import { PlayerWar } from "./pages/PlayerWar.tsx";
 
 const queryClient = new QueryClient({
     defaultOptions: {
@@ -30,6 +31,7 @@ export const App = () => {
                         <Route path="/events" element={<EventList />} />
                         <Route path="/events/:slug" element={<EventOdds />} />
                         <Route path="/major-invites" element={<MajorInvites />} />
+                        <Route path="/war" element={<PlayerWar />} />
                         <Route path="/model" element={<Model />} />
                         <Route path="/methodology" element={<Methodology />} />
                     </Route>

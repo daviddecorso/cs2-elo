@@ -43,7 +43,7 @@ const toneSymbol: Record<Example["tone"], string> = {
     flat: "[=]",
 };
 
-const REVISED_ON = "10-20-2026";
+const REVISED_ON = "11-05-2026";
 
 const Section = ({
     id,
@@ -95,6 +95,7 @@ const TOC = [
     { title: "Cross-region calibration", id: "cross-region-calibration" },
     { title: "Map pool offsets", id: "map-pool-offsets" },
     { title: "Tournament simulator", id: "tournament-simulator" },
+    { title: "Player WAR", id: "player-war" },
     { title: "Elo vs. VRS", id: "elo-vs-vrs" },
 ];
 
@@ -278,6 +279,34 @@ export const Methodology = () => {
                             The tournament simulator runs 10,000 Monte Carlo iterations for upcoming events and Major
                             invitation races. Each match draws from the model&apos;s series win probabilities, while
                             incorporating simulated rating drift between stages.
+                        </p>
+                    </Section>
+
+                    <Section id="player-war" title="Player WAR">
+                        <p>
+                            Player Wins Above Average (WAA) values every damage, kill, flash assist, traded death, bomb
+                            plant, and defuse from parsed Tier-1 LAN demos by the change in round win probability (WPA)
+                            it creates, plus two context-neutral variants that strip clutch leverage. The default,
+                            team-neutral WPA, values each player&apos;s share as if their own team were league-average Elo
+                            while keeping the opponent&apos;s real rating. Raw WPA starts from the pre-map Elo of both
+                            teams, so it gives players on strong teams little credit for the wins their team was expected
+                            to get. Bomb plants split
+                            defender cost evenly across alive CTs, a known simplification when demo coordinates alone
+                            cannot isolate rotation blame.
+                        </p>
+                        <p>
+                            Each map assigns T roles (AWPer from 20k+ buy-window AWP share, Entry from leave-one-out
+                            opening-duel share, Rifler otherwise) and CT callout positions 15–25 seconds into CT rounds,
+                            subtracting empirically shrunk (map, side, role) baselines so scarce cells never swing on one
+                            event. Date-bounded IGL stints receive a zero-sum positional adjustment per side so the
+                            average IGL and the league overall both center on zero while individual callers still spread
+                            around it.
+                        </p>
+                        <p>
+                            Summed round-wins above average convert to map wins via the empirical OLS slope of map wins
+                            on team round-WPA, with 90% intervals resampled across each player&apos;s individual rounds
+                            (1,000 draws). Tier-1 WAA ships first; replacement level will shift the zero line once Tier-2
+                            demos enter the archive.
                         </p>
                     </Section>
 

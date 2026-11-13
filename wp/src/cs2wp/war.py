@@ -95,8 +95,9 @@ def map_outcomes(refs: list[MapRef]) -> pl.DataFrame:
 
 def estimate_rounds_per_win(adjusted_rows: pl.DataFrame, outcomes: pl.DataFrame) -> float:
     """Empirical round-WPA per map win from OLS of map win (0/1) on summed team `wpa_rw`."""
+    rows = adjusted_rows.filter(pl.col("role").is_not_null()) if "role" in adjusted_rows.columns else adjusted_rows
     tm = (
-        adjusted_rows.group_by("key", "lp_team")
+        rows.group_by("key", "lp_team")
         .agg(pl.col("wpa_rw").sum())
         .join(outcomes, on=["key", "lp_team"], how="inner")
     )
@@ -195,6 +196,7 @@ def role_profiles(
     ct_positions: pl.DataFrame,
 ) -> tuple[pl.DataFrame, dict[int, list[dict]]]:
     """Pooled T/CT role summaries and per-map modal CT roles for each `steamid` in `adjusted_rows`."""
+    adjusted_rows = adjusted_rows.filter(pl.col("role").is_not_null())
     keys = adjusted_rows["key"].unique().to_list()
     t_sub = t_roles.filter(pl.col("key").is_in(keys))
     ct_sub = ct_positions.filter(pl.col("key").is_in(keys))
@@ -283,6 +285,7 @@ def aggregate_players(
     ct_positions: pl.DataFrame,
     r_win: float,
 ) -> tuple[pl.DataFrame, dict[int, list[dict]]]:
+    adjusted_rows = adjusted_rows.filter(pl.col("role").is_not_null())
     prof, ct_by_map = role_profiles(adjusted_rows, t_roles, ct_positions)
     keys = adjusted_rows["key"].unique().to_list()
     duels = (
@@ -328,6 +331,7 @@ def validation_metrics(
     players: pl.DataFrame,
     min_rounds: int = MIN_PLAYER_ROUNDS,
 ) -> dict:
+    adjusted_rows = adjusted_rows.filter(pl.col("role").is_not_null())
     keys = adjusted_rows["key"].unique().to_list()
     per_map_war = adjusted_rows.group_by("key", "date", "steamid").agg(
         pl.col("rounds").sum(),

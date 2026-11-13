@@ -72,10 +72,12 @@ interface CellProps {
 export const Th = ({
     align = "right",
     sticky = false,
+    scope = "col",
     className = "",
     ...rest
 }: CellProps & React.ThHTMLAttributes<HTMLTableCellElement>) => (
     <th
+        scope={scope}
         className={`${thClass} ${alignClass[align]} ${sticky ? stickyThClass : ""} ${className}`}
         {...rest}
     />

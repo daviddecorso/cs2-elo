@@ -172,3 +172,72 @@ def test_validation_splits_by_series_and_deduplicates_box_rows():
     assert val["month_to_month"][100]["wpa_waa_r"]["pairs"] == 4
     assert val["month_to_month"][200]["wpa_waa_r"]["pairs"] == 0
     assert val["split_half"]["wpa_waa_r"]["r"] == pytest.approx(1.0)
+
+
+def test_null_role_rows_are_excluded_from_aggregation_and_export(tmp_path, monkeypatch):
+    import cs2wp.war as war_mod
+
+    models_dir = tmp_path / "models"
+    (models_dir / "m").mkdir(parents=True)
+    (models_dir / "m" / "report.json").write_text(json.dumps({"gate": {"passed": True, "log_loss": 0.44}}))
+    monkeypatch.setattr(war_mod, "MODELS", models_dir)
+
+    rows = _synthetic_sides().with_columns(pl.lit(150).cast(pl.Int64).alias("rounds")).to_dicts()
+    # Player 99 has 300+ rounds exclusively in null-role maps (must not get 0.0 WAA + null CIs)
+    for m_idx in range(1, 7):
+        for side in (CT, T):
+            rows.append({
+                "key": f"unroled/{m_idx}", "date": "2025-05-01", "event": "e0", "map": "de_mirage",
+                "lp_team": "Z", "lp_player": "p99", "steamid": 99, "side": side, "role": None,
+                "rounds": 30, "is_igl": False,
+                **{f"{v}_baseline": None for v in VERSIONS},
+                **{v: 0.1 for v in VERSIONS},
+                **{f"{v}_above": None for v in VERSIONS},
+            })
+    # Player 3 also has extra un-roled rounds that must not dilute their rounds or per-100 rate
+    for side in (CT, T):
+        rows.append({
+            "key": "unroled/extra", "date": "2025-05-02", "event": "e0", "map": "de_mirage",
+            "lp_team": "A", "lp_player": "p3", "steamid": 3, "side": side, "role": None,
+            "rounds": 50, "is_igl": False,
+            **{f"{v}_baseline": None for v in VERSIONS},
+            **{v: 0.1 for v in VERSIONS},
+            **{f"{v}_above": None for v in VERSIONS},
+        })
+
+    df = pl.DataFrame(rows, schema_overrides={"steamid": pl.UInt64, "side": pl.Int32})
+    adj = fit_igl_adjustment(df)
+    adjusted = apply_igl_adjustment(df, adj)
+    duel_sides = pl.DataFrame(schema={"key": pl.String, "steamid": pl.UInt64, "duels": pl.Int64, "kills_above": pl.Float64})
+    box = pl.DataFrame([{
+        "key": "m1", "date": "2026-05-01", "steamid": 3, "rounds": 300, "kills": 200,
+        "deaths": 180, "assists": 40, "damage": 20000.0, "kast_rounds": 210,
+        "wpa": 0.0, "nwpa_event": 0.0, "nwpa_mancount": 0.0,
+        "rating3": 1.1, "swing": 0.01, "lp_player": "p3", "name": "p3",
+    }], schema_overrides={"steamid": pl.UInt64})
+    t_roles = pl.DataFrame(schema={"key": pl.String, "steamid": pl.UInt64, "opening_kills": pl.UInt32,
+                                   "opening_deaths": pl.UInt32, "t_rounds": pl.UInt32, "t_awp_rounds": pl.UInt32,
+                                   "ct_awp_rounds": pl.UInt32, "t_buy_rounds": pl.UInt32, "ct_buy_rounds": pl.UInt32})
+    ct_pos = pl.DataFrame(schema={"key": pl.String, "steamid": pl.UInt64, "role": pl.String})
+
+    players, ct_by_map = aggregate_players(adjusted, duel_sides, box, t_roles, ct_pos, r_win=5.0)
+    assert 99 not in players["steamid"].to_list()
+    assert players.filter(pl.col("steamid") == 3)["rounds"].item() == 300
+
+    # Add synthetic bootstrap CI columns for roled players and verify export_public succeeds
+    boot = pl.DataFrame([
+        {
+            "steamid": sid,
+            **{f"{v}_waa_p5": 0.0 for v in VERSIONS},
+            **{f"{v}_waa_p50": 0.1 for v in VERSIONS},
+            **{f"{v}_waa_p95": 0.2 for v in VERSIONS},
+            **{f"{v}_per100_p5": 0.0 for v in VERSIONS},
+            **{f"{v}_per100_p50": 0.1 for v in VERSIONS},
+            **{f"{v}_per100_p95": 0.2 for v in VERSIONS},
+        }
+        for sid in players["steamid"].to_list()
+    ], schema_overrides={"steamid": pl.UInt64})
+    players = players.join(boot, on="steamid", how="left")
+    val = validation_metrics(adjusted, duel_sides, box, players, min_rounds=300)
+    out_dir = tmp_path / "pub"
+    assert export_public(players, ct_by_map, adj, val, adjusted, 5.0, 300, 0.0, "m", False, out_dir) == 0

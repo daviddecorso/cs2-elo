@@ -6,6 +6,7 @@ const NAV_ITEMS = [
     { path: "/", label: "Standings", alsoActive: ["/standings"] },
     { path: "/events", label: "Events" },
     { path: "/major-invites", label: "Major invites" },
+    { path: "/war", label: "WAR" },
     { path: "/model", label: "Model" },
     { path: "/methodology", label: "Methodology" },
 ];

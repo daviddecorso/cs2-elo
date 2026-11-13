@@ -2,7 +2,7 @@
 
 ## Overview
 
-This is the 10 Oct 2026 build plan (`old-spec.md`) with its full content kept, updated to 5 Nov 2026. Each phase has its original plan, then **Status** with what was built, what changed and what was confirmed. Detail lives in the topic docs ([overview.md](overview.md) is the index).
+This is the 10 Oct 2026 build plan (`old-spec.md`) with its full content kept, updated to 13 Nov 2026 (Phases 0–4 as of 5 Nov 2026). Each phase has its original plan, then **Status** with what was built, what changed and what was confirmed. Detail lives in the topic docs ([overview.md](overview.md) is the index).
 
 Build team-level features first, then player WAR. Team Elo, tournament forecasts and VRS projections need only match results. Player WAR needs a demo pipeline and a trained win-probability model, which is several times the work.
 
@@ -17,8 +17,9 @@ Real dates: Valve published the PGL Major Singapore invitation snapshot on 2 Nov
 | 2. Team Elo | **Gate passed** |
 | 3. Simulator, VRS projections, Major odds | Built and live; Singapore participants pending |
 | 4. Demo pipeline | **Gate passed**; backfill in progress |
-| 5. Win probability and WPA | Built, **gate not run** (needs 2025 demos) |
-| 6. Player WAR | Items 1–8 built; WAA live at `/war` with provisional dry-run notice |
+| 5. Win probability and WPA | **Walk-forward gate passed** (2026-11-12); out-of-sample credit & monthly job built; WPA page not yet live |
+| 6. Player WAR | Items 1–8 built; WAA, usage and conversion live at `/war` on `production`; team factor & roster-change test open |
+| 7. Team and tactics metrics | Not started (upstream drift and duel tables exist) |
 
 ### Changes from the old plan
 
@@ -229,16 +230,25 @@ Replicate Xenopoulos et al. (2020) on CS2 data, then extend it. The gate: on a l
 - **Distance features.** Graph distance over the navigation mesh beats straight-line distance. awpy shipped navigation-mesh tooling for CS:GO; confirm current CS2 support before relying on it, and fall back to straight-line distance if needed.
 - **Format shift.** CS2 runs MR12 with different economy pacing than CS:GO. Train only on CS2 data; don't port the paper's coefficients.
 
-**Status: pipeline built, gate not run.** `wp/` (Python, uv) has nav-mesh distances, event and 4 Hz game states, the model grid, credit (WPA plus two context-neutral versions), validation and publish. See [win-probability.md](win-probability.md) and [wp-experiments.md](wp-experiments.md).
+**Production decisions (November 2026)**
 
-- **Gate, as defined now:** on maps after the training window (train 2025, test 2026+), log loss ≤ 0.535, every calibration bin with 1,000+ states within a noise-aware limit, and calibration slope in [0.95, 1.05]. The limit is the larger of the paper's 0.03 and a round-bootstrap p95, because states in a round share one outcome and a flat 0.03 would fail even a perfect model.
-- **Not run:** 2025 has 5 of about 1,730 maps parsed. A 2026-only dry run (train H1, test H2) gets log loss 0.452 and slope 1.037 but fails the bin gate (max gap 0.077 against a 0.070 limit), and XGBoost loses to logistic regression at that data size.
-- **awpy supports CS2 nav meshes** (3.1.1, release 2000934 pinned). Awpy has no bombsite polygons, so a site is the set of nav areas containing finished plants. Distances are Dijkstra path lengths over centroid distances. Coverage is 99.5–100% of positions on Thunderpick.
-- **Splits:** train 2025, test 2026+, grid-search validation on the latest third of training maps. Elo parameters were tuned pre-2026, so no leakage.
-- **Smoke run (Thunderpick only, not a gate result):** WPA month-to-month r 0.388 (paper 0.40) and K/D r 0.745 (paper 0.73), but Rating 2.0 was more stable (0.447), unlike the paper. HLTV Rating 3.0 and Swing were added as comparisons.
-- Bomb plant attribution and the rest of the credit rules are in the win-probability doc.
+The fixed 2025-train, 2026-test split failed calibration narrowly (worst bin 0.045 against a 0.043 limit, log loss 0.4519, slope 1.042) because CT round win rate drifted from 50.9% in 2025 to 53.7% in 2026 (a within-map shift starting mid-2025). The model was fine; the data moved.
 
-Open: the full gate run after the 2025 backfill (`cs2wp train --ablations`, then `credit` and `validate`), rare-state calibration, and a site page for player WPA with the Liquipedia credit.
+- **Gate by walk-forward.** Retrain monthly on all prior data, test on each 2026 month, and gate on the pooled predictions. Current `production` result (`full_plant_clock_bomb_dist`, 2026-11-12, 11.0M states across 2026-01 to 2026-10): log loss **0.4483** against the paper's 0.535, worst bin **0.038** (`0.0376`) against a **0.039** (`0.0387`) limit, slope **1.026** (`1.0265`).
+- **Recency weighting.** Mild exponential decay over `HALF_LIVES = (365, 180, 90)` days, tuned on the 90-day in-window validation fold only, never on test months. Most folds (6 of 10 test months) picked a 365-day half-life (3 picked 180, 1 picked 90); `None` (no decay) was dropped on 2026-11-12 so near-tied validation scores can't revert 2026 folds to unweighted early-2025 data.
+- **Feature promotion rule.** Promote a feature if it lowers log loss by > 0.001, or if log loss is non-worse within the base's 95% round-bootstrap confidence interval and calibration improves in at least one flagged bucket without worsening any other flagged bucket. Log loss is dominated by common states, while WPA credit depends on rare post-plant states where swings are largest. Adopted so far: `since_plant` (seconds since plant) and `ct_bomb_graph` (CT graph distance to the planted bomb).
+- **5v4 post-plant diagnostic and `defuse_margin` (rejected).** The 5v4 post-plant miss (0.309 predicted vs. 0.375 observed, 405 rounds) sits in the first 20 seconds after the plant and grows with defuse kits (CT under-predicted by 13 points with 2 kits, 22 with 3 or more). `defuse_margin` (bomb time remaining minus the fastest possible defuse among alive CTs: graph travel time plus 5 seconds with a kit, 10 without) was tested and **rejected** on 2026-11-12: log loss moved −0.0002 inside the CI, max bin gap hit 0.040 vs. 0.039 (fail), and both 5v3 and 5v4 remained flagged. Next candidate to try: a `kits × CTs alive` or `kits × time left` interaction.
+- **Out-of-sample crediting.** Credit 2026+ maps with their month's walk-forward fold (`production/folds/<YYYY-MM>@<sha8>`) and 2025 maps with a cross-fit model trained on every other month (`cs2wp cross-fit`). Store `model_version` on every credit row, and keep credits frozen unless a deliberate `cs2wp credit --recredit` runs. The current month's recency-weighted fold (`index["live"]`, trained on all prior data) is the live model for new maps. A fourth credit version (`wpa_opp`, evaluating each event with the player's own team at league-average Elo) was added alongside `wpa`, `nwpa_event` and `nwpa_mancount`.
+- **Conservation.** Event credits do not sum to the round outcome (`ct_win − p0 = events + drift + end`), because drift between events (time passing, movement) takes back about 0.076 per round (`events` +0.074, `drift` −0.076) that nobody is credited for. CT players gain about 0.07 per round from events that T players only lose through uncredited drift. Keep WPA as the paper defines it — spreading drift across alive players would reward surviving, the KAST problem. WAR/WAA's per-map, per-side, per-role baselines cancel the offset, so check that WAR/WAA summed by map and side is near zero after baselines. Publish drift per team (`data/wp/reports/team_drift.parquet`) as time-and-position value, and never publish raw WPA comparisons across sides.
+- **Monitoring.** A monthly job (`cs2wp monthly`) trains the new month's live fold and gates the previous month (2026-10 passed on 2026-11-12 at 0.080 vs. 0.096 limit across 5,014 rounds). Calibration is read by map, buy type and Elo gap, not just by man count. Patch candidates come from Valve's Steam News feed (`cs2wp patch-candidates` → `wp/patches.candidates.json`) and are approved by hand into `wp/patches.json`. Economy patches enable a weekly logistic intercept correction for 31 days, and mechanics patches get a before-and-after post-plant calibration check (`cs2wp patch-report`).
+
+**Status: walk-forward gate passed (2026-11-12).** `wp/` (Python, uv) has nav-mesh distances, event and 4 Hz game states, regularized XGBoost with monotone constraints, walk-forward and cross-fit training, out-of-sample credit (`wpa`, `wpa_opp`, `nwpa_event`, `nwpa_mancount`), conservation checks, validation and publish. See [win-probability.md](win-probability.md) and [wp-experiments.md](wp-experiments.md).
+
+- **Gate, as defined now:** on out-of-sample predictions, log loss ≤ 0.535, every calibration bin with 1,000+ states within `max(0.03, p95 round-bootstrap noise)`, and calibration slope in [0.95, 1.05].
+- **awpy supports CS2 nav meshes** (3.1.1, release 2000934 pinned). Awpy has no bombsite polygons, so a site is the set of nav areas containing finished plants. Distances are Dijkstra path lengths over centroid distances; coverage averages 99.88% across 3,015+ maps (and `de_contact` showmatch without a mesh is skipped).
+- **Validation (2026 window, 1,404 maps, 192 players with 300+ rounds):** WPA month-to-month `r = 0.439` (paper 0.40) and `r = 0.818` with K/D (paper 0.73), compared with approximate Rating 2.0 (`0.466` / `0.945`) and HLTV Rating 3.0 (`0.448` / `0.877`).
+
+Open: schedule `cs2wp monthly` under launchd, populate `wp/patches.json` with verified economy patch dates, test `kits × CTs alive` / `kits × bomb time` for the 5v4 post-plant miss, and ship a site page for player WPA (with Liquipedia credit, link sent to Liquipedia, and HLTV-demo publishing terms checked).
 
 ## Phase 6: Player WAR
 
@@ -282,13 +292,23 @@ Teams with better players win more, and winning teams create better looks for th
 
 The test is paired, so the roster change is the unit, not the map. Detecting a 0.01 per-map log-loss gap needs roughly 80–150 changes where every incoming player has prior demo history. As of 2026-11-06 the archive has about 13. Most incoming players have no demos from before their move, so the 2025 backfill and tier-2 coverage raise the count faster than waiting does.
 
-**Validation: checks that don't need roster moves**
+**Validation beyond roster moves**
+
+Roster changes are too rare, and they bundle role changes together, so add tests that fire more often:
+
+- **WAR plus Elo only where Elo is stale.** On a roster that has played together for six months, summed WAR and Elo measure the same thing, so WAR cannot add anything. Test only new rosters, stand-ins and the weeks after a break, and measure how many maps each method needs before its predictions settle. *(Not yet split out separately from the all-maps `validate-war` check below.)*
+- **Stand-ins.** They happen far more often than transfers and isolate one player. Predicted drop equals the starter's WAR minus the stand-in's. *(Not built.)*
+- **Role-transition cost.** Players change roles after moves, so measure the average WAR drop in a player's first maps in a new role. For prediction, use each player's history in the role they will actually play. *(Not built.)*
+- **Split-half reliability.** WAR on odd maps (or alternating series) against WAR on even maps. If it disagrees with itself, it cannot predict anything. *(Built in `cs2wp validate-war` across alternating series.)*
+- **IGL changes.** When an IGL arrives or leaves, measure the shift in their teammates' role-adjusted WAR and conversion, and compare it with the shift after non-IGL roster changes. If teammates consistently improve under certain IGLs, that is the closest data-driven measure of IGL impact. If it is noise, the honest conclusion is that IGLs make teams better. *(Not built.)*
+- **HLTV as a check and a baseline.** Compute approximate Rating 2.0 from parsed demos (since HLTV now displays Rating 3.0 and Swing, which are parsed from cached HLTV match pages for the same maps); agreement confirms kill, death, damage and KAST parsing. Use HLTV rating seeding as a second baseline in the roster-change test. Publishing the per-player gap between WAR and HLTV 3.0 (to surface role and resource context) is planned; `/war` currently shows HLTV 3.0 alongside WAA without a dedicated gap column.
+- **Descriptive is a legitimate goal.** HLTV rating is useful without predicting games better than Elo. WAR can ship as a descriptive stat if it passes split-half reliability and sense checks (support anchors rise, high-usage low-conversion players fall). Its opponent adjustment comes from the Elo difference in the win-probability model, with no top-15 filter.
 
 Built (`cs2wp validate-war`, results in [war.md](war.md#war-validation)):
 
-- **Out-of-sample lineup WAR vs Elo.** Build each player's WAR from maps before an event, then predict that event's maps from the Elo logit plus the lineups' WAR difference. WAR passes if it lowers leave-one-event-out log loss. Team strength persists, so this is weaker evidence than the roster test.
-- **Split-half reliability.** Correlate each player's WAR across alternating series. This gives the rounds needed for reliability 0.5, which sets the shrinkage.
-- **Team-context leakage.** Correlate player WAR with team Elo, and check whether players' WAR ranks within a team hold as the team's form changes. A whole roster near the top suggests team strength is being credited to players.
+- **Out-of-sample lineup WAR vs Elo.** Build each player's WAR from maps before an event, then predict that event's maps from the Elo logit plus the lineups' WAR difference. On 1,161 test maps from 2026-03-01, no WAA variant or box-score comparator (HLTV 3.0, K−D) improves leave-one-event-out log loss over Elo alone (gains −0.0002 to −0.0011, 90% CIs straddling or below zero). `wpa_opp` (evaluating each event with the player's own team at league-average Elo) was added to remove plain WPA's under-crediting of stars on strong teams and is the most reliable WAA variant (`k = 984` rounds).
+- **Split-half reliability.** Correlate each player's WAA across alternating series (267 players with 300+ rounds): half-split `r = 0.312` (`k = 1,852` rounds for reliability 0.5) for plain WPA WAA and `0.461` (`k = 984`) for `wpa_opp`, vs. `0.538` (`k = 702`) for HLTV 3.0.
+- **Team-context leakage.** Correlate player stint WAA with team Elo and check whether within-team ranks hold as team form changes (310 stints). Plain WPA WAA has low team share (`0.089`, `r = 0.076` with team Elo), neutral-event WAA carries heavy team context (`0.381`, `r = 0.495`), and `wpa_opp` sits in between (`0.263`, `r = 0.449`, matching HLTV 3.0's `0.179` / `0.306`).
 
 Candidates, not built:
 
@@ -310,20 +330,59 @@ Candidates, not built:
 - **IGL tags from data.** Check whether Liquipedia's squad data carries a role field. If it does, IGL tagging becomes automated and drops off the manual list.
 - **Sample size.** Splitting by player, map, side and role empties cells fast. Report WAR only above a minimum round count, and let pooling do the rest.
 
-**Status: items 1–8 built.** Baselines and WAA are on dry-run credits until the Phase 5 gate runs. The public page is live at `/war` reading static JSON `public/data/war/players.json`. See [war.md](war.md).
+**Status: items 1–8 built; WAA live at `/war` on `production`.** The public page reads `public/data/war/players.json` (`model: "production"`, `provisional: false`, 3,112 maps across 53 events, 267 players with 300+ rounds). See [war.md](war.md).
 
-- **CT positions** (`cs2wp positions`): callouts map to per-map positions through `data/war/ct-positions.json`, each round votes once, and the map takes the most-voted position. On 1,312 maps the median vote share is 0.57–0.74 per map, and 0.66–0.89 of a player's maps match their usual position. Two players often share one nav area, and the table can't split them, so doubled positions stay.
-- **T roles** (`cs2wp roles`): per team per map, the top AWP share (AWP in hand during buy time, on 20k+ buys) is the AWPer if it's at least 0.3, the top entry share of the rest is the Entry, and the others are Riflers. AWP share is reliable per map (0.94); entry share isn't (0.38, about 12 T rounds), so role baselines should pool it across maps.
-- **Role validation** (`cs2wp validate-roles`): against NER0cs's 2024 labels (via the CS2 Playstyle Dataset), AWPer agrees on 117/120 players, with the misses being role changes since. Pooled entry share orders Spacetaker > Half-Lurker > Lurker (AUC 0.77, Spacetaker vs Lurker), and CT site share separates Anchors from Rotators (AUC 0.77).
-- **Role baselines** (`cs2wp baselines`): WPA per round per map, side and role, shrunk by empirical Bayes. T roles and the CT AWPer shrink toward the role's all-map mean; CT positions toward the map's CT mean. The Entry is picked by entry share on the player's other maps, because the map's own label leaks the outcome. CT AWPers are their own role. On dry-run credits, dropping any one event moves a shrunk cell by at most 0.004 (0.046 raw), and split-half cell correlation is 0.82 (raw 0.11).
-- **Expected duels** (`cs2wp duels`): every gun kill gets P(killer wins) from both players' weapon, top speed in the second before the fight (peeker vs holder), flash blindness, HP and armor, plus distance and side. It's an antisymmetric XGBoost, out of fold by event. Log loss is 0.599 against 0.661 for weapons alone, AUC 0.73, calibrated. Role gaps in raw duel win rate (CT AWPer 0.590, T Entry 0.451) are almost all expected: every role is within ±0.8 kills above expected per 100 duels.
-- **IGL tags** (`cs2wp igls`): `data/war/igls.json` maps 61 teams to stint-bounded callers, covering 2,595/2,624 (98.9%) team-maps with 0 collisions. Liquipedia `squads.json` Captain role covered 77.8% with 81 misattributions across caller swaps; `players.json` had 237 collisions with 2+ career IGLs. IGL raw deficit is -0.75 WPA / 100 rds (CT -0.83, T -0.67).
-- **WAA & IGL adjustment** (`cs2wp war`): centers IGLs and non-IGLs at 0.0000 / 100 rds per side (CT IGL +0.83, non-IGL -0.20; T IGL +0.67, non-IGL -0.20), preserving caller variance (huNter- +6.10, xertioN +5.62 vs apEX -2.47, karrigan -12.04). Empirical OLS gives 5.38 round-wins per map win. `--replacement-rate` hooks into linear WAR shifts.
-- **Bootstrap uncertainty & publishing** (`cs2wp war --publish`): 1,000 multinomial round resamples generate 90% (p5, p95) intervals. Live at `/war` with provisional dry-run banner, client-side role/credit filters, IntervalBar, expandable details, and CC-BY-SA Liquipedia credits. WAA correlates only 0.498 with K/D (vs HLTV 3.0 at 0.880 and Rating 2.0 at 0.946).
+- **CT positions** (`cs2wp positions`): callouts map to per-map positions through `data/war/ct-positions.json`, each round votes once, and the map takes the most-voted position. Across 3,113 maps the median vote share is 0.55–0.89 per map (Inferno 0.55 and Ancient 0.56 sit below 0.60), and 0.64–0.90 of a player's maps match their usual position. Two players often share one nav area, and the table can't split them, so doubled positions stay.
+- **T roles** (`cs2wp roles`): per team per map, the top AWP share (AWP in hand during buy time, on 20k+ buys) is the AWPer if it's at least 0.3, the top entry share of the rest is the Entry, and the others are Riflers. AWP share is reliable per map; entry share isn't, so role baselines pool it across maps.
+- **Role validation** (`cs2wp validate-roles`): against NER0cs's 2024 labels (via the CS2 Playstyle Dataset), AWPer agrees on 159/160 players (the one miss is FalleN, who moved off the AWP). Pooled entry share orders Spacetaker > Half-Lurker > Lurker (AUC 0.83, Spacetaker vs Lurker; `r = 0.77` with 2024 opening-attempt rate), and CT site share separates Anchors from Rotators (AUC 0.79).
+- **Role baselines** (`cs2wp baselines`): WPA per round per map, side and role, shrunk by empirical Bayes across all four credit versions (`wpa`, `wpa_opp`, `nwpa_event`, `nwpa_mancount`). T roles and the CT AWPer shrink toward the role's all-map mean; CT positions toward the map's CT mean. The Entry is picked by entry share on the player's other maps, because the map's own label leaks the outcome. CT AWPers are their own role. Dropping any one of 53 events moves a shrunk cell by at most 0.0017 (0.0251 raw), and split-half cell correlation is 0.98 (raw 0.73).
+- **Expected duels** (`cs2wp duels`): 437,356 gun kills across 3,123 maps (55 events) get P(killer wins) from both players' weapon, top speed in the second before the fight (peeker vs holder), flash blindness, HP and armor, plus distance and side. Antisymmetric XGBoost, out of fold by event: log loss 0.6050 against 0.6626 for weapons alone, AUC 0.726, slope 0.995. Role gaps in raw duel win rate (CT AWPer 0.583, T Entry 0.459) are almost all expected: every role is within ±0.8 kills above expected per 100 duels. Smoke support was tested and rejected (+0.00003 log-loss gain, 90% CI −0.00001 to +0.00008); teammates' flashes on the opponent are worth 4,504 kills (0.67 per 100 player-rounds).
+- **IGL tags** (`cs2wp igls`): `data/war/igls.json` maps 82 teams to stint-bounded callers, covering 6,164/6,224 (99.0%) team-maps with 0 collisions. Liquipedia `squads.json` `Captain` covered 58.4% (with mismatches across mid-year caller swaps); `players.json` had 1,008 team-maps with 2+ career IGLs sharing a lineup. IGL raw deficit is −0.83 WPA / 100 rds (CT −0.82, T −0.84).
+- **WAA & IGL adjustment** (`cs2wp war`): centers IGLs and non-IGLs at 0.0000 / 100 rds per side (CT IGL +0.82, non-IGL −0.21; T IGL +0.84, non-IGL −0.23), preserving caller variance (bLitz +8.13, huNter +7.71 vs FalleN −6.84, karrigan −22.37). Empirical OLS gives 5.68 round-wins per map win. `--replacement-rate` hooks into linear WAR shifts.
+- **Bootstrap uncertainty & publishing** (`cs2wp war --publish`): 1,000 multinomial round resamples generate 90% (p5, p95) intervals. Live at `/war` defaulting to `wpa_opp` ("WPA (team-neutral)"), with role/credit filters, IntervalBar, expandable details, and CC-BY-SA Liquipedia credits. WAA (WPA) correlates 0.467 with K/D (vs HLTV 3.0 at 0.870 and Rating 2.0 at 0.945), split-half `r = 0.312` (Spearman-Brown 0.476), and 300+-round month-to-month `r = 0.401`.
+- **Resources: usage and conversion** (`cs2wp usage`): each player-round's credit above the role baseline splits exactly into team context, usage (the player's own equipment, gun, utility and inferred drops, valued by a cross-fit model) and conversion. Conversion's split-half `k` is 1,042 rounds against 984 for `wpa_opp` WAA, so it shipped to `/war` with 90% intervals. Usage is a stable role trait (`k` 94). Flash, smoke and trade support are reported beside the split, not in it. Details in [war.md](war.md#resources-usage-and-conversion).
+- **Not yet built:** team factor / residual APM, replacement-level baseline from tier-2 demos, stand-in and role-transition checks, and IGL-change teammate deltas.
 
-- **Liquipedia squad data has only a free-text `role`/`position` field** (for example `Captain`). IGL tagging probably can't be fully automated; check how reliable `Captain` is first.
-- Phase 4 already covers the SteamID-to-player table's auto-matching, and Phase 5's states carry the position and utility data that roles and usage need.
-- The roster-change test needs Phase 5's WPA and Phase 2's lineage logic, both in place.
+## Phase 7: Team and tactics metrics
+
+Every round outcome splits into four layers: economy and map, duel execution (aim), duel selection (tactics), and leftover (luck and what cannot be measured). Each stat below isolates one layer. The gate for publishing any of them: it passes split-half reliability and adds information beyond Elo, or it ships labeled as descriptive.
+
+| Stat | What it measures | Test before publishing | Order |
+| --- | --- | --- | --- |
+| Duel execution | Actual duel wins minus expected; individual aim | Split-half reliability | 1 |
+| Duel quality | Average expected win probability of the duels a team takes; tactics | Stability; independence from execution | 1 |
+| Time-and-position value | Win probability a team gains from positioning and time between events | Descriptive | 2 |
+| Round wins over expected, economy version | Overall strength from map, side and both buys, with no Elo in the expectation | Descriptive | 2 |
+| Round wins over expected, player version | Team factor: expectation from prior-window summed WAR | Residual persists across windows | 2 |
+| Round conversion over duel expectation | Rounds won beyond what duels predict: trades, timing, post-plant setups | Persistence | 2 |
+| Adjusted T and CT win rate | Ridge-adjusted offense and defense ratings, controlling for map, opponent and economy | Beats raw T win rate at predicting rounds | 2 |
+| Luck-adjusted Elo | Elo updated on a blend of actual and expected margin | Walk-forward log loss; hot-hand check | 3 |
+| Veto value lost | Decision quality at each veto step | Persistence; hidden-information test | 3 |
+| Execute success and post-plant conversion | Structure on T side | Noise check by season | 4 |
+| Map control | Territory share at 30, 45 and 60 seconds | Adds beyond WAR? | 4 |
+| Numbers at contact | Defenders present at first contact, against the map-and-site baseline | Signal in modern CT play? | 4 |
+| T-side predictability | Spread of site choices, timings and executes, given economy | Correlates with underperforming prepared opponents | 5 |
+| Clutch and man-advantage conversion | Wins in XvY states over expected | Year-to-year stability, otherwise label as fun | 5 |
+
+**Definitions that need detail**
+
+- **Round wins over expected, two versions.** The economy version measures overall strength, skill plus tactics. The player version uses summed prior-window WAR as the strength term, so the residual is the team factor. Neither includes team Elo, because Elo absorbs whatever tactics produce and the stat would drift to zero.
+- **Luck-adjusted Elo.** Re-score each map with every duel credited at its expected win probability instead of its outcome, sum per team into an expected round margin, and feed the Elo update a weighted blend of actual and expected margin. Tune the weight with the football-site backtest loop. Check whether a player's duel results above expectation carry from one map to the next within an event: if they do, part of the residual is form, and actual results deserve more weight. Expected goals predicts future results better than actual goals in hockey; this is the same idea for CS.
+- **Veto value lost.** At each veto step, compute the team's series win probability for every option still available using map-specific Elo, then take the best option's probability minus the chosen option's. Sum per team per season. Judge by expected value at the time, never by results. Separately, test hidden information: if below-model picks keep beating map Elo, the team knows something the model does not.
+- **Execute detection.** Three or more Ts entering a site within a few seconds with utility thrown into it. Measure site take success and post-plant conversion, controlling for economy and Elo.
+- **Numbers at contact.** At first contact on the site Ts actually hit, count defenders against the average for that map and site. Normalizing per map and site handles maps where retake is the norm.
+
+**Hard parts**
+
+- **Skill versus tactics.** Each stat is only a tactics signal after player skill is removed. Tie it to the duel models, or it rediscovers Elo.
+- **Elo circularity.** Keep team Elo out of any expectation that is supposed to measure what Elo itself absorbs.
+- **Thin sample.** Each month has about 100 to 240 maps, so monthly limits are wide. Prefer season-level aggregates, and shrink small samples.
+- **Modern CT play.** CTs push for information far more than in 2015 to 2018, so numbers at contact and map control may carry little signal. Build them cheaply and drop them if they are noise.
+- **Luck adjustment mechanics.** Rounds chain, so a proper expected-outcome simulation is hard. The expected-margin version avoids it. Build it after duel execution exists.
+- **Veto data.** Map Elo for rarely played maps is thin, which is often why a team permabans a map. Shrink those estimates hard, or the model will recommend maps teams never practice. Coaches share veto decisions, so label the stat a team decision, not pure IGL.
+- **Clutch noise.** In most sports clutch is mostly noise. Check stability before publishing.
+
+**Status: not started.** Upstream inputs for Order 1–2 exist from Phases 5 and 6 (`data/wp/reports/team_drift.parquet` for time-and-position value, `data/war/duels.parquet` and `data/war/duel-sides.parquet` for expected duels).
 
 ## Site architecture
 
@@ -342,13 +401,13 @@ The biggest risk is Liquipedia access: Phases 2 and 3 depend on it, and free acc
 | Valve changes the VRS model | Phase 1 diff breaks | Pinned commit; re-run `verify-vrs --all-calibrated` on each repo update |
 | HLTV bot protection changes | No new demos | Phases 1 to 3 unaffected; WAR updates pause |
 | CS2 patch breaks the demo parser | Parse failures | Pinned parser; re-parse from the last month of raw demos |
-| Too few 2025 demos | Phase 5 gate can't run | Finish the backfill; the 2026-only dry run isn't a gate result |
+| Economy or mechanics patch shifts WP base rate | Walk-forward fold drifts | Monthly gate flags misses; 31-day weekly intercept for economy patches, `patch-report` for mechanics |
 | Inferred invite rule is wrong | Wrong Major odds | Flagged on the page until checked against the rulebook |
 
 - [ ] When does Valve publish the FiRe Major Buenos Aires 2027 invitation snapshot date? Still unannounced; estimated 2027-04-05.
 - [ ] Does Valve's repo carry prize data for events still in progress, or only completed ones? Not recorded in the docs.
 - [x] Do Liquipedia's API match records include map vetoes? **No.**
-- [~] Does Liquipedia's squad data include an IGL role field? Only a free-text `role`/`position` field.
+- [x] Does Liquipedia's squad data include an IGL role field? Only a free-text `role`/`position` field (`Captain` covers 58.4% of team-maps and lags swaps); `data/war/igls.json` stays manual.
 - [x] Does current awpy support CS2 navigation meshes? **Yes**, awpy 3.1.1.
 - [ ] Does Valve count showmatches? IEM Cologne 2026's Germany v Betclic is unresolved.
 - [ ] Which Esports Nations Cup 2026 qualifier matches does Valve have?

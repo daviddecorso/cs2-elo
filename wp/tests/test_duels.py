@@ -93,3 +93,11 @@ def test_event_folds_keep_events_whole():
     d = pl.DataFrame({"event": ["a"] * 5 + ["b"] * 3 + ["c"] * 2})
     f = event_folds(d, k=2)
     assert len(set(f[:5])) == 1 and len(set(f[5:8])) == 1 and f[0] != f[5]
+
+
+def test_build_fails_fast_without_role_rounds(monkeypatch, tmp_path):
+    import cs2wp.duels as duels_mod
+
+    monkeypatch.setattr(duels_mod, "ROLE_ROUNDS", tmp_path / "missing.parquet")
+    with pytest.raises(FileNotFoundError, match="cs2wp baselines"):
+        duels_mod.build()

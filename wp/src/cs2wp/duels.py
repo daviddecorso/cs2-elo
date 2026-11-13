@@ -328,6 +328,8 @@ def build(ablations: bool = False, device: str = "auto") -> int:
 
     from .pipeline import resolve_device
 
+    if not ROLE_ROUNDS.exists():
+        raise FileNotFoundError(f"{ROLE_ROUNDS} not found; run `cs2wp baselines` first")
     resolved = resolve_device(device)
     warnings.filterwarnings("ignore", message="Sortedness of columns cannot be checked")
     d = pl.concat([map_duels(r) for r in catalog() if (r.dir / "kills.parquet").exists()])

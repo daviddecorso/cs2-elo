@@ -39,6 +39,11 @@ def load_sides(refs: list[MapRef]) -> pl.DataFrame:
             continue
         rows.append(side_rows(pl.read_parquet(rpath), pl.read_parquet(cpath)).with_columns(
             pl.lit(ref.date).alias("date"), pl.lit(ref.map).alias("map"), pl.lit(ref.lp_pagename).alias("event")))
+    if not rows:
+        raise FileNotFoundError(
+            f"no maps with both {CREDITS}/*.parquet and {STATES}/*/roster.parquet; "
+            "run `cs2wp states` and `cs2wp credit` first"
+        )
     return pl.concat(rows, how="vertical_relaxed")
 
 

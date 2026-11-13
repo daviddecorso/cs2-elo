@@ -86,8 +86,8 @@ See [win-probability.md](win-probability.md).
 
 ## Player WAR
 
-- [ ] **Run `cs2wp duels` on the GPU machine** for the smoke-support experiment and flash-gift values, then log the result in `docs/war.md`.
-- [ ] **Fold support into the split?** Teammate flashes and smokes before a player's duels are reported beside usage. Decide once the duel model gives their size.
+- [x] **Run `cs2wp duels` on the GPU machine** for the smoke-support experiment and flash-gift values, then log the result in `docs/war.md`. (Smoke experiment rejected: +0.00003, 90% CI −0.00001 to +0.00008; teammate flashes worth 4,504 kills / 0.67 per 100 player-rounds; `flashGift` published to `players.json`.)
+- [x] **Fold support into the split?** No, for now. Smoke support is rejected (+0.00003 log loss). Teammate flashes (4,504 kills, 0.67 per 100 player-rounds) stay a descriptive `flashGift` stat beside usage and conversion, not part of the split.
 - [ ] **Replacement pool for usage.** `cs2wp usage` compares with the average tier-1 player at each role. Refit the expectations on replacement-level players once tier-2 demos exist.
 
 ## Open items

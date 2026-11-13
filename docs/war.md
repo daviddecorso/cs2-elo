@@ -202,51 +202,50 @@ It reads only the demo tables plus `role-rounds.parquet` for roles, so it doesn'
 
 The killer's weapon is read from ticks the same way as the victim's, not from the kill row, so the killer's input carries no information about who fired last. It matches the kill weapon's class on 99.8% of duels.
 
-**Model.** XGBoost (depth 4, learning rate 0.05, early-stopped tree count). Each duel goes in twice, once from each player's side, and predictions average the two (p and 1 − p of the swap). So P(A beats B) = 1 − P(B beats A) exactly, and nothing in the inputs says who won. HP and blindness are monotone. Predictions are out of fold: 5 folds of whole events, so no tournament predicts its own duels. A date split isn't possible yet, because only 727 duels predate 2026.
+**Model.** XGBoost (depth 4, learning rate 0.05, early-stopped tree count). Each duel goes in twice, once from each player's side, and predictions average the two (p and 1 − p of the swap). So P(A beats B) = 1 − P(B beats A) exactly, and nothing in the inputs says who won. HP and blindness are monotone. Predictions are out of fold: 5 folds of whole events, so no tournament predicts its own duels.
 
-**Results (2026-11-05).** There are 182,181 duels on 1,312 maps from 23 events. Scores count each duel from both sides.
+**Results (2026-11-13).** There are 437,356 duels on 3,123 maps from 55 events. Scores count each duel from both sides.
 
-| Inputs | Log loss | AUC | Max bin gap | Slope |
-| --- | --- | --- | --- | --- |
-| None (0.5) | 0.6931 | 0.500 | - | - |
-| All | 0.5988 | 0.734 | 0.012 | 0.987 |
-| Weapons only | 0.6612 | 0.630 | 0.025 | 1.000 |
-| All but HP and armor | 0.6360 | 0.678 | 0.009 | 1.000 |
-| All but weapons | 0.6125 | 0.719 | 0.013 | 0.989 |
-| All but peeker vs holder | 0.6125 | 0.715 | 0.011 | 0.986 |
-| All but distance | 0.6049 | 0.729 | 0.010 | 0.985 |
-| All but flashed | 0.6012 | 0.731 | 0.010 | 0.992 |
-| All but side | 0.5998 | 0.733 | 0.009 | 0.993 |
+| Inputs | Trees | Log loss | AUC | Max bin gap | Slope |
+| --- | --- | --- | --- | --- | --- |
+| None (0.5) | - | 0.6931 | 0.500 | - | - |
+| All | 1311 | 0.6050 | 0.726 | 0.011 | 0.995 |
+| All + smoke support (experiment) | 1311 | 0.6049 | 0.726 | 0.011 | 0.995 |
+| Weapons only | 647 | 0.6626 | 0.627 | 0.032 | 1.000 |
+
+Single-group ablations on the earlier 1,312-map build (2026-11-05, `All` 0.5988) ordered feature importance as HP and armor (0.6360 without), peeker vs holder (0.6125), weapons (0.6125), distance (0.6049), flashed (0.6012), and side (0.5998).
 
 What each input is worth: the average change in the killer's P(win) when one input is switched in every duel, from a model fit on all duels.
 
-| Switch | Change in P(win) |
+| Switch, for the attacker in every duel | Change in P(win) |
 | --- | --- |
-| Holding (speed 0) instead of moving at 250 | +0.229 |
-| 100 HP instead of 50 | +0.192 |
-| Rifle instead of Pistol | +0.165 |
-| Not flashed instead of flashed | +0.085 |
-| AWP instead of Rifle | −0.028 |
-| AWP instead of Rifle, holding | +0.169 |
-| AWP instead of Rifle, holding, duels at 1,500+ units | +0.278 |
+| Holding (speed 0) instead of moving at 250 | +0.251 |
+| Not flashed instead of flashed | +0.083 |
+| 100 HP instead of 50 | +0.190 |
+| Rifle instead of Pistol | +0.167 |
+| AWP instead of Rifle | −0.005 |
+| AWP instead of Rifle, holding | +0.160 |
+| AWP instead of Rifle, holding, duels at 1,500+ units | +0.288 |
 
 An AWP is only an edge when it's held still, and the edge grows with range. Moving with one, or using it up close, loses to a rifle.
 
 **Kills above expected separates AWP volume from entry difficulty.** Raw duel win rate differs by role, and the model explains nearly all of it:
 
-| Side | Role | Win rate | Expected | Above per 100 duels |
-| --- | --- | --- | --- | --- |
-| CT | AWPer | 0.590 | 0.590 | −0.02 |
-| CT | Position | 0.537 | 0.537 | +0.01 |
-| T | AWPer | 0.489 | 0.487 | +0.20 |
-| T | Entry | 0.451 | 0.443 | +0.76 |
-| T | Rifler | 0.443 | 0.446 | −0.33 |
+| Side | Role | Player-map-sides | Duels per round | Win rate | Expected | Above per 100 duels | Above per 100 rounds |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| CT | AWPer | 5,746 | 1.30 | 0.583 | 0.582 | +0.05 | +0.07 |
+| CT | Position | 25,472 | 1.29 | 0.530 | 0.530 | −0.01 | −0.01 |
+| T | AWPer | 5,746 | 1.27 | 0.497 | 0.494 | +0.31 | +0.40 |
+| T | Entry | 6,244 | 1.36 | 0.459 | 0.451 | +0.79 | +1.07 |
+| T | Rifler | 19,230 | 1.28 | 0.450 | 0.454 | −0.37 | −0.47 |
 
 - AWPers win more duels because they hold long angles, not because they're above average at them. Entries lose more because they peek first.
-- Across the 194 players with 300+ duels, win rate correlates 0.75 with expected rate. Taking the expectation out cuts the spread between players from SD 0.034 to 0.022.
-- **Month to month** (659 player-month pairs, 40+ duels each): win rate 0.45, expected rate 0.63, kills above expected per duel 0.33. Situations are a stable trait of a player's role, so raw win rate looks more stable than the skill left after removing them. On a month of duels alone, kills above expected sits under the 0.40 the WAR gate asks for, so WAR needs more than duels.
+- Across the 288 players with 300+ duels, win rate correlates 0.76 with expected rate. Taking the expectation out cuts the spread between players from SD 0.032 to 0.021.
+- **Month to month** (1,778 player-month pairs, 40+ duels each): win rate 0.45, expected rate 0.62, kills above expected per duel 0.31. Situations are a stable trait of a player's role, so raw win rate looks more stable than the skill left after removing them. On a month of duels alone, kills above expected sits under the 0.40 the WAR gate asks for, so WAR needs more than duels.
+- **Smoke support (experiment): reject.** A teammate's smoke within 800 units of either player, popped in the 5 s before the duel, appears on 7.4% of winners' and 7.6% of losers' sides. Adding `x_smoke`/`y_smoke` gives a per-duel log-loss gain of +0.00003 (90% CI −0.00001, +0.00008, resampling whole events), so smoke support stays out of `FEATURES`.
+- **Teammates' flashes on the opponent:** present on 6.5% of winners' and 5.6% of losers' sides; worth 4,504 kills over all duels (0.67 per 100 player-rounds), stored per player-map-side as `flash_gift` (the summed rise in `P(win)` from the opponent being blind from a teammate's flash).
 
-`duels.parquet` has one row per duel with every input, `p` (attacker win probability) and `fold`. `duel-sides.parquet` has one row per player-map-side from `role-rounds.parquet`, with `duels`, `wins`, `expected` and `kills_above`.
+`duels.parquet` has one row per duel with every input, support flags, `p` (attacker win probability) and `fold`. `duel-sides.parquet` has one row per player-map-side from `role-rounds.parquet`, with `duels`, `wins`, `expected`, `kills_above`, and `flash_gift`.
 
 ## IGL tags
 
@@ -477,7 +476,7 @@ The AWP is worth little here because g already includes the role: an AWPer is ex
 - **Not met:** "AWPers top usage". AWPers average +0.02, everyone else −0.01, because f's AWP premium over an AWPer's expectation is small (above). Usage measures resources beyond what the role normally gets.
 - Player means of conversion are about −0.35 unweighted, but +0.08 weighted by rounds. Players with fewer rounds tend to be below average.
 
-**Pending (GPU machine).** `cs2wp duels` adds the support columns to `duels.parquet`, `flash_gift` to `duel-sides.parquet` (each supported duel's P(win) minus the model's P(win) with the opponent not blind, summed), and a smoke-support experiment. The experiment cross-fits the duel model with `x_smoke`/`y_smoke` and keeps them only if the 90% CI on the per-duel log-loss gain, from resampling events, excludes zero. Its result goes in [Expected duels](#expected-duels) either way.
+**Duel support check (GPU run, 2026-11-13).** `cs2wp duels` added the support columns to `duels.parquet`, `flash_gift` to `duel-sides.parquet` (worth 4,504 kills over all duels, 0.67 per 100 player-rounds), and ran the smoke-support experiment, which was **rejected** (+0.00003 log-loss gain, 90% CI −0.00001 to +0.00008; see [Expected duels](#expected-duels)). `cs2wp war --model production --publish` published `flashGift` to `/war` (`public/data/war/players.json`).
 
 ## Public interface (`/war`)
 

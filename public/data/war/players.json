@@ -1,5 +1,5 @@
 {
- "generatedAt": "2026-11-13T07:15:29+00:00",
+ "generatedAt": "2026-11-13T10:26:29+00:00",
  "model": "production",
  "provisional": false,
  "gate": {
@@ -49,15 +49,15 @@
  "validation": {
   "monthToMonth100": {
    "wpa_waa_r": {
-    "r": 0.20780111570717397,
+    "r": 0.20780111570717386,
     "pairs": 1475
    },
    "nwpa_event_waa_r": {
-    "r": 0.318097774715787,
+    "r": 0.3180977747157869,
     "pairs": 1475
    },
    "nwpa_mancount_waa_r": {
-    "r": 0.2828586210034709,
+    "r": 0.2828586210034712,
     "pairs": 1475
    },
    "wpa_opp_waa_r": {
@@ -69,19 +69,19 @@
     "pairs": 1475
    },
    "kills_above_r": {
-    "r": 0.3712532035248554,
+    "r": 0.37054674786603176,
     "pairs": 1475
    },
    "rating2_approx": {
-    "r": 0.4753755096612261,
+    "r": 0.475375509661226,
     "pairs": 1475
    },
    "rating3": {
-    "r": 0.4253693966246138,
+    "r": 0.42536939662461376,
     "pairs": 1455
    },
    "swing": {
-    "r": 0.3800597651951661,
+    "r": 0.3800597651951662,
     "pairs": 1455
    },
    "kd": {
@@ -91,19 +91,19 @@
   },
   "monthToMonth200": {
    "wpa_waa_r": {
-    "r": 0.32282234958160555,
+    "r": 0.3228223495816056,
     "pairs": 669
    },
    "nwpa_event_waa_r": {
-    "r": 0.4402562432018779,
+    "r": 0.44025624320187784,
     "pairs": 669
    },
    "nwpa_mancount_waa_r": {
-    "r": 0.3991332782636246,
+    "r": 0.39913327826362466,
     "pairs": 669
    },
    "wpa_opp_waa_r": {
-    "r": 0.39770044867558174,
+    "r": 0.39770044867558163,
     "pairs": 669
    },
    "wpa_raw_r": {
@@ -111,11 +111,11 @@
     "pairs": 669
    },
    "kills_above_r": {
-    "r": 0.5042837856448449,
+    "r": 0.5039183770697055,
     "pairs": 669
    },
    "rating2_approx": {
-    "r": 0.6109788041927294,
+    "r": 0.6109788041927292,
     "pairs": 669
    },
    "rating3": {
@@ -123,7 +123,7 @@
     "pairs": 659
    },
    "swing": {
-    "r": 0.5517959731372895,
+    "r": 0.5517959731372898,
     "pairs": 659
    },
    "kd": {
@@ -137,7 +137,7 @@
     "pairs": 276
    },
    "nwpa_event_waa_r": {
-    "r": 0.46151057300935544,
+    "r": 0.4615105730093552,
     "pairs": 276
    },
    "nwpa_mancount_waa_r": {
@@ -145,19 +145,19 @@
     "pairs": 276
    },
    "wpa_opp_waa_r": {
-    "r": 0.45526085788174114,
+    "r": 0.455260857881741,
     "pairs": 276
    },
    "wpa_raw_r": {
-    "r": 0.6103368385455477,
+    "r": 0.6103368385455475,
     "pairs": 276
    },
    "kills_above_r": {
-    "r": 0.5466881517323987,
+    "r": 0.5457008947805257,
     "pairs": 276
    },
    "rating2_approx": {
-    "r": 0.6508777555921884,
+    "r": 0.6508777555921885,
     "pairs": 276
    },
    "rating3": {
@@ -165,7 +165,7 @@
     "pairs": 272
    },
    "swing": {
-    "r": 0.6340816069606461,
+    "r": 0.6340816069606459,
     "pairs": 272
    },
    "kd": {
@@ -175,22 +175,22 @@
   },
   "splitHalf": {
    "wpa_waa_r": {
-    "r": 0.3124105718726821,
-    "spearman_brown": 0.4760866432627141,
+    "r": 0.31241057187268223,
+    "spearman_brown": 0.47608664326271427,
     "players": 267
    },
    "nwpa_event_waa_r": {
-    "r": 0.40545956517924914,
-    "spearman_brown": 0.5769779155866895,
+    "r": 0.40545956517924936,
+    "spearman_brown": 0.5769779155866898,
     "players": 267
    },
    "nwpa_mancount_waa_r": {
-    "r": 0.3636995374305841,
-    "spearman_brown": 0.5334012771110108,
+    "r": 0.363699537430584,
+    "spearman_brown": 0.5334012771110106,
     "players": 267
    },
    "wpa_opp_waa_r": {
-    "r": 0.4610608328337969,
+    "r": 0.46106083283379684,
     "spearman_brown": 0.631131603109978,
     "players": 267
    },
@@ -200,13 +200,13 @@
     "players": 267
    },
    "kills_above_r": {
-    "r": 0.5081897825984638,
-    "spearman_brown": 0.673906942563823,
+    "r": 0.5081543322826596,
+    "spearman_brown": 0.6738757717368953,
     "players": 267
    },
    "rating2_approx": {
-    "r": 0.5768023664079748,
-    "spearman_brown": 0.7316102242057841,
+    "r": 0.5768023664079749,
+    "spearman_brown": 0.7316102242057844,
     "players": 267
    },
    "rating3": {
@@ -215,8 +215,8 @@
     "players": 266
    },
    "swing": {
-    "r": 0.5020713382090887,
-    "spearman_brown": 0.6685053172077773,
+    "r": 0.5020713382090886,
+    "spearman_brown": 0.6685053172077772,
     "players": 266
    },
    "kd": {
@@ -239,7 +239,7 @@
     "players": 267
    },
    "kills_above_r": {
-    "r": 0.7372865855300311,
+    "r": 0.7375119110357214,
     "players": 267
    },
    "rating2_approx": {
@@ -303,8 +303,8 @@
     }
    ],
    "duels": 10252,
-   "killsAbove": 405.91,
-   "killsAbovePer100": 5.152,
+   "killsAbove": 405.38,
+   "killsAbovePer100": 5.145,
    "kd": 1.184,
    "adr": 96.0,
    "rating2Approx": 1.249,
@@ -401,7 +401,7 @@
     "selfFlashShare": 0.02,
     "smokeSupportShare": 0.078,
     "tradedDeathRate": 0.19,
-    "flashGift": null
+    "flashGift": 68.86
    }
   },
   {
@@ -445,8 +445,8 @@
     }
    ],
    "duels": 9642,
-   "killsAbove": 639.15,
-   "killsAbovePer100": 10.386,
+   "killsAbove": 638.24,
+   "killsAbovePer100": 10.371,
    "kd": 1.336,
    "adr": 113.2,
    "rating2Approx": 1.428,
@@ -543,7 +543,7 @@
     "selfFlashShare": 0.01,
     "smokeSupportShare": 0.092,
     "tradedDeathRate": 0.214,
-    "flashGift": null
+    "flashGift": 58.04
    }
   },
   {
@@ -587,8 +587,8 @@
     }
    ],
    "duels": 10155,
-   "killsAbove": 538.86,
-   "killsAbovePer100": 7.409,
+   "killsAbove": 538.99,
+   "killsAbovePer100": 7.411,
    "kd": 1.435,
    "adr": 102.5,
    "rating2Approx": 1.391,
@@ -685,7 +685,7 @@
     "selfFlashShare": 0.013,
     "smokeSupportShare": 0.057,
     "tradedDeathRate": 0.201,
-    "flashGift": null
+    "flashGift": 37.45
    }
   },
   {
@@ -729,8 +729,8 @@
     }
    ],
    "duels": 9285,
-   "killsAbove": 338.99,
-   "killsAbovePer100": 5.018,
+   "killsAbove": 338.0,
+   "killsAbovePer100": 5.004,
    "kd": 1.353,
    "adr": 96.3,
    "rating2Approx": 1.322,
@@ -827,7 +827,7 @@
     "selfFlashShare": 0.012,
     "smokeSupportShare": 0.061,
     "tradedDeathRate": 0.188,
-    "flashGift": null
+    "flashGift": 25.0
    }
   },
   {
@@ -871,8 +871,8 @@
     }
    ],
    "duels": 8187,
-   "killsAbove": 240.27,
-   "killsAbovePer100": 3.805,
+   "killsAbove": 240.3,
+   "killsAbovePer100": 3.806,
    "kd": 1.087,
    "adr": 91.0,
    "rating2Approx": 1.176,
@@ -969,7 +969,7 @@
     "selfFlashShare": 0.015,
     "smokeSupportShare": 0.073,
     "tradedDeathRate": 0.189,
-    "flashGift": null
+    "flashGift": 48.8
    }
   },
   {
@@ -1013,8 +1013,8 @@
     }
    ],
    "duels": 5769,
-   "killsAbove": 178.12,
-   "killsAbovePer100": 4.182,
+   "killsAbove": 178.81,
+   "killsAbovePer100": 4.198,
    "kd": 1.061,
    "adr": 95.1,
    "rating2Approx": 1.192,
@@ -1111,7 +1111,7 @@
     "selfFlashShare": 0.017,
     "smokeSupportShare": 0.084,
     "tradedDeathRate": 0.231,
-    "flashGift": null
+    "flashGift": 33.26
    }
   },
   {
@@ -1155,8 +1155,8 @@
     }
    ],
    "duels": 9484,
-   "killsAbove": 230.99,
-   "killsAbovePer100": 3.255,
+   "killsAbove": 229.74,
+   "killsAbovePer100": 3.237,
    "kd": 1.094,
    "adr": 94.0,
    "rating2Approx": 1.189,
@@ -1253,7 +1253,7 @@
     "selfFlashShare": 0.015,
     "smokeSupportShare": 0.074,
     "tradedDeathRate": 0.188,
-    "flashGift": null
+    "flashGift": 51.19
    }
   },
   {
@@ -1297,8 +1297,8 @@
     }
    ],
    "duels": 5092,
-   "killsAbove": 166.99,
-   "killsAbovePer100": 4.345,
+   "killsAbove": 166.8,
+   "killsAbovePer100": 4.34,
    "kd": 1.154,
    "adr": 95.0,
    "rating2Approx": 1.222,
@@ -1395,7 +1395,7 @@
     "selfFlashShare": 0.016,
     "smokeSupportShare": 0.085,
     "tradedDeathRate": 0.192,
-    "flashGift": null
+    "flashGift": 28.11
    }
   },
   {
@@ -1439,8 +1439,8 @@
     }
    ],
    "duels": 6235,
-   "killsAbove": 180.96,
-   "killsAbovePer100": 3.873,
+   "killsAbove": 181.66,
+   "killsAbovePer100": 3.888,
    "kd": 1.092,
    "adr": 94.6,
    "rating2Approx": 1.198,
@@ -1537,7 +1537,7 @@
     "selfFlashShare": 0.011,
     "smokeSupportShare": 0.071,
     "tradedDeathRate": 0.187,
-    "flashGift": null
+    "flashGift": 34.28
    }
   },
   {
@@ -1581,8 +1581,8 @@
     }
    ],
    "duels": 7522,
-   "killsAbove": 185.48,
-   "killsAbovePer100": 3.259,
+   "killsAbove": 185.22,
+   "killsAbovePer100": 3.255,
    "kd": 1.084,
    "adr": 91.6,
    "rating2Approx": 1.18,
@@ -1679,7 +1679,7 @@
     "selfFlashShare": 0.012,
     "smokeSupportShare": 0.054,
     "tradedDeathRate": 0.196,
-    "flashGift": null
+    "flashGift": 31.88
    }
   },
   {
@@ -1723,7 +1723,7 @@
     }
    ],
    "duels": 9216,
-   "killsAbove": 135.94,
+   "killsAbove": 135.93,
    "killsAbovePer100": 1.929,
    "kd": 1.096,
    "adr": 92.0,
@@ -1821,7 +1821,7 @@
     "selfFlashShare": 0.01,
     "smokeSupportShare": 0.069,
     "tradedDeathRate": 0.204,
-    "flashGift": null
+    "flashGift": 47.13
    }
   },
   {
@@ -1865,8 +1865,8 @@
     }
    ],
    "duels": 7501,
-   "killsAbove": 120.26,
-   "killsAbovePer100": 1.967,
+   "killsAbove": 119.08,
+   "killsAbovePer100": 1.948,
    "kd": 1.056,
    "adr": 85.0,
    "rating2Approx": 1.131,
@@ -1963,7 +1963,7 @@
     "selfFlashShare": 0.009,
     "smokeSupportShare": 0.06,
     "tradedDeathRate": 0.198,
-    "flashGift": null
+    "flashGift": 29.7
    }
   },
   {
@@ -2007,8 +2007,8 @@
     }
    ],
    "duels": 8074,
-   "killsAbove": -118.74,
-   "killsAbovePer100": -1.902,
+   "killsAbove": -120.03,
+   "killsAbovePer100": -1.923,
    "kd": 0.907,
    "adr": 88.3,
    "rating2Approx": 1.055,
@@ -2105,7 +2105,7 @@
     "selfFlashShare": 0.031,
     "smokeSupportShare": 0.074,
     "tradedDeathRate": 0.188,
-    "flashGift": null
+    "flashGift": 38.12
    }
   },
   {
@@ -2149,8 +2149,8 @@
     }
    ],
    "duels": 7341,
-   "killsAbove": -55.1,
-   "killsAbovePer100": -0.951,
+   "killsAbove": -55.39,
+   "killsAbovePer100": -0.956,
    "kd": 0.966,
    "adr": 85.2,
    "rating2Approx": 1.087,
@@ -2247,7 +2247,7 @@
     "selfFlashShare": 0.023,
     "smokeSupportShare": 0.074,
     "tradedDeathRate": 0.2,
-    "flashGift": null
+    "flashGift": 46.42
    }
   },
   {
@@ -2291,8 +2291,8 @@
     }
    ],
    "duels": 6398,
-   "killsAbove": 78.53,
-   "killsAbovePer100": 1.667,
+   "killsAbove": 78.64,
+   "killsAbovePer100": 1.669,
    "kd": 1.009,
    "adr": 92.8,
    "rating2Approx": 1.137,
@@ -2389,7 +2389,7 @@
     "selfFlashShare": 0.016,
     "smokeSupportShare": 0.097,
     "tradedDeathRate": 0.199,
-    "flashGift": null
+    "flashGift": 48.34
    }
   },
   {
@@ -2433,8 +2433,8 @@
     }
    ],
    "duels": 3361,
-   "killsAbove": 0.75,
-   "killsAbovePer100": 0.028,
+   "killsAbove": 0.13,
+   "killsAbovePer100": 0.005,
    "kd": 0.904,
    "adr": 82.4,
    "rating2Approx": 1.031,
@@ -2531,7 +2531,7 @@
     "selfFlashShare": 0.013,
     "smokeSupportShare": 0.064,
     "tradedDeathRate": 0.19,
-    "flashGift": null
+    "flashGift": 14.72
    }
   },
   {
@@ -2575,8 +2575,8 @@
     }
    ],
    "duels": 9643,
-   "killsAbove": 88.05,
-   "killsAbovePer100": 1.234,
+   "killsAbove": 87.43,
+   "killsAbovePer100": 1.226,
    "kd": 1.013,
    "adr": 95.2,
    "rating2Approx": 1.162,
@@ -2673,7 +2673,7 @@
     "selfFlashShare": 0.022,
     "smokeSupportShare": 0.089,
     "tradedDeathRate": 0.235,
-    "flashGift": null
+    "flashGift": 69.54
    }
   },
   {
@@ -2717,8 +2717,8 @@
     }
    ],
    "duels": 9433,
-   "killsAbove": 309.73,
-   "killsAbovePer100": 4.259,
+   "killsAbove": 308.79,
+   "killsAbovePer100": 4.246,
    "kd": 1.227,
    "adr": 91.2,
    "rating2Approx": 1.241,
@@ -2815,7 +2815,7 @@
     "selfFlashShare": 0.006,
     "smokeSupportShare": 0.056,
     "tradedDeathRate": 0.164,
-    "flashGift": null
+    "flashGift": 38.03
    }
   },
   {
@@ -2859,8 +2859,8 @@
     }
    ],
    "duels": 4864,
-   "killsAbove": 15.16,
-   "killsAbovePer100": 0.398,
+   "killsAbove": 15.56,
+   "killsAbovePer100": 0.408,
    "kd": 1.152,
    "adr": 85.8,
    "rating2Approx": 1.166,
@@ -2957,7 +2957,7 @@
     "selfFlashShare": 0.012,
     "smokeSupportShare": 0.052,
     "tradedDeathRate": 0.152,
-    "flashGift": null
+    "flashGift": 10.91
    }
   },
   {
@@ -3001,8 +3001,8 @@
     }
    ],
    "duels": 3446,
-   "killsAbove": -21.66,
-   "killsAbovePer100": -0.758,
+   "killsAbove": -21.05,
+   "killsAbovePer100": -0.737,
    "kd": 1.121,
    "adr": 79.5,
    "rating2Approx": 1.111,
@@ -3099,7 +3099,7 @@
     "selfFlashShare": 0.009,
     "smokeSupportShare": 0.056,
     "tradedDeathRate": 0.141,
-    "flashGift": null
+    "flashGift": 6.04
    }
   },
   {
@@ -3143,8 +3143,8 @@
     }
    ],
    "duels": 4323,
-   "killsAbove": 66.9,
-   "killsAbovePer100": 2.036,
+   "killsAbove": 66.71,
+   "killsAbovePer100": 2.03,
    "kd": 1.065,
    "adr": 89.8,
    "rating2Approx": 1.152,
@@ -3241,7 +3241,7 @@
     "selfFlashShare": 0.007,
     "smokeSupportShare": 0.061,
     "tradedDeathRate": 0.15,
-    "flashGift": null
+    "flashGift": 19.34
    }
   },
   {
@@ -3285,8 +3285,8 @@
     }
    ],
    "duels": 5008,
-   "killsAbove": -42.22,
-   "killsAbovePer100": -1.062,
+   "killsAbove": -40.72,
+   "killsAbovePer100": -1.024,
    "kd": 1.031,
    "adr": 84.2,
    "rating2Approx": 1.11,
@@ -3383,7 +3383,7 @@
     "selfFlashShare": 0.027,
     "smokeSupportShare": 0.06,
     "tradedDeathRate": 0.188,
-    "flashGift": null
+    "flashGift": 15.29
    }
   },
   {
@@ -3427,8 +3427,8 @@
     }
    ],
    "duels": 7980,
-   "killsAbove": 191.6,
-   "killsAbovePer100": 3.076,
+   "killsAbove": 191.85,
+   "killsAbovePer100": 3.08,
    "kd": 1.368,
    "adr": 91.1,
    "rating2Approx": 1.288,
@@ -3525,7 +3525,7 @@
     "selfFlashShare": 0.009,
     "smokeSupportShare": 0.044,
     "tradedDeathRate": 0.169,
-    "flashGift": null
+    "flashGift": 13.28
    }
   },
   {
@@ -3569,8 +3569,8 @@
     }
    ],
    "duels": 3582,
-   "killsAbove": 103.22,
-   "killsAbovePer100": 4.073,
+   "killsAbove": 102.98,
+   "killsAbovePer100": 4.064,
    "kd": 1.013,
    "adr": 97.1,
    "rating2Approx": 1.162,
@@ -3667,7 +3667,7 @@
     "selfFlashShare": 0.018,
     "smokeSupportShare": 0.107,
     "tradedDeathRate": 0.211,
-    "flashGift": null
+    "flashGift": 25.61
    }
   },
   {
@@ -3711,8 +3711,8 @@
     }
    ],
    "duels": 5179,
-   "killsAbove": 98.0,
-   "killsAbovePer100": 2.58,
+   "killsAbove": 96.94,
+   "killsAbovePer100": 2.552,
    "kd": 1.023,
    "adr": 92.9,
    "rating2Approx": 1.156,
@@ -3809,7 +3809,7 @@
     "selfFlashShare": 0.017,
     "smokeSupportShare": 0.087,
     "tradedDeathRate": 0.209,
-    "flashGift": null
+    "flashGift": 25.77
    }
   },
   {
@@ -3853,8 +3853,8 @@
     }
    ],
    "duels": 2374,
-   "killsAbove": -20.17,
-   "killsAbovePer100": -1.018,
+   "killsAbove": -20.43,
+   "killsAbovePer100": -1.031,
    "kd": 0.863,
    "adr": 79.2,
    "rating2Approx": 1.002,
@@ -3951,7 +3951,7 @@
     "selfFlashShare": 0.032,
     "smokeSupportShare": 0.058,
     "tradedDeathRate": 0.186,
-    "flashGift": null
+    "flashGift": 14.88
    }
   },
   {
@@ -3995,8 +3995,8 @@
     }
    ],
    "duels": 4902,
-   "killsAbove": 92.26,
-   "killsAbovePer100": 2.536,
+   "killsAbove": 92.43,
+   "killsAbovePer100": 2.541,
    "kd": 1.087,
    "adr": 93.5,
    "rating2Approx": 1.172,
@@ -4093,7 +4093,7 @@
     "selfFlashShare": 0.011,
     "smokeSupportShare": 0.082,
     "tradedDeathRate": 0.171,
-    "flashGift": null
+    "flashGift": 21.86
    }
   },
   {
@@ -4137,8 +4137,8 @@
     }
    ],
    "duels": 1891,
-   "killsAbove": 17.58,
-   "killsAbovePer100": 1.125,
+   "killsAbove": 17.46,
+   "killsAbovePer100": 1.118,
    "kd": 0.938,
    "adr": 78.6,
    "rating2Approx": 1.036,
@@ -4235,7 +4235,7 @@
     "selfFlashShare": 0.015,
     "smokeSupportShare": 0.066,
     "tradedDeathRate": 0.184,
-    "flashGift": null
+    "flashGift": 7.55
    }
   },
   {
@@ -4279,8 +4279,8 @@
     }
    ],
    "duels": 3674,
-   "killsAbove": 73.02,
-   "killsAbovePer100": 2.753,
+   "killsAbove": 74.17,
+   "killsAbovePer100": 2.797,
    "kd": 1.024,
    "adr": 93.0,
    "rating2Approx": 1.142,
@@ -4377,7 +4377,7 @@
     "selfFlashShare": 0.016,
     "smokeSupportShare": 0.07,
     "tradedDeathRate": 0.206,
-    "flashGift": null
+    "flashGift": 15.16
    }
   },
   {
@@ -4421,8 +4421,8 @@
     }
    ],
    "duels": 5795,
-   "killsAbove": 1.18,
-   "killsAbovePer100": 0.024,
+   "killsAbove": 0.75,
+   "killsAbovePer100": 0.015,
    "kd": 0.933,
    "adr": 79.8,
    "rating2Approx": 1.052,
@@ -4519,7 +4519,7 @@
     "selfFlashShare": 0.014,
     "smokeSupportShare": 0.061,
     "tradedDeathRate": 0.238,
-    "flashGift": null
+    "flashGift": 19.15
    }
   },
   {
@@ -4563,8 +4563,8 @@
     }
    ],
    "duels": 3037,
-   "killsAbove": 60.7,
-   "killsAbovePer100": 2.698,
+   "killsAbove": 60.58,
+   "killsAbovePer100": 2.693,
    "kd": 1.049,
    "adr": 92.4,
    "rating2Approx": 1.154,
@@ -4661,7 +4661,7 @@
     "selfFlashShare": 0.013,
     "smokeSupportShare": 0.096,
     "tradedDeathRate": 0.203,
-    "flashGift": null
+    "flashGift": 16.14
    }
   },
   {
@@ -4705,8 +4705,8 @@
     }
    ],
    "duels": 9457,
-   "killsAbove": 160.89,
-   "killsAbovePer100": 2.38,
+   "killsAbove": 160.82,
+   "killsAbovePer100": 2.379,
    "kd": 1.061,
    "adr": 94.1,
    "rating2Approx": 1.167,
@@ -4803,7 +4803,7 @@
     "selfFlashShare": 0.012,
     "smokeSupportShare": 0.078,
     "tradedDeathRate": 0.195,
-    "flashGift": null
+    "flashGift": 48.43
    }
   },
   {
@@ -4847,8 +4847,8 @@
     }
    ],
    "duels": 2702,
-   "killsAbove": -12.89,
-   "killsAbovePer100": -0.605,
+   "killsAbove": -12.47,
+   "killsAbovePer100": -0.585,
    "kd": 0.854,
    "adr": 82.9,
    "rating2Approx": 0.997,
@@ -4945,7 +4945,7 @@
     "selfFlashShare": 0.02,
     "smokeSupportShare": 0.075,
     "tradedDeathRate": 0.203,
-    "flashGift": null
+    "flashGift": 12.07
    }
   },
   {
@@ -4989,8 +4989,8 @@
     }
    ],
    "duels": 4935,
-   "killsAbove": -93.04,
-   "killsAbovePer100": -2.375,
+   "killsAbove": -92.56,
+   "killsAbovePer100": -2.362,
    "kd": 0.856,
    "adr": 83.3,
    "rating2Approx": 0.997,
@@ -5087,7 +5087,7 @@
     "selfFlashShare": 0.02,
     "smokeSupportShare": 0.068,
     "tradedDeathRate": 0.195,
-    "flashGift": null
+    "flashGift": 23.07
    }
   },
   {
@@ -5131,8 +5131,8 @@
     }
    ],
    "duels": 7708,
-   "killsAbove": 53.65,
-   "killsAbovePer100": 0.943,
+   "killsAbove": 53.88,
+   "killsAbovePer100": 0.947,
    "kd": 1.025,
    "adr": 91.5,
    "rating2Approx": 1.156,
@@ -5229,7 +5229,7 @@
     "selfFlashShare": 0.013,
     "smokeSupportShare": 0.089,
     "tradedDeathRate": 0.213,
-    "flashGift": null
+    "flashGift": 48.9
    }
   },
   {
@@ -5273,8 +5273,8 @@
     }
    ],
    "duels": 3628,
-   "killsAbove": 98.66,
-   "killsAbovePer100": 3.667,
+   "killsAbove": 99.05,
+   "killsAbovePer100": 3.682,
    "kd": 0.989,
    "adr": 92.4,
    "rating2Approx": 1.118,
@@ -5371,7 +5371,7 @@
     "selfFlashShare": 0.026,
     "smokeSupportShare": 0.096,
     "tradedDeathRate": 0.196,
-    "flashGift": null
+    "flashGift": 35.34
    }
   },
   {
@@ -5415,8 +5415,8 @@
     }
    ],
    "duels": 1259,
-   "killsAbove": 11.91,
-   "killsAbovePer100": 1.213,
+   "killsAbove": 11.6,
+   "killsAbovePer100": 1.181,
    "kd": 0.947,
    "adr": 87.1,
    "rating2Approx": 1.087,
@@ -5513,7 +5513,7 @@
     "selfFlashShare": 0.021,
     "smokeSupportShare": 0.06,
     "tradedDeathRate": 0.211,
-    "flashGift": null
+    "flashGift": 6.72
    }
   },
   {
@@ -5557,8 +5557,8 @@
     }
    ],
    "duels": 7383,
-   "killsAbove": 120.08,
-   "killsAbovePer100": 2.11,
+   "killsAbove": 120.82,
+   "killsAbovePer100": 2.123,
    "kd": 1.192,
    "adr": 86.5,
    "rating2Approx": 1.198,
@@ -5655,7 +5655,7 @@
     "selfFlashShare": 0.009,
     "smokeSupportShare": 0.059,
     "tradedDeathRate": 0.167,
-    "flashGift": null
+    "flashGift": 22.17
    }
   },
   {
@@ -5699,8 +5699,8 @@
     }
    ],
    "duels": 898,
-   "killsAbove": 16.7,
-   "killsAbovePer100": 2.531,
+   "killsAbove": 16.78,
+   "killsAbovePer100": 2.542,
    "kd": 0.974,
    "adr": 93.6,
    "rating2Approx": 1.127,
@@ -5797,7 +5797,7 @@
     "selfFlashShare": 0.012,
     "smokeSupportShare": 0.072,
     "tradedDeathRate": 0.217,
-    "flashGift": null
+    "flashGift": 3.45
    }
   },
   {
@@ -5841,8 +5841,8 @@
     }
    ],
    "duels": 1094,
-   "killsAbove": 11.55,
-   "killsAbovePer100": 1.375,
+   "killsAbove": 11.71,
+   "killsAbovePer100": 1.394,
    "kd": 1.166,
    "adr": 97.4,
    "rating2Approx": 1.246,
@@ -5939,7 +5939,7 @@
     "selfFlashShare": 0.011,
     "smokeSupportShare": 0.069,
     "tradedDeathRate": 0.151,
-    "flashGift": null
+    "flashGift": 5.59
    }
   },
   {
@@ -5983,8 +5983,8 @@
     }
    ],
    "duels": 6336,
-   "killsAbove": 86.61,
-   "killsAbovePer100": 1.796,
+   "killsAbove": 86.57,
+   "killsAbovePer100": 1.795,
    "kd": 1.016,
    "adr": 88.1,
    "rating2Approx": 1.123,
@@ -6081,7 +6081,7 @@
     "selfFlashShare": 0.011,
     "smokeSupportShare": 0.072,
     "tradedDeathRate": 0.211,
-    "flashGift": null
+    "flashGift": 36.09
    }
   },
   {
@@ -6125,8 +6125,8 @@
     }
    ],
    "duels": 5027,
-   "killsAbove": 60.46,
-   "killsAbovePer100": 1.67,
+   "killsAbove": 60.36,
+   "killsAbovePer100": 1.668,
    "kd": 0.978,
    "adr": 94.1,
    "rating2Approx": 1.129,
@@ -6223,7 +6223,7 @@
     "selfFlashShare": 0.017,
     "smokeSupportShare": 0.097,
     "tradedDeathRate": 0.205,
-    "flashGift": null
+    "flashGift": 29.01
    }
   },
   {
@@ -6267,8 +6267,8 @@
     }
    ],
    "duels": 2786,
-   "killsAbove": 46.71,
-   "killsAbovePer100": 2.32,
+   "killsAbove": 46.15,
+   "killsAbovePer100": 2.293,
    "kd": 1.039,
    "adr": 95.2,
    "rating2Approx": 1.162,
@@ -6365,7 +6365,7 @@
     "selfFlashShare": 0.019,
     "smokeSupportShare": 0.079,
     "tradedDeathRate": 0.191,
-    "flashGift": null
+    "flashGift": 12.95
    }
   },
   {
@@ -6409,8 +6409,8 @@
     }
    ],
    "duels": 2862,
-   "killsAbove": -13.7,
-   "killsAbovePer100": -0.632,
+   "killsAbove": -13.96,
+   "killsAbovePer100": -0.644,
    "kd": 1.006,
    "adr": 89.9,
    "rating2Approx": 1.127,
@@ -6507,7 +6507,7 @@
     "selfFlashShare": 0.016,
     "smokeSupportShare": 0.074,
     "tradedDeathRate": 0.186,
-    "flashGift": null
+    "flashGift": 13.18
    }
   },
   {
@@ -6551,8 +6551,8 @@
     }
    ],
    "duels": 6943,
-   "killsAbove": 95.23,
-   "killsAbovePer100": 1.837,
+   "killsAbove": 95.54,
+   "killsAbovePer100": 1.843,
    "kd": 1.01,
    "adr": 91.8,
    "rating2Approx": 1.139,
@@ -6649,7 +6649,7 @@
     "selfFlashShare": 0.014,
     "smokeSupportShare": 0.064,
     "tradedDeathRate": 0.194,
-    "flashGift": null
+    "flashGift": 35.25
    }
   },
   {
@@ -6693,8 +6693,8 @@
     }
    ],
    "duels": 3117,
-   "killsAbove": -5.1,
-   "killsAbovePer100": -0.227,
+   "killsAbove": -5.06,
+   "killsAbovePer100": -0.225,
    "kd": 0.952,
    "adr": 90.7,
    "rating2Approx": 1.089,
@@ -6791,7 +6791,7 @@
     "selfFlashShare": 0.014,
     "smokeSupportShare": 0.062,
     "tradedDeathRate": 0.186,
-    "flashGift": null
+    "flashGift": 11.74
    }
   },
   {
@@ -6835,8 +6835,8 @@
     }
    ],
    "duels": 3750,
-   "killsAbove": 72.76,
-   "killsAbovePer100": 2.552,
+   "killsAbove": 72.99,
+   "killsAbovePer100": 2.56,
    "kd": 0.958,
    "adr": 86.8,
    "rating2Approx": 1.084,
@@ -6933,7 +6933,7 @@
     "selfFlashShare": 0.016,
     "smokeSupportShare": 0.079,
     "tradedDeathRate": 0.221,
-    "flashGift": null
+    "flashGift": 26.25
    }
   },
   {
@@ -6977,8 +6977,8 @@
     }
    ],
    "duels": 5074,
-   "killsAbove": -47.53,
-   "killsAbovePer100": -1.181,
+   "killsAbove": -47.59,
+   "killsAbovePer100": -1.183,
    "kd": 0.949,
    "adr": 84.9,
    "rating2Approx": 1.078,
@@ -7075,7 +7075,7 @@
     "selfFlashShare": 0.016,
     "smokeSupportShare": 0.072,
     "tradedDeathRate": 0.206,
-    "flashGift": null
+    "flashGift": 32.98
    }
   },
   {
@@ -7119,8 +7119,8 @@
     }
    ],
    "duels": 1021,
-   "killsAbove": -23.45,
-   "killsAbovePer100": -2.964,
+   "killsAbove": -23.63,
+   "killsAbovePer100": -2.988,
    "kd": 0.878,
    "adr": 80.6,
    "rating2Approx": 1.012,
@@ -7217,7 +7217,7 @@
     "selfFlashShare": 0.011,
     "smokeSupportShare": 0.081,
     "tradedDeathRate": 0.231,
-    "flashGift": null
+    "flashGift": 5.23
    }
   },
   {
@@ -7261,8 +7261,8 @@
     }
    ],
    "duels": 4124,
-   "killsAbove": 19.86,
-   "killsAbovePer100": 0.627,
+   "killsAbove": 20.09,
+   "killsAbovePer100": 0.634,
    "kd": 1.005,
    "adr": 92.9,
    "rating2Approx": 1.137,
@@ -7359,7 +7359,7 @@
     "selfFlashShare": 0.01,
     "smokeSupportShare": 0.066,
     "tradedDeathRate": 0.193,
-    "flashGift": null
+    "flashGift": 24.04
    }
   },
   {
@@ -7403,8 +7403,8 @@
     }
    ],
    "duels": 9009,
-   "killsAbove": 125.42,
-   "killsAbovePer100": 1.894,
+   "killsAbove": 125.07,
+   "killsAbovePer100": 1.889,
    "kd": 1.068,
    "adr": 95.3,
    "rating2Approx": 1.181,
@@ -7501,7 +7501,7 @@
     "selfFlashShare": 0.009,
     "smokeSupportShare": 0.078,
     "tradedDeathRate": 0.206,
-    "flashGift": null
+    "flashGift": 42.37
    }
   },
   {
@@ -7545,8 +7545,8 @@
     }
    ],
    "duels": 2345,
-   "killsAbove": 54.06,
-   "killsAbovePer100": 3.235,
+   "killsAbove": 54.51,
+   "killsAbovePer100": 3.262,
    "kd": 0.993,
    "adr": 94.3,
    "rating2Approx": 1.124,
@@ -7643,7 +7643,7 @@
     "selfFlashShare": 0.013,
     "smokeSupportShare": 0.086,
     "tradedDeathRate": 0.202,
-    "flashGift": null
+    "flashGift": 14.74
    }
   },
   {
@@ -7687,8 +7687,8 @@
     }
    ],
    "duels": 555,
-   "killsAbove": 17.2,
-   "killsAbovePer100": 4.046,
+   "killsAbove": 17.38,
+   "killsAbovePer100": 4.09,
    "kd": 1.032,
    "adr": 89.7,
    "rating2Approx": 1.135,
@@ -7785,7 +7785,7 @@
     "selfFlashShare": 0.018,
     "smokeSupportShare": 0.056,
     "tradedDeathRate": 0.175,
-    "flashGift": null
+    "flashGift": 2.34
    }
   },
   {
@@ -7829,8 +7829,8 @@
     }
    ],
    "duels": 7773,
-   "killsAbove": -126.01,
-   "killsAbovePer100": -1.935,
+   "killsAbove": -127.09,
+   "killsAbovePer100": -1.952,
    "kd": 0.833,
    "adr": 76.7,
    "rating2Approx": 0.98,
@@ -7927,7 +7927,7 @@
     "selfFlashShare": 0.019,
     "smokeSupportShare": 0.078,
     "tradedDeathRate": 0.243,
-    "flashGift": null
+    "flashGift": 45.07
    }
   },
   {
@@ -7971,8 +7971,8 @@
     }
    ],
    "duels": 1828,
-   "killsAbove": 29.8,
-   "killsAbovePer100": 2.199,
+   "killsAbove": 29.39,
+   "killsAbovePer100": 2.169,
    "kd": 1.167,
    "adr": 88.3,
    "rating2Approx": 1.194,
@@ -8069,7 +8069,7 @@
     "selfFlashShare": 0.013,
     "smokeSupportShare": 0.058,
     "tradedDeathRate": 0.16,
-    "flashGift": null
+    "flashGift": 5.55
    }
   },
   {
@@ -8113,8 +8113,8 @@
     }
    ],
    "duels": 1713,
-   "killsAbove": -38.69,
-   "killsAbovePer100": -2.785,
+   "killsAbove": -39.39,
+   "killsAbovePer100": -2.836,
    "kd": 0.793,
    "adr": 74.6,
    "rating2Approx": 0.923,
@@ -8211,7 +8211,7 @@
     "selfFlashShare": 0.013,
     "smokeSupportShare": 0.069,
     "tradedDeathRate": 0.224,
-    "flashGift": null
+    "flashGift": 9.62
    }
   },
   {
@@ -8255,8 +8255,8 @@
     }
    ],
    "duels": 3359,
-   "killsAbove": 7.19,
-   "killsAbovePer100": 0.271,
+   "killsAbove": 7.29,
+   "killsAbovePer100": 0.275,
    "kd": 0.942,
    "adr": 80.1,
    "rating2Approx": 1.04,
@@ -8353,7 +8353,7 @@
     "selfFlashShare": 0.01,
     "smokeSupportShare": 0.068,
     "tradedDeathRate": 0.195,
-    "flashGift": null
+    "flashGift": 15.07
    }
   },
   {
@@ -8397,8 +8397,8 @@
     }
    ],
    "duels": 2863,
-   "killsAbove": 38.35,
-   "killsAbovePer100": 1.704,
+   "killsAbove": 36.98,
+   "killsAbovePer100": 1.644,
    "kd": 0.984,
    "adr": 85.0,
    "rating2Approx": 1.1,
@@ -8495,7 +8495,7 @@
     "selfFlashShare": 0.013,
     "smokeSupportShare": 0.075,
     "tradedDeathRate": 0.224,
-    "flashGift": null
+    "flashGift": 17.94
    }
   },
   {
@@ -8539,8 +8539,8 @@
     }
    ],
    "duels": 9535,
-   "killsAbove": -2.02,
-   "killsAbovePer100": -0.026,
+   "killsAbove": -1.92,
+   "killsAbovePer100": -0.024,
    "kd": 0.997,
    "adr": 84.0,
    "rating2Approx": 1.105,
@@ -8637,7 +8637,7 @@
     "selfFlashShare": 0.011,
     "smokeSupportShare": 0.081,
     "tradedDeathRate": 0.196,
-    "flashGift": null
+    "flashGift": 51.35
    }
   },
   {
@@ -8681,8 +8681,8 @@
     }
    ],
    "duels": 5679,
-   "killsAbove": 4.29,
-   "killsAbovePer100": 0.097,
+   "killsAbove": 3.74,
+   "killsAbovePer100": 0.084,
    "kd": 0.925,
    "adr": 83.0,
    "rating2Approx": 1.047,
@@ -8779,7 +8779,7 @@
     "selfFlashShare": 0.012,
     "smokeSupportShare": 0.08,
     "tradedDeathRate": 0.207,
-    "flashGift": null
+    "flashGift": 22.84
    }
   },
   {
@@ -8823,8 +8823,8 @@
     }
    ],
    "duels": 8517,
-   "killsAbove": 71.52,
-   "killsAbovePer100": 1.026,
+   "killsAbove": 71.69,
+   "killsAbovePer100": 1.028,
    "kd": 1.022,
    "adr": 82.9,
    "rating2Approx": 1.114,
@@ -8921,7 +8921,7 @@
     "selfFlashShare": 0.011,
     "smokeSupportShare": 0.076,
     "tradedDeathRate": 0.226,
-    "flashGift": null
+    "flashGift": 57.97
    }
   },
   {
@@ -8965,8 +8965,8 @@
     }
    ],
    "duels": 1398,
-   "killsAbove": -21.56,
-   "killsAbovePer100": -1.989,
+   "killsAbove": -21.36,
+   "killsAbovePer100": -1.97,
    "kd": 0.993,
    "adr": 80.3,
    "rating2Approx": 1.076,
@@ -9063,7 +9063,7 @@
     "selfFlashShare": 0.013,
     "smokeSupportShare": 0.057,
     "tradedDeathRate": 0.165,
-    "flashGift": null
+    "flashGift": 3.91
    }
   },
   {
@@ -9107,8 +9107,8 @@
     }
    ],
    "duels": 2222,
-   "killsAbove": 27.57,
-   "killsAbovePer100": 1.65,
+   "killsAbove": 27.41,
+   "killsAbovePer100": 1.64,
    "kd": 0.953,
    "adr": 85.9,
    "rating2Approx": 1.075,
@@ -9205,7 +9205,7 @@
     "selfFlashShare": 0.013,
     "smokeSupportShare": 0.08,
     "tradedDeathRate": 0.242,
-    "flashGift": null
+    "flashGift": 14.02
    }
   },
   {
@@ -9249,8 +9249,8 @@
     }
    ],
    "duels": 1897,
-   "killsAbove": 10.93,
-   "killsAbovePer100": 0.76,
+   "killsAbove": 10.47,
+   "killsAbovePer100": 0.729,
    "kd": 0.992,
    "adr": 87.4,
    "rating2Approx": 1.109,
@@ -9347,7 +9347,7 @@
     "selfFlashShare": 0.014,
     "smokeSupportShare": 0.085,
     "tradedDeathRate": 0.201,
-    "flashGift": null
+    "flashGift": 8.43
    }
   },
   {
@@ -9391,8 +9391,8 @@
     }
    ],
    "duels": 4837,
-   "killsAbove": 5.22,
-   "killsAbovePer100": 0.138,
+   "killsAbove": 4.42,
+   "killsAbovePer100": 0.116,
    "kd": 0.947,
    "adr": 83.9,
    "rating2Approx": 1.062,
@@ -9489,7 +9489,7 @@
     "selfFlashShare": 0.012,
     "smokeSupportShare": 0.087,
     "tradedDeathRate": 0.186,
-    "flashGift": null
+    "flashGift": 28.7
    }
   },
   {
@@ -9533,8 +9533,8 @@
     }
    ],
    "duels": 5075,
-   "killsAbove": -30.25,
-   "killsAbovePer100": -0.779,
+   "killsAbove": -30.19,
+   "killsAbovePer100": -0.777,
    "kd": 0.954,
    "adr": 83.2,
    "rating2Approx": 1.057,
@@ -9631,7 +9631,7 @@
     "selfFlashShare": 0.015,
     "smokeSupportShare": 0.063,
     "tradedDeathRate": 0.187,
-    "flashGift": null
+    "flashGift": 23.78
    }
   },
   {
@@ -9675,8 +9675,8 @@
     }
    ],
    "duels": 1365,
-   "killsAbove": 24.26,
-   "killsAbovePer100": 2.471,
+   "killsAbove": 24.41,
+   "killsAbovePer100": 2.485,
    "kd": 1.009,
    "adr": 92.7,
    "rating2Approx": 1.124,
@@ -9773,7 +9773,7 @@
     "selfFlashShare": 0.012,
     "smokeSupportShare": 0.085,
     "tradedDeathRate": 0.181,
-    "flashGift": null
+    "flashGift": 10.28
    }
   },
   {
@@ -9817,8 +9817,8 @@
     }
    ],
    "duels": 1267,
-   "killsAbove": -22.95,
-   "killsAbovePer100": -2.155,
+   "killsAbove": -23.3,
+   "killsAbovePer100": -2.188,
    "kd": 0.853,
    "adr": 77.7,
    "rating2Approx": 0.995,
@@ -9915,7 +9915,7 @@
     "selfFlashShare": 0.016,
     "smokeSupportShare": 0.074,
     "tradedDeathRate": 0.21,
-    "flashGift": null
+    "flashGift": 6.24
    }
   },
   {
@@ -9959,8 +9959,8 @@
     }
    ],
    "duels": 690,
-   "killsAbove": 13.63,
-   "killsAbovePer100": 2.793,
+   "killsAbove": 13.7,
+   "killsAbovePer100": 2.806,
    "kd": 1.014,
    "adr": 94.4,
    "rating2Approx": 1.152,
@@ -10057,7 +10057,7 @@
     "selfFlashShare": 0.007,
     "smokeSupportShare": 0.106,
     "tradedDeathRate": 0.194,
-    "flashGift": null
+    "flashGift": 3.4
    }
   },
   {
@@ -10101,8 +10101,8 @@
     }
    ],
    "duels": 2147,
-   "killsAbove": 31.22,
-   "killsAbovePer100": 1.98,
+   "killsAbove": 31.56,
+   "killsAbovePer100": 2.001,
    "kd": 0.987,
    "adr": 86.3,
    "rating2Approx": 1.1,
@@ -10199,7 +10199,7 @@
     "selfFlashShare": 0.006,
     "smokeSupportShare": 0.073,
     "tradedDeathRate": 0.192,
-    "flashGift": null
+    "flashGift": 11.37
    }
   },
   {
@@ -10243,8 +10243,8 @@
     }
    ],
    "duels": 1857,
-   "killsAbove": -39.41,
-   "killsAbovePer100": -2.661,
+   "killsAbove": -39.18,
+   "killsAbovePer100": -2.646,
    "kd": 0.817,
    "adr": 81.8,
    "rating2Approx": 0.982,
@@ -10341,7 +10341,7 @@
     "selfFlashShare": 0.022,
     "smokeSupportShare": 0.08,
     "tradedDeathRate": 0.21,
-    "flashGift": null
+    "flashGift": 11.04
    }
   },
   {
@@ -10385,8 +10385,8 @@
     }
    ],
    "duels": 2141,
-   "killsAbove": 6.61,
-   "killsAbovePer100": 0.416,
+   "killsAbove": 6.81,
+   "killsAbovePer100": 0.428,
    "kd": 0.92,
    "adr": 89.0,
    "rating2Approx": 1.073,
@@ -10483,7 +10483,7 @@
     "selfFlashShare": 0.022,
     "smokeSupportShare": 0.083,
     "tradedDeathRate": 0.211,
-    "flashGift": null
+    "flashGift": 15.21
    }
   },
   {
@@ -10527,8 +10527,8 @@
     }
    ],
    "duels": 2429,
-   "killsAbove": -25.7,
-   "killsAbovePer100": -1.297,
+   "killsAbove": -26.16,
+   "killsAbovePer100": -1.32,
    "kd": 0.841,
    "adr": 78.7,
    "rating2Approx": 0.972,
@@ -10625,7 +10625,7 @@
     "selfFlashShare": 0.019,
     "smokeSupportShare": 0.082,
     "tradedDeathRate": 0.212,
-    "flashGift": null
+    "flashGift": 14.03
    }
   },
   {
@@ -10669,8 +10669,8 @@
     }
    ],
    "duels": 782,
-   "killsAbove": -8.83,
-   "killsAbovePer100": -1.386,
+   "killsAbove": -9.0,
+   "killsAbovePer100": -1.412,
    "kd": 0.896,
    "adr": 82.4,
    "rating2Approx": 1.036,
@@ -10767,7 +10767,7 @@
     "selfFlashShare": 0.022,
     "smokeSupportShare": 0.068,
     "tradedDeathRate": 0.176,
-    "flashGift": null
+    "flashGift": 4.67
    }
   },
   {
@@ -10811,8 +10811,8 @@
     }
    ],
    "duels": 1649,
-   "killsAbove": 14.41,
-   "killsAbovePer100": 1.262,
+   "killsAbove": 14.34,
+   "killsAbovePer100": 1.256,
    "kd": 1.014,
    "adr": 98.2,
    "rating2Approx": 1.17,
@@ -10909,7 +10909,7 @@
     "selfFlashShare": 0.007,
     "smokeSupportShare": 0.08,
     "tradedDeathRate": 0.21,
-    "flashGift": null
+    "flashGift": 6.92
    }
   },
   {
@@ -10953,8 +10953,8 @@
     }
    ],
    "duels": 2556,
-   "killsAbove": 10.73,
-   "killsAbovePer100": 0.564,
+   "killsAbove": 11.27,
+   "killsAbovePer100": 0.593,
    "kd": 0.924,
    "adr": 89.4,
    "rating2Approx": 1.076,
@@ -11051,7 +11051,7 @@
     "selfFlashShare": 0.028,
     "smokeSupportShare": 0.081,
     "tradedDeathRate": 0.2,
-    "flashGift": null
+    "flashGift": 21.63
    }
   },
   {
@@ -11095,8 +11095,8 @@
     }
    ],
    "duels": 1015,
-   "killsAbove": -15.62,
-   "killsAbovePer100": -1.974,
+   "killsAbove": -15.28,
+   "killsAbovePer100": -1.932,
    "kd": 1.068,
    "adr": 80.5,
    "rating2Approx": 1.105,
@@ -11193,7 +11193,7 @@
     "selfFlashShare": 0.006,
     "smokeSupportShare": 0.057,
     "tradedDeathRate": 0.168,
-    "flashGift": null
+    "flashGift": 1.64
    }
   },
   {
@@ -11237,8 +11237,8 @@
     }
    ],
    "duels": 3058,
-   "killsAbove": -12.84,
-   "killsAbovePer100": -0.543,
+   "killsAbove": -12.78,
+   "killsAbovePer100": -0.541,
    "kd": 0.834,
    "adr": 82.3,
    "rating2Approx": 1.003,
@@ -11335,7 +11335,7 @@
     "selfFlashShare": 0.02,
     "smokeSupportShare": 0.066,
     "tradedDeathRate": 0.232,
-    "flashGift": null
+    "flashGift": 14.15
    }
   },
   {
@@ -11379,8 +11379,8 @@
     }
    ],
    "duels": 824,
-   "killsAbove": 7.84,
-   "killsAbovePer100": 1.256,
+   "killsAbove": 8.2,
+   "killsAbovePer100": 1.314,
    "kd": 1.005,
    "adr": 87.4,
    "rating2Approx": 1.131,
@@ -11477,7 +11477,7 @@
     "selfFlashShare": 0.018,
     "smokeSupportShare": 0.08,
     "tradedDeathRate": 0.254,
-    "flashGift": null
+    "flashGift": 4.74
    }
   },
   {
@@ -11521,8 +11521,8 @@
     }
    ],
    "duels": 1331,
-   "killsAbove": 26.99,
-   "killsAbovePer100": 2.544,
+   "killsAbove": 27.3,
+   "killsAbovePer100": 2.573,
    "kd": 1.161,
    "adr": 82.3,
    "rating2Approx": 1.162,
@@ -11619,7 +11619,7 @@
     "selfFlashShare": 0.011,
     "smokeSupportShare": 0.062,
     "tradedDeathRate": 0.164,
-    "flashGift": null
+    "flashGift": 3.33
    }
   },
   {
@@ -11663,8 +11663,8 @@
     }
    ],
    "duels": 576,
-   "killsAbove": -12.16,
-   "killsAbovePer100": -2.627,
+   "killsAbove": -12.37,
+   "killsAbovePer100": -2.671,
    "kd": 0.964,
    "adr": 78.7,
    "rating2Approx": 1.024,
@@ -11761,7 +11761,7 @@
     "selfFlashShare": 0.014,
     "smokeSupportShare": 0.043,
     "tradedDeathRate": 0.159,
-    "flashGift": null
+    "flashGift": 1.36
    }
   },
   {
@@ -11805,8 +11805,8 @@
     }
    ],
    "duels": 8976,
-   "killsAbove": 123.2,
-   "killsAbovePer100": 1.813,
+   "killsAbove": 123.91,
+   "killsAbovePer100": 1.823,
    "kd": 1.259,
    "adr": 89.6,
    "rating2Approx": 1.238,
@@ -11903,7 +11903,7 @@
     "selfFlashShare": 0.011,
     "smokeSupportShare": 0.064,
     "tradedDeathRate": 0.172,
-    "flashGift": null
+    "flashGift": 25.24
    }
   },
   {
@@ -11947,8 +11947,8 @@
     }
    ],
    "duels": 1331,
-   "killsAbove": -18.24,
-   "killsAbovePer100": -1.654,
+   "killsAbove": -18.1,
+   "killsAbovePer100": -1.641,
    "kd": 0.964,
    "adr": 81.8,
    "rating2Approx": 1.046,
@@ -12045,7 +12045,7 @@
     "selfFlashShare": 0.014,
     "smokeSupportShare": 0.056,
     "tradedDeathRate": 0.151,
-    "flashGift": null
+    "flashGift": 3.32
    }
   },
   {
@@ -12089,8 +12089,8 @@
     }
    ],
    "duels": 1743,
-   "killsAbove": 8.43,
-   "killsAbovePer100": 0.613,
+   "killsAbove": 8.27,
+   "killsAbovePer100": 0.601,
    "kd": 1.016,
    "adr": 84.9,
    "rating2Approx": 1.116,
@@ -12187,7 +12187,7 @@
     "selfFlashShare": 0.012,
     "smokeSupportShare": 0.067,
     "tradedDeathRate": 0.179,
-    "flashGift": null
+    "flashGift": 9.68
    }
   },
   {
@@ -12231,8 +12231,8 @@
     }
    ],
    "duels": 1137,
-   "killsAbove": 5.26,
-   "killsAbovePer100": 0.601,
+   "killsAbove": 4.67,
+   "killsAbovePer100": 0.534,
    "kd": 0.938,
    "adr": 85.6,
    "rating2Approx": 1.072,
@@ -12329,7 +12329,7 @@
     "selfFlashShare": 0.016,
     "smokeSupportShare": 0.081,
     "tradedDeathRate": 0.202,
-    "flashGift": null
+    "flashGift": 7.09
    }
   },
   {
@@ -12373,8 +12373,8 @@
     }
    ],
    "duels": 2895,
-   "killsAbove": -3.48,
-   "killsAbovePer100": -0.16,
+   "killsAbove": -2.85,
+   "killsAbovePer100": -0.131,
    "kd": 1.187,
    "adr": 87.8,
    "rating2Approx": 1.21,
@@ -12471,7 +12471,7 @@
     "selfFlashShare": 0.017,
     "smokeSupportShare": 0.055,
     "tradedDeathRate": 0.173,
-    "flashGift": null
+    "flashGift": 7.94
    }
   },
   {
@@ -12515,8 +12515,8 @@
     }
    ],
    "duels": 661,
-   "killsAbove": 5.62,
-   "killsAbovePer100": 1.166,
+   "killsAbove": 5.5,
+   "killsAbovePer100": 1.141,
    "kd": 0.942,
    "adr": 92.7,
    "rating2Approx": 1.09,
@@ -12613,7 +12613,7 @@
     "selfFlashShare": 0.012,
     "smokeSupportShare": 0.112,
     "tradedDeathRate": 0.197,
-    "flashGift": null
+    "flashGift": 3.9
    }
   },
   {
@@ -12657,8 +12657,8 @@
     }
    ],
    "duels": 654,
-   "killsAbove": 17.12,
-   "killsAbovePer100": 3.698,
+   "killsAbove": 17.34,
+   "killsAbovePer100": 3.746,
    "kd": 0.973,
    "adr": 94.3,
    "rating2Approx": 1.098,
@@ -12755,7 +12755,7 @@
     "selfFlashShare": 0.011,
     "smokeSupportShare": 0.08,
     "tradedDeathRate": 0.136,
-    "flashGift": null
+    "flashGift": 3.33
    }
   },
   {
@@ -12799,8 +12799,8 @@
     }
    ],
    "duels": 535,
-   "killsAbove": -2.2,
-   "killsAbovePer100": -0.534,
+   "killsAbove": -2.34,
+   "killsAbovePer100": -0.568,
    "kd": 0.964,
    "adr": 84.7,
    "rating2Approx": 1.038,
@@ -12897,7 +12897,7 @@
     "selfFlashShare": 0.009,
     "smokeSupportShare": 0.065,
     "tradedDeathRate": 0.137,
-    "flashGift": null
+    "flashGift": 2.37
    }
   },
   {
@@ -12941,8 +12941,8 @@
     }
    ],
    "duels": 1239,
-   "killsAbove": -2.19,
-   "killsAbovePer100": -0.242,
+   "killsAbove": -2.12,
+   "killsAbovePer100": -0.234,
    "kd": 0.927,
    "adr": 88.2,
    "rating2Approx": 1.051,
@@ -13039,7 +13039,7 @@
     "selfFlashShare": 0.019,
     "smokeSupportShare": 0.094,
     "tradedDeathRate": 0.172,
-    "flashGift": null
+    "flashGift": 5.76
    }
   },
   {
@@ -13083,8 +13083,8 @@
     }
    ],
    "duels": 2691,
-   "killsAbove": -13.49,
-   "killsAbovePer100": -0.595,
+   "killsAbove": -13.52,
+   "killsAbovePer100": -0.596,
    "kd": 1.089,
    "adr": 74.9,
    "rating2Approx": 1.087,
@@ -13181,7 +13181,7 @@
     "selfFlashShare": 0.01,
     "smokeSupportShare": 0.05,
     "tradedDeathRate": 0.183,
-    "flashGift": null
+    "flashGift": 6.25
    }
   },
   {
@@ -13225,8 +13225,8 @@
     }
    ],
    "duels": 994,
-   "killsAbove": 1.56,
-   "killsAbovePer100": 0.215,
+   "killsAbove": 1.37,
+   "killsAbovePer100": 0.189,
    "kd": 0.967,
    "adr": 89.7,
    "rating2Approx": 1.099,
@@ -13323,7 +13323,7 @@
     "selfFlashShare": 0.012,
     "smokeSupportShare": 0.092,
     "tradedDeathRate": 0.183,
-    "flashGift": null
+    "flashGift": 5.32
    }
   },
   {
@@ -13367,8 +13367,8 @@
     }
    ],
    "duels": 1061,
-   "killsAbove": 3.43,
-   "killsAbovePer100": 0.434,
+   "killsAbove": 3.13,
+   "killsAbovePer100": 0.395,
    "kd": 0.914,
    "adr": 86.1,
    "rating2Approx": 1.047,
@@ -13465,7 +13465,7 @@
     "selfFlashShare": 0.017,
     "smokeSupportShare": 0.071,
     "tradedDeathRate": 0.187,
-    "flashGift": null
+    "flashGift": 6.08
    }
   },
   {
@@ -13509,8 +13509,8 @@
     }
    ],
    "duels": 872,
-   "killsAbove": -31.24,
-   "killsAbovePer100": -4.463,
+   "killsAbove": -31.29,
+   "killsAbovePer100": -4.47,
    "kd": 0.807,
    "adr": 79.3,
    "rating2Approx": 0.946,
@@ -13607,7 +13607,7 @@
     "selfFlashShare": 0.022,
     "smokeSupportShare": 0.052,
     "tradedDeathRate": 0.203,
-    "flashGift": null
+    "flashGift": 6.54
    }
   },
   {
@@ -13651,8 +13651,8 @@
     }
    ],
    "duels": 830,
-   "killsAbove": -12.81,
-   "killsAbovePer100": -2.017,
+   "killsAbove": -12.51,
+   "killsAbovePer100": -1.971,
    "kd": 0.893,
    "adr": 81.3,
    "rating2Approx": 0.987,
@@ -13749,7 +13749,7 @@
     "selfFlashShare": 0.022,
     "smokeSupportShare": 0.058,
     "tradedDeathRate": 0.154,
-    "flashGift": null
+    "flashGift": 3.33
    }
   },
   {
@@ -13793,8 +13793,8 @@
     }
    ],
    "duels": 4109,
-   "killsAbove": -48.0,
-   "killsAbovePer100": -1.436,
+   "killsAbove": -48.66,
+   "killsAbovePer100": -1.456,
    "kd": 0.924,
    "adr": 84.0,
    "rating2Approx": 1.055,
@@ -13891,7 +13891,7 @@
     "selfFlashShare": 0.02,
     "smokeSupportShare": 0.062,
     "tradedDeathRate": 0.167,
-    "flashGift": null
+    "flashGift": 13.9
    }
   },
   {
@@ -13935,8 +13935,8 @@
     }
    ],
    "duels": 1977,
-   "killsAbove": 15.04,
-   "killsAbovePer100": 0.964,
+   "killsAbove": 15.51,
+   "killsAbovePer100": 0.995,
    "kd": 0.995,
    "adr": 83.3,
    "rating2Approx": 1.091,
@@ -14033,7 +14033,7 @@
     "selfFlashShare": 0.009,
     "smokeSupportShare": 0.08,
     "tradedDeathRate": 0.212,
-    "flashGift": null
+    "flashGift": 12.74
    }
   },
   {
@@ -14077,8 +14077,8 @@
     }
    ],
    "duels": 5125,
-   "killsAbove": 45.25,
-   "killsAbovePer100": 1.203,
+   "killsAbove": 45.42,
+   "killsAbovePer100": 1.207,
    "kd": 1.023,
    "adr": 94.0,
    "rating2Approx": 1.153,
@@ -14175,7 +14175,7 @@
     "selfFlashShare": 0.025,
     "smokeSupportShare": 0.087,
     "tradedDeathRate": 0.196,
-    "flashGift": null
+    "flashGift": 44.62
    }
   },
   {
@@ -14219,8 +14219,8 @@
     }
    ],
    "duels": 1790,
-   "killsAbove": 4.79,
-   "killsAbovePer100": 0.359,
+   "killsAbove": 4.35,
+   "killsAbovePer100": 0.327,
    "kd": 0.914,
    "adr": 90.6,
    "rating2Approx": 1.071,
@@ -14317,7 +14317,7 @@
     "selfFlashShare": 0.013,
     "smokeSupportShare": 0.079,
     "tradedDeathRate": 0.191,
-    "flashGift": null
+    "flashGift": 8.69
    }
   },
   {
@@ -14361,8 +14361,8 @@
     }
    ],
    "duels": 1967,
-   "killsAbove": 19.69,
-   "killsAbovePer100": 1.308,
+   "killsAbove": 20.2,
+   "killsAbovePer100": 1.341,
    "kd": 0.98,
    "adr": 88.9,
    "rating2Approx": 1.101,
@@ -14459,7 +14459,7 @@
     "selfFlashShare": 0.013,
     "smokeSupportShare": 0.073,
     "tradedDeathRate": 0.212,
-    "flashGift": null
+    "flashGift": 10.85
    }
   },
   {
@@ -14503,8 +14503,8 @@
     }
    ],
    "duels": 1066,
-   "killsAbove": -6.27,
-   "killsAbovePer100": -0.736,
+   "killsAbove": -6.5,
+   "killsAbovePer100": -0.763,
    "kd": 0.95,
    "adr": 82.9,
    "rating2Approx": 1.055,
@@ -14601,7 +14601,7 @@
     "selfFlashShare": 0.008,
     "smokeSupportShare": 0.06,
     "tradedDeathRate": 0.182,
-    "flashGift": null
+    "flashGift": 3.53
    }
   },
   {
@@ -14645,8 +14645,8 @@
     }
    ],
    "duels": 501,
-   "killsAbove": -16.39,
-   "killsAbovePer100": -3.967,
+   "killsAbove": -16.79,
+   "killsAbovePer100": -4.065,
    "kd": 0.732,
    "adr": 68.5,
    "rating2Approx": 0.897,
@@ -14743,7 +14743,7 @@
     "selfFlashShare": 0.018,
     "smokeSupportShare": 0.084,
     "tradedDeathRate": 0.275,
-    "flashGift": null
+    "flashGift": 2.92
    }
   },
   {
@@ -14787,8 +14787,8 @@
     }
    ],
    "duels": 967,
-   "killsAbove": -0.04,
-   "killsAbovePer100": -0.005,
+   "killsAbove": -0.16,
+   "killsAbovePer100": -0.021,
    "kd": 0.889,
    "adr": 77.4,
    "rating2Approx": 0.984,
@@ -14885,7 +14885,7 @@
     "selfFlashShare": 0.009,
     "smokeSupportShare": 0.078,
     "tradedDeathRate": 0.187,
-    "flashGift": null
+    "flashGift": 5.04
    }
   },
   {
@@ -14929,8 +14929,8 @@
     }
    ],
    "duels": 1983,
-   "killsAbove": 6.28,
-   "killsAbovePer100": 0.406,
+   "killsAbove": 6.67,
+   "killsAbovePer100": 0.431,
    "kd": 0.908,
    "adr": 81.4,
    "rating2Approx": 1.023,
@@ -15027,7 +15027,7 @@
     "selfFlashShare": 0.011,
     "smokeSupportShare": 0.083,
     "tradedDeathRate": 0.205,
-    "flashGift": null
+    "flashGift": 13.31
    }
   },
   {
@@ -15071,8 +15071,8 @@
     }
    ],
    "duels": 1398,
-   "killsAbove": 6.85,
-   "killsAbovePer100": 0.639,
+   "killsAbove": 6.83,
+   "killsAbovePer100": 0.637,
    "kd": 0.918,
    "adr": 87.2,
    "rating2Approx": 1.067,
@@ -15169,7 +15169,7 @@
     "selfFlashShare": 0.011,
     "smokeSupportShare": 0.087,
     "tradedDeathRate": 0.204,
-    "flashGift": null
+    "flashGift": 12.67
    }
   },
   {
@@ -15213,8 +15213,8 @@
     }
    ],
    "duels": 909,
-   "killsAbove": -1.74,
-   "killsAbovePer100": -0.259,
+   "killsAbove": -1.82,
+   "killsAbovePer100": -0.271,
    "kd": 1.099,
    "adr": 91.2,
    "rating2Approx": 1.179,
@@ -15311,7 +15311,7 @@
     "selfFlashShare": 0.008,
     "smokeSupportShare": 0.065,
     "tradedDeathRate": 0.199,
-    "flashGift": null
+    "flashGift": 1.62
    }
   },
   {
@@ -15355,8 +15355,8 @@
     }
    ],
    "duels": 2770,
-   "killsAbove": 3.84,
-   "killsAbovePer100": 0.178,
+   "killsAbove": 3.96,
+   "killsAbovePer100": 0.184,
    "kd": 0.898,
    "adr": 84.5,
    "rating2Approx": 1.04,
@@ -15453,7 +15453,7 @@
     "selfFlashShare": 0.013,
     "smokeSupportShare": 0.106,
     "tradedDeathRate": 0.227,
-    "flashGift": null
+    "flashGift": 19.58
    }
   },
   {
@@ -15497,8 +15497,8 @@
     }
    ],
    "duels": 910,
-   "killsAbove": 6.17,
-   "killsAbovePer100": 0.865,
+   "killsAbove": 6.42,
+   "killsAbovePer100": 0.9,
    "kd": 0.966,
    "adr": 83.9,
    "rating2Approx": 1.048,
@@ -15595,7 +15595,7 @@
     "selfFlashShare": 0.011,
     "smokeSupportShare": 0.067,
     "tradedDeathRate": 0.151,
-    "flashGift": null
+    "flashGift": 4.24
    }
   },
   {
@@ -15639,8 +15639,8 @@
     }
    ],
    "duels": 464,
-   "killsAbove": -5.44,
-   "killsAbovePer100": -1.502,
+   "killsAbove": -5.61,
+   "killsAbovePer100": -1.549,
    "kd": 0.892,
    "adr": 83.9,
    "rating2Approx": 1.033,
@@ -15737,7 +15737,7 @@
     "selfFlashShare": 0.009,
     "smokeSupportShare": 0.052,
     "tradedDeathRate": 0.211,
-    "flashGift": null
+    "flashGift": 2.55
    }
   },
   {
@@ -15781,8 +15781,8 @@
     }
    ],
    "duels": 496,
-   "killsAbove": -21.02,
-   "killsAbovePer100": -5.389,
+   "killsAbove": -20.97,
+   "killsAbovePer100": -5.377,
    "kd": 0.829,
    "adr": 85.7,
    "rating2Approx": 0.981,
@@ -15879,7 +15879,7 @@
     "selfFlashShare": 0.022,
     "smokeSupportShare": 0.065,
     "tradedDeathRate": 0.145,
-    "flashGift": null
+    "flashGift": 2.45
    }
   },
   {
@@ -15923,8 +15923,8 @@
     }
    ],
    "duels": 1069,
-   "killsAbove": 3.49,
-   "killsAbovePer100": 0.442,
+   "killsAbove": 3.13,
+   "killsAbovePer100": 0.396,
    "kd": 1.002,
    "adr": 92.0,
    "rating2Approx": 1.119,
@@ -16021,7 +16021,7 @@
     "selfFlashShare": 0.011,
     "smokeSupportShare": 0.048,
     "tradedDeathRate": 0.174,
-    "flashGift": null
+    "flashGift": 4.3
    }
   },
   {
@@ -16065,8 +16065,8 @@
     }
    ],
    "duels": 460,
-   "killsAbove": -0.82,
-   "killsAbovePer100": -0.229,
+   "killsAbove": -0.78,
+   "killsAbovePer100": -0.217,
    "kd": 0.911,
    "adr": 77.2,
    "rating2Approx": 0.986,
@@ -16163,7 +16163,7 @@
     "selfFlashShare": 0.009,
     "smokeSupportShare": 0.054,
     "tradedDeathRate": 0.183,
-    "flashGift": null
+    "flashGift": 2.63
    }
   },
   {
@@ -16207,8 +16207,8 @@
     }
    ],
    "duels": 6043,
-   "killsAbove": -77.64,
-   "killsAbovePer100": -1.599,
+   "killsAbove": -76.93,
+   "killsAbovePer100": -1.584,
    "kd": 0.846,
    "adr": 79.9,
    "rating2Approx": 0.993,
@@ -16305,7 +16305,7 @@
     "selfFlashShare": 0.028,
     "smokeSupportShare": 0.078,
     "tradedDeathRate": 0.227,
-    "flashGift": null
+    "flashGift": 32.68
    }
   },
   {
@@ -16349,8 +16349,8 @@
     }
    ],
    "duels": 2156,
-   "killsAbove": -2.39,
-   "killsAbovePer100": -0.143,
+   "killsAbove": -1.68,
+   "killsAbovePer100": -0.1,
    "kd": 0.952,
    "adr": 84.8,
    "rating2Approx": 1.072,
@@ -16447,7 +16447,7 @@
     "selfFlashShare": 0.01,
     "smokeSupportShare": 0.097,
     "tradedDeathRate": 0.204,
-    "flashGift": null
+    "flashGift": 17.1
    }
   },
   {
@@ -16491,8 +16491,8 @@
     }
    ],
    "duels": 3166,
-   "killsAbove": -70.58,
-   "killsAbovePer100": -2.741,
+   "killsAbove": -69.56,
+   "killsAbovePer100": -2.701,
    "kd": 0.787,
    "adr": 76.3,
    "rating2Approx": 0.941,
@@ -16589,7 +16589,7 @@
     "selfFlashShare": 0.022,
     "smokeSupportShare": 0.072,
     "tradedDeathRate": 0.21,
-    "flashGift": null
+    "flashGift": 12.17
    }
   },
   {
@@ -16633,8 +16633,8 @@
     }
    ],
    "duels": 1540,
-   "killsAbove": -3.99,
-   "killsAbovePer100": -0.341,
+   "killsAbove": -4.14,
+   "killsAbovePer100": -0.354,
    "kd": 0.949,
    "adr": 85.1,
    "rating2Approx": 1.046,
@@ -16731,7 +16731,7 @@
     "selfFlashShare": 0.005,
     "smokeSupportShare": 0.055,
     "tradedDeathRate": 0.156,
-    "flashGift": null
+    "flashGift": 5.19
    }
   },
   {
@@ -16775,8 +16775,8 @@
     }
    ],
    "duels": 756,
-   "killsAbove": -34.76,
-   "killsAbovePer100": -5.323,
+   "killsAbove": -34.87,
+   "killsAbovePer100": -5.341,
    "kd": 0.772,
    "adr": 74.8,
    "rating2Approx": 0.94,
@@ -16873,7 +16873,7 @@
     "selfFlashShare": 0.011,
     "smokeSupportShare": 0.073,
     "tradedDeathRate": 0.276,
-    "flashGift": null
+    "flashGift": 4.63
    }
   },
   {
@@ -16917,8 +16917,8 @@
     }
    ],
    "duels": 586,
-   "killsAbove": -6.62,
-   "killsAbovePer100": -1.456,
+   "killsAbove": -6.79,
+   "killsAbovePer100": -1.492,
    "kd": 0.86,
    "adr": 85.4,
    "rating2Approx": 1.019,
@@ -17015,7 +17015,7 @@
     "selfFlashShare": 0.019,
     "smokeSupportShare": 0.104,
     "tradedDeathRate": 0.174,
-    "flashGift": null
+    "flashGift": 3.78
    }
   },
   {
@@ -17059,8 +17059,8 @@
     }
    ],
    "duels": 563,
-   "killsAbove": 2.4,
-   "killsAbovePer100": 0.512,
+   "killsAbove": 2.6,
+   "killsAbovePer100": 0.555,
    "kd": 0.834,
    "adr": 76.8,
    "rating2Approx": 0.939,
@@ -17157,7 +17157,7 @@
     "selfFlashShare": 0.021,
     "smokeSupportShare": 0.075,
     "tradedDeathRate": 0.141,
-    "flashGift": null
+    "flashGift": 2.66
    }
   },
   {
@@ -17201,8 +17201,8 @@
     }
    ],
    "duels": 808,
-   "killsAbove": -14.52,
-   "killsAbovePer100": -2.362,
+   "killsAbove": -14.99,
+   "killsAbovePer100": -2.438,
    "kd": 0.889,
    "adr": 85.4,
    "rating2Approx": 1.026,
@@ -17299,7 +17299,7 @@
     "selfFlashShare": 0.009,
     "smokeSupportShare": 0.064,
     "tradedDeathRate": 0.145,
-    "flashGift": null
+    "flashGift": 2.81
    }
   },
   {
@@ -17343,8 +17343,8 @@
     }
    ],
    "duels": 462,
-   "killsAbove": -1.56,
-   "killsAbovePer100": -0.431,
+   "killsAbove": -1.26,
+   "killsAbovePer100": -0.348,
    "kd": 1.175,
    "adr": 84.3,
    "rating2Approx": 1.166,
@@ -17441,7 +17441,7 @@
     "selfFlashShare": 0.015,
     "smokeSupportShare": 0.061,
     "tradedDeathRate": 0.147,
-    "flashGift": null
+    "flashGift": 0.76
    }
   },
   {
@@ -17485,8 +17485,8 @@
     }
    ],
    "duels": 638,
-   "killsAbove": 4.35,
-   "killsAbovePer100": 0.9,
+   "killsAbove": 4.05,
+   "killsAbovePer100": 0.837,
    "kd": 1.009,
    "adr": 90.3,
    "rating2Approx": 1.138,
@@ -17583,7 +17583,7 @@
     "selfFlashShare": 0.017,
     "smokeSupportShare": 0.08,
     "tradedDeathRate": 0.208,
-    "flashGift": null
+    "flashGift": 4.0
    }
   },
   {
@@ -17627,8 +17627,8 @@
     }
    ],
    "duels": 933,
-   "killsAbove": -12.88,
-   "killsAbovePer100": -1.951,
+   "killsAbove": -12.84,
+   "killsAbovePer100": -1.945,
    "kd": 0.855,
    "adr": 86.0,
    "rating2Approx": 1.013,
@@ -17725,7 +17725,7 @@
     "selfFlashShare": 0.006,
     "smokeSupportShare": 0.071,
     "tradedDeathRate": 0.196,
-    "flashGift": null
+    "flashGift": 4.3
    }
   },
   {
@@ -17769,8 +17769,8 @@
     }
    ],
    "duels": 852,
-   "killsAbove": -11.34,
-   "killsAbovePer100": -1.737,
+   "killsAbove": -11.64,
+   "killsAbovePer100": -1.783,
    "kd": 0.897,
    "adr": 81.9,
    "rating2Approx": 1.018,
@@ -17867,7 +17867,7 @@
     "selfFlashShare": 0.014,
     "smokeSupportShare": 0.088,
     "tradedDeathRate": 0.21,
-    "flashGift": null
+    "flashGift": 3.75
    }
   },
   {
@@ -17911,8 +17911,8 @@
     }
    ],
    "duels": 387,
-   "killsAbove": -13.72,
-   "killsAbovePer100": -4.411,
+   "killsAbove": -13.74,
+   "killsAbovePer100": -4.42,
    "kd": 0.878,
    "adr": 83.8,
    "rating2Approx": 1.005,
@@ -18009,7 +18009,7 @@
     "selfFlashShare": 0.018,
     "smokeSupportShare": 0.096,
     "tradedDeathRate": 0.178,
-    "flashGift": null
+    "flashGift": 2.19
    }
   },
   {
@@ -18053,8 +18053,8 @@
     }
    ],
    "duels": 507,
-   "killsAbove": -16.61,
-   "killsAbovePer100": -4.021,
+   "killsAbove": -16.43,
+   "killsAbovePer100": -3.978,
    "kd": 0.895,
    "adr": 76.7,
    "rating2Approx": 0.988,
@@ -18151,7 +18151,7 @@
     "selfFlashShare": 0.008,
     "smokeSupportShare": 0.039,
     "tradedDeathRate": 0.152,
-    "flashGift": null
+    "flashGift": 0.72
    }
   },
   {
@@ -18195,8 +18195,8 @@
     }
    ],
    "duels": 664,
-   "killsAbove": 5.56,
-   "killsAbovePer100": 1.065,
+   "killsAbove": 5.71,
+   "killsAbovePer100": 1.093,
    "kd": 0.894,
    "adr": 80.3,
    "rating2Approx": 1.012,
@@ -18293,7 +18293,7 @@
     "selfFlashShare": 0.005,
     "smokeSupportShare": 0.08,
     "tradedDeathRate": 0.197,
-    "flashGift": null
+    "flashGift": 3.53
    }
   },
   {
@@ -18337,8 +18337,8 @@
     }
    ],
    "duels": 374,
-   "killsAbove": -16.49,
-   "killsAbovePer100": -5.337,
+   "killsAbove": -16.37,
+   "killsAbovePer100": -5.298,
    "kd": 0.78,
    "adr": 76.5,
    "rating2Approx": 0.883,
@@ -18435,7 +18435,7 @@
     "selfFlashShare": 0.019,
     "smokeSupportShare": 0.051,
     "tradedDeathRate": 0.142,
-    "flashGift": null
+    "flashGift": 2.29
    }
   },
   {
@@ -18479,8 +18479,8 @@
     }
    ],
    "duels": 3325,
-   "killsAbove": -86.25,
-   "killsAbovePer100": -3.206,
+   "killsAbove": -86.39,
+   "killsAbovePer100": -3.212,
    "kd": 0.807,
    "adr": 78.2,
    "rating2Approx": 0.961,
@@ -18577,7 +18577,7 @@
     "selfFlashShare": 0.029,
     "smokeSupportShare": 0.084,
     "tradedDeathRate": 0.21,
-    "flashGift": null
+    "flashGift": 18.44
    }
   },
   {
@@ -18621,8 +18621,8 @@
     }
    ],
    "duels": 4173,
-   "killsAbove": -51.44,
-   "killsAbovePer100": -1.666,
+   "killsAbove": -51.36,
+   "killsAbovePer100": -1.663,
    "kd": 0.916,
    "adr": 88.1,
    "rating2Approx": 1.058,
@@ -18719,7 +18719,7 @@
     "selfFlashShare": 0.008,
     "smokeSupportShare": 0.084,
     "tradedDeathRate": 0.193,
-    "flashGift": null
+    "flashGift": 17.49
    }
   },
   {
@@ -18763,8 +18763,8 @@
     }
    ],
    "duels": 420,
-   "killsAbove": -5.36,
-   "killsAbovePer100": -1.736,
+   "killsAbove": -5.44,
+   "killsAbovePer100": -1.762,
    "kd": 0.946,
    "adr": 88.0,
    "rating2Approx": 1.047,
@@ -18861,7 +18861,7 @@
     "selfFlashShare": 0.01,
     "smokeSupportShare": 0.069,
     "tradedDeathRate": 0.148,
-    "flashGift": null
+    "flashGift": 2.86
    }
   },
   {
@@ -18905,8 +18905,8 @@
     }
    ],
    "duels": 5827,
-   "killsAbove": 105.14,
-   "killsAbovePer100": 2.483,
+   "killsAbove": 105.01,
+   "killsAbovePer100": 2.479,
    "kd": 0.993,
    "adr": 93.5,
    "rating2Approx": 1.143,
@@ -19003,7 +19003,7 @@
     "selfFlashShare": 0.016,
     "smokeSupportShare": 0.102,
     "tradedDeathRate": 0.227,
-    "flashGift": null
+    "flashGift": 45.87
    }
   },
   {
@@ -19047,8 +19047,8 @@
     }
    ],
    "duels": 2294,
-   "killsAbove": -2.64,
-   "killsAbovePer100": -0.14,
+   "killsAbove": -2.34,
+   "killsAbovePer100": -0.124,
    "kd": 1.031,
    "adr": 77.0,
    "rating2Approx": 1.07,
@@ -19145,7 +19145,7 @@
     "selfFlashShare": 0.012,
     "smokeSupportShare": 0.063,
     "tradedDeathRate": 0.168,
-    "flashGift": null
+    "flashGift": 7.18
    }
   },
   {
@@ -19189,8 +19189,8 @@
     }
    ],
    "duels": 903,
-   "killsAbove": -22.68,
-   "killsAbovePer100": -3.181,
+   "killsAbove": -23.06,
+   "killsAbovePer100": -3.235,
    "kd": 1.028,
    "adr": 81.5,
    "rating2Approx": 1.071,
@@ -19287,7 +19287,7 @@
     "selfFlashShare": 0.014,
     "smokeSupportShare": 0.044,
     "tradedDeathRate": 0.126,
-    "flashGift": null
+    "flashGift": 2.36
    }
   },
   {
@@ -19331,8 +19331,8 @@
     }
    ],
    "duels": 795,
-   "killsAbove": -13.35,
-   "killsAbovePer100": -2.163,
+   "killsAbove": -13.64,
+   "killsAbovePer100": -2.211,
    "kd": 0.873,
    "adr": 81.8,
    "rating2Approx": 1.018,
@@ -19429,7 +19429,7 @@
     "selfFlashShare": 0.004,
     "smokeSupportShare": 0.087,
     "tradedDeathRate": 0.219,
-    "flashGift": null
+    "flashGift": 4.12
    }
   },
   {
@@ -19473,8 +19473,8 @@
     }
    ],
    "duels": 568,
-   "killsAbove": -9.34,
-   "killsAbovePer100": -2.198,
+   "killsAbove": -9.32,
+   "killsAbovePer100": -2.193,
    "kd": 0.894,
    "adr": 87.6,
    "rating2Approx": 1.018,
@@ -19571,7 +19571,7 @@
     "selfFlashShare": 0.012,
     "smokeSupportShare": 0.085,
     "tradedDeathRate": 0.187,
-    "flashGift": null
+    "flashGift": 2.77
    }
   },
   {
@@ -19615,8 +19615,8 @@
     }
    ],
    "duels": 625,
-   "killsAbove": -10.76,
-   "killsAbovePer100": -2.266,
+   "killsAbove": -10.77,
+   "killsAbovePer100": -2.267,
    "kd": 0.819,
    "adr": 80.7,
    "rating2Approx": 0.952,
@@ -19713,7 +19713,7 @@
     "selfFlashShare": 0.003,
     "smokeSupportShare": 0.078,
     "tradedDeathRate": 0.189,
-    "flashGift": null
+    "flashGift": 3.48
    }
   },
   {
@@ -19757,8 +19757,8 @@
     }
    ],
    "duels": 4206,
-   "killsAbove": -37.45,
-   "killsAbovePer100": -1.093,
+   "killsAbove": -37.57,
+   "killsAbovePer100": -1.096,
    "kd": 0.931,
    "adr": 82.6,
    "rating2Approx": 1.046,
@@ -19855,7 +19855,7 @@
     "selfFlashShare": 0.012,
     "smokeSupportShare": 0.076,
     "tradedDeathRate": 0.189,
-    "flashGift": null
+    "flashGift": 17.06
    }
   },
   {
@@ -19894,8 +19894,8 @@
     }
    ],
    "duels": 534,
-   "killsAbove": 2.11,
-   "killsAbovePer100": 0.571,
+   "killsAbove": 2.13,
+   "killsAbovePer100": 0.576,
    "kd": 0.909,
    "adr": 96.2,
    "rating2Approx": 1.085,
@@ -19992,7 +19992,7 @@
     "selfFlashShare": 0.007,
     "smokeSupportShare": 0.075,
     "tradedDeathRate": 0.157,
-    "flashGift": null
+    "flashGift": 2.72
    }
   },
   {
@@ -20036,8 +20036,8 @@
     }
    ],
    "duels": 939,
-   "killsAbove": -7.66,
-   "killsAbovePer100": -1.049,
+   "killsAbove": -7.9,
+   "killsAbovePer100": -1.082,
    "kd": 0.978,
    "adr": 81.5,
    "rating2Approx": 1.049,
@@ -20134,7 +20134,7 @@
     "selfFlashShare": 0.012,
     "smokeSupportShare": 0.059,
     "tradedDeathRate": 0.149,
-    "flashGift": null
+    "flashGift": 2.14
    }
   },
   {
@@ -20178,8 +20178,8 @@
     }
    ],
    "duels": 2109,
-   "killsAbove": -24.93,
-   "killsAbovePer100": -1.593,
+   "killsAbove": -25.4,
+   "killsAbovePer100": -1.623,
    "kd": 0.813,
    "adr": 82.8,
    "rating2Approx": 0.97,
@@ -20276,7 +20276,7 @@
     "selfFlashShare": 0.022,
     "smokeSupportShare": 0.083,
     "tradedDeathRate": 0.231,
-    "flashGift": null
+    "flashGift": 14.24
    }
   },
   {
@@ -20320,8 +20320,8 @@
     }
    ],
    "duels": 2074,
-   "killsAbove": -9.09,
-   "killsAbovePer100": -0.581,
+   "killsAbove": -8.46,
+   "killsAbovePer100": -0.54,
    "kd": 0.882,
    "adr": 83.7,
    "rating2Approx": 1.006,
@@ -20418,7 +20418,7 @@
     "selfFlashShare": 0.012,
     "smokeSupportShare": 0.09,
     "tradedDeathRate": 0.186,
-    "flashGift": null
+    "flashGift": 14.96
    }
   },
   {
@@ -20462,8 +20462,8 @@
     }
    ],
    "duels": 577,
-   "killsAbove": 7.37,
-   "killsAbovePer100": 1.616,
+   "killsAbove": 7.17,
+   "killsAbovePer100": 1.573,
    "kd": 0.871,
    "adr": 77.0,
    "rating2Approx": 0.969,
@@ -20560,7 +20560,7 @@
     "selfFlashShare": 0.003,
     "smokeSupportShare": 0.083,
     "tradedDeathRate": 0.214,
-    "flashGift": null
+    "flashGift": 4.55
    }
   },
   {
@@ -20604,8 +20604,8 @@
     }
    ],
    "duels": 1146,
-   "killsAbove": -4.92,
-   "killsAbovePer100": -0.608,
+   "killsAbove": -5.03,
+   "killsAbovePer100": -0.621,
    "kd": 0.931,
    "adr": 96.7,
    "rating2Approx": 1.117,
@@ -20702,7 +20702,7 @@
     "selfFlashShare": 0.006,
     "smokeSupportShare": 0.079,
     "tradedDeathRate": 0.198,
-    "flashGift": null
+    "flashGift": 7.04
    }
   },
   {
@@ -20746,8 +20746,8 @@
     }
    ],
    "duels": 2929,
-   "killsAbove": -20.44,
-   "killsAbovePer100": -0.827,
+   "killsAbove": -20.91,
+   "killsAbovePer100": -0.846,
    "kd": 1.038,
    "adr": 77.2,
    "rating2Approx": 1.086,
@@ -20844,7 +20844,7 @@
     "selfFlashShare": 0.017,
     "smokeSupportShare": 0.063,
     "tradedDeathRate": 0.182,
-    "flashGift": null
+    "flashGift": 7.38
    }
   },
   {
@@ -20888,8 +20888,8 @@
     }
    ],
    "duels": 547,
-   "killsAbove": -3.49,
-   "killsAbovePer100": -0.846,
+   "killsAbove": -3.07,
+   "killsAbovePer100": -0.743,
    "kd": 0.879,
    "adr": 82.7,
    "rating2Approx": 1.002,
@@ -20986,7 +20986,7 @@
     "selfFlashShare": 0.011,
     "smokeSupportShare": 0.079,
     "tradedDeathRate": 0.191,
-    "flashGift": null
+    "flashGift": 4.88
    }
   },
   {
@@ -21030,8 +21030,8 @@
     }
    ],
    "duels": 787,
-   "killsAbove": -24.31,
-   "killsAbovePer100": -3.896,
+   "killsAbove": -24.41,
+   "killsAbovePer100": -3.912,
    "kd": 0.816,
    "adr": 79.9,
    "rating2Approx": 0.983,
@@ -21128,7 +21128,7 @@
     "selfFlashShare": 0.019,
     "smokeSupportShare": 0.07,
     "tradedDeathRate": 0.202,
-    "flashGift": null
+    "flashGift": 5.21
    }
   },
   {
@@ -21172,8 +21172,8 @@
     }
    ],
    "duels": 1499,
-   "killsAbove": 3.68,
-   "killsAbovePer100": 0.322,
+   "killsAbove": 3.9,
+   "killsAbovePer100": 0.342,
    "kd": 0.908,
    "adr": 85.4,
    "rating2Approx": 1.024,
@@ -21270,7 +21270,7 @@
     "selfFlashShare": 0.009,
     "smokeSupportShare": 0.114,
     "tradedDeathRate": 0.21,
-    "flashGift": null
+    "flashGift": 13.01
    }
   },
   {
@@ -21314,8 +21314,8 @@
     }
    ],
    "duels": 410,
-   "killsAbove": -3.49,
-   "killsAbovePer100": -1.119,
+   "killsAbove": -3.33,
+   "killsAbovePer100": -1.069,
    "kd": 0.923,
    "adr": 85.1,
    "rating2Approx": 1.048,
@@ -21412,7 +21412,7 @@
     "selfFlashShare": 0.01,
     "smokeSupportShare": 0.051,
     "tradedDeathRate": 0.208,
-    "flashGift": null
+    "flashGift": 1.5
    }
   },
   {
@@ -21456,8 +21456,8 @@
     }
    ],
    "duels": 1525,
-   "killsAbove": -24.55,
-   "killsAbovePer100": -2.055,
+   "killsAbove": -24.31,
+   "killsAbovePer100": -2.035,
    "kd": 0.89,
    "adr": 79.7,
    "rating2Approx": 1.012,
@@ -21554,7 +21554,7 @@
     "selfFlashShare": 0.013,
     "smokeSupportShare": 0.073,
     "tradedDeathRate": 0.204,
-    "flashGift": null
+    "flashGift": 10.22
    }
   },
   {
@@ -21598,8 +21598,8 @@
     }
    ],
    "duels": 469,
-   "killsAbove": 5.36,
-   "killsAbovePer100": 1.43,
+   "killsAbove": 5.48,
+   "killsAbovePer100": 1.461,
    "kd": 1.065,
    "adr": 79.4,
    "rating2Approx": 1.066,
@@ -21696,7 +21696,7 @@
     "selfFlashShare": 0.006,
     "smokeSupportShare": 0.062,
     "tradedDeathRate": 0.13,
-    "flashGift": null
+    "flashGift": 1.24
    }
   },
   {
@@ -21740,8 +21740,8 @@
     }
    ],
    "duels": 1245,
-   "killsAbove": -31.66,
-   "killsAbovePer100": -3.224,
+   "killsAbove": -30.95,
+   "killsAbovePer100": -3.152,
    "kd": 1.024,
    "adr": 81.4,
    "rating2Approx": 1.077,
@@ -21838,7 +21838,7 @@
     "selfFlashShare": 0.013,
     "smokeSupportShare": 0.055,
     "tradedDeathRate": 0.159,
-    "flashGift": null
+    "flashGift": 1.95
    }
   },
   {
@@ -21882,8 +21882,8 @@
     }
    ],
    "duels": 2026,
-   "killsAbove": -64.54,
-   "killsAbovePer100": -4.057,
+   "killsAbove": -64.3,
+   "killsAbovePer100": -4.041,
    "kd": 0.819,
    "adr": 82.2,
    "rating2Approx": 0.973,
@@ -21980,7 +21980,7 @@
     "selfFlashShare": 0.02,
     "smokeSupportShare": 0.067,
     "tradedDeathRate": 0.197,
-    "flashGift": null
+    "flashGift": 11.87
    }
   },
   {
@@ -22024,8 +22024,8 @@
     }
    ],
    "duels": 1136,
-   "killsAbove": -12.08,
-   "killsAbovePer100": -1.399,
+   "killsAbove": -12.65,
+   "killsAbovePer100": -1.464,
    "kd": 1.059,
    "adr": 81.9,
    "rating2Approx": 1.093,
@@ -22122,7 +22122,7 @@
     "selfFlashShare": 0.015,
     "smokeSupportShare": 0.062,
     "tradedDeathRate": 0.185,
-    "flashGift": null
+    "flashGift": 2.1
    }
   },
   {
@@ -22166,8 +22166,8 @@
     }
    ],
    "duels": 560,
-   "killsAbove": -7.67,
-   "killsAbovePer100": -1.857,
+   "killsAbove": -7.75,
+   "killsAbovePer100": -1.877,
    "kd": 0.867,
    "adr": 88.6,
    "rating2Approx": 1.038,
@@ -22264,7 +22264,7 @@
     "selfFlashShare": 0.018,
     "smokeSupportShare": 0.105,
     "tradedDeathRate": 0.214,
-    "flashGift": null
+    "flashGift": 4.81
    }
   },
   {
@@ -22308,8 +22308,8 @@
     }
    ],
    "duels": 2528,
-   "killsAbove": -2.88,
-   "killsAbovePer100": -0.147,
+   "killsAbove": -2.65,
+   "killsAbovePer100": -0.135,
    "kd": 0.882,
    "adr": 83.9,
    "rating2Approx": 1.035,
@@ -22406,7 +22406,7 @@
     "selfFlashShare": 0.021,
     "smokeSupportShare": 0.07,
     "tradedDeathRate": 0.197,
-    "flashGift": null
+    "flashGift": 15.64
    }
   },
   {
@@ -22450,8 +22450,8 @@
     }
    ],
    "duels": 844,
-   "killsAbove": -43.69,
-   "killsAbovePer100": -6.215,
+   "killsAbove": -43.91,
+   "killsAbovePer100": -6.246,
    "kd": 0.735,
    "adr": 71.0,
    "rating2Approx": 0.893,
@@ -22548,7 +22548,7 @@
     "selfFlashShare": 0.02,
     "smokeSupportShare": 0.064,
     "tradedDeathRate": 0.184,
-    "flashGift": null
+    "flashGift": 2.81
    }
   },
   {
@@ -22592,8 +22592,8 @@
     }
    ],
    "duels": 499,
-   "killsAbove": -18.82,
-   "killsAbovePer100": -4.764,
+   "killsAbove": -18.74,
+   "killsAbovePer100": -4.745,
    "kd": 0.785,
    "adr": 76.4,
    "rating2Approx": 0.899,
@@ -22690,7 +22690,7 @@
     "selfFlashShare": 0.014,
     "smokeSupportShare": 0.066,
     "tradedDeathRate": 0.155,
-    "flashGift": null
+    "flashGift": 2.46
    }
   },
   {
@@ -22734,8 +22734,8 @@
     }
    ],
    "duels": 477,
-   "killsAbove": -19.9,
-   "killsAbovePer100": -5.685,
+   "killsAbove": -19.91,
+   "killsAbovePer100": -5.688,
    "kd": 0.778,
    "adr": 83.5,
    "rating2Approx": 0.958,
@@ -22832,7 +22832,7 @@
     "selfFlashShare": 0.017,
     "smokeSupportShare": 0.065,
     "tradedDeathRate": 0.182,
-    "flashGift": null
+    "flashGift": 2.56
    }
   },
   {
@@ -22876,8 +22876,8 @@
     }
    ],
    "duels": 658,
-   "killsAbove": -3.95,
-   "killsAbovePer100": -0.866,
+   "killsAbove": -3.64,
+   "killsAbovePer100": -0.798,
    "kd": 0.92,
    "adr": 94.5,
    "rating2Approx": 1.093,
@@ -22974,7 +22974,7 @@
     "selfFlashShare": 0.003,
     "smokeSupportShare": 0.094,
     "tradedDeathRate": 0.217,
-    "flashGift": null
+    "flashGift": 4.25
    }
   },
   {
@@ -23018,8 +23018,8 @@
     }
    ],
    "duels": 1980,
-   "killsAbove": 2.47,
-   "killsAbovePer100": 0.167,
+   "killsAbove": 2.34,
+   "killsAbovePer100": 0.158,
    "kd": 0.911,
    "adr": 86.8,
    "rating2Approx": 1.037,
@@ -23116,7 +23116,7 @@
     "selfFlashShare": 0.013,
     "smokeSupportShare": 0.107,
     "tradedDeathRate": 0.182,
-    "flashGift": null
+    "flashGift": 13.74
    }
   },
   {
@@ -23160,8 +23160,8 @@
     }
    ],
    "duels": 2129,
-   "killsAbove": -21.44,
-   "killsAbovePer100": -1.274,
+   "killsAbove": -21.87,
+   "killsAbovePer100": -1.3,
    "kd": 1.019,
    "adr": 82.1,
    "rating2Approx": 1.09,
@@ -23258,7 +23258,7 @@
     "selfFlashShare": 0.012,
     "smokeSupportShare": 0.06,
     "tradedDeathRate": 0.167,
-    "flashGift": null
+    "flashGift": 5.33
    }
   },
   {
@@ -23302,8 +23302,8 @@
     }
    ],
    "duels": 1380,
-   "killsAbove": -21.11,
-   "killsAbovePer100": -1.958,
+   "killsAbove": -20.93,
+   "killsAbovePer100": -1.942,
    "kd": 0.863,
    "adr": 84.1,
    "rating2Approx": 1.004,
@@ -23400,7 +23400,7 @@
     "selfFlashShare": 0.009,
     "smokeSupportShare": 0.08,
     "tradedDeathRate": 0.183,
-    "flashGift": null
+    "flashGift": 6.42
    }
   },
   {
@@ -23444,8 +23444,8 @@
     }
    ],
    "duels": 6370,
-   "killsAbove": -192.3,
-   "killsAbovePer100": -3.379,
+   "killsAbove": -192.67,
+   "killsAbovePer100": -3.385,
    "kd": 0.79,
    "adr": 70.5,
    "rating2Approx": 0.935,
@@ -23542,7 +23542,7 @@
     "selfFlashShare": 0.027,
     "smokeSupportShare": 0.063,
     "tradedDeathRate": 0.228,
-    "flashGift": null
+    "flashGift": 32.49
    }
   },
   {
@@ -23586,8 +23586,8 @@
     }
    ],
    "duels": 3320,
-   "killsAbove": -93.88,
-   "killsAbovePer100": -3.556,
+   "killsAbove": -92.91,
+   "killsAbovePer100": -3.519,
    "kd": 0.809,
    "adr": 78.3,
    "rating2Approx": 0.957,
@@ -23684,7 +23684,7 @@
     "selfFlashShare": 0.025,
     "smokeSupportShare": 0.07,
     "tradedDeathRate": 0.198,
-    "flashGift": null
+    "flashGift": 16.17
    }
   },
   {
@@ -23728,8 +23728,8 @@
     }
    ],
    "duels": 633,
-   "killsAbove": -8.26,
-   "killsAbovePer100": -1.74,
+   "killsAbove": -8.13,
+   "killsAbovePer100": -1.711,
    "kd": 0.941,
    "adr": 77.7,
    "rating2Approx": 1.016,
@@ -23826,7 +23826,7 @@
     "selfFlashShare": 0.002,
     "smokeSupportShare": 0.062,
     "tradedDeathRate": 0.154,
-    "flashGift": null
+    "flashGift": 1.33
    }
   },
   {
@@ -23870,8 +23870,8 @@
     }
    ],
    "duels": 425,
-   "killsAbove": -22.97,
-   "killsAbovePer100": -6.345,
+   "killsAbove": -22.77,
+   "killsAbovePer100": -6.29,
    "kd": 0.719,
    "adr": 70.6,
    "rating2Approx": 0.871,
@@ -23968,7 +23968,7 @@
     "selfFlashShare": 0.009,
     "smokeSupportShare": 0.082,
     "tradedDeathRate": 0.174,
-    "flashGift": null
+    "flashGift": 2.19
    }
   },
   {
@@ -24012,8 +24012,8 @@
     }
    ],
    "duels": 1854,
-   "killsAbove": 4.82,
-   "killsAbovePer100": 0.348,
+   "killsAbove": 4.69,
+   "killsAbovePer100": 0.339,
    "kd": 0.943,
    "adr": 86.5,
    "rating2Approx": 1.089,
@@ -24110,7 +24110,7 @@
     "selfFlashShare": 0.016,
     "smokeSupportShare": 0.104,
     "tradedDeathRate": 0.279,
-    "flashGift": null
+    "flashGift": 16.16
    }
   },
   {
@@ -24154,8 +24154,8 @@
     }
    ],
    "duels": 586,
-   "killsAbove": -27.94,
-   "killsAbovePer100": -5.725,
+   "killsAbove": -27.76,
+   "killsAbovePer100": -5.689,
    "kd": 0.714,
    "adr": 69.6,
    "rating2Approx": 0.829,
@@ -24252,7 +24252,7 @@
     "selfFlashShare": 0.017,
     "smokeSupportShare": 0.056,
     "tradedDeathRate": 0.136,
-    "flashGift": null
+    "flashGift": 1.42
    }
   },
   {
@@ -24291,8 +24291,8 @@
     }
    ],
    "duels": 459,
-   "killsAbove": -15.5,
-   "killsAbovePer100": -4.189,
+   "killsAbove": -15.44,
+   "killsAbovePer100": -4.174,
    "kd": 0.795,
    "adr": 76.9,
    "rating2Approx": 0.915,
@@ -24389,7 +24389,7 @@
     "selfFlashShare": 0.013,
     "smokeSupportShare": 0.085,
     "tradedDeathRate": 0.167,
-    "flashGift": null
+    "flashGift": 2.1
    }
   },
   {
@@ -24433,8 +24433,8 @@
     }
    ],
    "duels": 1008,
-   "killsAbove": -35.18,
-   "killsAbovePer100": -4.431,
+   "killsAbove": -35.2,
+   "killsAbovePer100": -4.433,
    "kd": 0.75,
    "adr": 75.8,
    "rating2Approx": 0.89,
@@ -24531,7 +24531,7 @@
     "selfFlashShare": 0.02,
     "smokeSupportShare": 0.059,
     "tradedDeathRate": 0.21,
-    "flashGift": null
+    "flashGift": 5.82
    }
   },
   {
@@ -24575,8 +24575,8 @@
     }
    ],
    "duels": 697,
-   "killsAbove": -14.98,
-   "killsAbovePer100": -2.77,
+   "killsAbove": -15.01,
+   "killsAbovePer100": -2.774,
    "kd": 0.841,
    "adr": 78.7,
    "rating2Approx": 0.984,
@@ -24673,7 +24673,7 @@
     "selfFlashShare": 0.016,
     "smokeSupportShare": 0.077,
     "tradedDeathRate": 0.211,
-    "flashGift": null
+    "flashGift": 4.18
    }
   },
   {
@@ -24717,8 +24717,8 @@
     }
    ],
    "duels": 3248,
-   "killsAbove": 54.43,
-   "killsAbovePer100": 2.381,
+   "killsAbove": 53.75,
+   "killsAbovePer100": 2.351,
    "kd": 0.978,
    "adr": 93.9,
    "rating2Approx": 1.129,
@@ -24815,7 +24815,7 @@
     "selfFlashShare": 0.016,
     "smokeSupportShare": 0.091,
     "tradedDeathRate": 0.203,
-    "flashGift": null
+    "flashGift": 26.08
    }
   },
   {
@@ -24859,8 +24859,8 @@
     }
    ],
    "duels": 833,
-   "killsAbove": -16.16,
-   "killsAbovePer100": -2.441,
+   "killsAbove": -16.18,
+   "killsAbovePer100": -2.444,
    "kd": 0.842,
    "adr": 81.4,
    "rating2Approx": 0.998,
@@ -24957,7 +24957,7 @@
     "selfFlashShare": 0.03,
     "smokeSupportShare": 0.066,
     "tradedDeathRate": 0.212,
-    "flashGift": null
+    "flashGift": 5.4
    }
   },
   {
@@ -25001,8 +25001,8 @@
     }
    ],
    "duels": 1307,
-   "killsAbove": -17.43,
-   "killsAbovePer100": -1.775,
+   "killsAbove": -17.05,
+   "killsAbovePer100": -1.736,
    "kd": 0.827,
    "adr": 85.8,
    "rating2Approx": 0.983,
@@ -25099,7 +25099,7 @@
     "selfFlashShare": 0.016,
     "smokeSupportShare": 0.081,
     "tradedDeathRate": 0.188,
-    "flashGift": null
+    "flashGift": 9.06
    }
   },
   {
@@ -25143,8 +25143,8 @@
     }
    ],
    "duels": 3122,
-   "killsAbove": -2.73,
-   "killsAbovePer100": -0.115,
+   "killsAbove": -2.59,
+   "killsAbovePer100": -0.109,
    "kd": 1.094,
    "adr": 85.4,
    "rating2Approx": 1.141,
@@ -25241,7 +25241,7 @@
     "selfFlashShare": 0.012,
     "smokeSupportShare": 0.063,
     "tradedDeathRate": 0.176,
-    "flashGift": null
+    "flashGift": 9.19
    }
   },
   {
@@ -25285,8 +25285,8 @@
     }
    ],
    "duels": 2099,
-   "killsAbove": -23.67,
-   "killsAbovePer100": -1.513,
+   "killsAbove": -23.79,
+   "killsAbovePer100": -1.52,
    "kd": 0.911,
    "adr": 90.9,
    "rating2Approx": 1.063,
@@ -25383,7 +25383,7 @@
     "selfFlashShare": 0.014,
     "smokeSupportShare": 0.087,
     "tradedDeathRate": 0.174,
-    "flashGift": null
+    "flashGift": 14.94
    }
   },
   {
@@ -25427,8 +25427,8 @@
     }
    ],
    "duels": 1420,
-   "killsAbove": -22.1,
-   "killsAbovePer100": -1.983,
+   "killsAbove": -22.29,
+   "killsAbovePer100": -2.001,
    "kd": 0.866,
    "adr": 79.3,
    "rating2Approx": 1.008,
@@ -25525,7 +25525,7 @@
     "selfFlashShare": 0.015,
     "smokeSupportShare": 0.082,
     "tradedDeathRate": 0.249,
-    "flashGift": null
+    "flashGift": 9.82
    }
   },
   {
@@ -25569,8 +25569,8 @@
     }
    ],
    "duels": 1018,
-   "killsAbove": -16.62,
-   "killsAbovePer100": -2.101,
+   "killsAbove": -16.33,
+   "killsAbovePer100": -2.065,
    "kd": 0.87,
    "adr": 83.7,
    "rating2Approx": 1.015,
@@ -25667,7 +25667,7 @@
     "selfFlashShare": 0.013,
     "smokeSupportShare": 0.103,
     "tradedDeathRate": 0.209,
-    "flashGift": null
+    "flashGift": 8.67
    }
   },
   {
@@ -25711,8 +25711,8 @@
     }
    ],
    "duels": 1342,
-   "killsAbove": -105.76,
-   "killsAbovePer100": -9.334,
+   "killsAbove": -105.57,
+   "killsAbovePer100": -9.318,
    "kd": 0.725,
    "adr": 72.1,
    "rating2Approx": 0.873,
@@ -25809,7 +25809,7 @@
     "selfFlashShare": 0.02,
     "smokeSupportShare": 0.076,
     "tradedDeathRate": 0.192,
-    "flashGift": null
+    "flashGift": 6.52
    }
   },
   {
@@ -25853,8 +25853,8 @@
     }
    ],
    "duels": 6619,
-   "killsAbove": 180.15,
-   "killsAbovePer100": 3.914,
+   "killsAbove": 179.58,
+   "killsAbovePer100": 3.901,
    "kd": 1.081,
    "adr": 97.9,
    "rating2Approx": 1.214,
@@ -25951,7 +25951,7 @@
     "selfFlashShare": 0.009,
     "smokeSupportShare": 0.104,
     "tradedDeathRate": 0.219,
-    "flashGift": null
+    "flashGift": 56.64
    }
   },
   {
@@ -25995,8 +25995,8 @@
     }
    ],
    "duels": 636,
-   "killsAbove": 19.46,
-   "killsAbovePer100": 4.071,
+   "killsAbove": 19.66,
+   "killsAbovePer100": 4.113,
    "kd": 1.185,
    "adr": 89.4,
    "rating2Approx": 1.206,
@@ -26093,7 +26093,7 @@
     "selfFlashShare": 0.005,
     "smokeSupportShare": 0.074,
     "tradedDeathRate": 0.142,
-    "flashGift": null
+    "flashGift": 1.13
    }
   },
   {
@@ -26137,8 +26137,8 @@
     }
    ],
    "duels": 1262,
-   "killsAbove": -8.59,
-   "killsAbovePer100": -0.862,
+   "killsAbove": -8.73,
+   "killsAbovePer100": -0.876,
    "kd": 0.857,
    "adr": 80.6,
    "rating2Approx": 0.991,
@@ -26235,7 +26235,7 @@
     "selfFlashShare": 0.01,
     "smokeSupportShare": 0.071,
     "tradedDeathRate": 0.199,
-    "flashGift": null
+    "flashGift": 6.69
    }
   },
   {
@@ -26279,8 +26279,8 @@
     }
    ],
    "duels": 409,
-   "killsAbove": -28.92,
-   "killsAbovePer100": -8.43,
+   "killsAbove": -28.71,
+   "killsAbovePer100": -8.371,
    "kd": 0.755,
    "adr": 70.0,
    "rating2Approx": 0.889,
@@ -26377,7 +26377,7 @@
     "selfFlashShare": 0.01,
     "smokeSupportShare": 0.081,
     "tradedDeathRate": 0.249,
-    "flashGift": null
+    "flashGift": 1.78
    }
   },
   {
@@ -26421,8 +26421,8 @@
     }
    ],
    "duels": 1091,
-   "killsAbove": -18.51,
-   "killsAbovePer100": -2.135,
+   "killsAbove": -18.44,
+   "killsAbovePer100": -2.127,
    "kd": 0.871,
    "adr": 81.6,
    "rating2Approx": 1.005,
@@ -26519,7 +26519,7 @@
     "selfFlashShare": 0.018,
     "smokeSupportShare": 0.094,
     "tradedDeathRate": 0.177,
-    "flashGift": null
+    "flashGift": 7.0
    }
   },
   {
@@ -26563,8 +26563,8 @@
     }
    ],
    "duels": 7569,
-   "killsAbove": 15.35,
-   "killsAbovePer100": 0.271,
+   "killsAbove": 14.92,
+   "killsAbovePer100": 0.264,
    "kd": 0.964,
    "adr": 88.9,
    "rating2Approx": 1.09,
@@ -26661,7 +26661,7 @@
     "selfFlashShare": 0.012,
     "smokeSupportShare": 0.071,
     "tradedDeathRate": 0.195,
-    "flashGift": null
+    "flashGift": 44.06
    }
   },
   {
@@ -26705,8 +26705,8 @@
     }
    ],
    "duels": 1402,
-   "killsAbove": -21.93,
-   "killsAbovePer100": -2.081,
+   "killsAbove": -21.59,
+   "killsAbovePer100": -2.048,
    "kd": 0.833,
    "adr": 81.9,
    "rating2Approx": 0.983,
@@ -26803,7 +26803,7 @@
     "selfFlashShare": 0.021,
     "smokeSupportShare": 0.077,
     "tradedDeathRate": 0.222,
-    "flashGift": null
+    "flashGift": 11.62
    }
   },
   {
@@ -26847,8 +26847,8 @@
     }
    ],
    "duels": 3258,
-   "killsAbove": -44.69,
-   "killsAbovePer100": -1.722,
+   "killsAbove": -44.39,
+   "killsAbovePer100": -1.711,
    "kd": 1.014,
    "adr": 78.2,
    "rating2Approx": 1.079,
@@ -26945,7 +26945,7 @@
     "selfFlashShare": 0.011,
     "smokeSupportShare": 0.049,
     "tradedDeathRate": 0.155,
-    "flashGift": null
+    "flashGift": 6.07
    }
   },
   {
@@ -26989,8 +26989,8 @@
     }
    ],
    "duels": 2700,
-   "killsAbove": -17.57,
-   "killsAbovePer100": -0.894,
+   "killsAbove": -16.91,
+   "killsAbovePer100": -0.861,
    "kd": 0.883,
    "adr": 87.8,
    "rating2Approx": 1.047,
@@ -27087,7 +27087,7 @@
     "selfFlashShare": 0.012,
     "smokeSupportShare": 0.104,
     "tradedDeathRate": 0.235,
-    "flashGift": null
+    "flashGift": 23.69
    }
   },
   {
@@ -27131,8 +27131,8 @@
     }
    ],
    "duels": 431,
-   "killsAbove": -11.23,
-   "killsAbovePer100": -3.273,
+   "killsAbove": -11.32,
+   "killsAbovePer100": -3.3,
    "kd": 0.847,
    "adr": 76.9,
    "rating2Approx": 0.937,
@@ -27229,7 +27229,7 @@
     "selfFlashShare": 0.014,
     "smokeSupportShare": 0.128,
     "tradedDeathRate": 0.166,
-    "flashGift": null
+    "flashGift": 3.22
    }
   },
   {
@@ -27273,8 +27273,8 @@
     }
    ],
    "duels": 5865,
-   "killsAbove": 82.04,
-   "killsAbovePer100": 1.822,
+   "killsAbove": 82.6,
+   "killsAbovePer100": 1.834,
    "kd": 0.967,
    "adr": 87.6,
    "rating2Approx": 1.099,
@@ -27371,7 +27371,7 @@
     "selfFlashShare": 0.023,
     "smokeSupportShare": 0.086,
     "tradedDeathRate": 0.215,
-    "flashGift": null
+    "flashGift": 43.85
    }
   },
   {
@@ -27415,8 +27415,8 @@
     }
    ],
    "duels": 1755,
-   "killsAbove": 9.27,
-   "killsAbovePer100": 0.652,
+   "killsAbove": 8.96,
+   "killsAbovePer100": 0.63,
    "kd": 0.939,
    "adr": 82.0,
    "rating2Approx": 1.049,
@@ -27513,7 +27513,7 @@
     "selfFlashShare": 0.015,
     "smokeSupportShare": 0.078,
     "tradedDeathRate": 0.177,
-    "flashGift": null
+    "flashGift": 9.09
    }
   },
   {
@@ -27557,8 +27557,8 @@
     }
    ],
    "duels": 6058,
-   "killsAbove": -248.89,
-   "killsAbovePer100": -4.711,
+   "killsAbove": -248.61,
+   "killsAbovePer100": -4.706,
    "kd": 0.809,
    "adr": 73.3,
    "rating2Approx": 0.937,
@@ -27655,7 +27655,7 @@
     "selfFlashShare": 0.022,
     "smokeSupportShare": 0.057,
     "tradedDeathRate": 0.196,
-    "flashGift": null
+    "flashGift": 21.38
    }
   },
   {
@@ -27699,8 +27699,8 @@
     }
    ],
    "duels": 2294,
-   "killsAbove": 0.85,
-   "killsAbovePer100": 0.046,
+   "killsAbove": 1.1,
+   "killsAbovePer100": 0.06,
    "kd": 0.927,
    "adr": 81.1,
    "rating2Approx": 1.05,
@@ -27797,7 +27797,7 @@
     "selfFlashShare": 0.021,
     "smokeSupportShare": 0.079,
     "tradedDeathRate": 0.209,
-    "flashGift": null
+    "flashGift": 17.92
    }
   },
   {
@@ -27841,8 +27841,8 @@
     }
    ],
    "duels": 2932,
-   "killsAbove": 5.11,
-   "killsAbovePer100": 0.233,
+   "killsAbove": 4.37,
+   "killsAbovePer100": 0.2,
    "kd": 0.945,
    "adr": 87.3,
    "rating2Approx": 1.066,
@@ -27939,7 +27939,7 @@
     "selfFlashShare": 0.012,
     "smokeSupportShare": 0.083,
     "tradedDeathRate": 0.209,
-    "flashGift": null
+    "flashGift": 18.94
    }
   },
   {
@@ -27983,8 +27983,8 @@
     }
    ],
    "duels": 1070,
-   "killsAbove": -26.86,
-   "killsAbovePer100": -3.217,
+   "killsAbove": -27.11,
+   "killsAbovePer100": -3.246,
    "kd": 1.02,
    "adr": 81.1,
    "rating2Approx": 1.082,
@@ -28081,7 +28081,7 @@
     "selfFlashShare": 0.007,
     "smokeSupportShare": 0.064,
     "tradedDeathRate": 0.171,
-    "flashGift": null
+    "flashGift": 1.89
    }
   },
   {
@@ -28125,8 +28125,8 @@
     }
    ],
    "duels": 5057,
-   "killsAbove": -26.16,
-   "killsAbovePer100": -0.657,
+   "killsAbove": -26.26,
+   "killsAbovePer100": -0.66,
    "kd": 1.062,
    "adr": 81.8,
    "rating2Approx": 1.119,
@@ -28223,7 +28223,7 @@
     "selfFlashShare": 0.012,
     "smokeSupportShare": 0.058,
     "tradedDeathRate": 0.193,
-    "flashGift": null
+    "flashGift": 9.74
    }
   },
   {
@@ -28267,8 +28267,8 @@
     }
    ],
    "duels": 1635,
-   "killsAbove": -84.27,
-   "killsAbovePer100": -6.256,
+   "killsAbove": -85.1,
+   "killsAbovePer100": -6.318,
    "kd": 0.741,
    "adr": 78.5,
    "rating2Approx": 0.911,
@@ -28365,7 +28365,7 @@
     "selfFlashShare": 0.009,
     "smokeSupportShare": 0.059,
     "tradedDeathRate": 0.17,
-    "flashGift": null
+    "flashGift": 6.17
    }
   },
   {
@@ -28409,8 +28409,8 @@
     }
    ],
    "duels": 3171,
-   "killsAbove": -14.52,
-   "killsAbovePer100": -0.605,
+   "killsAbove": -14.9,
+   "killsAbovePer100": -0.621,
    "kd": 0.896,
    "adr": 83.2,
    "rating2Approx": 1.029,
@@ -28507,7 +28507,7 @@
     "selfFlashShare": 0.008,
     "smokeSupportShare": 0.106,
     "tradedDeathRate": 0.219,
-    "flashGift": null
+    "flashGift": 24.17
    }
   },
   {
@@ -28551,8 +28551,8 @@
     }
    ],
    "duels": 1858,
-   "killsAbove": -19.25,
-   "killsAbovePer100": -1.317,
+   "killsAbove": -19.31,
+   "killsAbovePer100": -1.321,
    "kd": 1.121,
    "adr": 80.6,
    "rating2Approx": 1.135,
@@ -28649,7 +28649,7 @@
     "selfFlashShare": 0.008,
     "smokeSupportShare": 0.054,
     "tradedDeathRate": 0.156,
-    "flashGift": null
+    "flashGift": 4.59
    }
   },
   {
@@ -28693,8 +28693,8 @@
     }
    ],
    "duels": 8862,
-   "killsAbove": -14.26,
-   "killsAbovePer100": -0.2,
+   "killsAbove": -14.37,
+   "killsAbovePer100": -0.201,
    "kd": 1.195,
    "adr": 82.4,
    "rating2Approx": 1.18,
@@ -28791,7 +28791,7 @@
     "selfFlashShare": 0.008,
     "smokeSupportShare": 0.052,
     "tradedDeathRate": 0.177,
-    "flashGift": null
+    "flashGift": 19.44
    }
   },
   {
@@ -28835,8 +28835,8 @@
     }
    ],
    "duels": 2031,
-   "killsAbove": -31.16,
-   "killsAbovePer100": -1.991,
+   "killsAbove": -30.76,
+   "killsAbovePer100": -1.966,
    "kd": 0.865,
    "adr": 80.6,
    "rating2Approx": 0.988,
@@ -28933,7 +28933,7 @@
     "selfFlashShare": 0.011,
     "smokeSupportShare": 0.089,
     "tradedDeathRate": 0.185,
-    "flashGift": null
+    "flashGift": 13.14
    }
   },
   {
@@ -28977,8 +28977,8 @@
     }
    ],
    "duels": 1468,
-   "killsAbove": -29.62,
-   "killsAbovePer100": -2.71,
+   "killsAbove": -29.51,
+   "killsAbovePer100": -2.699,
    "kd": 0.865,
    "adr": 85.9,
    "rating2Approx": 1.028,
@@ -29075,7 +29075,7 @@
     "selfFlashShare": 0.015,
     "smokeSupportShare": 0.084,
     "tradedDeathRate": 0.188,
-    "flashGift": null
+    "flashGift": 9.12
    }
   },
   {
@@ -29119,8 +29119,8 @@
     }
    ],
    "duels": 3599,
-   "killsAbove": 15.74,
-   "killsAbovePer100": 0.585,
+   "killsAbove": 16.15,
+   "killsAbovePer100": 0.6,
    "kd": 0.933,
    "adr": 86.6,
    "rating2Approx": 1.08,
@@ -29217,7 +29217,7 @@
     "selfFlashShare": 0.016,
     "smokeSupportShare": 0.101,
     "tradedDeathRate": 0.22,
-    "flashGift": null
+    "flashGift": 29.55
    }
   },
   {
@@ -29261,8 +29261,8 @@
     }
    ],
    "duels": 3848,
-   "killsAbove": 26.12,
-   "killsAbovePer100": 0.914,
+   "killsAbove": 26.8,
+   "killsAbovePer100": 0.938,
    "kd": 0.93,
    "adr": 86.4,
    "rating2Approx": 1.059,
@@ -29359,7 +29359,7 @@
     "selfFlashShare": 0.009,
     "smokeSupportShare": 0.089,
     "tradedDeathRate": 0.223,
-    "flashGift": null
+    "flashGift": 23.44
    }
   },
   {
@@ -29403,8 +29403,8 @@
     }
    ],
    "duels": 4469,
-   "killsAbove": -4.9,
-   "killsAbovePer100": -0.144,
+   "killsAbove": -5.16,
+   "killsAbovePer100": -0.151,
    "kd": 0.924,
    "adr": 89.1,
    "rating2Approx": 1.069,
@@ -29501,7 +29501,7 @@
     "selfFlashShare": 0.017,
     "smokeSupportShare": 0.092,
     "tradedDeathRate": 0.194,
-    "flashGift": null
+    "flashGift": 31.09
    }
   },
   {
@@ -29545,8 +29545,8 @@
     }
    ],
    "duels": 851,
-   "killsAbove": -18.02,
-   "killsAbovePer100": -2.902,
+   "killsAbove": -18.31,
+   "killsAbovePer100": -2.948,
    "kd": 0.819,
    "adr": 85.1,
    "rating2Approx": 0.967,
@@ -29643,7 +29643,7 @@
     "selfFlashShare": 0.031,
     "smokeSupportShare": 0.068,
     "tradedDeathRate": 0.183,
-    "flashGift": null
+    "flashGift": 5.68
    }
   },
   {
@@ -29687,8 +29687,8 @@
     }
    ],
    "duels": 865,
-   "killsAbove": -32.15,
-   "killsAbovePer100": -4.509,
+   "killsAbove": -32.17,
+   "killsAbovePer100": -4.512,
    "kd": 0.836,
    "adr": 73.8,
    "rating2Approx": 0.943,
@@ -29785,7 +29785,7 @@
     "selfFlashShare": 0.017,
     "smokeSupportShare": 0.094,
     "tradedDeathRate": 0.16,
-    "flashGift": null
+    "flashGift": 7.77
    }
   },
   {
@@ -29829,8 +29829,8 @@
     }
    ],
    "duels": 867,
-   "killsAbove": -26.84,
-   "killsAbovePer100": -3.884,
+   "killsAbove": -27.0,
+   "killsAbovePer100": -3.908,
    "kd": 1.077,
    "adr": 78.3,
    "rating2Approx": 1.104,
@@ -29927,7 +29927,7 @@
     "selfFlashShare": 0.012,
     "smokeSupportShare": 0.065,
     "tradedDeathRate": 0.189,
-    "flashGift": null
+    "flashGift": 1.93
    }
   },
   {
@@ -29971,8 +29971,8 @@
     }
    ],
    "duels": 1459,
-   "killsAbove": -25.64,
-   "killsAbovePer100": -2.146,
+   "killsAbove": -25.67,
+   "killsAbovePer100": -2.148,
    "kd": 1.011,
    "adr": 79.5,
    "rating2Approx": 1.086,
@@ -30069,7 +30069,7 @@
     "selfFlashShare": 0.01,
     "smokeSupportShare": 0.045,
     "tradedDeathRate": 0.189,
-    "flashGift": null
+    "flashGift": 2.32
    }
   },
   {
@@ -30113,8 +30113,8 @@
     }
    ],
    "duels": 830,
-   "killsAbove": -21.28,
-   "killsAbovePer100": -3.378,
+   "killsAbove": -21.17,
+   "killsAbovePer100": -3.36,
    "kd": 0.89,
    "adr": 80.1,
    "rating2Approx": 0.998,
@@ -30211,7 +30211,7 @@
     "selfFlashShare": 0.013,
     "smokeSupportShare": 0.083,
     "tradedDeathRate": 0.181,
-    "flashGift": null
+    "flashGift": 4.98
    }
   },
   {
@@ -30255,8 +30255,8 @@
     }
    ],
    "duels": 1121,
-   "killsAbove": -19.44,
-   "killsAbovePer100": -2.25,
+   "killsAbove": -19.32,
+   "killsAbovePer100": -2.237,
    "kd": 0.827,
    "adr": 79.0,
    "rating2Approx": 0.985,
@@ -30353,7 +30353,7 @@
     "selfFlashShare": 0.017,
     "smokeSupportShare": 0.072,
     "tradedDeathRate": 0.222,
-    "flashGift": null
+    "flashGift": 7.06
    }
   },
   {
@@ -30397,8 +30397,8 @@
     }
    ],
    "duels": 1375,
-   "killsAbove": -21.3,
-   "killsAbovePer100": -1.996,
+   "killsAbove": -21.77,
+   "killsAbovePer100": -2.041,
    "kd": 0.843,
    "adr": 81.7,
    "rating2Approx": 0.976,
@@ -30495,7 +30495,7 @@
     "selfFlashShare": 0.025,
     "smokeSupportShare": 0.083,
     "tradedDeathRate": 0.168,
-    "flashGift": null
+    "flashGift": 7.65
    }
   },
   {
@@ -30539,8 +30539,8 @@
     }
    ],
    "duels": 4372,
-   "killsAbove": -141.34,
-   "killsAbovePer100": -3.95,
+   "killsAbove": -141.61,
+   "killsAbovePer100": -3.958,
    "kd": 0.776,
    "adr": 74.7,
    "rating2Approx": 0.92,
@@ -30637,7 +30637,7 @@
     "selfFlashShare": 0.029,
     "smokeSupportShare": 0.078,
     "tradedDeathRate": 0.216,
-    "flashGift": null
+    "flashGift": 25.84
    }
   },
   {
@@ -30681,8 +30681,8 @@
     }
    ],
    "duels": 6713,
-   "killsAbove": 70.54,
-   "killsAbovePer100": 1.43,
+   "killsAbove": 69.94,
+   "killsAbovePer100": 1.418,
    "kd": 0.993,
    "adr": 92.3,
    "rating2Approx": 1.123,
@@ -30779,7 +30779,7 @@
     "selfFlashShare": 0.013,
     "smokeSupportShare": 0.093,
     "tradedDeathRate": 0.194,
-    "flashGift": null
+    "flashGift": 45.68
    }
   },
   {
@@ -30823,8 +30823,8 @@
     }
    ],
    "duels": 3490,
-   "killsAbove": 3.73,
-   "killsAbovePer100": 0.135,
+   "killsAbove": 2.85,
+   "killsAbovePer100": 0.103,
    "kd": 1.0,
    "adr": 86.6,
    "rating2Approx": 1.112,
@@ -30921,7 +30921,7 @@
     "selfFlashShare": 0.015,
     "smokeSupportShare": 0.068,
     "tradedDeathRate": 0.204,
-    "flashGift": null
+    "flashGift": 22.42
    }
   },
   {
@@ -30965,8 +30965,8 @@
     }
    ],
    "duels": 1941,
-   "killsAbove": -27.83,
-   "killsAbovePer100": -1.794,
+   "killsAbove": -27.71,
+   "killsAbovePer100": -1.787,
    "kd": 0.821,
    "adr": 82.0,
    "rating2Approx": 0.97,
@@ -31063,7 +31063,7 @@
     "selfFlashShare": 0.02,
     "smokeSupportShare": 0.094,
     "tradedDeathRate": 0.183,
-    "flashGift": null
+    "flashGift": 11.25
    }
   },
   {
@@ -31107,8 +31107,8 @@
     }
    ],
    "duels": 2071,
-   "killsAbove": -25.53,
-   "killsAbovePer100": -1.631,
+   "killsAbove": -25.67,
+   "killsAbovePer100": -1.64,
    "kd": 1.023,
    "adr": 83.7,
    "rating2Approx": 1.095,
@@ -31205,7 +31205,7 @@
     "selfFlashShare": 0.014,
     "smokeSupportShare": 0.046,
     "tradedDeathRate": 0.172,
-    "flashGift": null
+    "flashGift": 4.59
    }
   },
   {
@@ -31249,8 +31249,8 @@
     }
    ],
    "duels": 1346,
-   "killsAbove": -34.41,
-   "killsAbovePer100": -3.157,
+   "killsAbove": -34.14,
+   "killsAbovePer100": -3.132,
    "kd": 0.836,
    "adr": 77.4,
    "rating2Approx": 0.969,
@@ -31347,7 +31347,7 @@
     "selfFlashShare": 0.019,
     "smokeSupportShare": 0.077,
     "tradedDeathRate": 0.197,
-    "flashGift": null
+    "flashGift": 7.63
    }
   },
   {
@@ -31391,8 +31391,8 @@
     }
    ],
    "duels": 1669,
-   "killsAbove": -6.11,
-   "killsAbovePer100": -0.472,
+   "killsAbove": -5.82,
+   "killsAbovePer100": -0.45,
    "kd": 0.889,
    "adr": 83.7,
    "rating2Approx": 1.016,
@@ -31489,7 +31489,7 @@
     "selfFlashShare": 0.01,
     "smokeSupportShare": 0.084,
     "tradedDeathRate": 0.176,
-    "flashGift": null
+    "flashGift": 9.13
    }
   },
   {
@@ -31533,8 +31533,8 @@
     }
    ],
    "duels": 8778,
-   "killsAbove": -14.25,
-   "killsAbovePer100": -0.201,
+   "killsAbove": -14.79,
+   "killsAbovePer100": -0.208,
    "kd": 0.936,
    "adr": 80.7,
    "rating2Approx": 1.043,
@@ -31631,7 +31631,7 @@
     "selfFlashShare": 0.015,
     "smokeSupportShare": 0.076,
     "tradedDeathRate": 0.209,
-    "flashGift": null
+    "flashGift": 50.1
    }
   },
   {
@@ -31773,7 +31773,7 @@
     "selfFlashShare": 0.013,
     "smokeSupportShare": 0.061,
     "tradedDeathRate": 0.175,
-    "flashGift": null
+    "flashGift": 13.44
    }
   },
   {
@@ -31817,8 +31817,8 @@
     }
    ],
    "duels": 2904,
-   "killsAbove": -62.67,
-   "killsAbovePer100": -2.813,
+   "killsAbove": -62.4,
+   "killsAbovePer100": -2.801,
    "kd": 0.883,
    "adr": 80.4,
    "rating2Approx": 1.015,
@@ -31915,7 +31915,7 @@
     "selfFlashShare": 0.008,
     "smokeSupportShare": 0.059,
     "tradedDeathRate": 0.198,
-    "flashGift": null
+    "flashGift": 9.56
    }
   },
   {
@@ -31959,8 +31959,8 @@
     }
    ],
    "duels": 1362,
-   "killsAbove": -41.43,
-   "killsAbovePer100": -3.808,
+   "killsAbove": -41.21,
+   "killsAbovePer100": -3.788,
    "kd": 1.009,
    "adr": 76.5,
    "rating2Approx": 1.037,
@@ -32057,7 +32057,7 @@
     "selfFlashShare": 0.015,
     "smokeSupportShare": 0.065,
     "tradedDeathRate": 0.164,
-    "flashGift": null
+    "flashGift": 2.67
    }
   },
   {
@@ -32101,8 +32101,8 @@
     }
    ],
    "duels": 2503,
-   "killsAbove": -46.46,
-   "killsAbovePer100": -2.345,
+   "killsAbove": -45.73,
+   "killsAbovePer100": -2.309,
    "kd": 1.045,
    "adr": 80.5,
    "rating2Approx": 1.092,
@@ -32199,7 +32199,7 @@
     "selfFlashShare": 0.017,
     "smokeSupportShare": 0.054,
     "tradedDeathRate": 0.16,
-    "flashGift": null
+    "flashGift": 9.05
    }
   },
   {
@@ -32243,8 +32243,8 @@
     }
    ],
    "duels": 3712,
-   "killsAbove": -3.57,
-   "killsAbovePer100": -0.126,
+   "killsAbove": -3.37,
+   "killsAbovePer100": -0.119,
    "kd": 0.936,
    "adr": 88.2,
    "rating2Approx": 1.077,
@@ -32341,7 +32341,7 @@
     "selfFlashShare": 0.016,
     "smokeSupportShare": 0.075,
     "tradedDeathRate": 0.21,
-    "flashGift": null
+    "flashGift": 16.67
    }
   },
   {
@@ -32385,8 +32385,8 @@
     }
    ],
    "duels": 1700,
-   "killsAbove": -28.71,
-   "killsAbovePer100": -2.182,
+   "killsAbove": -28.07,
+   "killsAbovePer100": -2.133,
    "kd": 0.808,
    "adr": 83.2,
    "rating2Approx": 0.984,
@@ -32483,7 +32483,7 @@
     "selfFlashShare": 0.008,
     "smokeSupportShare": 0.091,
     "tradedDeathRate": 0.235,
-    "flashGift": null
+    "flashGift": 11.92
    }
   },
   {
@@ -32527,8 +32527,8 @@
     }
    ],
    "duels": 3840,
-   "killsAbove": -11.23,
-   "killsAbovePer100": -0.396,
+   "killsAbove": -10.82,
+   "killsAbovePer100": -0.382,
    "kd": 0.907,
    "adr": 90.5,
    "rating2Approx": 1.082,
@@ -32625,7 +32625,7 @@
     "selfFlashShare": 0.015,
     "smokeSupportShare": 0.103,
     "tradedDeathRate": 0.229,
-    "flashGift": null
+    "flashGift": 25.38
    }
   },
   {
@@ -32669,8 +32669,8 @@
     }
    ],
    "duels": 4479,
-   "killsAbove": 4.1,
-   "killsAbovePer100": 0.119,
+   "killsAbove": 4.88,
+   "killsAbovePer100": 0.141,
    "kd": 0.983,
    "adr": 85.4,
    "rating2Approx": 1.093,
@@ -32767,7 +32767,7 @@
     "selfFlashShare": 0.005,
     "smokeSupportShare": 0.081,
     "tradedDeathRate": 0.218,
-    "flashGift": null
+    "flashGift": 19.96
    }
   },
   {
@@ -32811,8 +32811,8 @@
     }
    ],
    "duels": 2543,
-   "killsAbove": -53.06,
-   "killsAbovePer100": -2.581,
+   "killsAbove": -53.2,
+   "killsAbovePer100": -2.587,
    "kd": 0.981,
    "adr": 77.9,
    "rating2Approx": 1.047,
@@ -32909,7 +32909,7 @@
     "selfFlashShare": 0.009,
     "smokeSupportShare": 0.061,
     "tradedDeathRate": 0.174,
-    "flashGift": null
+    "flashGift": 7.56
    }
   },
   {
@@ -32953,8 +32953,8 @@
     }
    ],
    "duels": 3072,
-   "killsAbove": -20.13,
-   "killsAbovePer100": -0.85,
+   "killsAbove": -19.46,
+   "killsAbovePer100": -0.821,
    "kd": 0.882,
    "adr": 81.4,
    "rating2Approx": 1.021,
@@ -33051,7 +33051,7 @@
     "selfFlashShare": 0.007,
     "smokeSupportShare": 0.09,
     "tradedDeathRate": 0.23,
-    "flashGift": null
+    "flashGift": 19.95
    }
   },
   {
@@ -33095,8 +33095,8 @@
     }
    ],
    "duels": 3645,
-   "killsAbove": -27.41,
-   "killsAbovePer100": -1.033,
+   "killsAbove": -27.22,
+   "killsAbovePer100": -1.026,
    "kd": 0.894,
    "adr": 88.2,
    "rating2Approx": 1.05,
@@ -33193,7 +33193,7 @@
     "selfFlashShare": 0.01,
     "smokeSupportShare": 0.091,
     "tradedDeathRate": 0.232,
-    "flashGift": null
+    "flashGift": 17.27
    }
   },
   {
@@ -33237,8 +33237,8 @@
     }
    ],
    "duels": 3489,
-   "killsAbove": -2.25,
-   "killsAbovePer100": -0.083,
+   "killsAbove": -2.31,
+   "killsAbovePer100": -0.085,
    "kd": 0.927,
    "adr": 82.1,
    "rating2Approx": 1.035,
@@ -33335,7 +33335,7 @@
     "selfFlashShare": 0.013,
     "smokeSupportShare": 0.095,
     "tradedDeathRate": 0.202,
-    "flashGift": null
+    "flashGift": 24.31
    }
   },
   {
@@ -33379,8 +33379,8 @@
     }
    ],
    "duels": 2233,
-   "killsAbove": -61.85,
-   "killsAbovePer100": -3.406,
+   "killsAbove": -62.27,
+   "killsAbovePer100": -3.429,
    "kd": 0.838,
    "adr": 74.8,
    "rating2Approx": 0.946,
@@ -33477,7 +33477,7 @@
     "selfFlashShare": 0.01,
     "smokeSupportShare": 0.072,
     "tradedDeathRate": 0.184,
-    "flashGift": null
+    "flashGift": 10.23
    }
   },
   {
@@ -33521,8 +33521,8 @@
     }
    ],
    "duels": 1923,
-   "killsAbove": -82.8,
-   "killsAbovePer100": -4.955,
+   "killsAbove": -83.64,
+   "killsAbovePer100": -5.006,
    "kd": 0.745,
    "adr": 71.2,
    "rating2Approx": 0.889,
@@ -33619,7 +33619,7 @@
     "selfFlashShare": 0.015,
     "smokeSupportShare": 0.066,
     "tradedDeathRate": 0.208,
-    "flashGift": null
+    "flashGift": 9.81
    }
   },
   {
@@ -33663,8 +33663,8 @@
     }
    ],
    "duels": 9340,
-   "killsAbove": 131.81,
-   "killsAbovePer100": 1.928,
+   "killsAbove": 131.66,
+   "killsAbovePer100": 1.926,
    "kd": 1.012,
    "adr": 95.0,
    "rating2Approx": 1.15,
@@ -33761,7 +33761,7 @@
     "selfFlashShare": 0.014,
     "smokeSupportShare": 0.088,
     "tradedDeathRate": 0.193,
-    "flashGift": null
+    "flashGift": 70.12
    }
   },
   {
@@ -33805,8 +33805,8 @@
     }
    ],
    "duels": 1988,
-   "killsAbove": -29.91,
-   "killsAbovePer100": -2.027,
+   "killsAbove": -29.9,
+   "killsAbovePer100": -2.025,
    "kd": 1.01,
    "adr": 82.0,
    "rating2Approx": 1.081,
@@ -33903,7 +33903,7 @@
     "selfFlashShare": 0.008,
     "smokeSupportShare": 0.06,
     "tradedDeathRate": 0.196,
-    "flashGift": null
+    "flashGift": 3.73
    }
   },
   {
@@ -33947,8 +33947,8 @@
     }
    ],
    "duels": 6257,
-   "killsAbove": 2.65,
-   "killsAbovePer100": 0.056,
+   "killsAbove": 2.52,
+   "killsAbovePer100": 0.053,
    "kd": 0.945,
    "adr": 85.2,
    "rating2Approx": 1.062,
@@ -34045,7 +34045,7 @@
     "selfFlashShare": 0.013,
     "smokeSupportShare": 0.074,
     "tradedDeathRate": 0.188,
-    "flashGift": null
+    "flashGift": 38.17
    }
   },
   {
@@ -34089,8 +34089,8 @@
     }
    ],
    "duels": 3977,
-   "killsAbove": -41.09,
-   "killsAbovePer100": -1.331,
+   "killsAbove": -41.93,
+   "killsAbovePer100": -1.358,
    "kd": 1.047,
    "adr": 85.5,
    "rating2Approx": 1.109,
@@ -34187,7 +34187,7 @@
     "selfFlashShare": 0.01,
     "smokeSupportShare": 0.061,
     "tradedDeathRate": 0.151,
-    "flashGift": null
+    "flashGift": 8.29
    }
   },
   {
@@ -34231,8 +34231,8 @@
     }
    ],
    "duels": 1654,
-   "killsAbove": -42.48,
-   "killsAbovePer100": -3.094,
+   "killsAbove": -42.54,
+   "killsAbovePer100": -3.098,
    "kd": 0.939,
    "adr": 76.8,
    "rating2Approx": 1.029,
@@ -34329,7 +34329,7 @@
     "selfFlashShare": 0.01,
     "smokeSupportShare": 0.059,
     "tradedDeathRate": 0.183,
-    "flashGift": null
+    "flashGift": 4.19
    }
   },
   {
@@ -34373,8 +34373,8 @@
     }
    ],
    "duels": 2976,
-   "killsAbove": -116.46,
-   "killsAbovePer100": -4.801,
+   "killsAbove": -116.1,
+   "killsAbovePer100": -4.786,
    "kd": 0.744,
    "adr": 75.1,
    "rating2Approx": 0.894,
@@ -34471,7 +34471,7 @@
     "selfFlashShare": 0.023,
     "smokeSupportShare": 0.089,
     "tradedDeathRate": 0.204,
-    "flashGift": null
+    "flashGift": 16.82
    }
   },
   {
@@ -34515,8 +34515,8 @@
     }
    ],
    "duels": 8459,
-   "killsAbove": -336.28,
-   "killsAbovePer100": -4.843,
+   "killsAbove": -334.59,
+   "killsAbovePer100": -4.818,
    "kd": 0.87,
    "adr": 82.9,
    "rating2Approx": 1.028,
@@ -34613,7 +34613,7 @@
     "selfFlashShare": 0.025,
     "smokeSupportShare": 0.069,
     "tradedDeathRate": 0.206,
-    "flashGift": null
+    "flashGift": 33.91
    }
   },
   {
@@ -34657,8 +34657,8 @@
     }
    ],
    "duels": 3340,
-   "killsAbove": 33.36,
-   "killsAbovePer100": 1.291,
+   "killsAbove": 33.22,
+   "killsAbovePer100": 1.286,
    "kd": 1.011,
    "adr": 84.6,
    "rating2Approx": 1.094,
@@ -34755,7 +34755,7 @@
     "selfFlashShare": 0.014,
     "smokeSupportShare": 0.084,
     "tradedDeathRate": 0.226,
-    "flashGift": null
+    "flashGift": 23.12
    }
   },
   {
@@ -34799,8 +34799,8 @@
     }
    ],
    "duels": 1555,
-   "killsAbove": -53.28,
-   "killsAbovePer100": -4.218,
+   "killsAbove": -53.45,
+   "killsAbovePer100": -4.232,
    "kd": 0.806,
    "adr": 76.1,
    "rating2Approx": 0.942,
@@ -34897,7 +34897,7 @@
     "selfFlashShare": 0.015,
     "smokeSupportShare": 0.057,
     "tradedDeathRate": 0.209,
-    "flashGift": null
+    "flashGift": 6.16
    }
   },
   {
@@ -34941,7 +34941,7 @@
     }
    ],
    "duels": 2980,
-   "killsAbove": -26.63,
+   "killsAbove": -26.62,
    "killsAbovePer100": -1.124,
    "kd": 1.09,
    "adr": 82.8,
@@ -35039,7 +35039,7 @@
     "selfFlashShare": 0.012,
     "smokeSupportShare": 0.065,
     "tradedDeathRate": 0.153,
-    "flashGift": null
+    "flashGift": 7.12
    }
   },
   {
@@ -35083,8 +35083,8 @@
     }
    ],
    "duels": 2515,
-   "killsAbove": -10.0,
-   "killsAbovePer100": -0.505,
+   "killsAbove": -9.16,
+   "killsAbovePer100": -0.462,
    "kd": 1.088,
    "adr": 80.0,
    "rating2Approx": 1.113,
@@ -35181,7 +35181,7 @@
     "selfFlashShare": 0.01,
     "smokeSupportShare": 0.059,
     "tradedDeathRate": 0.164,
-    "flashGift": null
+    "flashGift": 4.67
    }
   },
   {
@@ -35225,8 +35225,8 @@
     }
    ],
    "duels": 4171,
-   "killsAbove": -19.63,
-   "killsAbovePer100": -0.614,
+   "killsAbove": -20.0,
+   "killsAbovePer100": -0.626,
    "kd": 1.031,
    "adr": 81.9,
    "rating2Approx": 1.102,
@@ -35323,7 +35323,7 @@
     "selfFlashShare": 0.013,
     "smokeSupportShare": 0.074,
     "tradedDeathRate": 0.187,
-    "flashGift": null
+    "flashGift": 11.25
    }
   },
   {
@@ -35367,8 +35367,8 @@
     }
    ],
    "duels": 1965,
-   "killsAbove": -43.3,
-   "killsAbovePer100": -2.591,
+   "killsAbove": -42.98,
+   "killsAbovePer100": -2.572,
    "kd": 0.979,
    "adr": 71.6,
    "rating2Approx": 1.021,
@@ -35465,7 +35465,7 @@
     "selfFlashShare": 0.014,
     "smokeSupportShare": 0.053,
     "tradedDeathRate": 0.169,
-    "flashGift": null
+    "flashGift": 5.72
    }
   },
   {
@@ -35509,8 +35509,8 @@
     }
    ],
    "duels": 2087,
-   "killsAbove": -53.95,
-   "killsAbovePer100": -3.202,
+   "killsAbove": -53.85,
+   "killsAbovePer100": -3.196,
    "kd": 0.817,
    "adr": 77.0,
    "rating2Approx": 0.95,
@@ -35607,7 +35607,7 @@
     "selfFlashShare": 0.007,
     "smokeSupportShare": 0.081,
     "tradedDeathRate": 0.204,
-    "flashGift": null
+    "flashGift": 11.82
    }
   },
   {
@@ -35651,8 +35651,8 @@
     }
    ],
    "duels": 2321,
-   "killsAbove": -55.07,
-   "killsAbovePer100": -3.094,
+   "killsAbove": -55.09,
+   "killsAbovePer100": -3.095,
    "kd": 0.86,
    "adr": 83.2,
    "rating2Approx": 1.0,
@@ -35749,7 +35749,7 @@
     "selfFlashShare": 0.008,
     "smokeSupportShare": 0.088,
     "tradedDeathRate": 0.197,
-    "flashGift": null
+    "flashGift": 11.78
    }
   },
   {
@@ -35793,8 +35793,8 @@
     }
    ],
    "duels": 3488,
-   "killsAbove": -146.64,
-   "killsAbovePer100": -5.001,
+   "killsAbove": -146.42,
+   "killsAbovePer100": -4.994,
    "kd": 0.797,
    "adr": 76.4,
    "rating2Approx": 0.945,
@@ -35891,7 +35891,7 @@
     "selfFlashShare": 0.022,
     "smokeSupportShare": 0.071,
     "tradedDeathRate": 0.189,
-    "flashGift": null
+    "flashGift": 18.56
    }
   },
   {
@@ -35935,8 +35935,8 @@
     }
    ],
    "duels": 3230,
-   "killsAbove": -121.31,
-   "killsAbovePer100": -4.661,
+   "killsAbove": -121.21,
+   "killsAbovePer100": -4.657,
    "kd": 0.783,
    "adr": 77.5,
    "rating2Approx": 0.938,
@@ -36033,7 +36033,7 @@
     "selfFlashShare": 0.02,
     "smokeSupportShare": 0.086,
     "tradedDeathRate": 0.212,
-    "flashGift": null
+    "flashGift": 17.21
    }
   },
   {
@@ -36077,8 +36077,8 @@
     }
    ],
    "duels": 1821,
-   "killsAbove": -24.39,
-   "killsAbovePer100": -1.715,
+   "killsAbove": -23.97,
+   "killsAbovePer100": -1.685,
    "kd": 0.853,
    "adr": 82.6,
    "rating2Approx": 1.002,
@@ -36175,7 +36175,7 @@
     "selfFlashShare": 0.013,
     "smokeSupportShare": 0.101,
     "tradedDeathRate": 0.221,
-    "flashGift": null
+    "flashGift": 13.86
    }
   },
   {
@@ -36219,8 +36219,8 @@
     }
    ],
    "duels": 9797,
-   "killsAbove": 242.48,
-   "killsAbovePer100": 3.334,
+   "killsAbove": 243.34,
+   "killsAbovePer100": 3.346,
    "kd": 1.044,
    "adr": 90.7,
    "rating2Approx": 1.168,
@@ -36317,7 +36317,7 @@
     "selfFlashShare": 0.029,
     "smokeSupportShare": 0.093,
     "tradedDeathRate": 0.273,
-    "flashGift": null
+    "flashGift": 100.01
    }
   },
   {
@@ -36361,8 +36361,8 @@
     }
    ],
    "duels": 5030,
-   "killsAbove": -60.19,
-   "killsAbovePer100": -1.505,
+   "killsAbove": -60.12,
+   "killsAbovePer100": -1.503,
    "kd": 0.871,
    "adr": 80.2,
    "rating2Approx": 1.001,
@@ -36459,7 +36459,7 @@
     "selfFlashShare": 0.012,
     "smokeSupportShare": 0.073,
     "tradedDeathRate": 0.195,
-    "flashGift": null
+    "flashGift": 25.36
    }
   },
   {
@@ -36503,8 +36503,8 @@
     }
    ],
    "duels": 1912,
-   "killsAbove": -78.57,
-   "killsAbovePer100": -5.075,
+   "killsAbove": -78.26,
+   "killsAbovePer100": -5.055,
    "kd": 0.771,
    "adr": 74.9,
    "rating2Approx": 0.939,
@@ -36601,7 +36601,7 @@
     "selfFlashShare": 0.005,
     "smokeSupportShare": 0.136,
     "tradedDeathRate": 0.259,
-    "flashGift": null
+    "flashGift": 15.61
    }
   },
   {
@@ -36645,8 +36645,8 @@
     }
    ],
    "duels": 2799,
-   "killsAbove": -101.52,
-   "killsAbovePer100": -4.518,
+   "killsAbove": -101.51,
+   "killsAbovePer100": -4.517,
    "kd": 0.931,
    "adr": 76.6,
    "rating2Approx": 1.003,
@@ -36743,7 +36743,7 @@
     "selfFlashShare": 0.016,
     "smokeSupportShare": 0.05,
     "tradedDeathRate": 0.163,
-    "flashGift": null
+    "flashGift": 6.64
    }
   },
   {
@@ -36787,8 +36787,8 @@
     }
    ],
    "duels": 5221,
-   "killsAbove": -77.43,
-   "killsAbovePer100": -1.925,
+   "killsAbove": -77.27,
+   "killsAbovePer100": -1.921,
    "kd": 0.876,
    "adr": 81.9,
    "rating2Approx": 1.012,
@@ -36885,7 +36885,7 @@
     "selfFlashShare": 0.016,
     "smokeSupportShare": 0.085,
     "tradedDeathRate": 0.225,
-    "flashGift": null
+    "flashGift": 30.97
    }
   },
   {
@@ -36929,8 +36929,8 @@
     }
    ],
    "duels": 8620,
-   "killsAbove": 6.86,
-   "killsAbovePer100": 0.102,
+   "killsAbove": 5.11,
+   "killsAbovePer100": 0.076,
    "kd": 1.149,
    "adr": 84.0,
    "rating2Approx": 1.159,
@@ -37027,7 +37027,7 @@
     "selfFlashShare": 0.01,
     "smokeSupportShare": 0.057,
     "tradedDeathRate": 0.159,
-    "flashGift": null
+    "flashGift": 20.49
    }
   },
   {
@@ -37071,8 +37071,8 @@
     }
    ],
    "duels": 3740,
-   "killsAbove": -89.58,
-   "killsAbovePer100": -2.843,
+   "killsAbove": -89.41,
+   "killsAbovePer100": -2.837,
    "kd": 0.804,
    "adr": 73.2,
    "rating2Approx": 0.936,
@@ -37169,7 +37169,7 @@
     "selfFlashShare": 0.012,
     "smokeSupportShare": 0.053,
     "tradedDeathRate": 0.221,
-    "flashGift": null
+    "flashGift": 11.17
    }
   },
   {
@@ -37213,8 +37213,8 @@
     }
    ],
    "duels": 6674,
-   "killsAbove": 47.57,
-   "killsAbovePer100": 0.98,
+   "killsAbove": 46.74,
+   "killsAbovePer100": 0.963,
    "kd": 0.942,
    "adr": 91.2,
    "rating2Approx": 1.089,
@@ -37311,7 +37311,7 @@
     "selfFlashShare": 0.011,
     "smokeSupportShare": 0.101,
     "tradedDeathRate": 0.214,
-    "flashGift": null
+    "flashGift": 62.19
    }
   },
   {
@@ -37355,8 +37355,8 @@
     }
    ],
    "duels": 4712,
-   "killsAbove": -46.62,
-   "killsAbovePer100": -1.22,
+   "killsAbove": -47.88,
+   "killsAbovePer100": -1.253,
    "kd": 0.939,
    "adr": 79.2,
    "rating2Approx": 1.024,
@@ -37453,7 +37453,7 @@
     "selfFlashShare": 0.014,
     "smokeSupportShare": 0.06,
     "tradedDeathRate": 0.162,
-    "flashGift": null
+    "flashGift": 20.81
    }
   },
   {
@@ -37497,8 +37497,8 @@
     }
    ],
    "duels": 9463,
-   "killsAbove": -128.93,
-   "killsAbovePer100": -1.636,
+   "killsAbove": -129.28,
+   "killsAbovePer100": -1.641,
    "kd": 0.864,
    "adr": 73.8,
    "rating2Approx": 0.975,
@@ -37595,7 +37595,7 @@
     "selfFlashShare": 0.027,
     "smokeSupportShare": 0.073,
     "tradedDeathRate": 0.211,
-    "flashGift": null
+    "flashGift": 55.74
    }
   },
   {
@@ -37639,8 +37639,8 @@
     }
    ],
    "duels": 6556,
-   "killsAbove": -8.28,
-   "killsAbovePer100": -0.153,
+   "killsAbove": -7.48,
+   "killsAbovePer100": -0.138,
    "kd": 0.986,
    "adr": 82.5,
    "rating2Approx": 1.09,
@@ -37737,7 +37737,7 @@
     "selfFlashShare": 0.013,
     "smokeSupportShare": 0.055,
     "tradedDeathRate": 0.196,
-    "flashGift": null
+    "flashGift": 24.15
    }
   },
   {
@@ -37781,8 +37781,8 @@
     }
    ],
    "duels": 8288,
-   "killsAbove": -96.69,
-   "killsAbovePer100": -1.549,
+   "killsAbove": -95.73,
+   "killsAbovePer100": -1.534,
    "kd": 1.097,
    "adr": 86.2,
    "rating2Approx": 1.146,
@@ -37879,7 +37879,7 @@
     "selfFlashShare": 0.014,
     "smokeSupportShare": 0.058,
     "tradedDeathRate": 0.162,
-    "flashGift": null
+    "flashGift": 21.46
    }
   },
   {
@@ -37923,8 +37923,8 @@
     }
    ],
    "duels": 7633,
-   "killsAbove": -110.46,
-   "killsAbovePer100": -1.803,
+   "killsAbove": -109.17,
+   "killsAbovePer100": -1.782,
    "kd": 0.871,
    "adr": 80.5,
    "rating2Approx": 0.99,
@@ -38021,7 +38021,7 @@
     "selfFlashShare": 0.016,
     "smokeSupportShare": 0.071,
     "tradedDeathRate": 0.196,
-    "flashGift": null
+    "flashGift": 43.83
    }
   },
   {
@@ -38065,8 +38065,8 @@
     }
    ],
    "duels": 7260,
-   "killsAbove": -410.93,
-   "killsAbovePer100": -6.827,
+   "killsAbove": -410.35,
+   "killsAbovePer100": -6.818,
    "kd": 0.708,
    "adr": 70.7,
    "rating2Approx": 0.859,
@@ -38163,7 +38163,7 @@
     "selfFlashShare": 0.024,
     "smokeSupportShare": 0.083,
     "tradedDeathRate": 0.22,
-    "flashGift": null
+    "flashGift": 40.63
    }
   }
  ]

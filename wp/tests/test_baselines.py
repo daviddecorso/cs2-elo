@@ -84,3 +84,12 @@ def test_fit_parents():
     assert t_awp["wpa_parent"].to_list() == pytest.approx([pooled, pooled])
     ct_pos = cells.filter((pl.col("side") == CT) & (pl.col("role") != "AWPer") & (pl.col("map") == "de_a"))
     assert ct_pos["wpa_parent"].n_unique() == 1
+
+
+def test_load_sides_raises_clear_error_when_inputs_missing(monkeypatch, tmp_path):
+    import cs2wp.baselines as baselines_mod
+
+    monkeypatch.setattr(baselines_mod, "CREDITS", tmp_path / "credits")
+    monkeypatch.setattr(baselines_mod, "STATES", tmp_path / "states")
+    with pytest.raises(FileNotFoundError, match="cs2wp credit"):
+        baselines_mod.load_sides([])

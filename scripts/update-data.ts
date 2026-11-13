@@ -1,6 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { INVITE_CUTOFFS } from "../src/vrs/inviteCutoffs.ts";
+import { matchPreviousRanks } from "../src/vrs/rankMatching.ts";
 import { compareStandings } from "./lib/vrs/compareStandings.ts";
 import { validateMatchdata } from "./lib/vrs/matchdataSchema.ts";
 import { findLatestSnapshot, readPublishedSnapshot } from "./lib/vrs/publishedStandings.ts";
@@ -42,8 +43,8 @@ const main = async () => {
         }
 
         const today = new Date().toISOString().slice(0, 10);
-        const previousRanks = new Map(modelStandings.rosters.map((r) => [r.rosterKey, r.globalRank]));
         const live = computeStandings(matchJson.matches, matchJson.events, today, { windowEndsAtPull: true });
+        const previousRanks = matchPreviousRanks(live.rosters, modelStandings.rosters);
         const lastMatch = Math.max(...(matchJson.matches as Array<{ matchStartTime: number }>).map((m) => m.matchStartTime));
         const liveJson = JSON.stringify(
             {

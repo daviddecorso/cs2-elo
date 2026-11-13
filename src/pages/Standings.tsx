@@ -29,6 +29,7 @@ import {
 import { Link } from "react-router-dom";
 import { LiquipediaCredit } from "../components/LiquipediaCredit.tsx";
 import { TeamLogo } from "../components/TeamLogo.tsx";
+import { matchPreviousRanks } from "../vrs/rankMatching.ts";
 import type { Region, Roster, RosterFactors, Standings as StandingsData } from "../vrs/types.ts";
 
 const REGIONS: Array<"Global" | Region> = ["Global", "Europe", "Americas", "Asia"];
@@ -237,6 +238,15 @@ export const Standings = () => {
         setQueryParams({ region: region === "Global" ? null : region });
     };
 
+    const isGlobal = selectedRegion === "Global";
+    const showChange = isLive && isGlobal;
+    const columnCount = showChange ? 9 : 8;
+
+    const rankFallback = useMemo(() => {
+        if (!showChange || !data?.rosters || !published.data?.rosters) return null;
+        return matchPreviousRanks(data.rosters, published.data.rosters);
+    }, [showChange, data?.rosters, published.data?.rosters]);
+
     if (isLoading || (!hasLive && liveQuery.isLoading)) {
         return <LoadingBar label="Loading standings…" />;
     }
@@ -248,10 +258,6 @@ export const Standings = () => {
             </EmptyState>
         );
     }
-
-    const isGlobal = selectedRegion === "Global";
-    const showChange = isLive && isGlobal;
-    const columnCount = showChange ? 9 : 8;
 
     return (
         <div className="space-y-10">
@@ -410,7 +416,10 @@ export const Standings = () => {
                                             </Td>
                                             {showChange && (
                                                 <Td align="right" className="text-[10px]">
-                                                    <RankChange now={roster.globalRank} before={roster.previousRank} />
+                                                    <RankChange
+                                                        now={roster.globalRank}
+                                                        before={roster.previousRank ?? rankFallback?.get(roster.rosterKey)}
+                                                    />
                                                 </Td>
                                             )}
                                             <Td className="font-sans">

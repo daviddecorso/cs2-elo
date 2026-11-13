@@ -88,4 +88,26 @@ describe("Standings Page", () => {
         expect(emptyHtml).toContain("No teams match “nonexistentteamxyz”");
         expect(emptyHtml).toContain("0 of ");
     });
+
+    it("matches a roster with player changes against published snapshot instead of marking new", () => {
+        const liveWithModifiedVitality: StandingsData = {
+            ...liveData,
+            rosters: liveData.rosters.map((r) => {
+                if (r.teamName === "Vitality") {
+                    return {
+                        ...r,
+                        globalRank: 2,
+                        players: ["ZywOo", "flameZ", "mezii", "ropz", "jL"],
+                        rosterKey: "flamez,jl,mezii,ropz,zywoo",
+                        previousRank: null,
+                    };
+                }
+                return r;
+            }),
+        };
+        const html = render(liveWithModifiedVitality, "/?q=Vitality");
+        expect(html).toContain("Vitality");
+        expect(html).toContain("▲1");
+        expect(html).not.toContain(">new<");
+    });
 });

@@ -43,6 +43,8 @@ uv run cs2wp validate [--test-from 2026-01-01]
 uv run cs2wp publish [--model production] [--upload]
 ```
 
+Training runs (`train`, `walk-forward`, `cross-fit`, `monthly`, `credit --recredit`, `duels`) go on the GPU machine. Push the code, pull it there and run them. Don't run them on the dev Mac.
+
 `train`, `walk-forward` and `monthly` exit 0 on a gate pass and 2 on a fail. `publish` refuses a model that hasn't passed.
 
 **Monthly job.** Run `npm run export-map-elo`, `cs2wp sync`, `cs2wp states`, `cs2wp monthly`, then `cs2wp credit` early each month. `monthly` does three things:

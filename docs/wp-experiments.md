@@ -17,7 +17,18 @@ A variant replaces the base when either holds, without worsening any other flagg
 
 Moves under 0.001 count as noise. The second rule was added on 2026-11-12, because a feature can fix calibration in rare states without moving pooled log loss.
 
-## 2026-11-12: `defuse_margin` rejected; drop `None` from `HALF_LIVES` (latest)
+## 2026-11-13: man-advantage × kits features (pending GPU run, latest)
+
+**Question:** can 5v4 and 5v3 post-plant borrow strength from the common man-up retakes? The 5v4 miss is in kits (see the 2026-11-12 diagnostic below). At depth 4, the trees need `bomb_planted`, `ct_alive` and `t_alive` splits before `ct_kits` can split, and 400 rounds barely move pooled loss. `defuse_margin` described only the nearest CT, so it pooled nothing.
+
+**Variants** (derived in `features.py`, no state rebuild, all monotone +1):
+
+- `base_alive_kits`: base + `alive_diff` (CT alive − T alive) + `kit_frac` (kits ÷ CT alive). One split puts 5v4 with 4v3, 3v2 and 2v1.
+- `base_kit_time`: base + `kit_time` (kits × bomb seconds left, null before the plant). Targets the early post-plant miss.
+
+**Results:** pending `walk-forward` on the GPU machine.
+
+## 2026-11-12: `defuse_margin` rejected; drop `None` from `HALF_LIVES`
 
 **`defuse_margin` rejected.** Tested `base_defuse_margin` (`full_plant_clock_bomb_dist` plus `defuse_margin` = `40 - since_plant - min(ct_bomb_graph/250 + 10, ct_kit_bomb_graph/250 + 5)`):
 

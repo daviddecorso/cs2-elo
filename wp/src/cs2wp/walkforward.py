@@ -38,15 +38,23 @@ VALIDATION_DAYS = 90
 WARMUP_MONTHS = 2
 # Adopted 2026-11-12 under the amended protocol (wp-experiments.md).
 BASE = "full_plant_clock_bomb_dist"
-VARIANTS = {**FEATURES, **ABLATIONS, BASE: FEATURES["full"] + ["since_plant", "ct_bomb_graph"]}
+_BASE_FEATURES = FEATURES["full"] + ["since_plant", "ct_bomb_graph"]
+VARIANTS = {
+    **FEATURES,
+    **ABLATIONS,
+    BASE: _BASE_FEATURES,
+    # Pool 5v4/5v3 retakes with the common man-up buckets (wp-experiments.md, 2026-11-13).
+    "base_alive_kits": _BASE_FEATURES + ["alive_diff", "kit_frac"],
+    "base_kit_time": _BASE_FEATURES + ["kit_time"],
+}
 # (CT alive, T alive, planted): the post-plant buckets still flagged at full scale.
 BUCKETS = [(2, 1, 1), (4, 3, 1), (5, 3, 1), (5, 4, 1)]
 # Bomb seconds left at or above this count as early post-plant in the bucket split.
 EARLY_PLANT_LEFT = 20
 ID = ["key", "round_num", "date", "map", "ct_win", "ct_alive", "t_alive", "bomb_planted", "since_plant", "ct_equip",
       "t_equip", "elo_diff_ct"]
-DERIVED = {"ct_bomb_graph"}
-DERIVED_INPUTS = ["bomb_site", "ct_graph_a", "ct_graph_b"]
+DERIVED = {"ct_bomb_graph", "alive_diff", "kit_frac", "kit_time"}
+DERIVED_INPUTS = ["bomb_site", "ct_graph_a", "ct_graph_b", "ct_kits"]
 
 
 def _load_all(features: list[str], month_prefix: str | None = None) -> pl.DataFrame:

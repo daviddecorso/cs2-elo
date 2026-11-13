@@ -4,6 +4,7 @@ from datetime import datetime, timezone
 import json
 import math
 from pathlib import Path
+import sys
 
 import numpy as np
 import polars as pl
@@ -164,15 +165,17 @@ def load_adjusted(
     window_from: str | None = None,
     replacement_rate: float = 0.0,
     igl_calling: pl.DataFrame | None = None,
+    role_rounds: Path = ROLE_ROUNDS,
+    with_usage: bool | None = None,
 ) -> tuple[pl.DataFrame, pl.DataFrame]:
-    """Load role-rounds joined with IGL tags and usage, then apply side x IGL centering."""
-    rr = pl.read_parquet(ROLE_ROUNDS)
+    """Load role-rounds joined with IGL tags and (for default role rounds) usage, then apply side x IGL centering."""
+    rr = pl.read_parquet(role_rounds)
     igls = pl.read_parquet(IGLS) if IGLS.exists() else assign_igls(rr, load_igl_table())
-    joined = join_usage(
-        rr.join(igls.select("key", "steamid", "is_igl"), on=["key", "steamid"], how="left").with_columns(
-            pl.col("is_igl").fill_null(False)
-        )
+    base = rr.join(igls.select("key", "steamid", "is_igl"), on=["key", "steamid"], how="left").with_columns(
+        pl.col("is_igl").fill_null(False)
     )
+    use_usage = (role_rounds == ROLE_ROUNDS) if with_usage is None else with_usage
+    joined = join_usage(base) if use_usage else base
     if window_from:
         joined = joined.filter(pl.col("date") >= window_from)
     adj = fit_igl_adjustment(joined)
@@ -329,10 +332,13 @@ def role_profiles(
     )
 
     ct_rows = adjusted_rows.filter((pl.col("side") == CT) & pl.col("role").is_not_null())
+    if "position" not in ct_rows.columns and not ct_positions.is_empty() and {"key", "steamid", "position"} <= set(ct_positions.columns):
+        ct_rows = ct_rows.join(ct_positions.select("key", "steamid", "position"), on=["key", "steamid"], how="left")
+    parent_pos = pl.coalesce("position", "role") if "position" in ct_rows.columns else pl.col("role")
     ct_summary = ct_rows.group_by("steamid").agg(
         (pl.col("rounds").filter(pl.col("role") == "AWPer").sum() / pl.col("rounds").sum()).alias("_ct_awp"),
         (
-            pl.col("rounds").filter(pl.col("role").is_in(SITE_POSITIONS)).sum()
+            pl.col("rounds").filter((pl.col("role") != "AWPer") & parent_pos.is_in(SITE_POSITIONS)).sum()
             / pl.max_horizontal(pl.col("rounds").filter(pl.col("role") != "AWPer").sum(), pl.lit(1))
         ).alias("site_share"),
     ).with_columns(
@@ -452,6 +458,38 @@ def usage_players(adjusted_rows: pl.DataFrame, r_win: float) -> pl.DataFrame:
         )
         .drop(*(f"{v}_{t}_sum" for v in VERSIONS for t in TERMS))
     )
+
+
+def hltv_gap(players: pl.DataFrame, min_rounds: int = MIN_PLAYER_ROUNDS) -> pl.DataFrame:
+    """Standardized WAA-per-100 minus HLTV Rating 3.0; null below `min_rounds` or without a rating."""
+    r3 = pl.col("rating3").cast(pl.Float64)
+    has_r3 = r3.is_not_null() & r3.is_not_nan() & (pl.col("rounds") >= min_rounds)
+    pool = players.filter(has_r3)
+    r3_mean = float(pool["rating3"].mean()) if pool.height >= 2 else None
+    r3_sd = float(pool["rating3"].std()) if pool.height >= 2 else None
+    valid_r3 = r3_mean is not None and r3_sd is not None and r3_sd > 0.0
+    exprs: list[pl.Expr] = []
+    for v in VERSIONS:
+        p_col = f"{v}_per100"
+        sub = pool.filter(pl.col(p_col).is_not_null()) if p_col in pool.columns else pool.head(0)
+        v_mean = float(sub[p_col].mean()) if sub.height >= 2 else None
+        v_sd = float(sub[p_col].std()) if sub.height >= 2 else None
+        if valid_r3 and v_mean is not None and v_sd is not None and v_sd > 0.0:
+            z_r3 = (r3 - r3_mean) / r3_sd
+            for src, dst in (
+                (p_col, f"{v}_hltv_gap"),
+                (f"{v}_per100_p5", f"{v}_hltv_gap_p5"),
+                (f"{v}_per100_p95", f"{v}_hltv_gap_p95"),
+            ):
+                if src in players.columns:
+                    expr = ((pl.col(src) - v_mean) / v_sd) - z_r3
+                    exprs.append(pl.when(has_r3).then(expr).otherwise(None).cast(pl.Float64).alias(dst))
+                else:
+                    exprs.append(pl.lit(None, dtype=pl.Float64).alias(dst))
+        else:
+            for dst in (f"{v}_hltv_gap", f"{v}_hltv_gap_p5", f"{v}_hltv_gap_p95"):
+                exprs.append(pl.lit(None, dtype=pl.Float64).alias(dst))
+    return players.with_columns(exprs)
 
 
 def _corr_pair(df: pl.DataFrame, a: str, b: str) -> tuple[float | None, int]:
@@ -578,7 +616,19 @@ def validation_metrics(
         if col in qual.columns and "kd" in qual.columns:
             r, n = _corr_pair(qual, col, "kd")
             with_kd[key] = {"r": r, "players": n}
-    return {"month_to_month": month_to_month, "split_half": split_half, "with_kd": with_kd}
+    with_rating3: dict[str, dict] = {}
+    if "rating3" in qual.columns:
+        for v in VERSIONS:
+            col = f"{v}_per100"
+            if col in qual.columns:
+                r, n = _corr_pair(qual, col, "rating3")
+                with_rating3[v] = {"r": r, "players": n}
+    return {
+        "month_to_month": month_to_month,
+        "split_half": split_half,
+        "with_kd": with_kd,
+        "with_rating3": with_rating3,
+    }
 
 
 def side_residuals(adjusted_rows: pl.DataFrame) -> dict:
@@ -711,6 +761,75 @@ def report_lines(
                 f"{r['wpa_waa']:+.2f} ({r['wpa_waa_p5']:+.2f}, {r['wpa_waa_p95']:+.2f}) | "
                 f"{r['wpa_per100']:+.2f} | {kd} |"
             )
+
+    if "wpa_opp_hltv_gap" in qual.columns:
+        gap_q = qual.filter(pl.col("wpa_opp_hltv_gap").is_not_null())
+        if gap_q.height:
+            r_r3 = val.get("with_rating3", {}).get("wpa_opp", {}).get("r")
+            r_txt = f", r with HLTV 3.0 = {r_r3:.3f}" if r_r3 is not None else ""
+            corr_parts = []
+            for label, col in (("usage", "wpa_opp_usage_per100"), ("conversion", "wpa_opp_conversion_per100")):
+                if col in gap_q.columns:
+                    rc, _ = _corr_pair(gap_q, "wpa_opp_hltv_gap", col)
+                    if rc is not None:
+                        corr_parts.append(f"r with {label}/100 = {rc:+.3f}")
+            corr_txt = ("; " + ", ".join(corr_parts)) if corr_parts else ""
+            lines += [
+                "",
+                "## WAA vs HLTV 3.0 (`wpa_opp`)",
+                "",
+                f"Pool: {gap_q.height} players with {min_rounds}+ rounds and HLTV 3.0 (IGLs included{r_txt}{corr_txt}).",
+                "",
+                "| Group | Value | Players | Mean gap (SD) |",
+                "| --- | --- | --- | --- |",
+            ]
+            for grp_label, col, order in (
+                ("T role", "t_role", ["AWPer", "Entry", "Rifler"]),
+                ("CT role", "ct_role", ["AWPer", "Anchor", "Rotator"]),
+            ):
+                by_val = {
+                    row[col]: row
+                    for row in gap_q.group_by(col).agg(
+                        pl.len().alias("n"),
+                        pl.col("wpa_opp_hltv_gap").mean().alias("mean_gap"),
+                    ).iter_rows(named=True)
+                }
+                for key in [*order, *[k for k in sorted(by_val) if k not in order]]:
+                    if key in by_val:
+                        row = by_val[key]
+                        lines.append(f"| {grp_label} | {key} | {row['n']} | {row['mean_gap']:+.3f} |")
+            for is_igl, lbl in ((True, "IGL"), (False, "Non-IGL")):
+                sub = gap_q.filter(pl.col("is_igl") == is_igl)
+                if sub.height:
+                    lines.append(f"| IGL flag | {lbl} | {sub.height} | {float(sub['wpa_opp_hltv_gap'].mean()):+.3f} |")
+
+            has_u = "wpa_opp_usage_per100" in gap_q.columns
+            u_hdr = " | Usage | Conversion" if has_u else ""
+            u_sep = " | --- | ---" if has_u else ""
+            for heading, descending in (
+                ("Largest positive gaps (WAA > HLTV 3.0)", True),
+                ("Largest negative gaps (HLTV 3.0 > WAA)", False),
+            ):
+                lines += [
+                    "",
+                    f"### {heading}",
+                    "",
+                    f"| # | Player | Team | Role | Rounds | / 100 rds | HLTV 3.0 | Gap (90% CI){u_hdr} |",
+                    f"| --- | --- | --- | --- | --- | --- | --- | ---{u_sep} |",
+                ]
+                for idx, r in enumerate(gap_q.sort("wpa_opp_hltv_gap", descending=descending).head(10).iter_rows(named=True), 1):
+                    role = ("IGL · " if r["is_igl"] else "") + f"{r['t_role']} / {r['ct_role']}"
+                    u_cells = ""
+                    if has_u:
+                        u_v = r.get("wpa_opp_usage_per100")
+                        c_v = r.get("wpa_opp_conversion_per100")
+                        u_cells = f" | {u_v:+.2f}" if u_v is not None else " | –"
+                        u_cells += f" | {c_v:+.2f}" if c_v is not None else " | –"
+                    lines.append(
+                        f"| {idx} | {r['name']} | {r['lp_team'] or '–'} | {role} | {r['rounds']:,} | "
+                        f"{r['wpa_opp_per100']:+.2f} | {r['rating3']:.2f} | "
+                        f"{r['wpa_opp_hltv_gap']:+.2f} ({r['wpa_opp_hltv_gap_p5']:+.2f}, {r['wpa_opp_hltv_gap_p95']:+.2f}){u_cells} |"
+                    )
     return lines
 
 
@@ -792,17 +911,29 @@ def export_public(
     records = []
     for r in qual.iter_rows(named=True):
         sid = int(r["steamid"])
-        metrics = {
-            v: {
+        metrics = {}
+        for v in VERSIONS:
+            gap = r.get(f"{v}_hltv_gap")
+            gap_p5 = r.get(f"{v}_hltv_gap_p5")
+            gap_p95 = r.get(f"{v}_hltv_gap_p95")
+            m_entry: dict[str, object] = {
                 "waa": round(float(r[f"{v}_waa"]), 3),
                 "waaP5": round(float(r[f"{v}_waa_p5"]), 3),
                 "waaP95": round(float(r[f"{v}_waa_p95"]), 3),
                 "per100": round(float(r[f"{v}_per100"]), 3),
                 "per100P5": round(float(r[f"{v}_per100_p5"]), 3),
                 "per100P95": round(float(r[f"{v}_per100_p95"]), 3),
+                "hltvGap": (
+                    {
+                        "z": round(float(gap), 3),
+                        "zP5": round(float(gap_p5), 3),
+                        "zP95": round(float(gap_p95), 3),
+                    }
+                    if gap is not None and gap_p5 is not None and gap_p95 is not None
+                    else None
+                ),
             }
-            for v in VERSIONS
-        }
+            metrics[v] = m_entry
         if r.get("wpa_usage_per100") is not None:
             for v in VERSIONS:
                 metrics[v]["context"] = round(float(r[f"{v}_context_per100"]), 3)
@@ -858,6 +989,7 @@ def export_public(
             "monthToMonth300": val["month_to_month"][300],
             "splitHalf": val["split_half"],
             "withKd": val["with_kd"],
+            "withRating3": val.get("with_rating3", {}),
         },
         "source": SOURCE,
         "players": records,
@@ -877,9 +1009,19 @@ def build(
     publish: bool = False,
     allow_ungated: bool = False,
     igl_adjustment: str = "fixed",
+    role_rounds: Path = ROLE_ROUNDS,
 ) -> int:
     if igl_adjustment not in ("fixed", "apm"):
         raise ValueError(f"Unknown igl_adjustment: {igl_adjustment}")
+    if publish and role_rounds != ROLE_ROUNDS:
+        print("--publish needs the default role rounds; an alternate --role-rounds run has no usage columns.")
+        return 1
+    if role_rounds == ROLE_ROUNDS:
+        stale = [p.name for p in (DUEL_SIDES, USAGE, USAGE_ROUNDS)
+                 if p.exists() and ROLE_ROUNDS.exists() and p.stat().st_mtime < ROLE_ROUNDS.stat().st_mtime]
+        if stale:
+            print(f"Warning: {', '.join(stale)} older than {ROLE_ROUNDS.name}; rerun `cs2wp duels` and `cs2wp usage` "
+                  "after `cs2wp baselines`.", file=sys.stderr)
     igl_calling = None
     if igl_adjustment == "apm":
         if not PLAYER_APM.exists():
@@ -887,7 +1029,9 @@ def build(
             return 1
         igl_calling = pl.read_parquet(PLAYER_APM).filter(pl.col("is_igl_caller")).select("steamid", "theta_call", "theta_call_se")
 
-    adjusted, adj = load_adjusted(window_from=window_from, replacement_rate=replacement_rate, igl_calling=igl_calling)
+    adjusted, adj = load_adjusted(
+        window_from=window_from, replacement_rate=replacement_rate, igl_calling=igl_calling, role_rounds=role_rounds,
+    )
     if adjusted.is_empty():
         print("No role-round rows in the requested window; run `cs2wp baselines` first.")
         return 1
@@ -924,11 +1068,13 @@ def build(
         }
     boot = bootstrap_players(round_vals, players["steamid"].to_list(), r_win, resamples=resamples, columns=columns, call_se=call_se)
     players = players.join(boot, on="steamid", how="left").sort("wpa_waa", descending=True)
+    players = hltv_gap(players, min_rounds=min_rounds)
 
     val = validation_metrics(adjusted, duel_sides, box_per_map, players, min_rounds=min_rounds)
 
-    PLAYER_WAR.parent.mkdir(parents=True, exist_ok=True)
-    players.write_parquet(PLAYER_WAR)
+    out_war = PLAYER_WAR if role_rounds == ROLE_ROUNDS else PLAYER_WAR.with_suffix(".sub.parquet")
+    out_war.parent.mkdir(parents=True, exist_ok=True)
+    players.write_parquet(out_war)
     lines = report_lines(adjusted, adj, players, val, r_win, min_rounds, replacement_rate, window_from)
     if has_usage:
         lines += usage_lines(adjusted, players, min_rounds)
@@ -940,10 +1086,12 @@ def build(
         lines.append(f"| {r['map']} | {r['side_name'].upper()} | {r['player_rounds']:,} | {r['wpa_rw_per100']:+.3f} | "
                      f"{r['nwpa_mancount_rw_per100']:+.3f} | {r['nwpa_event_rw_per100']:+.3f} |")
     WAR_REPORTS.mkdir(parents=True, exist_ok=True)
-    (WAR_REPORTS / "side-residuals.json").write_text(json.dumps(resid, indent=2, default=float))
-    (WAR_REPORTS / "war.md").write_text("\n".join(lines) + "\n")
+    resid_name = "side-residuals.json" if role_rounds == ROLE_ROUNDS else "side-residuals.sub.json"
+    war_name = "war.md" if role_rounds == ROLE_ROUNDS else "war.sub.md"
+    (WAR_REPORTS / resid_name).write_text(json.dumps(resid, indent=2, default=float))
+    (WAR_REPORTS / war_name).write_text("\n".join(lines) + "\n")
     print("\n".join(lines))
-    print(f"\nwrote {PLAYER_WAR} ({players.height} players)")
+    print(f"\nwrote {out_war} ({players.height} players)")
 
     if publish:
         return export_public(

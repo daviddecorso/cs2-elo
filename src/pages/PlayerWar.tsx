@@ -22,7 +22,7 @@ import {
 import { LiquipediaCredit } from "../components/LiquipediaCredit.tsx";
 import { TeamLogo } from "../components/TeamLogo.tsx";
 import { liquipediaUrl } from "../utils/liquipedia.ts";
-import type { CreditVersion, PlayerWarData, WarEstimate, WarPlayer, WarRate } from "../war/types.ts";
+import type { CreditVersion, HltvGap, PlayerWarData, WarEstimate, WarPlayer, WarRate } from "../war/types.ts";
 
 const ROLE_FILTERS = ["all", "awp", "entry", "rifle"] as const;
 type RoleFilter = (typeof ROLE_FILTERS)[number];
@@ -55,9 +55,10 @@ const SORT_KEYS = [
     "conversion",
     "killsAbove",
     "rating3",
+    "hltvGap",
 ] as const;
 type SortKey = (typeof SORT_KEYS)[number];
-const COLUMN_COUNT = 11;
+const COLUMN_COUNT = 12;
 
 const fetchPlayerWar = async (): Promise<PlayerWarData> => {
     const res = await fetch(`${import.meta.env.BASE_URL}data/war/players.json`);
@@ -151,6 +152,20 @@ const RateValue = ({ est, label = "Round-wins above average per 100 rounds" }: {
 
 const USAGE_LABEL = "Usage: round-wins per 100 rounds expected from the player's own resources, beyond the team's economy";
 const CONVERSION_LABEL = "Conversion: round-wins per 100 rounds above what the same resources earn on average";
+const HLTV_GAP_LABEL = "z(WAA / 100 rds) − z(HLTV 3.0) in SD units across qualified players (HLTV fixed in CI)";
+
+const HltvGapValue = ({ gap }: { gap?: HltvGap | null }) =>
+    gap ? (
+        <Tooltip
+            content={`${HLTV_GAP_LABEL}\n90% round bootstrap: (${signed(gap.zP5)}, ${signed(gap.zP95)})`}
+        >
+            <span className={`tabular-nums ${gap.z > 0 ? "text-up" : gap.z < 0 ? "text-down" : "text-fg"}`}>
+                {signed(gap.z)}
+            </span>
+        </Tooltip>
+    ) : (
+        <span className="text-muted">–</span>
+    );
 
 const pct = (n: number | null) => (n === null ? "–" : `${Math.round(n * 100)}%`);
 
@@ -259,6 +274,11 @@ const PlayerDetails = ({
             </DataRow>
             <DataRow label="Gun duels">{player.duels.toLocaleString("en-US")}</DataRow>
             <DataRow label="HLTV Rating 3.0">{player.rating3 !== null ? player.rating3.toFixed(2) : "–"}</DataRow>
+            <DataRow label="vs HLTV">
+                {player.metrics[credit].hltvGap
+                    ? `${signed(player.metrics[credit].hltvGap.z)} (${signed(player.metrics[credit].hltvGap.zP5)}, ${signed(player.metrics[credit].hltvGap.zP95)})`
+                    : "–"}
+            </DataRow>
             <DataRow label="Rating 2.0 (approx)">{player.rating2Approx !== null ? player.rating2Approx.toFixed(2) : "–"}</DataRow>
             <DataRow label="HLTV Swing">{player.swing !== null ? signed(player.swing) : "–"}</DataRow>
             <DataRow label="K/D / ADR">
@@ -302,6 +322,12 @@ const sortRankedRows = (
                 return columnOrder(a.player.killsAbove, b.player.killsAbove, opts(false));
             case "rating3":
                 return columnOrder(a.player.rating3, b.player.rating3, opts(false));
+            case "hltvGap":
+                return columnOrder(
+                    a.player.metrics[credit].hltvGap?.z ?? null,
+                    b.player.metrics[credit].hltvGap?.z ?? null,
+                    opts(false)
+                );
             default:
                 return rankOrder(a.rank, b.rank, sort.reversed);
         }
@@ -363,6 +389,9 @@ const LeaderboardTable = ({
             </SortHeader>
             <SortHeader sortKey="rating3" sort={sort} onSort={onSort} className="hidden xl:table-cell">
                 HLTV 3.0
+            </SortHeader>
+            <SortHeader sortKey="hltvGap" sort={sort} onSort={onSort} className="hidden xl:table-cell">
+                vs HLTV
             </SortHeader>
         </TableHead>
         <TableBody>
@@ -446,6 +475,9 @@ const LeaderboardTable = ({
                                 </Td>
                                 <Td align="right" className="hidden xl:table-cell text-muted tabular-nums">
                                     {p.rating3 !== null ? p.rating3.toFixed(2) : "–"}
+                                </Td>
+                                <Td align="right" className="hidden xl:table-cell">
+                                    <HltvGapValue gap={est.hltvGap} />
                                 </Td>
                             </Row>
                             {isExpanded && (

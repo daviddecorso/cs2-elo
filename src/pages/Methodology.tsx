@@ -319,6 +319,14 @@ export const Methodology = () => {
                             compared with a model that saw their own rounds. Teammate flashes and smokes before a
                             player&apos;s duels and traded deaths are shown alongside but stay out of the split.
                         </p>
+                        <p>
+                            The &ldquo;vs HLTV&rdquo; gap subtracts each player&apos;s standardized HLTV Rating 3.0
+                            from their standardized WAA per 100 rounds over all qualified players with a rating
+                            (including IGLs), holding HLTV fixed for the bootstrap interval. Because the two metrics
+                            are standardized separately and correlate imperfectly, regression to the mean pulls extreme
+                            ratings toward the opposite sign—players with very high HLTV ratings tend to lean negative
+                            even without a role difference.
+                        </p>
                     </Section>
 
                     <Section title="Elo vs. VRS">

@@ -93,3 +93,53 @@ def test_load_sides_raises_clear_error_when_inputs_missing(monkeypatch, tmp_path
     monkeypatch.setattr(baselines_mod, "STATES", tmp_path / "states")
     with pytest.raises(FileNotFoundError, match="cs2wp credit"):
         baselines_mod.load_sides([])
+
+
+def test_assign_roles_and_fit_subpositions_keep_unsplit_unchanged():
+    pos = pl.DataFrame({
+        "key": ["m0", "m0", "m0"],
+        "steamid": [1, 2, 3],
+        "position": ["A", "A", "B"],
+        "subposition": ["A Doors", "A Tunnels", None],
+    }, schema_overrides={"steamid": pl.UInt64})
+    out = assign_roles(_sides(1), _t_roles(1, entry_now=(5, 0), entry_before=(0, 5)), pos, use_subpositions=True)
+    ct = {r["steamid"]: r for r in out.filter(pl.col("side") == CT).iter_rows(named=True)}
+    assert ct[1]["role"] == "A Doors" and ct[1]["position"] == "A"
+    assert ct[2]["role"] == "A Tunnels" and ct[2]["position"] == "A"
+    assert ct[3]["role"] == "AWPer" and ct[3]["position"] is None
+
+    rng = np.random.default_rng(7)
+    base_rows, sub_rows = [], []
+    for map_ in ("de_a", "de_b"):
+        for side, role, pos_name, mean in (
+            (T, "Rifler", None, 0.0), (T, "AWPer", None, 0.02), (CT, "AWPer", None, 0.02), (CT, "B", "B", -0.01),
+        ):
+            for _ in range(40):
+                wpa = float(rng.normal(mean, 0.2 / np.sqrt(12)) * 12)
+                r = {"map": map_, "side": side, "role": role, "rounds": 12, "event": "e", "date": "d",
+                     **{v: wpa for v in VERSIONS}}
+                base_rows.append(r)
+                sub_rows.append({**r, "position": pos_name})
+        for sub_name, mean in (("A Doors", 0.03), ("A Tunnels", -0.01)):
+            for _ in range(25):
+                wpa = float(rng.normal(mean, 0.2 / np.sqrt(12)) * 12)
+                base_rows.append({"map": map_, "side": CT, "role": "A", "rounds": 12, "event": "e", "date": "d",
+                                  **{v: wpa for v in VERSIONS}})
+                sub_rows.append({"map": map_, "side": CT, "role": sub_name, "position": "A", "rounds": 12,
+                                 "event": "e", "date": "d", **{v: wpa for v in VERSIONS}})
+
+    base_cells, _ = fit(pl.DataFrame(base_rows))
+    sub_cells, ks = fit(pl.DataFrame(sub_rows, schema_overrides={"position": pl.String}))
+    assert "CT sub-position" in ks
+    unsplit_b = sub_cells.filter((pl.col("map") == "de_a") & (pl.col("side") == CT) & (pl.col("role") == "B")).row(0, named=True)
+    orig_b = base_cells.filter((pl.col("map") == "de_a") & (pl.col("side") == CT) & (pl.col("role") == "B")).row(0, named=True)
+    assert unsplit_b["wpa_raw"] == pytest.approx(orig_b["wpa_raw"])
+    # Splitting A only changes global within-cell sigma^2 slightly; B still shrinks directly toward CT map.
+    assert unsplit_b["wpa_parent"] == pytest.approx(orig_b["wpa_parent"], abs=1e-4)
+    assert unsplit_b["wpa_baseline"] == pytest.approx(orig_b["wpa_baseline"], abs=1e-4)
+
+    parent_a = base_cells.filter((pl.col("map") == "de_a") & (pl.col("side") == CT) & (pl.col("role") == "A")).row(0, named=True)
+    sub_a_doors = sub_cells.filter((pl.col("map") == "de_a") & (pl.col("side") == CT) & (pl.col("role") == "A Doors")).row(0, named=True)
+    sub_a_tun = sub_cells.filter((pl.col("map") == "de_a") & (pl.col("side") == CT) & (pl.col("role") == "A Tunnels")).row(0, named=True)
+    assert sub_a_doors["wpa_parent"] == pytest.approx(sub_a_tun["wpa_parent"])
+    assert sub_a_doors["wpa_parent"] == pytest.approx(parent_a["wpa_baseline"], abs=1e-4)

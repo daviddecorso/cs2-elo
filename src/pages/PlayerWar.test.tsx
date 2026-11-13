@@ -228,6 +228,73 @@ describe("PlayerWar Page", () => {
         expect(renderWith("/war?credit=wpa")).not.toContain("(+1.40, +2.50)");
     });
 
+    it("renders vs HLTV gap per credit version, handles nulls, and sorts with nulls last", () => {
+        const withGap: PlayerWarData = {
+            ...warData,
+            players: [
+                {
+                    ...warData.players[0],
+                    metrics: {
+                        ...warData.players[0].metrics,
+                        wpa_opp: { ...warData.players[0].metrics.wpa_opp, hltvGap: { z: -0.45, zP5: -0.92, zP95: 0.02 } },
+                        wpa: { ...warData.players[0].metrics.wpa, hltvGap: { z: -0.71, zP5: -1.1, zP95: -0.3 } },
+                    },
+                },
+                {
+                    ...warData.players[1],
+                    isIgl: false,
+                    metrics: {
+                        ...warData.players[1].metrics,
+                        wpa_opp: { ...warData.players[1].metrics.wpa_opp, hltvGap: { z: 0.88, zP5: 0.25, zP95: 1.51 } },
+                        wpa: { ...warData.players[1].metrics.wpa, hltvGap: { z: 0.64, zP5: 0.1, zP95: 1.18 } },
+                    },
+                },
+                {
+                    ...warData.players[1],
+                    steamid: "3",
+                    name: "noRating",
+                    lpPlayer: "NoRating",
+                    isIgl: false,
+                    rating3: null,
+                    metrics: {
+                        ...warData.players[1].metrics,
+                        wpa_opp: { ...warData.players[1].metrics.wpa_opp, hltvGap: null },
+                    },
+                },
+            ],
+        };
+        const renderWith = (url: string) => {
+            const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+            queryClient.setQueryData(["war", "players"], withGap);
+            return renderToString(
+                <QueryClientProvider client={queryClient}>
+                    <MemoryRouter initialEntries={[url]}>
+                        <Routes>
+                            <Route path="/war" element={<PlayerWar />} />
+                        </Routes>
+                    </MemoryRouter>
+                </QueryClientProvider>
+            );
+        };
+
+        const html = renderWith("/war");
+        expect(html).toContain("vs HLTV");
+        expect(html).toContain("-0.45");
+        expect(html).toContain("+0.88");
+
+        const wpaHtml = renderWith("/war?credit=wpa");
+        expect(wpaHtml).toContain("-0.71");
+        expect(wpaHtml).toContain("+0.64");
+
+        const descHtml = renderWith("/war?sort=hltvGap");
+        expect(descHtml.indexOf("apEX")).toBeLessThan(descHtml.indexOf("donk"));
+        expect(descHtml.indexOf("donk")).toBeLessThan(descHtml.indexOf("noRating"));
+
+        const ascHtml = renderWith("/war?sort=hltvGap&rev=1");
+        expect(ascHtml.indexOf("donk")).toBeLessThan(ascHtml.indexOf("apEX"));
+        expect(ascHtml.indexOf("apEX")).toBeLessThan(ascHtml.indexOf("noRating"));
+    });
+
     it("renders live generated public/data/war/players.json without errors", () => {
         const filePath = path.resolve(__dirname, "../../public/data/war/players.json");
         if (!fs.existsSync(filePath)) return;

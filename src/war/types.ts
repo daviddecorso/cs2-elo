@@ -7,6 +7,12 @@ export interface WarRate {
     per100P95: number;
 }
 
+export interface HltvGap {
+    z: number;
+    zP5: number;
+    zP95: number;
+}
+
 export interface WarEstimate extends WarRate {
     waa: number;
     waaP5: number;
@@ -15,6 +21,8 @@ export interface WarEstimate extends WarRate {
     context?: number;
     usage?: WarRate;
     conversion?: WarRate;
+    /** Standardized WAA per 100 minus HLTV Rating 3.0 over qualified players with a rating. */
+    hltvGap?: HltvGap | null;
 }
 
 /** Shares are 0–1; null when the denominator is empty (e.g. no eco rounds). */
@@ -87,6 +95,7 @@ export interface PlayerWarData {
         monthToMonth300: Record<string, ValidationScore>;
         splitHalf: Record<string, ValidationScore>;
         withKd: Record<string, ValidationScore>;
+        withRating3?: Record<string, ValidationScore>;
     };
     source: { demos: string; attribution: string; liquipedia: string };
     players: WarPlayer[];

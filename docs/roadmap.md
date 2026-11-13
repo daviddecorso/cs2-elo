@@ -86,6 +86,9 @@ See [win-probability.md](win-probability.md).
 
 ## Player WAR
 
+- [x] **WAA vs HLTV 3.0 gap** (`vs HLTV` on `/war`): z-score difference `z(WAA/100) − z(HLTV 3.0)` over qualified players with 90% intervals (`r = 0.722` for `wpa_opp`; IGLs average `+1.086` SD, AWPers `−0.588` SD).
+- [x] **CT doubled-position x, y clustering** (`cs2wp positions --subpositions`, Gates 1–3): `de_dust2` `B` passed all three gates (`B Doors` vs `B Tunnels`: pair sep `0.701`, lift `+0.207`, `2.26 SE` / `2.44 SE`, `r = 0.982`, `k = 984`) and is now default in `baselines`; the 21 other doubled positions missed Gate 1 and stay unsplit.
+- [ ] **Run `cs2wp usage --device cuda` on the GPU machine** after pushing CT sub-position defaults, then `cs2wp war --model production --publish`, `cs2wp validate-war`, and `cs2wp team-factor`.
 - [x] **Run `cs2wp duels` on the GPU machine** for the smoke-support experiment and flash-gift values, then log the result in `docs/war.md`. (Smoke experiment rejected: +0.00003, 90% CI −0.00001 to +0.00008; teammate flashes worth 4,504 kills / 0.67 per 100 player-rounds; `flashGift` published to `players.json`.)
 - [x] **Fold support into the split?** No, for now. Smoke support is rejected (+0.00003 log loss). Teammate flashes (4,504 kills, 0.67 per 100 player-rounds) stay a descriptive `flashGift` stat beside usage and conversion, not part of the split.
 - [ ] **Replacement pool for usage.** `cs2wp usage` compares with the average tier-1 player at each role. Refit the expectations on replacement-level players once tier-2 demos exist.

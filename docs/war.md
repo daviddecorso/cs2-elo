@@ -40,9 +40,13 @@ The ambiguous callouts were decided from the labeling report, which lists each c
 2. Each round votes once, for the position the player stood in most. Rounds with no voting sample don't count.
 3. The map's position is the one with the most round votes. Ties go to the position with more raw samples.
 
-Output columns: `key`, `date`, `map`, `lp_team`, `lp_player`, `steamid`, `position`, `share` (modal position's share of round votes), `rounds_voted`, `rounds_ct`, `votes` (every position's round count).
+Output columns: `key`, `date`, `map`, `lp_team`, `lp_player`, `steamid`, `position`, `share` (modal position's share of round votes), `subposition`, `sub_share`, `rounds_voted`, `rounds_ct`, `votes` (every position's round count).
 
-**Players are assigned independently.** Teams double positions often, and most doubles can't be split by callout: both players stand in the same nav area (two CTs in `BombsiteA` on Nuke 78% of the time, two in `BombsiteB` on Dust2 89%). Splitting Inferno arch from top mid and Ancient alley from B site was tried and rejected. One player often covers both areas in the window, so median share fell (Inferno 0.57 → 0.54, Ancient 0.57 → 0.50) and so did stability (0.69 → 0.66 and 0.70 → 0.66). Separating two players in one area would need positions within the area (x, y clustering), which isn't built.
+**CT doubled-position x, y clustering (`cs2wp positions --subpositions`).** Teams double positions often, and both players usually share one nav area. Splitting Inferno arch from top mid and Ancient alley from B site by callout failed earlier (median share 0.57 → 0.54 and 0.57 → 0.50; stability 0.69 → 0.66 and 0.70 → 0.66). Pooling per-round `(x, y)` centroids of the voted position and running `KMeans(n_init=10, random_state=0)` (`k = min(modal count when doubled, 4)`) across all 22 `(map, position)` cells doubled on ≥25% of team-maps gave `data/war/reports/ct-subpositions.md`:
+- **Gate 1 (pair separation ≥ 0.70 and ≥ +0.15 above chance, median `sub_share` ≥ 0.60, player 5+-map stability ≥ 0.70):** 1 of 22 passed — `de_dust2` `B` (`k = 2`, doubled 64% → 22%; pair sep `0.701` vs `0.495` chance, `+0.207` lift; median `sub_share` `0.667`; stability `0.722` across 92 players), yielding `B Doors` (`-1578, 2592`) and `B Tunnels` (`-1839, 1877`) in `data/war/ct-subpositions.json`. Spot checks showed intuitive separation elsewhere (`de_nuke` `A`: cluster 0 `(558, -1207)` hut-side e.g. FlameZ 474 vs cluster 1 `(714, -640)` site/mini e.g. Mezii 204, Vitality/Spirit A pairs split `44/67`; `de_mirage` `A` Vitality/Spirit pairs split `46/64`), but all 21 other candidates missed the Gate 1 thresholds (`de_mirage` `B` `0.644`, `de_nuke` `A` `0.592`, `de_dust2` `Long` `0.578`, `de_mirage` `A` `0.574`, `de_train` `A` `k=4` `0.042`) and stay unsplit.
+- **Gate 2 (`cs2wp baselines`, 3rd pooling level `CT sub-position` shrinking toward parent `(map, position)`):** Passed. On `de_dust2` `B`, `B Doors` (`11,372` rounds, raw `+0.0189` → shrunk `+0.0178`) and `B Tunnels` (`8,446` rounds, raw `+0.0120` → shrunk `+0.0137`) differ by `2.26 SE` on `wpa` (`2.44 SE` on `wpa_opp`), and split-half shrunk cell correlation is `0.982` (`≥ 0.96`).
+- **Gate 3 (`cs2wp war` / `cs2wp validate-war` without usage):** Passed. `wpa_opp` split-half `k` is `984` (`≤ 1,033`), and `de_dust2` CT side residual narrowed slightly (`+0.0074` vs `+0.0099` / 100 on `wpa`, `+0.0165` vs `+0.0193` on `wpa_opp`).
+- **Decision:** Enabled `coalesce(subposition, position)` by default in `baselines.py` (`ctRole` continues to read parent `position`; `ctByMap` shows `B Doors` / `B Tunnels`). Queue `cs2wp usage --device cuda` on the GPU machine, then rerun `cs2wp war --model production --publish`, `cs2wp validate-war`, and `cs2wp team-factor`.
 
 **Results (2026-11-05, 1,312 maps, 13,120 player-maps).** Stability is the mean share of a player's maps (5+ on that map) at their most common position.
 
@@ -151,7 +155,8 @@ uv run cs2wp baselines   # data/war/role-baselines.parquet, data/war/role-rounds
 - **T Entry:** the team's non-AWPer with the highest entry share over their *other* maps. Below 5 other maps it falls back to that map's share, and `role_source` records which one was used. The map's own label leaks the outcome, since opening deaths count toward it: riflers outscore Entries by 0.0063 WPA/round under per-map labels, but only 0.0020 under leave-one-out labels.
 - **T Rifler:** the rest of the T side.
 - **CT AWPer:** the team's AWPer on that map. They average 0.026 WPA/round, against 0.010 for CT riflers, so leaving them inside positions would skew every position by its AWPer mix. NER0cs's CT labels make the same split.
-- **CT, everyone else:** their CT position.
+- **CT, everyone else:** `coalesce(subposition, position)`, carrying the parent `position` column.
+- **Pooling levels:** CT positions shrink toward the map's CT non-AWPer mean, and any split sub-positions (`de_dust2` `B Doors` / `B Tunnels`) add a third `"CT sub-position"` level shrinking toward their parent `(map, position)` baseline; unsplit positions stay unchanged at Level 2.
 
 **Pooling.** Each cell shrinks toward a parent: baseline = w·raw + (1 − w)·parent, where w = n / (n + k), n is the cell's rounds, and k = σ²/τ².
 
@@ -397,6 +402,15 @@ Test set: 1,064 maps (474 series, 19 events) from 2026-03-01. 88% of player slot
 
 Rerun after the Phase 5 gate (final credits) and after the 2025 backfill. If neutral WAA still adds nothing to Elo with a full season of prior data per player, WAR seeding is unlikely to beat Elo averaging in the roster-change test.
 
+## WAA vs HLTV 3.0
+
+`hltv_gap` in `wp/src/cs2wp/war.py` standardizes `gap_v = z(v_per100) − z(rating3)` over all qualified players (`300+` rounds with a non-null `rating3`, IGLs included). The 90% interval standardizes `p5` and `p95` with the same pool mean and SD, holding HLTV 3.0 fixed; players without HLTV 3.0 get `null`. Because `z(WAA) − z(HLTV)` correlates negatively with extreme HLTV ratings by regression to the mean, very high HLTV ratings lean negative even without a role penalty.
+
+Across `266` qualified players with `rating3` (`wpa_opp`, `r = 0.722` with HLTV 3.0), the gap tracks role and resource allocation (`r = -0.406` with usage/100, `r = +0.432` with conversion/100):
+- **IGL flag:** IGLs (`n = 51`) average `+1.086` SD vs `-0.258` SD for non-IGLs (`n = 215`). All 10 largest positive gaps are IGLs (`s1n +2.09`, `alex  +1.94`, `exit +1.85`, `Aleksib +1.81`, `nitr0 +1.69`, `cadiaN +1.68`, `gafolo +1.67`, `MAJ3R +1.65`, `apEX +1.64`, `alex666 +1.59`).
+- **T role:** AWPer (`n = 53`) `-0.588` SD, Entry (`n = 49`) `-0.400` SD, Rifler (`n = 164`) `+0.310` SD. Of the 10 largest negative gaps, 7 are AWPers (`kl1m -2.65`, `s1mple -1.50`, `hades -1.45`, `hyped -1.27`, `s1zzi -1.26`, `story -1.21`, `slaxz- -1.16`) and 3 are Entries (`Shr -2.05`, `xKacpersky -1.23`, `chelo -1.23`).
+- **CT role:** AWPer (`n = 53`) `-0.588` SD, Anchor (`n = 123`) `+0.230` SD, Rotator (`n = 90`) `+0.032` SD.
+
 ## Resources: usage and conversion
 
 `wp/src/cs2wp/resources.py` and `usage.py`. A player's WAA ignores what the team gave them. This splits it so receiving resources is never penalized, only failing to use them:
@@ -486,6 +500,7 @@ The React application renders the live WAA leaderboards at route `/war`:
 - Reads `public/data/war/players.json` with TanStack Query.
 - Displays 90% bootstrap intervals next to every map win and rate value, accompanied by a visual interval bar (`aria-hidden="true"`).
 - Role filters (`All`, `AWP`, `Entry`, `Rifle`, `IGL`) and credit toggles: `WPA (team-neutral)` (`wpa_opp`, the default since 2026-11-06 because it's the most reliable version and has no team-strength bias in either direction; see [WAR validation](#war-validation)), `WPA (raw)` (`?credit=wpa`), `Neutral man-count` and `Neutral event`.
+- `vs HLTV` gap column (`z(WAA/100) − z(HLTV 3.0)` in SD units, sortable, follows the credit toggle, `"–"` when HLTV 3.0 is missing), plus the 90% interval in expandable details.
 - Usage and Conversion columns (per 100 rounds, 90% intervals) that follow the credit toggle.
 - Expandable player details showing CT map callouts, duel counts, kills above expected, context / usage / conversion with their sum, the resource detail (equipment share by buy type, AWP rounds, drops received and given, duels with team flash or smoke, deaths traded), and backlinks to Liquipedia player/team pages.
 - Provisional banner noting the 2026 dry-run credit source pending Phase 5 demo backfill completion.

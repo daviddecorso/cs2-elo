@@ -14,7 +14,9 @@ from cs2wp.war import (
     estimate_rounds_per_win,
     export_public,
     fit_igl_adjustment,
+    hltv_gap,
     report_lines,
+    role_profiles,
     validation_metrics,
 )
 
@@ -241,3 +243,116 @@ def test_null_role_rows_are_excluded_from_aggregation_and_export(tmp_path, monke
     val = validation_metrics(adjusted, duel_sides, box, players, min_rounds=300)
     out_dir = tmp_path / "pub"
     assert export_public(players, ct_by_map, adj, val, adjusted, 5.0, 300, 0.0, "m", False, out_dir) == 0
+
+
+def test_hltv_gap_standardizes_over_qualified_pool_and_handles_nulls(tmp_path, monkeypatch):
+    import cs2wp.war as war_mod
+
+    models_dir = tmp_path / "models"
+    (models_dir / "m").mkdir(parents=True)
+    (models_dir / "m" / "report.json").write_text(json.dumps({"gate": {"passed": True, "log_loss": 0.44}}))
+    monkeypatch.setattr(war_mod, "MODELS", models_dir)
+
+    rows = []
+    specs = [
+        (1, "p1", True, "AWPer", "AWPer", 400, 1.20, 2.0, 1.5, 2.5),
+        (2, "p2", False, "Entry", "Rotator", 400, 1.00, 0.0, -0.5, 0.5),
+        (3, "p3", False, "Rifler", "Anchor", 400, 0.80, 1.0, 0.5, 1.5),
+        (4, "p_null", False, "Rifler", "Anchor", 400, None, 0.5, 0.0, 1.0),
+        (5, "p_short", False, "Rifler", "Rotator", 50, 2.50, 9.0, 8.0, 10.0),
+    ]
+    for sid, name, is_igl, t_role, ct_role, rds, r3, p100, p5, p95 in specs:
+        rows.append({
+            "steamid": sid, "lp_player": name, "name": name, "lp_team": "TeamA",
+            "maps": 10, "rounds": rds, "is_igl": is_igl, "igl_share": 1.0 if is_igl else 0.0,
+            "t_role": t_role, "ct_role": ct_role, "awp_share": 0.0, "entry_share": 0.2,
+            "duels": 100, "kills_above": 1.0, "kills_above_per100": 0.25,
+            "kd": 1.0, "adr": 75.0, "rating2_approx": 1.0, "rating3": r3, "swing": 0.0,
+            **{f"{v}_waa": p100 for v in VERSIONS},
+            **{f"{v}_waa_p5": p5 for v in VERSIONS},
+            **{f"{v}_waa_p95": p95 for v in VERSIONS},
+            **{f"{v}_per100": p100 for v in VERSIONS},
+            **{f"{v}_per100_p5": p5 for v in VERSIONS},
+            **{f"{v}_per100_p95": p95 for v in VERSIONS},
+        })
+    players = pl.DataFrame(rows, schema_overrides={"steamid": pl.UInt64, "rating3": pl.Float64})
+    out = hltv_gap(players, min_rounds=300)
+    by_sid = {r["steamid"]: r for r in out.iter_rows(named=True)}
+
+    # Pool = steamids 1, 2, 3 (4 has null rating3, 5 has <300 rounds).
+    # Mean of per100 = 1.0, SD = 1.0; mean of rating3 = 1.0, SD = 0.2.
+    assert by_sid[1]["wpa_opp_hltv_gap"] == pytest.approx(0.0)
+    assert by_sid[1]["wpa_opp_hltv_gap_p5"] == pytest.approx(-0.5)
+    assert by_sid[1]["wpa_opp_hltv_gap_p95"] == pytest.approx(0.5)
+    assert by_sid[2]["wpa_opp_hltv_gap"] == pytest.approx(-1.0)
+    assert by_sid[3]["wpa_opp_hltv_gap"] == pytest.approx(1.0)
+    assert by_sid[4]["wpa_opp_hltv_gap"] is None
+    assert by_sid[4]["wpa_opp_hltv_gap_p5"] is None
+    assert by_sid[4]["wpa_opp_hltv_gap_p95"] is None
+
+    syn = _synthetic_sides()
+    adj = fit_igl_adjustment(syn)
+    adjusted = apply_igl_adjustment(syn, adj)
+    val = {
+        "month_to_month": {100: {}, 200: {}, 300: {}},
+        "split_half": {},
+        "with_kd": {},
+        "with_rating3": {v: {"r": 0.5, "players": 3} for v in VERSIONS},
+    }
+    lines = report_lines(adjusted, adj, out, val, 5.0, 300, 0.0, None)
+    text = "\n".join(lines)
+    assert "## WAA vs HLTV 3.0 (`wpa_opp`)" in text
+    assert "IGL flag | IGL" in text
+    assert "T role | AWPer" in text
+    assert "CT role | Anchor" in text
+
+    out_dir = tmp_path / "pub"
+    assert export_public(out, {1: [], 2: [], 3: [], 4: []}, adj, val, adjusted, 5.0, 300, 0.0, "m", False, out_dir) == 0
+    payload = json.loads((out_dir / "players.json").read_text())
+    assert payload["validation"]["withRating3"]["wpa_opp"] == {"r": 0.5, "players": 3}
+    by_pub = {p["steamid"]: p for p in payload["players"]}
+    assert by_pub["3"]["metrics"]["wpa_opp"]["hltvGap"] == {"z": 1.0, "zP5": 0.5, "zP95": 1.5}
+    assert by_pub["4"]["metrics"]["wpa_opp"]["hltvGap"] is None
+
+
+def test_role_profiles_uses_parent_position_for_ct_role_and_subposition_for_ct_by_map():
+    t_roles = pl.DataFrame({
+        "key": ["m1", "m2"],
+        "steamid": [1, 2],
+        "t_role": ["Rifler", "AWPer"],
+        "rounds": [12, 12],
+        "opening_kills": [1, 0],
+        "opening_deaths": [1, 0],
+        "t_rounds": [12, 12],
+        "t_awp_rounds": [0, 10],
+        "ct_awp_rounds": [0, 10],
+        "t_buy_rounds": [10, 10],
+        "ct_buy_rounds": [10, 10],
+    }, schema_overrides={"steamid": pl.UInt64})
+    adj = pl.DataFrame([
+        {
+            "key": "m1", "date": "2026-05-01", "map": "de_dust2", "lp_team": "T1", "lp_player": "p1",
+            "steamid": 1, "side": CT, "role": "B Doors", "position": "B", "rounds": 12, "is_igl": False,
+            **{f"{v}_rw": 0.0 for v in VERSIONS},
+        },
+        {
+            "key": "m1", "date": "2026-05-01", "map": "de_dust2", "lp_team": "T1", "lp_player": "p1",
+            "steamid": 1, "side": T, "role": "Rifler", "position": None, "rounds": 12, "is_igl": False,
+            **{f"{v}_rw": 0.0 for v in VERSIONS},
+        },
+        {
+            "key": "m2", "date": "2026-05-02", "map": "de_dust2", "lp_team": "T1", "lp_player": "p2",
+            "steamid": 2, "side": CT, "role": "AWPer", "position": "B", "rounds": 12, "is_igl": False,
+            **{f"{v}_rw": 0.0 for v in VERSIONS},
+        },
+    ], schema_overrides={"steamid": pl.UInt64})
+    ct_positions = pl.DataFrame({
+        "key": ["m1", "m2"],
+        "steamid": [1, 2],
+        "position": ["B", "B"],
+    }, schema_overrides={"steamid": pl.UInt64})
+    prof, ct_by_map = role_profiles(adj, t_roles, ct_positions)
+    by_sid = {r["steamid"]: r for r in prof.iter_rows(named=True)}
+    assert by_sid[1]["ct_role"] == "Anchor" and by_sid[1]["site_share"] == pytest.approx(1.0)
+    assert by_sid[2]["ct_role"] == "AWPer" and by_sid[2]["site_share"] == pytest.approx(0.0)
+    assert ct_by_map[1] == [{"map": "dust2", "role": "B Doors", "maps": 1}]

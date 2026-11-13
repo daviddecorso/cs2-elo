@@ -1,7 +1,7 @@
 import polars as pl
 import pytest
 
-from cs2wp.positions import assign, unmapped, window_samples
+from cs2wp.positions import assign, pair_separation, round_centroids, unmapped, window_samples
 from cs2wp.states import CT, T, TICK_RATE
 
 FREEZE_END = 1000
@@ -19,7 +19,14 @@ def ticks(rows):
 
 
 def samples(rows):
-    return pl.DataFrame(rows, schema={"round_num": pl.Int64, "steamid": pl.UInt64, "callout": pl.String}, orient="row")
+    normalized = [(r[0], r[1], r[2], float(r[3]) if len(r) > 3 else 0.0, float(r[4]) if len(r) > 4 else 0.0, 0.0)
+                  for r in rows]
+    return pl.DataFrame(
+        normalized,
+        schema={"round_num": pl.Int64, "steamid": pl.UInt64, "callout": pl.String, "x": pl.Float64, "y": pl.Float64,
+                "z": pl.Float64},
+        orient="row",
+    )
 
 
 ROUNDS = pl.DataFrame({"round_num": [1], "start_tick": [0], "freeze_end_tick": [FREEZE_END]})
@@ -74,3 +81,59 @@ def test_unmapped_callouts_are_reported_but_empty_ones_are_not():
 
 def test_no_votes_gives_an_empty_frame():
     assert assign(samples([(1, 1, "CTSpawn")]), CALLOUTS).is_empty()
+
+
+def test_round_centroids_averages_only_voted_position_samples():
+    s = samples([
+        (1, 1, "Jungle", 10.0, 20.0),
+        (1, 1, "Connector", 30.0, 40.0),
+        (1, 1, "BombsiteA", 999.0, 999.0),
+        (2, 1, "BombsiteA", -50.0, 60.0),
+    ])
+    c = round_centroids(s, CALLOUTS).sort("round_num")
+    assert c.to_dicts() == [
+        {"steamid": 1, "round_num": 1, "position": "Connector", "x": 20.0, "y": 30.0},
+        {"steamid": 1, "round_num": 2, "position": "A", "x": -50.0, "y": 60.0},
+    ]
+
+
+def test_assign_subpositions_nearest_center_and_unsplit_null():
+    sub = {"A": {"centers": [[0.0, 0.0], [100.0, 0.0]], "names": ["A Deep", "A Near"]}}
+    s = samples([
+        (1, 1, "BombsiteA", 5.0, 0.0),
+        (2, 1, "BombsiteA", 15.0, 10.0),
+        (3, 1, "BombsiteA", 95.0, 0.0),
+        (1, 2, "Catwalk", 10.0, 10.0),
+    ])
+    out = {r["steamid"]: r for r in assign(s, CALLOUTS, sub).iter_rows(named=True)}
+    assert out[1]["position"] == "A"
+    assert out[1]["subposition"] == "A Deep"
+    assert out[1]["sub_share"] == pytest.approx(2 / 3)
+    assert out[2]["position"] == "Mid"
+    assert out[2]["subposition"] is None and out[2]["sub_share"] is None
+
+
+def test_pair_separation_counts_exact_k_team_rounds_and_chance():
+    df = pl.DataFrame({
+        "key": ["m1"] * 7,
+        "lp_team": ["T1", "T1", "T1", "T1", "T1", "T1", "T1"],
+        "round_num": [1, 1, 2, 2, 3, 3, 3],
+        "cluster": [0, 1, 0, 0, 0, 1, 0],
+    })
+    obs, chance, n_rounds = pair_separation(df, cluster_sizes=[4, 3], k=2)
+    # Only rounds 1 (distinct) and 2 (same) have k=2 teammates; round 3 has 3 teammates.
+    assert n_rounds == 2
+    assert obs == pytest.approx(0.5)
+    assert chance == pytest.approx(2 * (4 / 7) * (3 / 7))
+
+
+def test_load_subpositions_rejects_names_repeated_across_positions(tmp_path):
+    import json
+
+    from cs2wp.positions import load_subpositions
+
+    spec = {"centers": [[0, 0], [1, 1]], "names": ["Long", "Short"]}
+    path = tmp_path / "sub.json"
+    path.write_text(json.dumps({"de_x": {"A": spec, "B": spec}}))
+    with pytest.raises(ValueError, match="repeat"):
+        load_subpositions(path)

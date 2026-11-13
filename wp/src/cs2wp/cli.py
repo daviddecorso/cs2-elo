@@ -1,6 +1,7 @@
 """cs2wp: game states, the win-probability model, WPA credit and the paper's validation tests."""
 
 import argparse
+from pathlib import Path
 import sys
 
 from . import data
@@ -83,10 +84,12 @@ def cmd_publish(args) -> int:
 
 
 def cmd_positions(args) -> int:
-    from .positions import UnmappedCallouts, build, callout_report
+    from .positions import UnmappedCallouts, build, callout_report, subpositions_report
 
     if args.callouts:
         return callout_report(args.map)
+    if args.subpositions:
+        return subpositions_report(args.map)
     try:
         return build(args.map)
     except UnmappedCallouts as e:
@@ -109,7 +112,7 @@ def cmd_validate_roles(args) -> int:
 def cmd_baselines(args) -> int:
     from .baselines import build
 
-    return build()
+    return build(use_subpositions=not args.no_subpositions, write_sub_copy=args.subpositions)
 
 
 def cmd_duels(args) -> int:
@@ -136,8 +139,10 @@ def cmd_igls(args) -> int:
 
 def cmd_war(args) -> int:
     from .igls import AmbiguousIGL, UnmappedTeams
+    from .paths import ROLE_ROUNDS
     from .war import build
 
+    role_rounds = Path(args.role_rounds) if args.role_rounds else ROLE_ROUNDS
     try:
         return build(
             window_from=args.window_from,
@@ -148,6 +153,7 @@ def cmd_war(args) -> int:
             publish=args.publish,
             allow_ungated=args.allow_ungated,
             igl_adjustment=args.igl_adjustment,
+            role_rounds=role_rounds,
         )
     except (UnmappedTeams, AmbiguousIGL) as e:
         print(e, file=sys.stderr)
@@ -155,9 +161,11 @@ def cmd_war(args) -> int:
 
 
 def cmd_validate_war(args) -> int:
+    from .paths import ROLE_ROUNDS
     from .warcheck import build
 
-    return build(test_from=args.test_from, min_rounds=args.min_rounds)
+    role_rounds = Path(args.role_rounds) if args.role_rounds else ROLE_ROUNDS
+    return build(test_from=args.test_from, min_rounds=args.min_rounds, role_rounds=role_rounds)
 
 
 def cmd_team_factor(args) -> int:
@@ -216,10 +224,14 @@ def main() -> None:
     p = sub.add_parser("positions", help="Each player's CT position per map, from callouts 15-25 s into CT rounds")
     p.add_argument("--map", help="Only this manifest key, e.g. 2399384/m1")
     p.add_argument("--callouts", action="store_true", help="Write the callout report used to label the position table")
+    p.add_argument("--subpositions", action="store_true", help="Cluster doubled CT positions and write subposition diagnostics")
     p = sub.add_parser("roles", help="Each player's T role per map: entry share from opening duels, AWP share")
     p.add_argument("--map", help="Only this manifest key, e.g. 2399384/m1")
     sub.add_parser("validate-roles", help="Compare pooled T roles and CT positions with NER0cs's 2024 role labels")
-    sub.add_parser("baselines", help="Average credit per round for each map, side and role, partially pooled")
+    p = sub.add_parser("baselines", help="Average credit per round for each map, side and role, partially pooled")
+    group = p.add_mutually_exclusive_group()
+    group.add_argument("--no-subpositions", action="store_true", help="Group CT roles by parent position only")
+    group.add_argument("--subpositions", action="store_true", help="Write .sub.parquet / .sub.md instead of the default paths")
     p = sub.add_parser("duels", help="Expected duel wins from weapons, peeker vs holder, flashes, HP and distance")
     p.add_argument("--ablations", action="store_true", help="Also cross-fit the model without each input group")
     p.add_argument("--device", choices=["auto", "cpu", "cuda"], default="auto", help="XGBoost device")
@@ -238,9 +250,11 @@ def main() -> None:
     p.add_argument("--allow-ungated", action="store_true", help="Allow publishing provisional JSON before Phase 5 gate")
     p.add_argument("--igl-adjustment", choices=["fixed", "apm"], default="fixed",
                    help="Fixed league offset (default) or per-IGL calling deviation from `cs2wp team-factor`")
+    p.add_argument("--role-rounds", help="Path to an alternate role-rounds parquet (runs without usage)")
     p = sub.add_parser("validate-war", help="WAR split-half reliability, and whether prior lineup WAR adds to Elo")
     p.add_argument("--test-from", default="2026-03-01", help="Score maps on or after YYYY-MM-DD")
     p.add_argument("--min-rounds", type=int, default=300)
+    p.add_argument("--role-rounds", help="Path to an alternate role-rounds parquet")
     p = sub.add_parser("team-factor", help="Team-map residual, adjusted plus-minus, and IGL calling attribution")
     p.add_argument("--min-rounds", type=int, default=300)
     p.add_argument("--resamples", type=int, default=1000)

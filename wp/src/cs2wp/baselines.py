@@ -1,12 +1,23 @@
 """Role baselines: average credit per round for each map, side and role, partially pooled (Phase 6, item 4)."""
 
 import datetime as dt
+import math
 
 import numpy as np
 import polars as pl
 
 from .data import MapRef, catalog
-from .paths import CREDITS, CT_POSITIONS, ROLE_BASELINES, ROLE_ROUNDS, STATES, T_ROLES, WAR_REPORTS
+from .paths import (
+    CREDITS,
+    CT_POSITIONS,
+    ROLE_BASELINES,
+    ROLE_BASELINES_SUB,
+    ROLE_ROUNDS,
+    ROLE_ROUNDS_SUB,
+    STATES,
+    T_ROLES,
+    WAR_REPORTS,
+)
 from .states import CT, T
 
 VERSIONS = ("wpa", "nwpa_event", "nwpa_mancount", "wpa_opp")
@@ -47,8 +58,10 @@ def load_sides(refs: list[MapRef]) -> pl.DataFrame:
     return pl.concat(rows, how="vertical_relaxed")
 
 
-def assign_roles(sides: pl.DataFrame, t_roles: pl.DataFrame, positions: pl.DataFrame) -> pl.DataFrame:
-    """Adds `role`: T AWPer / Entry / Rifler, CT AWPer or the CT position.
+def assign_roles(
+    sides: pl.DataFrame, t_roles: pl.DataFrame, positions: pl.DataFrame, use_subpositions: bool = True,
+) -> pl.DataFrame:
+    """Adds `role`: T AWPer / Entry / Rifler, CT AWPer or the CT position (sub-position when enabled).
 
     The Entry is the team's non-AWPer with the top entry share over their *other* maps, because a map's own entry
     share counts opening deaths and so leaks that map's outcome into the label.
@@ -63,20 +76,34 @@ def assign_roles(sides: pl.DataFrame, t_roles: pl.DataFrame, positions: pl.DataF
     t = t.with_columns(pl.when(pooled).then("_loo").otherwise("entry_share").alias("_share"),
                        pl.when(pooled).then(pl.lit("pooled")).otherwise(pl.lit("map")).alias("_source"))
 
+    has_sub = use_subpositions and "subposition" in positions.columns
+    pos_cols = ["key", "steamid", "position", "subposition"] if has_sub else ["key", "steamid", "position"]
     df = (sides.join(t, on=["key", "steamid"], how="left")
-          .join(positions.select("key", "steamid", "position"), on=["key", "steamid"], how="left")
+          .join(positions.select(pos_cols), on=["key", "steamid"], how="left")
           .sort("key", "steamid", "side"))
     awper = pl.col("t_role") == "AWPer"
     t_rifle = (pl.col("side") == T) & ~awper
     candidate = pl.when(t_rifle).then(pl.col("_share"))
     entry = candidate.rank("ordinal", descending=True).over("key", "team", "side") == 1
+    ct_pos = pl.coalesce("subposition", "position") if has_sub else pl.col("position")
     role = (pl.when(pl.col("t_role").is_null()).then(None)
             .when(awper).then(pl.lit("AWPer"))
-            .when(pl.col("side") == CT).then(pl.col("position"))
+            .when(pl.col("side") == CT).then(ct_pos)
             .when(entry).then(pl.lit("Entry"))
             .otherwise(pl.lit("Rifler")))
-    return (df.with_columns(role.alias("role"), pl.when(t_rifle).then(pl.col("_source")).alias("role_source"))
-            .drop("_opening", "_other_maps", "_loo", "_share", "_source", "entry_share", "t_rounds", "position"))
+    parent_col = [pl.when((pl.col("side") == CT) & ~awper & pl.col("t_role").is_not_null())
+                  .then(pl.col("position")).alias("position")] if use_subpositions else []
+    out = df.with_columns(
+        role.alias("role"),
+        pl.when(t_rifle).then(pl.col("_source")).alias("role_source"),
+        *parent_col,
+    )
+    drops = ["_opening", "_other_maps", "_loo", "_share", "_source", "entry_share", "t_rounds"]
+    if has_sub:
+        drops.append("subposition")
+    if not use_subpositions:
+        drops.append("position")
+    return out.drop(drops)
 
 
 def sigma2(rows: pl.DataFrame, version: str) -> float:
@@ -110,10 +137,13 @@ def _pool(cells: pl.DataFrame, parent: pl.Expr, version: str, s2: float) -> tupl
 def fit(rows: pl.DataFrame) -> tuple[pl.DataFrame, dict[str, dict[str, float]]]:
     """One row per (map, side, role) with raw, parent, weight and baseline per version, and k per level.
 
-    T roles and the CT AWPer shrink toward the same role's mean across maps. CT positions only exist on their own
-    map, so they shrink toward the map's CT non-AWPer mean, which itself shrinks toward the all-map one.
+    T roles and the CT AWPer shrink toward the same role's mean across maps. CT positions shrink toward the map's
+    CT non-AWPer mean, and sub-positions shrink toward their parent position's baseline.
     """
     rows = rows.filter(pl.col("role").is_not_null())
+    parent_pos = pl.coalesce("position", "role") if "position" in rows.columns else pl.col("role")
+    ct_rifle = rows.filter((pl.col("side") == CT) & (pl.col("role") != "AWPer")).with_columns(parent_pos.alias("_parent_pos"))
+
     cells = rows.group_by(CELL).agg(pl.col("rounds").sum(), pl.len().alias("player_maps"),
                                     pl.col("event").n_unique().alias("events"), pl.col(VERSIONS).sum())
     cells = cells.with_columns(*(
@@ -122,7 +152,17 @@ def fit(rows: pl.DataFrame) -> tuple[pl.DataFrame, dict[str, dict[str, float]]]:
     ks: dict[str, dict[str, float]] = {}
     roles, positions = cells.filter(cross_map), cells.filter(~cross_map)
 
-    ct_rifle = rows.filter((pl.col("side") == CT) & (pl.col("role") != "AWPer"))
+    role_to_pos = ct_rifle.select("map", "role", pl.col("_parent_pos").alias("position")).unique()
+    positions = positions.join(role_to_pos, on=["map", "role"], how="left")
+    parent_cells = (
+        ct_rifle.group_by("map", pl.col("_parent_pos").alias("position"))
+        .agg(pl.col("rounds").sum(), pl.len().alias("player_maps"),
+             pl.col("event").n_unique().alias("events"), pl.col(VERSIONS).sum())
+        .with_columns(pl.lit(CT, dtype=rows.schema["side"]).alias("side"))
+        .with_columns(*((pl.col(v) / pl.col("rounds")).alias(f"{v}_raw") for v in VERSIONS))
+        .drop(VERSIONS)
+    )
+
     maps = ct_rifle.group_by("map").agg(pl.col("rounds").sum(), pl.col(VERSIONS).sum())
     maps = maps.with_columns(*((pl.col(v) / pl.col("rounds")).alias(f"{v}_raw") for v in VERSIONS))
 
@@ -137,9 +177,26 @@ def fit(rows: pl.DataFrame) -> tuple[pl.DataFrame, dict[str, dict[str, float]]]:
         all_maps = ct_rifle[v].sum() / ct_rifle["rounds"].sum()
         m, ks.setdefault("CT map", {})[v] = _pool(maps, pl.lit(all_maps), v, s2)
         maps = maps.with_columns(m[f"{v}_baseline"].alias(f"{v}_map"))
-        positions = positions.drop(f"{v}_map", strict=False).join(maps.select("map", f"{v}_map"), on="map")
-        positions, ks.setdefault("CT position", {})[v] = _pool(positions, pl.col(f"{v}_map"), v, s2)
-        positions = positions.drop(f"{v}_map")
+        parent_cells = parent_cells.drop(f"{v}_map", strict=False).join(maps.select("map", f"{v}_map"), on="map")
+        parent_cells, ks.setdefault("CT position", {})[v] = _pool(parent_cells, pl.col(f"{v}_map"), v, s2)
+        parent_cells = parent_cells.drop(f"{v}_map")
+
+    parent_cols = parent_cells.select(
+        "map", "position", *(c for v in VERSIONS for c in (f"{v}_parent", f"{v}_weight", f"{v}_baseline")),
+    )
+    is_sub = pl.col("role") != pl.col("position")
+    unsplit = positions.filter(~is_sub).join(parent_cols, on=["map", "position"], how="left")
+    sub_cells = positions.filter(is_sub).join(
+        parent_cells.select("map", "position", *(pl.col(f"{v}_baseline").alias(f"{v}_pos") for v in VERSIONS)),
+        on=["map", "position"], how="left",
+    )
+    if not sub_cells.is_empty():
+        for v in VERSIONS:
+            sub_cells, ks.setdefault("CT sub-position", {})[v] = _pool(
+                sub_cells, pl.col(f"{v}_pos"), v, sigma2(rows, v))
+            sub_cells = sub_cells.drop(f"{v}_pos")
+    positions = pl.concat([unsplit, sub_cells], how="diagonal_relaxed") if not sub_cells.is_empty() else unsplit
+
     return pl.concat([roles, positions], how="diagonal_relaxed").sort("map", "side", "role"), ks
 
 
@@ -184,6 +241,45 @@ def _rifler_minus_entry(rows: pl.DataFrame, role: str) -> float:
     return rate["Rifler"] - rate["Entry"]
 
 
+def _subposition_checks(rows: pl.DataFrame, cells: pl.DataFrame, shrunk_r: float) -> list[str]:
+    valid = rows.filter(pl.col("role").is_not_null())
+    s2_wpa = sigma2(valid, "wpa")
+    s2_opp = sigma2(valid, "wpa_opp")
+    sub = cells.filter((pl.col("side") == CT) & (pl.col("role") != "AWPer") & (pl.col("role") != pl.col("position")))
+    if sub.is_empty():
+        return []
+    lines = ["", "## Sub-position Gate 2", "",
+             "| Map | Position | Sub-positions | Max |Δ| / SE (wpa) | Max |Δ| / SE (wpa_opp, informational) | > 2 SE (wpa) |",
+             "| --- | --- | --- | --- | --- | --- |"]
+    n_split = 0
+    n_sig = 0
+    for (m, pos) in sorted(sub.select("map", "position").unique().iter_rows()):
+        grp = sub.filter((pl.col("map") == m) & (pl.col("position") == pos)).sort("role").iter_rows(named=True)
+        grp = list(grp)
+        if len(grp) < 2:
+            continue
+        n_split += 1
+        max_z_wpa = max_z_opp = 0.0
+        for i in range(len(grp)):
+            for j in range(i + 1, len(grp)):
+                se_factor = math.sqrt(1.0 / grp[i]["rounds"] + 1.0 / grp[j]["rounds"])
+                max_z_wpa = max(max_z_wpa, abs(grp[i]["wpa_raw"] - grp[j]["wpa_raw"]) / (math.sqrt(s2_wpa) * se_factor))
+                max_z_opp = max(max_z_opp, abs(grp[i]["wpa_opp_raw"] - grp[j]["wpa_opp_raw"]) / (math.sqrt(s2_opp) * se_factor))
+        sig = max_z_wpa > 2.0
+        n_sig += int(sig)
+        desc = ", ".join(f"{r['role']} ({r['rounds']:,} rds, wpa {r['wpa_raw']:+.4f} -> {r['wpa_baseline']:+.4f})" for r in grp)
+        lines.append(f"| {m} | {pos} | {desc} | {max_z_wpa:.2f} | {max_z_opp:.2f} | {'YES' if sig else 'NO'} |")
+    half_pass = n_split > 0 and 2 * n_sig >= n_split
+    corr_pass = shrunk_r >= 0.96
+    lines += [
+        "",
+        f"Significant positions (> 2 SE on wpa): {n_sig} of {n_split} ({'PASS' if half_pass else 'FAIL'}; need >= half). "
+        f"Split-half shrunk r: {shrunk_r:.3f} ({'PASS' if corr_pass else 'FAIL'}; need >= 0.96). "
+        f"Gate 2: {'PASS' if (half_pass and corr_pass) else 'FAIL'}.",
+    ]
+    return lines
+
+
 def report(rows: pl.DataFrame, cells: pl.DataFrame, ks: dict, credits_date: str) -> list[str]:
     s2 = sigma2(rows.filter(pl.col("role").is_not_null()), "wpa")
     moves = event_moves(rows.filter(pl.col("role").is_not_null()), cells, s2)
@@ -204,8 +300,10 @@ def report(rows: pl.DataFrame, cells: pl.DataFrame, ks: dict, credits_date: str)
               f"shrunk {shrunk_r:.2f}.",
               f"- T Rifler − Entry, WPA per round: per-map labels {_rifler_minus_entry(t_rows, 't_role'):.4f}, "
               f"leave-one-out labels {_rifler_minus_entry(t_rows, 'role'):.4f}.",
-              f"- Player-map-sides without a role: {unassigned} of {rows.height}.", "",
-              "| Map | Side | Role | Rounds | Events | Raw | Weight | Baseline |", "|" + " --- |" * 8]
+              f"- Player-map-sides without a role: {unassigned} of {rows.height}."]
+    if "CT sub-position" in ks and "position" in cells.columns:
+        lines += _subposition_checks(rows, cells, shrunk_r)
+    lines += ["", "| Map | Side | Role | Rounds | Events | Raw | Weight | Baseline |", "|" + " --- |" * 8]
     for c in cells.iter_rows(named=True):
         side = "CT" if c["side"] == CT else "T"
         lines.append(f"| {c['map'].removeprefix('de_')} | {side} | {c['role']} | {c['rounds']:,} | {c['events']} | "
@@ -213,16 +311,21 @@ def report(rows: pl.DataFrame, cells: pl.DataFrame, ks: dict, credits_date: str)
     return lines
 
 
-def build() -> int:
-    rows = assign_roles(load_sides(catalog()), pl.read_parquet(T_ROLES), pl.read_parquet(CT_POSITIONS))
+def build(use_subpositions: bool = True, write_sub_copy: bool = False) -> int:
+    rows = assign_roles(
+        load_sides(catalog()), pl.read_parquet(T_ROLES), pl.read_parquet(CT_POSITIONS), use_subpositions=use_subpositions,
+    )
     cells, ks = fit(rows)
-    ROLE_BASELINES.parent.mkdir(parents=True, exist_ok=True)
-    cells.write_parquet(ROLE_BASELINES)
-    with_baselines(rows, cells).drop("team").write_parquet(ROLE_ROUNDS)
+    out_baselines = ROLE_BASELINES_SUB if write_sub_copy else ROLE_BASELINES
+    out_rounds = ROLE_ROUNDS_SUB if write_sub_copy else ROLE_ROUNDS
+    out_report = WAR_REPORTS / ("role-baselines.sub.md" if write_sub_copy else "role-baselines.md")
+    out_baselines.parent.mkdir(parents=True, exist_ok=True)
+    cells.write_parquet(out_baselines)
+    with_baselines(rows, cells).drop("team").write_parquet(out_rounds)
     stamp = dt.date.fromtimestamp((CREDITS / "neutral-base.parquet").stat().st_mtime).isoformat()
     lines = report(rows, cells, ks, stamp)
     WAR_REPORTS.mkdir(parents=True, exist_ok=True)
-    (WAR_REPORTS / "role-baselines.md").write_text("\n".join(lines) + "\n")
+    out_report.write_text("\n".join(lines) + "\n")
     print("\n".join(lines))
-    print(f"\nwrote {ROLE_BASELINES} ({cells.height} cells) and {ROLE_ROUNDS} ({rows.height} player-map-sides)")
+    print(f"\nwrote {out_baselines} ({cells.height} cells) and {out_rounds} ({rows.height} player-map-sides)")
     return 0

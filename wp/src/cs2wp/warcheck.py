@@ -2,13 +2,15 @@
 
 import math
 
+from pathlib import Path
+
 import numpy as np
 import polars as pl
 from sklearn.linear_model import LogisticRegression
 
 from .baselines import VERSIONS
 from .data import MapRef, catalog
-from .paths import WAR_REPORTS
+from .paths import ROLE_ROUNDS, WAR_REPORTS
 from .pipeline import player_rounds
 from .war import load_adjusted, map_outcomes
 
@@ -455,8 +457,12 @@ def team_context_lines(tc: dict, min_rounds: int) -> list[str]:
     return lines
 
 
-def build(test_from: str = DEFAULT_TEST_FROM, min_rounds: int = MIN_PLAYER_ROUNDS) -> int:
-    adjusted, _ = load_adjusted()
+def build(
+    test_from: str = DEFAULT_TEST_FROM,
+    min_rounds: int = MIN_PLAYER_ROUNDS,
+    role_rounds: Path = ROLE_ROUNDS,
+) -> int:
+    adjusted, _ = load_adjusted(role_rounds=role_rounds)
     refs = catalog()
     pm = player_maps(adjusted, player_rounds(refs))
 
@@ -471,6 +477,7 @@ def build(test_from: str = DEFAULT_TEST_FROM, min_rounds: int = MIN_PLAYER_ROUND
         return 1
     lines = report_lines(rel, prediction(rows), test_from, min_rounds) + team_context_lines(tc, min_rounds)
     WAR_REPORTS.mkdir(parents=True, exist_ok=True)
-    (WAR_REPORTS / "war-validation.md").write_text("\n".join(lines) + "\n")
+    out_name = "war-validation.md" if role_rounds == ROLE_ROUNDS else "war-validation.sub.md"
+    (WAR_REPORTS / out_name).write_text("\n".join(lines) + "\n")
     print("\n".join(lines))
     return 0

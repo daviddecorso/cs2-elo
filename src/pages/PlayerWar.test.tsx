@@ -189,6 +189,45 @@ describe("PlayerWar Page", () => {
         expect(emptyHtml).toContain("No players match “nobody”");
     });
 
+    it("shows usage and conversion for the selected credit version, and a dash where they're missing", () => {
+        const withUsage: PlayerWarData = {
+            ...warData,
+            players: [
+                {
+                    ...warData.players[0],
+                    metrics: {
+                        ...warData.players[0].metrics,
+                        wpa_opp: {
+                            ...warData.players[0].metrics.wpa_opp,
+                            context: -0.09,
+                            usage: { per100: 0.33, per100P5: 0.31, per100P95: 0.35 },
+                            conversion: { per100: 1.95, per100P5: 1.4, per100P95: 2.5 },
+                        },
+                    },
+                },
+                warData.players[1],
+            ],
+        };
+        const renderWith = (url: string) => {
+            const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+            queryClient.setQueryData(["war", "players"], withUsage);
+            return renderToString(
+                <QueryClientProvider client={queryClient}>
+                    <MemoryRouter initialEntries={[url]}>
+                        <Routes>
+                            <Route path="/war" element={<PlayerWar />} />
+                        </Routes>
+                    </MemoryRouter>
+                </QueryClientProvider>
+            );
+        };
+        const html = renderWith("/war");
+        expect(html).toContain("Conversion");
+        expect(html).toContain("(+0.31, +0.35)");
+        expect(html).toContain("(+1.40, +2.50)");
+        expect(renderWith("/war?credit=wpa")).not.toContain("(+1.40, +2.50)");
+    });
+
     it("renders live generated public/data/war/players.json without errors", () => {
         const filePath = path.resolve(__dirname, "../../public/data/war/players.json");
         if (!fs.existsSync(filePath)) return;

@@ -34,9 +34,10 @@ def _damages(ticks):
                                           "victim_steamid": pl.UInt64})
 
 
-def _flashes(tick, duration, who=V):
-    return pl.DataFrame({"tick": [tick], "round_num": [1], "victim_steamid": [who], "duration": [duration]},
-                        schema_overrides={"victim_steamid": pl.UInt64})
+def _flashes(tick, duration, who=V, thrower=A, thrower_side="terrorist"):
+    return pl.DataFrame({"tick": [tick], "round_num": [1], "victim_steamid": [who], "duration": [duration],
+                         "attacker_steamid": [thrower], "attacker_side": [thrower_side]},
+                        schema_overrides={"victim_steamid": pl.UInt64, "attacker_steamid": pl.UInt64})
 
 
 def test_state_is_read_before_the_first_damage_between_the_pair():

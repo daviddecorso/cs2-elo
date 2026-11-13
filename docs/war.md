@@ -396,12 +396,96 @@ Test set: 1,064 maps (474 series, 19 events) from 2026-03-01. 88% of player slot
 
 Rerun after the Phase 5 gate (final credits) and after the 2025 backfill. If neutral WAA still adds nothing to Elo with a full season of prior data per player, WAR seeding is unlikely to beat Elo averaging in the roster-change test.
 
+## Resources: usage and conversion
+
+`wp/src/cs2wp/resources.py` and `usage.py`. A player's WAA ignores what the team gave them. This splits it so receiving resources is never penalized, only failing to use them:
+
+```
+above role baseline = context + usage + conversion        (exact, per player-round)
+  context    = g(map, side, role, team equip, opponent equip, both buy types, pistol) − role baseline
+  usage      = f(g's inputs + the player's own resources) − g
+  conversion = credit − f
+```
+
+The middle term is three-way rather than two: a rich team's rounds are worth more to everyone on it, and that's the team's economy, not a player's share of it. Without `context`, every Vitality player would show high usage.
+
+```
+cd wp
+uv run cs2wp usage --map 2396614/m1   # print one map's resource rows
+uv run cs2wp usage --device cpu       # data/war/resource-rounds.parquet, usage-rounds.parquet, usage.parquet,
+                                      # data/war/reports/usage.md
+uv run cs2wp war --model production   # joins usage.parquet: <v>_context/usage/conversion_per100 with intervals
+uv run cs2wp validate-war             # scores context, usage and conversion (wpa_opp) like the WAA versions
+```
+
+**Resources per player-round** (`resource-rounds.parquet`, 676,581 rows). Economy is read during the 20 s after freeze end, so it's known before the fight:
+
+- equipment value, the team's and the opponent's, the player's share of their team's, and both buy types (`evaluate.py` thresholds)
+- best gun class held, AWP, armor, helmet, kit, and the four utility counts
+- the pistol-round flag
+
+**Drops are inferred**, because the parser stores no item events. Net transfer = equipment gained − money spent from round start to freeze end. A drop received is a net of +$1,000 or more with a teammate at −$1,000 or less in the same round; a replaced pistol nets about −$200 and doesn't count.
+
+| Drop check (all 3,112 maps) | Result |
+| --- | --- |
+| Net transfer exactly 0 | 51% of player-rounds |
+| ≥ +$1,000 / ≤ −$1,000 | 11.6% / 12.0% |
+| Receivers with a matching giver | **97.4%** of 78,234 (gate 80%) |
+| Givers with a matching receiver | 90.4% of 80,937 |
+| Team net per round within ±$500 | 72% (median $0) |
+
+Drops pass, so `net_transfer` and `drop_received` are inputs to f.
+
+**Support** (descriptive only, because it only exists if a fight happened). Each duel from [Expected duels](#expected-duels) gains, for both players:
+
+- `flash_support`: the opponent was blind from a teammate's flash during the duel. Own flashes are counted apart (`self_flash`), and enemy team-flashes count for neither.
+- `smoke_support`: a teammate's smoke popped in the 5 s before the duel, within 800 units of either player.
+
+`kills.victim_traded` gives traded deaths.
+
+**Smoke throwers are inferred.** awpy's `grenades` table has a full trajectory per grenade, but `thrower_steamid` is null on every row. The thrower is the player within 300 units of the trajectory's first point whose `smoke_grenades` count drops across it. The count lags the projectile by up to two 4 Hz snapshots, so the "after" read is 0.5 s later. That attributes 95.3% of 441,707 smokes. The landing point is the trajectory's last point.
+
+**Expected credit.** Two XGBoost regressors per credit version (depth 4, learning rate 0.1, squared error, early-stopped), g on the team inputs and f on those plus the player's own. f is monotone increasing in equipment value. Zero-credit rounds count, as in the role baselines. Folds are whole players (5, balanced by rounds), so no player's expectation is fit on their own rounds. That makes it a replacement-style baseline, not the player's own. The baseline is the average tier-1 player in that role until tier-2 demos define replacement level. The IGL adjustment lands in conversion.
+
+**Results (2026-11-13, `production` credits, 3,112 maps, 674,310 player-rounds).**
+
+- **Identity.** context + usage + conversion = credit above baseline to 2e-16 per round in all four versions, and to 9e-16 per player-map-side against `<v>_rw` once the IGL adjustment is included. The 60 player-rounds without resources keep missing inputs rather than being dropped, so the split stays exact.
+- **Resources barely predict a single round.** RMSE for `wpa_opp` is 0.20818 for the role baseline, 0.20810 for g and 0.20788 for f. Per-round credit is mostly noise, so this is expected. The useful check is calibration: by gun class (every class with 500+ rounds), mean f tracks mean credit within 0.1 per 100 rounds, while g misses SMG rounds by 1.24, Pistol by 0.38 and AWP by 0.63.
+
+| What f says a resource is worth (`wpa_opp`, per 100 rounds) | Change |
+| --- | --- |
+| Rifle instead of SMG, force-buy SMG rounds | +1.20 |
+| AWP instead of rifle, full-buy rifle rounds | +0.18 |
+| +$1,000 own equipment, full buys | +0.09 |
+| Two more flashes, full buys | 0.00 |
+| Drop received (+$1,500), force and full buys | −0.03 |
+| Kit, CT full buys | −0.30 |
+
+The AWP is worth little here because g already includes the role: an AWPer is expected to have one. The kit's negative value is selection, since kits go to the players expected to retake last. f is descriptive, not causal.
+
+| Metric (`wpa_opp`, with the IGL adjustment) | Split-half k | Within-team k (alt. / Elo / won-lost) | Team share | r with team Elo | Gain over Elo (90% CI) |
+| --- | --- | --- | --- | --- | --- |
+| WAA | 984 | 1,102 / 1,118 / 1,104 | 0.26 | 0.45 | −0.0004 (−0.0027, +0.0018) |
+| Context | 235 | 139 / 155 / 236 | 0.20 | 0.05 | −0.0007 (−0.0017, +0.0004) |
+| Usage | **94** | 87 / 97 / 113 | 0.04 | −0.07 | −0.0006 (−0.0015, +0.0002) |
+| Conversion | **1,042** | 1,230 / 1,252 / 1,221 | 0.28 | 0.46 | −0.0005 (−0.0026, +0.0017) |
+
+- **Site gate passed.** Conversion's `k` (1,042) is within 2× WAA's (984), so it shipped. Usage and context are role and team-economy traits, stable within 100–250 rounds.
+- **Team strength sits in conversion, not context.** The plan expected context to carry the team, but `wpa_opp` already prices the own team at average Elo, and economy alone barely tracks team Elo (r 0.05). Conversion has WAA's team share (0.28 vs 0.26). Within-team ranks hold under the form splits, so there's no sign of credit moving between teammates.
+- **Usage vs conversion.** Within each T role they correlate positively (AWPer +0.21, Entry +0.46, Rifler +0.26), the opposite of basketball's tradeoff: here the best players also get the most. Kept as a hypothesis to watch, as the spec says.
+- **Sense checks read right.** Top conversion: donk, ZywOo, SYPH0, m0NESY, KSCERATO, mizu, latto, HeavyGod. The biggest rises from WAA rank to conversion rank are support players and callers (HObbit +50 places, Kyxsan, mopoz, woxic, Boombl4, electroNic), and the biggest falls are high-usage riflers (Kvem, sausol, XANTARES, decenty, FL1T). High usage with negative conversion: lucaozy, bymas, dukefissura, kl1m, Sk0R.
+- **Not met:** "AWPers top usage". AWPers average +0.02, everyone else −0.01, because f's AWP premium over an AWPer's expectation is small (above). Usage measures resources beyond what the role normally gets.
+- Player means of conversion are about −0.35 unweighted, but +0.08 weighted by rounds. Players with fewer rounds tend to be below average.
+
+**Pending (GPU machine).** `cs2wp duels` adds the support columns to `duels.parquet`, `flash_gift` to `duel-sides.parquet` (each supported duel's P(win) minus the model's P(win) with the opponent not blind, summed), and a smoke-support experiment. The experiment cross-fits the duel model with `x_smoke`/`y_smoke` and keeps them only if the 90% CI on the per-duel log-loss gain, from resampling events, excludes zero. Its result goes in [Expected duels](#expected-duels) either way.
+
 ## Public interface (`/war`)
 
 The React application renders the live WAA leaderboards at route `/war`:
 - Reads `public/data/war/players.json` with TanStack Query.
 - Displays 90% bootstrap intervals next to every map win and rate value, accompanied by a visual interval bar (`aria-hidden="true"`).
 - Role filters (`All`, `AWP`, `Entry`, `Rifle`, `IGL`) and credit toggles: `WPA (team-neutral)` (`wpa_opp`, the default since 2026-11-06 because it's the most reliable version and has no team-strength bias in either direction; see [WAR validation](#war-validation)), `WPA (raw)` (`?credit=wpa`), `Neutral man-count` and `Neutral event`.
-- Expandable player details showing CT map callouts, duel counts, kills above expected, and backlinks to Liquipedia player/team pages.
+- Usage and Conversion columns (per 100 rounds, 90% intervals) that follow the credit toggle.
+- Expandable player details showing CT map callouts, duel counts, kills above expected, context / usage / conversion with their sum, the resource detail (equipment share by buy type, AWP rounds, drops received and given, duels with team flash or smoke, deaths traded), and backlinks to Liquipedia player/team pages.
 - Provisional banner noting the 2026 dry-run credit source pending Phase 5 demo backfill completion.
 - Full CC-BY-SA Liquipedia and HLTV demo attribution.

@@ -27,6 +27,8 @@ GROUPS = {"weapons": ["x_gun", "y_gun"], "peeker vs holder": ["x_speed", "y_spee
           "HP and armor": ["x_hp", "y_hp", "x_armor", "y_armor", "x_helmet", "y_helmet"], "distance": ["distance"],
           "side": ["x_ct"]}
 FEATURES = [c for cols in GROUPS.values() for c in cols]
+# Experiment: kept out of FEATURES unless it beats noise (docs/war.md).
+SMOKE = ["x_smoke", "y_smoke"]
 MONOTONE = {"x_hp": 1, "y_hp": -1, "x_blind": -1, "y_blind": 1}
 PARAMS = dict(max_depth=4, learning_rate=0.05, subsample=0.8, colsample_bytree=0.8, min_child_weight=50)
 MAX_TREES = 2000
@@ -51,11 +53,56 @@ def _player_state(ticks: pl.DataFrame) -> pl.DataFrame:
                     pl.col("health").alias("hp"), "armor", pl.col("has_helmet").alias("helmet"), "speed"))
 
 
-def duels(kills: pl.DataFrame, damages: pl.DataFrame, flashes: pl.DataFrame, ticks: pl.DataFrame) -> pl.DataFrame:
+def _support(k: pl.DataFrame, flashes: pl.DataFrame, smokes: pl.DataFrame | None) -> pl.DataFrame:
+    """Per kill: who was blind during the duel, and which player a teammate's flash or smoke helped.
+
+    `<p>_flash_support`: the opponent was blinded by a flash from the player's teammate (not the player).
+    `<p>_self_flash`: by the player's own flash. `<p>_smoke_support`: a teammate's smoke popped in the
+    SMOKE_WINDOW before the duel, within SMOKE_RADIUS of either player.
+    """
+    from .resources import SMOKE_RADIUS, SMOKE_WINDOW
+
+    blind = flashes.filter(pl.col("victim_steamid") > 0).select(
+        "round_num", pl.col("victim_steamid").alias("blinded"), pl.col("tick").alias("bfrom"),
+        (pl.col("tick") + pl.col("duration") * TICK_RATE).alias("bto"), pl.col("attacker_steamid").alias("thrower"),
+        pl.col("attacker_side").replace_strict(SIDE_CODE, default=None).alias("thrower_side"))
+    hits = pl.concat([
+        k.select("kill", "round_num", "start", "tick", "attacker", "victim", "attacker_side", pl.col(who).alias("blinded"))
+        for who in ("attacker", "victim")
+    ]).join(blind, on=["round_num", "blinded"]).filter((pl.col("bfrom") <= pl.col("tick")) & (pl.col("bto") >= pl.col("start")))
+    on_v, on_a = pl.col("blinded") == pl.col("victim"), pl.col("blinded") == pl.col("attacker")
+    a_team = pl.col("thrower_side") == pl.col("attacker_side")
+    v_team = pl.col("thrower_side").is_not_null() & ~a_team
+    out = hits.group_by("kill").agg(
+        on_a.any().alias("a_blind"), on_v.any().alias("v_blind"),
+        (on_v & a_team & (pl.col("thrower") != pl.col("attacker"))).any().alias("a_flash_support"),
+        (on_v & (pl.col("thrower") == pl.col("attacker"))).any().alias("a_self_flash"),
+        (on_a & v_team & (pl.col("thrower") != pl.col("victim"))).any().alias("v_flash_support"),
+        (on_a & (pl.col("thrower") == pl.col("victim"))).any().alias("v_self_flash"),
+    )
+    if smokes is not None and smokes.height:
+        near = lambda p: ((pl.col(f"{p}x") - pl.col("x")) ** 2 + (pl.col(f"{p}y") - pl.col("y")) ** 2) <= SMOKE_RADIUS ** 2
+        s = (k.select("kill", "round_num", "start", "attacker", "victim", "attacker_side", "_ax", "_ay", "_vx", "_vy")
+             .join(smokes.select("round_num", "thrower", "side", "pop_tick", "x", "y"), on="round_num")
+             .filter(pl.col("pop_tick").is_between(pl.col("start") - SMOKE_WINDOW, pl.col("start")) & (near("_a") | near("_v"))))
+        smoke = s.group_by("kill").agg(
+            ((pl.col("side") == pl.col("attacker_side")) & (pl.col("thrower") != pl.col("attacker"))).any()
+            .alias("a_smoke_support"),
+            ((pl.col("side") != pl.col("attacker_side")) & (pl.col("thrower") != pl.col("victim"))).any()
+            .alias("v_smoke_support"))
+        out = out.join(smoke, on="kill", how="full", coalesce=True)
+    return out
+
+
+SUPPORT = ["blind", "flash_support", "self_flash", "smoke_support"]
+
+
+def duels(kills: pl.DataFrame, damages: pl.DataFrame, flashes: pl.DataFrame, ticks: pl.DataFrame,
+          smokes: pl.DataFrame | None = None) -> pl.DataFrame:
     """One row per gun kill between opponents, with each player's state just before the duel started.
 
-    Columns: round_num, tick, start, attacker, victim, attacker_side, kill_gun, distance, and a_/v_ copies of PLAYER
-    for the attacker and the victim.
+    Columns: round_num, tick, start, attacker, victim, attacker_side, kill_gun, distance, a_/v_ copies of PLAYER
+    for the attacker and the victim, and a_/v_ flash and smoke support (see `_support`).
     """
     k = (kills.filter(pl.col("attacker_steamid").is_not_null() & (pl.col("attacker_steamid") > 0)
                       & pl.col("attacker_side").is_in(list(SIDE_CODE)) & pl.col("victim_side").is_in(list(SIDE_CODE))
@@ -66,7 +113,9 @@ def duels(kills: pl.DataFrame, damages: pl.DataFrame, flashes: pl.DataFrame, tic
                  pl.col("attacker_side").replace_strict(SIDE_CODE).alias("attacker_side"),
                  _guns("weapon").alias("kill_gun"),
                  ((pl.col("attacker_x") - pl.col("victim_x")) ** 2 + (pl.col("attacker_y") - pl.col("victim_y")) ** 2
-                  + (pl.col("attacker_z") - pl.col("victim_z")) ** 2).sqrt().alias("distance")))
+                  + (pl.col("attacker_z") - pl.col("victim_z")) ** 2).sqrt().alias("distance"),
+                 pl.col("attacker_x").alias("_ax"), pl.col("attacker_y").alias("_ay"),
+                 pl.col("victim_x").alias("_vx"), pl.col("victim_y").alias("_vy")))
     d = damages.select("round_num", pl.col("tick").alias("dtick"), pl.col("attacker_steamid").alias("p"),
                        pl.col("victim_steamid").alias("q"))
     pair = pl.concat([k.join(d, left_on=["round_num", "attacker", "victim"], right_on=["round_num", "p", "q"]),
@@ -77,30 +126,31 @@ def duels(kills: pl.DataFrame, damages: pl.DataFrame, flashes: pl.DataFrame, tic
          .with_columns((pl.col("start") - 1).alias("_at")).sort("_at"))
 
     state = _player_state(ticks)
-    blind = flashes.filter(pl.col("victim_steamid") > 0).select(
-        "round_num", pl.col("victim_steamid").alias("steamid"), pl.col("tick").alias("bfrom"),
-        (pl.col("tick") + pl.col("duration") * TICK_RATE).alias("bto"))
+    support = _support(k, flashes, smokes)
+    k = k.join(support, on="kill", how="left").with_columns(
+        pl.col(p + c).fill_null(False) if p + c in support.columns else pl.lit(False).alias(p + c)
+        for p in ("a_", "v_") for c in SUPPORT).sort("_at")
     for who, p in (("attacker", "a_"), ("victim", "v_")):
         k = (k.join_asof(state, left_on="_at", right_on="tick", by_left=who, by_right="steamid", strategy="backward",
                          tolerance=PEEK_WINDOW, suffix="_s")
              .with_columns(pl.when(pl.col("tick_round") == pl.col("round_num")).then(pl.col(c)).alias(c)
                            for c in ("gun", "hp", "armor", "helmet", "speed"))
-             .drop("tick_s", "tick_round"))
-        flashed = (k.select("kill", "round_num", who, "start", "tick")
-                   .join(blind, left_on=["round_num", who], right_on=["round_num", "steamid"])
-                   .filter((pl.col("bfrom") <= pl.col("tick")) & (pl.col("bto") >= pl.col("start")))
-                   .select("kill").unique().with_columns(pl.lit(True).alias("blind")))
-        k = (k.join(flashed, on="kill", how="left").with_columns(pl.col("blind").fill_null(False))
-             .rename({c: p + c for c in PLAYER}))
-    return k.drop("_at").sort("kill")
+             .drop("tick_s", "tick_round")
+             .rename({c: p + c for c in PLAYER if c != "blind"}))
+    order = ["kill", "round_num", "tick", "attacker", "victim", "attacker_side", "kill_gun", "distance", "start",
+             *(p + c for p in ("a_", "v_") for c in PLAYER), *(p + c for p in ("a_", "v_") for c in SUPPORT if c != "blind")]
+    return k.select(order).sort("kill")
 
 
 def oriented(d: pl.DataFrame) -> pl.DataFrame:
     """Each duel twice: x = attacker (win 1), then x = victim (win 0), so the model never sees which side won."""
+    smoke = "a_smoke_support" in d.columns
+
     def side(x: str, y: str, win: int) -> pl.DataFrame:
         x_ct = (pl.col("attacker_side") == CT) if x == "a_" else (pl.col("attacker_side") != CT)
+        extra = [pl.col(x + "smoke_support").alias("x_smoke"), pl.col(y + "smoke_support").alias("y_smoke")] if smoke else []
         return d.select(*[pl.col(x + c).alias("x_" + c) for c in PLAYER], *[pl.col(y + c).alias("y_" + c) for c in PLAYER],
-                        "distance", x_ct.alias("x_ct"), pl.lit(win).alias("win"))
+                        "distance", x_ct.alias("x_ct"), *extra, pl.lit(win).alias("win"))
     return pl.concat([side("a_", "v_", 1), side("v_", "a_", 0)])
 
 
@@ -169,9 +219,39 @@ def _scores(p: np.ndarray) -> dict:
     return {**ev.scores(y, pp), **{k: ev.calibration(y, pp, CAL_BINS)[k] for k in ("max_gap", "slope")}}
 
 
-def _worth(d: pl.DataFrame, cols: list[str], n: int, device: str = "auto") -> list[str]:
+def flash_gifts(model, d: pl.DataFrame, cols: list[str], p: np.ndarray) -> pl.DataFrame:
+    """Per (key, steamid, side): duels won with a teammate's flash on the opponent minus those the model expects
+    without it, i.e. the summed rise in the player's P(win) from teammates' flashes."""
+    p_a = predict(model, d.with_columns(pl.lit(False).alias("v_blind")), cols)
+    p_v = predict(model, d.with_columns(pl.lit(False).alias("a_blind")), cols)
+    side = pl.col("attacker_side").cast(pl.Int32)
+    per = pl.concat([
+        d.select("key", pl.col("attacker").alias("steamid"), side.alias("side"),
+                 pl.when(pl.col("a_flash_support")).then(pl.Series(p - p_a)).otherwise(0.0).alias("flash_gift")),
+        d.select("key", pl.col("victim").alias("steamid"), pl.when(side == CT).then(T).otherwise(CT).cast(pl.Int32)
+                 .alias("side"), pl.when(pl.col("v_flash_support")).then(pl.Series(p_v - p)).otherwise(0.0)
+                 .alias("flash_gift")),
+    ])
+    return per.group_by("key", "steamid", "side").agg(pl.col("flash_gift").sum())
+
+
+def smoke_experiment(d: pl.DataFrame, p: np.ndarray, folds: np.ndarray, device: str) -> tuple[tuple, list[str]]:
+    """Cross-fits FEATURES + SMOKE and compares per-duel log loss with FEATURES alone, resampling whole events."""
+    from .resources import SMOKE_RADIUS, SMOKE_WINDOW
+    from .warcheck import paired_ci
+
+    ps, ns = cross_fit(d, FEATURES + SMOKE, folds, device=device)
+    gain = np.log(np.clip(ps, 1e-9, 1)) - np.log(np.clip(p, 1e-9, 1))
+    lo, hi = paired_ci(gain, d["event"].to_numpy())
+    lines = [f"- Smoke support (experiment): a teammate's smoke within {SMOKE_RADIUS} units of either player, popped "
+             f"in the {SMOKE_WINDOW // TICK_RATE} s before the duel, on {d['a_smoke_support'].mean():.1%} of winners' "
+             f"and {d['v_smoke_support'].mean():.1%} of losers' sides. Log-loss gain per duel {gain.mean():+.5f} "
+             f"(90% CI {lo:+.5f}, {hi:+.5f}, resampling events): **{'keep' if lo > 0 else 'reject'}**."]
+    return ("All + smoke support (experiment)", _scores(ps), ns), lines
+
+
+def _worth(d: pl.DataFrame, cols: list[str], model) -> list[str]:
     """Average change in the attacker's P(win) when one input is switched for every duel, from a model fit on all."""
-    model = fit(oriented(d), cols, n, device=device)
     still = {"a_speed": 0.0}
     cases = [("Holding (speed 0) instead of moving at 250", {"a_speed": 0.0}, {"a_speed": 250.0}),
              ("Not flashed instead of flashed", {"a_blind": False}, {"a_blind": True}),
@@ -254,6 +334,8 @@ def build(ablations: bool = False, device: str = "auto") -> int:
     folds = event_folds(d)
     p, n = cross_fit(d, FEATURES, folds, device=resolved)
     rows = [("All", _scores(p), n)]
+    smoke_row, smoke_lines = smoke_experiment(d, p, folds, resolved)
+    rows.append(smoke_row)
     variants = [("Weapons only", GROUPS["weapons"])]
     if ablations:
         variants += [(f"All but {g}", [c for c in FEATURES if c not in cols]) for g, cols in GROUPS.items()]
@@ -261,16 +343,23 @@ def build(ablations: bool = False, device: str = "auto") -> int:
         pv, nv = cross_fit(d, cols, folds, device=resolved)
         rows.append((label, _scores(pv), nv))
 
+    model = fit(oriented(d), FEATURES, n, device=resolved)
     d = d.with_columns(pl.Series("p", p), pl.Series("fold", folds))
     rr = pl.read_parquet(ROLE_ROUNDS).select("key", "date", "map", "event", "lp_team", "lp_player", "steamid", "side",
                                             "role", "rounds")
     sides = (rr.join(side_totals(d, p), on=["key", "steamid", "side"], how="left")
-             .with_columns(pl.col("duels").fill_null(0), pl.col("wins", "expected").fill_null(0.0))
+             .join(flash_gifts(model, d, FEATURES, p), on=["key", "steamid", "side"], how="left")
+             .with_columns(pl.col("duels").fill_null(0), pl.col("wins", "expected", "flash_gift").fill_null(0.0))
              .with_columns((pl.col("wins") - pl.col("expected")).alias("kills_above")))
     DUELS.parent.mkdir(parents=True, exist_ok=True)
     d.write_parquet(DUELS)
     sides.write_parquet(DUEL_SIDES)
-    lines = report(d, rows, _worth(d, FEATURES, n, device=resolved), sides)
+    gifted = sides["flash_gift"].sum()
+    support_lines = [*smoke_lines,
+                     f"- Teammates' flashes on the opponent: {d['a_flash_support'].mean():.1%} of winners' and "
+                     f"{d['v_flash_support'].mean():.1%} of losers' sides; worth {gifted:,.0f} kills over all duels "
+                     f"({100 * gifted / sides['rounds'].sum():.2f} per 100 player-rounds)."]
+    lines = report(d, rows, _worth(d, FEATURES, model), sides) + support_lines
     WAR_REPORTS.mkdir(parents=True, exist_ok=True)
     (WAR_REPORTS / "duels.md").write_text("\n".join(lines) + "\n")
     print("\n".join(lines))
@@ -278,14 +367,20 @@ def build(ablations: bool = False, device: str = "auto") -> int:
     return 0
 
 
+KILL_COLUMNS = ["tick", "round_num", "attacker_steamid", "attacker_side", "victim_steamid", "victim_side", "weapon",
+                "attacker_x", "attacker_y", "attacker_z", "victim_x", "victim_y", "victim_z"]
+FLASH_COLUMNS = ["tick", "round_num", "victim_steamid", "duration", "attacker_steamid", "attacker_side"]
+TICK_COLUMNS = ["tick", "round_num", "steamid", "side", "x", "y", "health", "armor", "has_helmet", "velocity",
+                "active_weapon", "smoke_grenades"]
+
+
 def map_duels(ref: MapRef) -> pl.DataFrame:
-    kills = ref.table("kills", ["tick", "round_num", "attacker_steamid", "attacker_side", "victim_steamid",
-                                "victim_side", "weapon", "attacker_x", "attacker_y", "attacker_z", "victim_x",
-                                "victim_y", "victim_z"])
+    kills = ref.table("kills", KILL_COLUMNS)
     damages = ref.table("damages", ["tick", "round_num", "attacker_steamid", "victim_steamid"])
-    flashes = ref.table("flashes", ["tick", "round_num", "victim_steamid", "duration"])
-    ticks = ref.table("ticks", ["tick", "round_num", "steamid", "health", "armor", "has_helmet", "velocity",
-                                "active_weapon"])
-    return duels(kills, damages, flashes, ticks).with_columns(
+    from .resources import thrown_smokes
+
+    flashes = ref.table("flashes", FLASH_COLUMNS)
+    ticks = ref.table("ticks", TICK_COLUMNS)
+    return duels(kills, damages, flashes, ticks, thrown_smokes(ref, ticks)).with_columns(
         pl.lit(ref.key).alias("key"), pl.lit(ref.date).alias("date"), pl.lit(ref.map).alias("map"),
         pl.lit(ref.lp_pagename).alias("event"))

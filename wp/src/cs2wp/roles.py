@@ -16,7 +16,8 @@ MIN_STABILITY_MAPS = 5
 
 
 def player_rounds(rounds: pl.DataFrame, ticks: pl.DataFrame) -> pl.DataFrame:
-    """One row per (steamid, round_num): side, whether the team bought, whether the player held the AWP.
+    """One row per (steamid, round_num): side, equipment and team equipment by the end of buy time, whether the
+    team bought, whether the player held the AWP.
 
     The AWP counts only in hand while alive during buy time after freeze end. Freeze time is left out because
     AWP drops put it in two players' hands, and later pickups from dead teammates don't make an AWPer.
@@ -34,7 +35,7 @@ def player_rounds(rounds: pl.DataFrame, ticks: pl.DataFrame) -> pl.DataFrame:
     team = per_player.group_by("round_num", "side").agg(pl.col("equip").sum().alias("team_equip"))
     return (per_player.join(team, on=["round_num", "side"])
             .with_columns((pl.col("team_equip") >= BUY_TEAM_EQUIP).alias("buy"))
-            .select("steamid", "round_num", "side", "buy", "awp"))
+            .select("steamid", "round_num", "side", "equip", "team_equip", "buy", "awp"))
 
 
 def openings(rounds: pl.DataFrame, kills: pl.DataFrame) -> pl.DataFrame:

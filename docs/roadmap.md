@@ -84,6 +84,12 @@ See [win-probability.md](win-probability.md).
 - [ ] **Full states rebuild.** The PGL Masters plants moved the site centroids, so `euclid_*` is stale on older maps. The production model doesn't use it; `cs2wp states` refreshes it in about 3 hours.
 - [ ] **Site page** for player WPA, with the Liquipedia credit, then send the link to Liquipedia for verification.
 
+## Player WAR
+
+- [ ] **Run `cs2wp duels` on the GPU machine** for the smoke-support experiment and flash-gift values, then log the result in `docs/war.md`.
+- [ ] **Fold support into the split?** Teammate flashes and smokes before a player's duels are reported beside usage. Decide once the duel model gives their size.
+- [ ] **Replacement pool for usage.** `cs2wp usage` compares with the average tier-1 player at each role. Refit the expectations on replacement-level players once tier-2 demos exist.
+
 ## Open items
 
 - Confirm invite cutoffs against Valve's rulebook. `src/vrs/inviteCutoffs.ts`' 16/8/8 doesn't match what Cologne 2026 invited.

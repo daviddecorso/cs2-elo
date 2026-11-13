@@ -22,7 +22,7 @@ import {
 import { LiquipediaCredit } from "../components/LiquipediaCredit.tsx";
 import { TeamLogo } from "../components/TeamLogo.tsx";
 import { liquipediaUrl } from "../utils/liquipedia.ts";
-import type { CreditVersion, PlayerWarData, WarEstimate, WarPlayer } from "../war/types.ts";
+import type { CreditVersion, PlayerWarData, WarEstimate, WarPlayer, WarRate } from "../war/types.ts";
 
 const ROLE_FILTERS = ["all", "awp", "entry", "rifle"] as const;
 type RoleFilter = (typeof ROLE_FILTERS)[number];
@@ -43,9 +43,21 @@ const CREDIT_OPTIONS: Array<{ value: CreditVersion; label: string }> = [
     { value: "nwpa_event", label: "Neutral (event)" },
 ];
 
-const SORT_KEYS = ["rank", "player", "team", "role", "rounds", "waa", "per100", "killsAbove", "rating3"] as const;
+const SORT_KEYS = [
+    "rank",
+    "player",
+    "team",
+    "role",
+    "rounds",
+    "waa",
+    "per100",
+    "usage",
+    "conversion",
+    "killsAbove",
+    "rating3",
+] as const;
 type SortKey = (typeof SORT_KEYS)[number];
-const COLUMN_COUNT = 9;
+const COLUMN_COUNT = 11;
 
 const fetchPlayerWar = async (): Promise<PlayerWarData> => {
     const res = await fetch(`${import.meta.env.BASE_URL}data/war/players.json`);
@@ -125,16 +137,60 @@ const WaaValue = ({
     );
 };
 
-const RateValue = ({ est }: { est: WarEstimate }) => (
-    <Tooltip content={`Round-wins above average per 100 rounds\n90% round bootstrap: (${signed(est.per100P5)}, ${signed(est.per100P95)})`}>
-        <span className="tabular-nums">
-            <span className="text-fg">{signed(est.per100)}</span>
-            <span className="text-muted text-[10px] ml-1">{`(${signed(est.per100P5)}, ${signed(est.per100P95)})`}</span>
-        </span>
-    </Tooltip>
-);
+const RateValue = ({ est, label = "Round-wins above average per 100 rounds" }: { est?: WarRate; label?: string }) =>
+    est ? (
+        <Tooltip content={`${label}\n90% round bootstrap: (${signed(est.per100P5)}, ${signed(est.per100P95)})`}>
+            <span className="tabular-nums">
+                <span className="text-fg">{signed(est.per100)}</span>
+                <span className="text-muted text-[10px] ml-1">{`(${signed(est.per100P5)}, ${signed(est.per100P95)})`}</span>
+            </span>
+        </Tooltip>
+    ) : (
+        <span className="text-muted">–</span>
+    );
 
-const PlayerDetails = ({ player, metric }: { player: WarPlayer; metric: "WAA" | "WAR" }) => (
+const USAGE_LABEL = "Usage: round-wins per 100 rounds expected from the player's own resources, beyond the team's economy";
+const CONVERSION_LABEL = "Conversion: round-wins per 100 rounds above what the same resources earn on average";
+
+const pct = (n: number | null) => (n === null ? "–" : `${Math.round(n * 100)}%`);
+
+const ResourceRows = ({ player, est }: { player: WarPlayer; est: WarEstimate }) => {
+    const r = player.resources;
+    if (!r || !est.usage || !est.conversion || est.context === undefined) return null;
+    return (
+        <>
+            <div className="pt-1">
+                <Label>Resources (per 100 rds)</Label>
+            </div>
+            <DataRow label="Context / usage / conversion">
+                {signed(est.context)} / {signed(est.usage.per100)} / {signed(est.conversion.per100)}
+            </DataRow>
+            <DataRow label="Sum (= rate)">{signed(est.context + est.usage.per100 + est.conversion.per100)}</DataRow>
+            <DataRow label="Equip share eco / force / full">
+                {pct(r.equipShare.eco)} / {pct(r.equipShare.force)} / {pct(r.equipShare.full)}
+            </DataRow>
+            <DataRow label="AWP rounds">{pct(r.awpRate)}</DataRow>
+            <DataRow label="Drops received / given">
+                {r.dropsReceivedPer100?.toFixed(1) ?? "–"} / {r.dropsGivenPer100?.toFixed(1) ?? "–"}
+            </DataRow>
+            <DataRow label="Duels with team flash / smoke">
+                {pct(r.flashSupportShare)} / {pct(r.smokeSupportShare)}
+            </DataRow>
+            <DataRow label="Deaths traded">{pct(r.tradedDeathRate)}</DataRow>
+            {r.flashGift !== null && <DataRow label="Kills from team flashes">{signed(r.flashGift, 1)}</DataRow>}
+        </>
+    );
+};
+
+const PlayerDetails = ({
+    player,
+    metric,
+    credit,
+}: {
+    player: WarPlayer;
+    metric: "WAA" | "WAR";
+    credit: CreditVersion;
+}) => (
     <Inset className="grid grid-cols-1 md:grid-cols-3 gap-x-6 gap-y-4 text-xs font-mono">
         <div className="space-y-1.5">
             <Label>Identity &amp; roles</Label>
@@ -208,6 +264,7 @@ const PlayerDetails = ({ player, metric }: { player: WarPlayer; metric: "WAA" | 
             <DataRow label="K/D / ADR">
                 {player.kd !== null ? player.kd.toFixed(2) : "–"} / {player.adr !== null ? player.adr.toFixed(1) : "–"}
             </DataRow>
+            <ResourceRows player={player} est={player.metrics[credit]} />
         </dl>
     </Inset>
 );
@@ -234,6 +291,13 @@ const sortRankedRows = (
                 return columnOrder(a.player.metrics[credit].waa, b.player.metrics[credit].waa, opts(false));
             case "per100":
                 return columnOrder(a.player.metrics[credit].per100, b.player.metrics[credit].per100, opts(false));
+            case "usage":
+            case "conversion":
+                return columnOrder(
+                    a.player.metrics[credit][sort.key]?.per100 ?? null,
+                    b.player.metrics[credit][sort.key]?.per100 ?? null,
+                    opts(false)
+                );
             case "killsAbove":
                 return columnOrder(a.player.killsAbove, b.player.killsAbove, opts(false));
             case "rating3":
@@ -287,6 +351,12 @@ const LeaderboardTable = ({
             </SortHeader>
             <SortHeader sortKey="per100" sort={sort} onSort={onSort} className="hidden lg:table-cell">
                 / 100 rds
+            </SortHeader>
+            <SortHeader sortKey="usage" sort={sort} onSort={onSort} className="hidden lg:table-cell">
+                Usage
+            </SortHeader>
+            <SortHeader sortKey="conversion" sort={sort} onSort={onSort} className="hidden lg:table-cell">
+                Conversion
             </SortHeader>
             <SortHeader sortKey="killsAbove" sort={sort} onSort={onSort} className="hidden xl:table-cell">
                 Kills +/−
@@ -365,6 +435,12 @@ const LeaderboardTable = ({
                                 <Td align="right" className="hidden lg:table-cell">
                                     <RateValue est={est} />
                                 </Td>
+                                <Td align="right" className="hidden lg:table-cell">
+                                    <RateValue est={est.usage} label={USAGE_LABEL} />
+                                </Td>
+                                <Td align="right" className="hidden lg:table-cell">
+                                    <RateValue est={est.conversion} label={CONVERSION_LABEL} />
+                                </Td>
                                 <Td align="right" className="hidden xl:table-cell text-muted tabular-nums">
                                     {signed(p.killsAbove, 1)}
                                 </Td>
@@ -375,7 +451,7 @@ const LeaderboardTable = ({
                             {isExpanded && (
                                 <tr>
                                     <td colSpan={COLUMN_COUNT} className="px-3 pt-1 pb-3">
-                                        <PlayerDetails player={p} metric={metric} />
+                                        <PlayerDetails player={p} metric={metric} credit={credit} />
                                     </td>
                                 </tr>
                             )}
@@ -526,7 +602,7 @@ export const PlayerWar = () => {
 
             <Section
                 title={`Players / map wins above role average (90% round-bootstrap intervals)`}
-                subtitle={`Each map assigns T roles (AWPer, Entry, Rifler) and CT callout positions and subtracts empirically shrunk role baselines.`}
+                subtitle={`Each map assigns T roles (AWPer, Entry, Rifler) and CT callout positions and subtracts empirically shrunk role baselines. Per 100 rounds, the rate splits into team context + usage (what the player's own equipment, utility and drops are worth) + conversion (what they made of them), so receiving resources is never penalized.`}
                 actions={
                     <span className="text-xs font-mono text-muted">
                         {query.trim() || role !== "all"

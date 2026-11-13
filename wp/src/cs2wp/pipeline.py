@@ -288,16 +288,19 @@ def _fit_xgb(
     early_stopping_rounds: int | None = None,
     monotone_constraints: tuple[int, ...] | None = None,
     device: str = "cpu",
+    objective: str = "binary:logistic",
 ):
-    from xgboost import XGBClassifier
+    from xgboost import XGBClassifier, XGBRegressor
 
     resolved = resolve_device(device)
+    classify = objective.startswith("binary:")
     kw = dict(
         n_estimators=n_estimators,
         tree_method="hist",
         device=resolved,
         enable_categorical=True,
-        eval_metric="logloss",
+        objective=objective,
+        eval_metric="logloss" if classify else "rmse",
         seed=0,
         n_jobs=-1,
         **params,
@@ -306,7 +309,7 @@ def _fit_xgb(
         kw["early_stopping_rounds"] = early_stopping_rounds
     if monotone_constraints is not None:
         kw["monotone_constraints"] = monotone_constraints
-    model = XGBClassifier(**kw)
+    model = (XGBClassifier if classify else XGBRegressor)(**kw)
     fit_kw = {}
     if sample_weight is not None:
         fit_kw["sample_weight"] = sample_weight

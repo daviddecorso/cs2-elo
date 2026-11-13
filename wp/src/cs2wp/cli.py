@@ -112,6 +112,12 @@ def cmd_duels(args) -> int:
     return build(args.ablations, device=args.device)
 
 
+def cmd_usage(args) -> int:
+    from .usage import build
+
+    return build(args.map, device=args.device)
+
+
 def cmd_igls(args) -> int:
     from .igls import AmbiguousIGL, UnmappedTeams, build
 
@@ -199,6 +205,10 @@ def main() -> None:
     p = sub.add_parser("duels", help="Expected duel wins from weapons, peeker vs holder, flashes, HP and distance")
     p.add_argument("--ablations", action="store_true", help="Also cross-fit the model without each input group")
     p.add_argument("--device", choices=["auto", "cpu", "cuda"], default="auto", help="XGBoost device")
+    p = sub.add_parser("usage", help="Split credit above the role baseline into team context, resource usage and "
+                       "conversion")
+    p.add_argument("--map", help="Only print this manifest key's resource rows, e.g. 2399384/m1")
+    p.add_argument("--device", choices=["auto", "cpu", "cuda"], default="cpu", help="XGBoost device")
     sub.add_parser("igls", help="Tag per-map IGLs from data/war/igls.json and cross-check local Liquipedia data")
     p = sub.add_parser("war", help="Player WAA/WAR with zero-sum IGL adjustment and round-bootstrap intervals")
     p.add_argument("--from", dest="window_from", help="Only maps on or after YYYY-MM-DD")
@@ -218,7 +228,7 @@ def main() -> None:
                 "patch-candidates": cmd_patch_candidates, "patch-report": cmd_patch_report,
                 "validate": cmd_validate, "publish": cmd_publish, "positions": cmd_positions, "roles": cmd_roles,
                 "validate-roles": cmd_validate_roles, "baselines": cmd_baselines, "duels": cmd_duels,
-                "igls": cmd_igls, "war": cmd_war, "validate-war": cmd_validate_war}
+                "usage": cmd_usage, "igls": cmd_igls, "war": cmd_war, "validate-war": cmd_validate_war}
     sys.exit(handlers[args.cmd](args))
 
 

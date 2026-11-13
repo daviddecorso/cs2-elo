@@ -13,7 +13,7 @@ from cs2demos.store import R2, Manifest
 
 from .paths import ELO_MAPS, MIRROR
 
-TABLES = ("rounds", "players", "kills", "damages", "flashes", "bomb", "ticks")
+TABLES = ("rounds", "players", "kills", "damages", "flashes", "bomb", "ticks", "grenades")
 
 
 @dataclass(frozen=True)

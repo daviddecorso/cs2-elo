@@ -22,6 +22,8 @@ from .paths import (
     ROLE_ROUNDS,
     STATES,
     T_ROLES,
+    USAGE,
+    USAGE_ROUNDS,
     WAR_REPORTS,
 )
 from .pipeline import _summed, player_rounds
@@ -67,17 +69,33 @@ def fit_igl_adjustment(rows: pl.DataFrame) -> pl.DataFrame:
     return pl.DataFrame(out, schema_overrides={"side": pl.Int32, "is_igl": pl.Boolean})
 
 
+TERMS = ("context", "usage", "conversion")
+RESOURCE_COUNTS = ("eco_rounds", "force_rounds", "full_rounds", "eco_equip_share_sum", "force_equip_share_sum",
+                   "full_equip_share_sum", "awp_rounds", "drop_received", "drop_given", "duels_all", "flash_support",
+                   "self_flash", "smoke_support", "deaths", "deaths_traded")
+
+
+def join_usage(rows: pl.DataFrame, path: Path = USAGE) -> pl.DataFrame:
+    """Adds `<v>_context`, `<v>_usage`, `<v>_conversion` per player-map-side from `cs2wp usage`, null where missing."""
+    if not path.exists():
+        return rows
+    u = pl.read_parquet(path).rename({"duels": "duels_all", "rounds": "usage_rounds"})
+    return rows.join(u.drop(*(f"{v}_trade_return" for v in VERSIONS)), on=["key", "steamid", "side"], how="left")
+
+
 def apply_igl_adjustment(rows: pl.DataFrame, adj: pl.DataFrame, replacement_rate: float = 0.0) -> pl.DataFrame:
-    """Adds `<v>_rw`: round-wins above replacement (or above average when `replacement_rate == 0.0`)."""
+    """Adds `<v>_rw`: round-wins above replacement (or above average when `replacement_rate == 0.0`).
+
+    With usage joined, also `<v>_conversion_rw`: conversion plus the same IGL and replacement terms, so
+    context + usage + conversion_rw = rw.
+    """
     adj_cols = ["side", "is_igl", *(f"{v}_igl_adj" for v in VERSIONS)]
-    return rows.join(adj.select(adj_cols), on=["side", "is_igl"], how="left").with_columns(
-        *(
-            (pl.col(f"{v}_above") + (pl.col(f"{v}_igl_adj").fill_null(0.0) - replacement_rate) * pl.col("rounds")).alias(
-                f"{v}_rw"
-            )
-            for v in VERSIONS
-        )
-    )
+    shift = lambda v: (pl.col(f"{v}_igl_adj").fill_null(0.0) - replacement_rate) * pl.col("rounds")
+    out = rows.join(adj.select(adj_cols), on=["side", "is_igl"], how="left").with_columns(
+        (pl.col(f"{v}_above") + shift(v)).alias(f"{v}_rw") for v in VERSIONS)
+    if "wpa_conversion" in out.columns:
+        out = out.with_columns((pl.col(f"{v}_conversion") + shift(v)).alias(f"{v}_conversion_rw") for v in VERSIONS)
+    return out
 
 
 def map_outcomes(refs: list[MapRef]) -> pl.DataFrame:
@@ -116,8 +134,12 @@ def load_round_values(
     refs: list[MapRef],
     adjusted_rows: pl.DataFrame,
     replacement_rate: float = 0.0,
+    usage_rounds: pl.DataFrame | None = None,
 ) -> pl.DataFrame:
-    """Per `(steamid, key, round_num)` round-wins `<v>_rw`, including zero-credit rounds."""
+    """Per `(steamid, key, round_num)` round-wins `<v>_rw`, including zero-credit rounds.
+
+    With `usage_rounds`, also `<v>_<term>_r` for the three terms; conversion carries the IGL and replacement terms.
+    """
     meta_cols = [
         "key",
         "steamid",
@@ -143,7 +165,7 @@ def load_round_values(
         )
     if not frames:
         return pl.DataFrame()
-    return (
+    out = (
         pl.concat(frames, how="vertical_relaxed")
         .join(meta, on=["key", "steamid", "side"], how="inner")
         .with_columns(
@@ -152,9 +174,17 @@ def load_round_values(
                 for v in VERSIONS
             )
         )
-        .select("steamid", "key", "round_num", *(f"{v}_rw" for v in VERSIONS))
-        .sort("steamid", "key", "round_num")
     )
+    cols = [f"{v}_rw" for v in VERSIONS]
+    if usage_rounds is not None:
+        terms = [f"{v}_{t}" for v in VERSIONS for t in TERMS]
+        out = (out.join(usage_rounds.select("key", pl.col("round_num").cast(out.schema["round_num"]), "steamid", *terms),
+                        on=["key", "round_num", "steamid"], how="left")
+               .with_columns(*(pl.col(f"{v}_{t}").alias(f"{v}_{t}_r") for v in VERSIONS for t in ("context", "usage")),
+                             *((pl.col(f"{v}_conversion") + pl.col(f"{v}_igl_adj") - replacement_rate)
+                               .alias(f"{v}_conversion_r") for v in VERSIONS)))
+        cols += [f"{v}_{t}_r" for v in VERSIONS for t in TERMS]
+    return out.select("steamid", "key", "round_num", *cols).sort("steamid", "key", "round_num")
 
 
 def bootstrap_players(
@@ -163,29 +193,31 @@ def bootstrap_players(
     r_win: float,
     resamples: int = DEFAULT_RESAMPLES,
     seed: int = 0,
+    columns: dict[str, str] | None = None,
 ) -> pl.DataFrame:
-    """90% (`p5`, `p95`) and `p50` intervals by resampling each player's played rounds with replacement."""
+    """90% (`p5`, `p95`) and `p50` intervals by resampling each player's played rounds with replacement.
+
+    `columns` maps an output prefix to a per-round column; by default each version's `<v>_rw`. Rounds where a
+    column is null count as zero.
+    """
     if round_values.is_empty() or not steamids:
         return pl.DataFrame(schema={"steamid": pl.UInt64})
+    columns = columns or {v: f"{v}_rw" for v in VERSIONS}
     sub = round_values.filter(pl.col("steamid").is_in(steamids)).sort("steamid", "key", "round_num")
-    rw_cols = [f"{v}_rw" for v in VERSIONS]
     rng = np.random.default_rng(seed)
     out = []
     for part in sub.partition_by("steamid", maintain_order=True):
         sid = int(part["steamid"][0])
-        vals = part.select(rw_cols).to_numpy()
+        vals = part.select(pl.col(list(columns.values())).fill_null(0.0)).to_numpy()
         n_r = len(vals)
         weights = rng.multinomial(n_r, np.full(n_r, 1.0 / n_r), size=resamples).astype(np.float64)
         means = (weights @ vals) / n_r
         q = np.quantile(means, [0.05, 0.50, 0.95], axis=0)
         row: dict[str, object] = {"steamid": sid}
-        for j, v in enumerate(VERSIONS):
-            row[f"{v}_waa_p5"] = float(n_r * q[0, j] / r_win)
-            row[f"{v}_waa_p50"] = float(n_r * q[1, j] / r_win)
-            row[f"{v}_waa_p95"] = float(n_r * q[2, j] / r_win)
-            row[f"{v}_per100_p5"] = float(100.0 * q[0, j])
-            row[f"{v}_per100_p50"] = float(100.0 * q[1, j])
-            row[f"{v}_per100_p95"] = float(100.0 * q[2, j])
+        for j, prefix in enumerate(columns):
+            for i, pct in enumerate(("p5", "p50", "p95")):
+                row[f"{prefix}_waa_{pct}"] = float(n_r * q[i, j] / r_win)
+                row[f"{prefix}_per100_{pct}"] = float(100.0 * q[i, j])
         out.append(row)
     return pl.DataFrame(out).with_columns(pl.col("steamid").cast(pl.UInt64))
 
@@ -291,7 +323,8 @@ def aggregate_players(
     duels = (
         duel_sides.filter(pl.col("key").is_in(keys))
         .group_by("steamid")
-        .agg(pl.col("duels").sum(), pl.col("kills_above").sum())
+        .agg(pl.col("duels").sum(), pl.col("kills_above").sum(),
+             *([pl.col("flash_gift").sum()] if "flash_gift" in duel_sides.columns else []))
     )
     box = (
         _summed(box_per_map.filter(pl.col("key").is_in(keys)).unique(subset=["key", "steamid"], maintain_order=True), ["steamid"]).select(
@@ -314,6 +347,34 @@ def aggregate_players(
         .with_columns(pl.coalesce(pl.col("name"), pl.col("lp_player"), pl.col("steamid").cast(pl.String)).alias("name"))
     )
     return players, ct_by_map
+
+
+def usage_players(adjusted_rows: pl.DataFrame, r_win: float) -> pl.DataFrame:
+    """Per player: the three terms per version (WAA and per 100 rounds) and the resource detail, over the
+    player-map-sides `cs2wp usage` covered."""
+    rows = adjusted_rows.filter(pl.col("role").is_not_null() & pl.col("wpa_usage").is_not_null())
+    term_col = lambda v, t: f"{v}_conversion_rw" if t == "conversion" else f"{v}_{t}"
+    per100 = lambda c, d="usage_rounds": pl.when(pl.col(d) > 0).then(100.0 * pl.col(c) / pl.col(d))
+    share = lambda c, d: pl.when(pl.col(d) > 0).then(pl.col(c) / pl.col(d))
+    return (
+        rows.group_by("steamid")
+        .agg(pl.col("usage_rounds").sum(), *(pl.col(term_col(v, t)).sum().alias(f"{v}_{t}_sum")
+                                            for v in VERSIONS for t in TERMS),
+             *(pl.col(c).sum() for c in RESOURCE_COUNTS))
+        .with_columns(
+            *(per100(f"{v}_{t}_sum").alias(f"{v}_{t}_per100") for v in VERSIONS for t in TERMS),
+            *((pl.col(f"{v}_{t}_sum") / r_win).alias(f"{v}_{t}_waa") for v in VERSIONS for t in TERMS),
+            *(share(f"{b}_equip_share_sum", f"{b}_rounds").alias(f"{b}_equip_share") for b in ("eco", "force", "full")),
+            share("awp_rounds", "usage_rounds").alias("awp_rate"),
+            per100("drop_received").alias("drops_received_per100"),
+            per100("drop_given").alias("drops_given_per100"),
+            share("flash_support", "duels_all").alias("flash_support_share"),
+            share("self_flash", "duels_all").alias("self_flash_share"),
+            share("smoke_support", "duels_all").alias("smoke_support_share"),
+            share("deaths_traded", "deaths").alias("traded_death_rate"),
+        )
+        .drop(*(f"{v}_{t}_sum" for v in VERSIONS for t in TERMS))
+    )
 
 
 def _corr_pair(df: pl.DataFrame, a: str, b: str) -> tuple[float | None, int]:
@@ -576,6 +637,44 @@ def report_lines(
     return lines
 
 
+def usage_lines(adjusted_rows: pl.DataFrame, players: pl.DataFrame, min_rounds: int, v: str = "wpa_opp") -> list[str]:
+    valid = adjusted_rows.filter(pl.col("role").is_not_null())
+    covered = valid.filter(pl.col(f"{v}_usage").is_not_null())
+    gap = covered.select((pl.col(f"{v}_context") + pl.col(f"{v}_usage") + pl.col(f"{v}_conversion_rw")
+                          - pl.col(f"{v}_rw")).abs().max()).item()
+    qual = players.filter((pl.col("rounds") >= min_rounds) & pl.col(f"{v}_usage_per100").is_not_null())
+    lines = ["", f"## Usage and conversion ({v}, per 100 rounds)", "",
+             f"{covered['rounds'].sum():,} of {valid['rounds'].sum():,} player-rounds have a usage split. "
+             f"Largest |context + usage + conversion − WAA| per player-map-side: {gap:.2e}. "
+             "Conversion carries the IGL adjustment.", "",
+             "| # | Player | Team | Rounds | WAA | Context | Usage (90% CI) | Conversion (90% CI) |",
+             "| --- | --- | --- | --- | --- | --- | --- | --- |"]
+    for i, r in enumerate(qual.sort(f"{v}_conversion_per100", descending=True).head(20).iter_rows(named=True), 1):
+        lines.append(
+            f"| {i} | {r['name']} | {r['lp_team'] or '–'} | {r['rounds']:,} | {r[f'{v}_per100']:+.2f} | "
+            f"{r[f'{v}_context_per100']:+.2f} | {r[f'{v}_usage_per100']:+.2f} ({r[f'{v}_usage_per100_p5']:+.2f}, "
+            f"{r[f'{v}_usage_per100_p95']:+.2f}) | {r[f'{v}_conversion_per100']:+.2f} "
+            f"({r[f'{v}_conversion_per100_p5']:+.2f}, {r[f'{v}_conversion_per100_p95']:+.2f}) |")
+    return lines
+
+
+def _resources(r: dict) -> dict | None:
+    if r.get("wpa_usage_per100") is None:
+        return None
+    num = lambda c, d=3: None if r.get(c) is None else round(float(r[c]), d)
+    return {
+        "equipShare": {b: num(f"{b}_equip_share") for b in ("eco", "force", "full")},
+        "awpRate": num("awp_rate"),
+        "dropsReceivedPer100": num("drops_received_per100", 2),
+        "dropsGivenPer100": num("drops_given_per100", 2),
+        "flashSupportShare": num("flash_support_share"),
+        "selfFlashShare": num("self_flash_share"),
+        "smokeSupportShare": num("smoke_support_share"),
+        "tradedDeathRate": num("traded_death_rate"),
+        "flashGift": num("flash_gift", 2),
+    }
+
+
 def export_public(
     players: pl.DataFrame,
     ct_by_map: dict[int, list[dict]],
@@ -627,6 +726,12 @@ def export_public(
             }
             for v in VERSIONS
         }
+        if r.get("wpa_usage_per100") is not None:
+            for v in VERSIONS:
+                metrics[v]["context"] = round(float(r[f"{v}_context_per100"]), 3)
+                for t in ("usage", "conversion"):
+                    metrics[v][t] = {k: round(float(r[f"{v}_{t}_per100{s}"]), 3)
+                                     for k, s in (("per100", ""), ("per100P5", "_p5"), ("per100P95", "_p95"))}
         records.append({
             "steamid": str(sid),
             "lpPlayer": r["lp_player"],
@@ -650,6 +755,7 @@ def export_public(
             "rating3": round(float(r["rating3"]), 3) if r.get("rating3") is not None else None,
             "swing": round(float(r["swing"]), 3) if r.get("swing") is not None else None,
             "metrics": metrics,
+            "resources": _resources(r),
         })
 
     valid = adjusted_rows.filter(pl.col("role").is_not_null())
@@ -696,9 +802,10 @@ def build(
 ) -> int:
     rr = pl.read_parquet(ROLE_ROUNDS)
     igls = pl.read_parquet(IGLS) if IGLS.exists() else assign_igls(rr, load_igl_table())
-    joined = rr.join(igls.select("key", "steamid", "is_igl"), on=["key", "steamid"], how="left").with_columns(
+    joined = join_usage(rr.join(igls.select("key", "steamid", "is_igl"), on=["key", "steamid"], how="left").with_columns(
         pl.col("is_igl").fill_null(False)
-    )
+    ))
+    has_usage = "wpa_usage" in joined.columns
     if window_from:
         joined = joined.filter(pl.col("date") >= window_from)
     if joined.is_empty():
@@ -716,8 +823,14 @@ def build(
     box_per_map = player_rounds(refs)
 
     players, ct_by_map = aggregate_players(adjusted, duel_sides, box_per_map, t_roles, ct_pos, r_win)
-    round_vals = load_round_values(refs, adjusted, replacement_rate)
-    boot = bootstrap_players(round_vals, players["steamid"].to_list(), r_win, resamples=resamples)
+    columns = {v: f"{v}_rw" for v in VERSIONS}
+    usage_rounds = None
+    if has_usage:
+        players = players.join(usage_players(adjusted, r_win), on="steamid", how="left")
+        usage_rounds = pl.read_parquet(USAGE_ROUNDS)
+        columns |= {f"{v}_{t}": f"{v}_{t}_r" for v in VERSIONS for t in TERMS}
+    round_vals = load_round_values(refs, adjusted, replacement_rate, usage_rounds)
+    boot = bootstrap_players(round_vals, players["steamid"].to_list(), r_win, resamples=resamples, columns=columns)
     players = players.join(boot, on="steamid", how="left").sort("wpa_waa", descending=True)
 
     val = validation_metrics(adjusted, duel_sides, box_per_map, players, min_rounds=min_rounds)
@@ -725,6 +838,8 @@ def build(
     PLAYER_WAR.parent.mkdir(parents=True, exist_ok=True)
     players.write_parquet(PLAYER_WAR)
     lines = report_lines(adjusted, adj, players, val, r_win, min_rounds, replacement_rate, window_from)
+    if has_usage:
+        lines += usage_lines(adjusted, players, min_rounds)
     resid = side_residuals(adjusted)
     lines += ["", "## Side residuals (WAA summed by map and side; should be ~0)", "",
               "| Map | Side | Player-rounds | WPA / 100 | Neutral (man-count) / 100 | Neutral (event) / 100 |",

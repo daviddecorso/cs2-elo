@@ -11,18 +11,25 @@ from .data import MapRef, catalog
 from .igls import assign_igls, load_table as load_igl_table
 from .paths import IGLS, ROLE_ROUNDS, WAR_REPORTS
 from .pipeline import player_rounds
-from .war import apply_igl_adjustment, fit_igl_adjustment, map_outcomes
+from .war import apply_igl_adjustment, fit_igl_adjustment, join_usage, map_outcomes
 
-METRICS = (*VERSIONS, "rating3", "kd_diff")
+# The usage split is scored on the version whose WAA `k` sets the site gate for conversion.
+TERM_VERSION = "wpa_opp"
+TERMS = ("context", "usage", "conversion")
+METRICS = (*VERSIONS, *TERMS, "rating3", "kd_diff")
 LABELS = {
     "wpa": "WAA (WPA)",
     "nwpa_mancount": "WAA (neutral man-count)",
     "nwpa_event": "WAA (neutral event)",
     "wpa_opp": "WAA (WPA, own team at avg Elo)",
+    "context": "Context (WPA, own team at avg Elo)",
+    "usage": "Usage (WPA, own team at avg Elo)",
+    "conversion": "Conversion (WPA, own team at avg Elo)",
     "rating3": "HLTV Rating 3.0",
     "kd_diff": "K−D / round",
 }
 MIN_PLAYER_ROUNDS = 300
+SITE_GATE_K_RATIO = 2
 DEFAULT_TEST_FROM = "2026-03-01"
 BOOTSTRAPS = 2000
 # Players below this many prior rounds count as uncovered in the coverage figure; shrinkage still uses what they have.
@@ -30,13 +37,25 @@ COVERED_ROUNDS = 100
 
 
 def player_maps(adjusted: pl.DataFrame, box: pl.DataFrame) -> pl.DataFrame:
-    """One row per (key, steamid): rounds and each metric's per-map numerator, so rates are `num_<m> / rounds`."""
-    war = adjusted.filter(pl.col("role").is_not_null()).group_by("key", "steamid").agg(
+    """One row per (key, steamid): rounds and each metric's per-map numerator, so rates are `num_<m> / rounds`.
+
+    A map without a usage split has null term numerators, so it drops out of those metrics only.
+    """
+    rows = adjusted.filter(pl.col("role").is_not_null())
+    term = {"context": f"{TERM_VERSION}_context", "usage": f"{TERM_VERSION}_usage",
+            "conversion": f"{TERM_VERSION}_conversion_rw"}
+    term_exprs = [
+        (pl.when(pl.col(c).is_not_null().all()).then(pl.col(c).sum()) if c in rows.columns
+         else pl.lit(None, pl.Float64)).alias(f"num_{t}")
+        for t, c in term.items()
+    ]
+    war = rows.group_by("key", "steamid").agg(
         pl.col("date").first(),
         pl.col("event").first(),
         pl.col("lp_team").first(),
         pl.col("rounds").sum(),
         *(pl.col(f"{v}_rw").sum().alias(f"num_{v}") for v in VERSIONS),
+        *term_exprs,
     )
     if box.is_empty():
         war = war.with_columns(pl.lit(None, pl.Float64).alias("num_rating3"), pl.lit(None, pl.Float64).alias("num_kd_diff"))
@@ -299,6 +318,12 @@ def report_lines(rel: dict[str, dict], pred: dict, test_from: str, min_rounds: i
         at = lambda n: "n/a" if k is None or not math.isfinite(k) else f"{n / (n + k):.2f}"
         lines.append(f"| {LABELS[m]} | {r['players']} | {f(r['half_rounds'], 0)} | {f(r['r'])} | "
                      f"{'n/a' if k is None else ('∞' if not math.isfinite(k) else f'{k:,.0f}')} | {at(1000)} | {at(3000)} |")
+    k_conv, k_waa = rel["conversion"]["k"], rel[TERM_VERSION]["k"]
+    if k_conv is not None and k_waa is not None:
+        passed = k_conv <= SITE_GATE_K_RATIO * k_waa
+        lines += ["", f"Site gate for usage and conversion: conversion `k` ≤ {SITE_GATE_K_RATIO} × WAA `k` "
+                  f"({LABELS[TERM_VERSION]}): {k_conv:,.0f} vs {SITE_GATE_K_RATIO * k_waa:,.0f}, "
+                  f"**{'pass' if passed else 'fail'}**. The sense checks in `usage.md` are the other half."]
     lines += [
         "",
         f"## Does prior lineup WAR add to Elo? (maps from {test_from})",
@@ -356,9 +381,9 @@ def team_context_lines(tc: dict, min_rounds: int) -> list[str]:
 def build(test_from: str = DEFAULT_TEST_FROM, min_rounds: int = MIN_PLAYER_ROUNDS) -> int:
     rr = pl.read_parquet(ROLE_ROUNDS)
     igls = pl.read_parquet(IGLS) if IGLS.exists() else assign_igls(rr, load_igl_table())
-    joined = rr.join(igls.select("key", "steamid", "is_igl"), on=["key", "steamid"], how="left").with_columns(
+    joined = join_usage(rr.join(igls.select("key", "steamid", "is_igl"), on=["key", "steamid"], how="left").with_columns(
         pl.col("is_igl").fill_null(False)
-    )
+    ))
     adjusted = apply_igl_adjustment(joined, fit_igl_adjustment(joined))
     refs = catalog()
     pm = player_maps(adjusted, player_rounds(refs))

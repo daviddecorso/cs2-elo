@@ -308,6 +308,17 @@ export const Methodology = () => {
                             (1,000 draws). Tier-1 WAA ships first; replacement level will shift the zero line once Tier-2
                             demos enter the archive.
                         </p>
+                        <p>
+                            Each player&apos;s rate splits exactly into three parts, so receiving resources is never
+                            penalized, only failing to use them. Context is what a player in the same role earns given
+                            both teams&apos; buys. Usage is what the player&apos;s own resources add: equipment, gun,
+                            armor, kit, utility and drops received. A drop is an equipment gain with no money spent,
+                            matched to a teammate&apos;s loss the same round. Conversion is the rest: credit above
+                            what the average Tier-1 player earns with the same resources, plus the IGL adjustment. Both
+                            expectations are gradient-boosted fits on every player-round, cross-fit so no player is
+                            compared with a model that saw their own rounds. Teammate flashes and smokes before a
+                            player&apos;s duels and traded deaths are shown alongside but stay out of the split.
+                        </p>
                     </Section>
 
                     <Section title="Elo vs. VRS">

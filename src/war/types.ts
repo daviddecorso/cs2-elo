@@ -1,12 +1,34 @@
 export type CreditVersion = "wpa_opp" | "wpa" | "nwpa_mancount" | "nwpa_event";
 
-export interface WarEstimate {
-    waa: number;
-    waaP5: number;
-    waaP95: number;
+/** Round-wins per 100 rounds with a 90% round-bootstrap interval. */
+export interface WarRate {
     per100: number;
     per100P5: number;
     per100P95: number;
+}
+
+export interface WarEstimate extends WarRate {
+    waa: number;
+    waaP5: number;
+    waaP95: number;
+    /** context + usage.per100 + conversion.per100 = per100. Absent before `cs2wp usage` has run. */
+    context?: number;
+    usage?: WarRate;
+    conversion?: WarRate;
+}
+
+/** Shares are 0–1; null when the denominator is empty (e.g. no eco rounds). */
+export interface WarResources {
+    equipShare: { eco: number | null; force: number | null; full: number | null };
+    awpRate: number | null;
+    dropsReceivedPer100: number | null;
+    dropsGivenPer100: number | null;
+    flashSupportShare: number | null;
+    selfFlashShare: number | null;
+    smokeSupportShare: number | null;
+    tradedDeathRate: number | null;
+    /** Duel wins added by teammates' flashes, from the duel model; null until `cs2wp duels` adds it. */
+    flashGift: number | null;
 }
 
 export interface WarCtMapRole {
@@ -38,6 +60,7 @@ export interface WarPlayer {
     rating3: number | null;
     swing: number | null;
     metrics: Record<CreditVersion, WarEstimate>;
+    resources?: WarResources | null;
 }
 
 export interface ValidationScore {

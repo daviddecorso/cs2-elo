@@ -24,7 +24,7 @@ Project knowledge lives in `docs/<topic>.md`, each opening with an Overview. Sta
 - `docs/demo-pipeline.md`: HLTV demos → Parquet in R2, round rebuild, validation, SteamID identity
 - `docs/win-probability.md`: round win-probability model, WPA credit rules, gate, validation (`wp/`)
 - `docs/wp-experiments.md`: every win-probability change tried, kept or rejected, with scores
-- `docs/war.md`: player WAR, CT positions, T roles, role validation, role baselines, expected duels, IGL adjustment, WAA, usage and conversion, team factor (`cs2wp positions`, `cs2wp roles`, `cs2wp validate-roles`, `cs2wp baselines`, `cs2wp duels`, `cs2wp igls`, `cs2wp usage`, `cs2wp war`, `cs2wp validate-war`, `cs2wp team-factor`)
+- `docs/war.md`: player WAR, CT positions, T roles, role validation, role baselines, expected duels, duel execution and quality, IGL adjustment, WAA, usage and conversion, team factor (`cs2wp positions`, `cs2wp roles`, `cs2wp validate-roles`, `cs2wp baselines`, `cs2wp duels`, `cs2wp duel-stats`, `cs2wp igls`, `cs2wp usage`, `cs2wp war`, `cs2wp validate-war`, `cs2wp team-factor`)
 - `docs/roadmap.md`: next steps
 
 Record decisions in the relevant doc, not in `plans/` (gitignored). Log every Elo experiment in `docs/elo-experiments.md`, including the ones that fail.

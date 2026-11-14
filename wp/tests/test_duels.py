@@ -2,7 +2,9 @@ import numpy as np
 import polars as pl
 import pytest
 
-from cs2wp.duels import DUEL_WINDOW, FEATURES, duels, event_folds, fit, oriented, predict, side_totals
+from cs2wp.duels import (BASE, DUEL_WINDOW, FEATURES, FLASH, POSITION, duels, event_folds, fit, oriented, predict,
+                         side_totals)
+from cs2wp.duels import opening as duels_opening
 from cs2wp.states import CT, T
 
 A, V = 1, 2
@@ -87,6 +89,17 @@ def test_side_totals_count_each_duel_for_both_players():
     out = {(r["steamid"], r["side"]): r for r in side_totals(d, np.array([0.7, 0.4])).iter_rows(named=True)}
     assert out[(A, T)]["duels"] == 2 and out[(A, T)]["wins"] == 1 and out[(A, T)]["expected"] == pytest.approx(1.3)
     assert out[(V, CT)]["expected"] == pytest.approx(0.7)
+
+
+def test_opening_is_the_first_duel_of_each_round():
+    d = pl.DataFrame({"key": ["k", "k", "k", "k", "j"], "round_num": [1, 1, 2, 2, 1], "kill": [0, 1, 2, 3, 0],
+                      "start": [500, 400, 900, 900, 10], "tick": [520, 450, 950, 930, 20]})
+    assert duels_opening(d).to_list() == [False, True, False, True, True]
+
+
+def test_nested_baselines_add_one_group_at_a_time():
+    assert set(BASE) < set(POSITION) < set(FLASH) < set(FEATURES)
+    assert set(FEATURES) - set(FLASH) == {"x_hp", "y_hp"}
 
 
 def test_event_folds_keep_events_whole():

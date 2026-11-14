@@ -250,7 +250,65 @@ An AWP is only an edge when it's held still, and the edge grows with range. Movi
 - **Smoke support (experiment): reject.** A teammate's smoke within 800 units of either player, popped in the 5 s before the duel, appears on 7.4% of winners' and 7.6% of losers' sides. Adding `x_smoke`/`y_smoke` gives a per-duel log-loss gain of +0.00003 (90% CI −0.00001, +0.00008, resampling whole events), so smoke support stays out of `FEATURES`.
 - **Teammates' flashes on the opponent:** present on 6.5% of winners' and 5.6% of losers' sides; worth 4,504 kills over all duels (0.67 per 100 player-rounds), stored per player-map-side as `flash_gift` (the summed rise in `P(win)` from the opponent being blind from a teammate's flash).
 
-`duels.parquet` has one row per duel with every input, support flags, `p` (attacker win probability) and `fold`. `duel-sides.parquet` has one row per player-map-side from `role-rounds.parquet`, with `duels`, `wins`, `expected`, `kills_above`, and `flash_gift`.
+`duels.parquet` has one row per duel with every input, support flags, `p` (attacker win probability), the nested baselines `p_base`, `p_pos` and `p_flash` (next section), `opening` (the round's first duel by start tick) and `fold`. `duel-sides.parquet` has one row per player-map-side from `role-rounds.parquet`, with `duels`, `wins`, `expected`, `kills_above`, and `flash_gift`.
+
+## Duel execution and quality
+
+`wp/src/cs2wp/duelstats.py`. Phase 7, order 1 ([spec.md](spec.md)). Splits each duel into how well it was fought (execution) and how good it was to take (quality), for players and for teams.
+
+```
+cd wp
+uv run cs2wp duels                     # GPU machine: adds p_base, p_pos, p_flash and opening to duels.parquet
+uv run cs2wp team-factor               # stints, rounds and Elo per team-map
+uv run cs2wp duel-stats [--min-duels 300] [--min-rounds 300] [--resamples 1000] [--publish]
+```
+
+`duel-stats` fits no models, so it runs on CPU in about 5 minutes at 1,000 resamples. It writes `data/war/duel-team-maps.parquet` (per map and team, every stat), `duel-teams.parquet` (ridge estimate per stint and per team, per 100 duels and per 100 rounds, with p5 / p95), `duel-players.parquet` (player execution with split-half reliability `n / (n + k)`, and the opponent-adjusted estimate) and `reports/duel-stats.md`.
+
+**Definitions.** Every duel is scored from both players' views, and every value is antisymmetric, so each stat is zero-sum inside a map and fits the team factor's `τ_A − τ_B` ridge.
+
+| Per duel, from player x's view | Formula | Meaning |
+| --- | --- | --- |
+| Execution | `win − p` | Won more than the situation predicted |
+| Quality | `p − p_base`, centered per map × side | Situation was better than the buy and side predict |
+| Positioning part | `p_pos − p_base` | Peek vs hold, distance |
+| Flash part | `p_flash − p_pos` | Opponent blind, self not blind |
+| HP part | `p − p_flash` | Fighting damaged opponents (trades, crossfires, utility damage) |
+
+The baselines are cross-fit on the same event folds as `p`, each adding one input group: `p_base` has weapons, armor, helmet and side; `p_pos` adds speed and distance; `p_flash` adds blindness; `p` adds HP. The parts sum to quality exactly. The order is fixed, so the split is descriptive: flashes are credited after position, HP after both.
+
+Raw mean `p` would be mostly economy: a team that wins rounds has better guns, and so a higher `p`, which rediscovers Elo. Quality takes the buy out by subtracting `p_base`, and centering per map × side takes out map layout (`p_base` doesn't know the map). Centering keeps the antisymmetry, because every duel has one CT and one T view on the same map.
+
+**Opening variants** use only each round's first duel. Earlier execution in the round can't affect them, so they're the clean read on whether quality is tactics or a by-product of winning the previous fight (a won first duel leaves the next opponent damaged or outnumbered).
+
+**Limitation.** Duels are gun kills only, so damage traded without a death isn't counted.
+
+**Team stats.** Per map, a team's stat is the sum over its players' duel views (the other team's is the negative), with the map's duel count as the weight (opening duels for the opening variants). Units are IGL stints, the same ones `cs2wp team-factor` assigns, and plain `lp_team`. Every map with both teams' stints and Elo counts; the team factor's full-WAR-coverage filter doesn't apply, because these stats need no player priors. Split-half, ridge estimates with 90% intervals, and the walk-forward check reuse `teamfactor.split_half_team_factor`, `fit_team_factor` and `forward_team_factor` with `weight_col="duels"`. The minimum sample is 300 rounds' worth of duels.
+
+**Gates.**
+
+- Player execution: alternating-series split-half r, 90% interval from resampling series, lower bound above 0. Players need 300+ duels.
+- Quality, stability: stint split-half r lower bound above 0.
+- Quality, independence: quality's stint split-half r after regressing out same-half execution keeps its lower bound above 0. The report also gives the cross-half correlation (quality in one half against execution in the other, which shares no maps). If full quality fails and opening-only passes, opening-only becomes the published definition.
+- A quality part whose split-half interval includes zero is dropped from the headline number (`quality_headline` in `duel-teams.parquet`), and the report says which.
+- Beyond Elo, which decides only the label: leave-one-event-out log loss of the map result from `Elo logit` against `Elo logit + walk-forward stat difference`, with an event-resampled 90% interval. A stat that passes split-half but not this ships as descriptive.
+
+`--publish` writes `public/data/war/team-duels.json` with only the stats that pass, each with `descriptive: true|false`, and refuses if none pass.
+
+**Results.** Pending the GPU rebuild of `duels.parquet` with the nested baselines; quality and its parts can't be scored until then. Player execution depends only on `p`, so it was scored on the current `duels.parquet` (435,996 duels):
+
+| Metric (290 players, 300+ duels) | Half (median) | Split-half r | 90% CI | k |
+| --- | --- | --- | --- | --- |
+| Execution per duel | 994 duels | 0.452 | (0.369, 0.529) | 1,207 duels |
+| Execution per round | 777 rounds | 0.451 | (0.369, 0.530) | 946 rounds |
+| Duel win rate | 994 duels | 0.579 | (0.505, 0.646) | 723 duels |
+| Expected win rate | 994 duels | 0.760 | (0.714, 0.800) | 314 duels |
+
+**Player execution passes.** It is less reliable than raw win rate because raw win rate also carries the player's situations (role, weapon, peeking), which are stable. Execution is the skill left after those come out.
+
+**Opponent adjustment (experiment).** A sparse ridge over duels, `win − p = θ_x − θ_y`, with alpha set to the raw per-duel `k`, fit per alternating-series half. The comparator is the same ridge without opponent terms (`sum / (duels + alpha)`), not the raw rate: shrinkage alone raises split-half r by pulling small samples toward zero, and that isn't what the experiment tests.
+
+Result (2026-11-13, alpha 1,207 duels, 290 players, 200 series resamples): split-half r 0.452 for the raw rate, 0.709 for the ridge without opponents, 0.748 with them. The gain over the ridge without opponents is +0.038 (90% CI +0.025, +0.051): **keep**. `duel-players.parquet` carries it as `exec_adj_per100`.
 
 ## IGL tags
 

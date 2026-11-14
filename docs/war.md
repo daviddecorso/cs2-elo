@@ -263,7 +263,7 @@ uv run cs2wp team-factor               # stints, rounds and Elo per team-map
 uv run cs2wp duel-stats [--min-duels 300] [--min-rounds 300] [--resamples 1000] [--publish]
 ```
 
-`duel-stats` fits no models, so it runs on CPU in about 5 minutes at 1,000 resamples. It writes `data/war/duel-team-maps.parquet` (per map and team, every stat), `duel-teams.parquet` (ridge estimate per stint and per team, per 100 duels and per 100 rounds, with p5 / p95), `duel-players.parquet` (player execution with split-half reliability `n / (n + k)`, and the opponent-adjusted estimate) and `reports/duel-stats.md`.
+`duel-stats` fits no models, so it runs on CPU in about 10 minutes at 1,000 resamples. It writes `data/war/duel-team-maps.parquet` (per map and team, every stat), `duel-teams.parquet` (ridge estimate per stint and per team, per 100 duels and per 100 rounds, with p5 / p95), `duel-players.parquet` (player execution with split-half reliability `n / (n + k)`, and the opponent-adjusted estimate) and `reports/duel-stats.md`.
 
 **Definitions.** Every duel is scored from both players' views, and every value is antisymmetric, so each stat is zero-sum inside a map and fits the team factor's `τ_A − τ_B` ridge.
 
@@ -295,20 +295,42 @@ Raw mean `p` would be mostly economy: a team that wins rounds has better guns, a
 
 `--publish` writes `public/data/war/team-duels.json` with only the stats that pass, each with `descriptive: true|false`, and refuses if none pass.
 
-**Results.** Pending the GPU rebuild of `duels.parquet` with the nested baselines; quality and its parts can't be scored until then. Player execution depends only on `p`, so it was scored on the current `duels.parquet` (435,996 duels):
+**Results (2026-11-13).** 437,356 duels on 3,123 maps; 3,111 maps have both teams' stints and Elo. The nested baselines order as they should, with cross-fit log loss `p_base` 0.6432 > `p_pos` 0.6274 > `p_flash` 0.6252 > `p` 0.6050 (unchanged).
 
 | Metric (290 players, 300+ duels) | Half (median) | Split-half r | 90% CI | k |
 | --- | --- | --- | --- | --- |
 | Execution per duel | 994 duels | 0.452 | (0.369, 0.529) | 1,207 duels |
-| Execution per round | 777 rounds | 0.451 | (0.369, 0.530) | 946 rounds |
+| Execution per round | 777 rounds | 0.451 | (0.368, 0.531) | 945 rounds |
 | Duel win rate | 994 duels | 0.579 | (0.505, 0.646) | 723 duels |
-| Expected win rate | 994 duels | 0.760 | (0.714, 0.800) | 314 duels |
+| Expected win rate | 994 duels | 0.761 | (0.715, 0.801) | 312 duels |
+
+Team stats by IGL stint (62 stints with 300+ rounds; forward gain is walk-forward weighted MSE gain as a % of predicting zero; Elo gain is the log-loss change from adding the stat to Elo):
+
+| Stat | Split-half r | 90% CI | k (maps) | Forward gain % | r with Elo | Elo + stat gain (90% CI) |
+| --- | --- | --- | --- | --- | --- | --- |
+| Execution | 0.490 | (0.328, 0.621) | 38 | +5.10 | 0.86 | +0.0001 (−0.0010, +0.0012) |
+| Quality | 0.550 | (0.388, 0.678) | 29 | +4.99 | 0.59 | −0.0003 (−0.0008, +0.0001) |
+| Positioning | 0.438 | (0.225, 0.604) | 46 | +1.64 | 0.39 | −0.0006 (−0.0010, −0.0002) |
+| Flashes | 0.347 | (0.168, 0.505) | 68 | +3.78 | 0.21 | −0.0003 (−0.0006, −0.0000) |
+| HP | 0.570 | (0.383, 0.703) | 27 | +2.97 | 0.61 | −0.0001 (−0.0006, +0.0003) |
+| Execution (opening) | 0.210 | (0.003, 0.397) | 136 | +1.49 | 0.60 | +0.0002 (−0.0007, +0.0011) |
+| Quality (opening) | 0.099 | (−0.122, 0.313) | 331 | +0.56 | 0.45 | −0.0005 (−0.0008, −0.0002) |
+
+By plain `lp_team` (46 teams) every split-half r is higher (execution 0.609, quality 0.685) and the Elo test reads the same.
+
+Independence of quality from execution (stints, all duels): same-half r 0.504, cross-half r 0.293 (0.134, 0.427), and quality's split-half r after regressing out same-half execution 0.519 (0.370, 0.648). Opening-only: residualised r 0.058 (−0.162, 0.271). Shares of quality's stint variance: HP 0.56, positioning 0.33, flashes 0.11 (opening: 0.38 / 0.45 / 0.18).
+
+- **Quality over all duels passes stability and independence**, so it is the published definition, with all three parts in the headline.
+- **Opening-duel quality fails both**: one duel per round is too little sample at the stint level (`k` 331 maps).
+- **No team stat adds to Elo**, so every published stat is descriptive. Execution is mostly Elo (r 0.86), and positioning and flashes slightly worsen Elo's log loss. Quality and its parts describe how a team plays, not how much it wins beyond its rating.
+
+`team-duels.json` publishes execution, quality, positioning, flashes and HP for the 62 stints, shown as the Teams table on `/war`.
 
 **Player execution passes.** It is less reliable than raw win rate because raw win rate also carries the player's situations (role, weapon, peeking), which are stable. Execution is the skill left after those come out.
 
 **Opponent adjustment (experiment).** A sparse ridge over duels, `win − p = θ_x − θ_y`, with alpha set to the raw per-duel `k`, fit per alternating-series half. The comparator is the same ridge without opponent terms (`sum / (duels + alpha)`), not the raw rate: shrinkage alone raises split-half r by pulling small samples toward zero, and that isn't what the experiment tests.
 
-Result (2026-11-13, alpha 1,207 duels, 290 players, 200 series resamples): split-half r 0.452 for the raw rate, 0.709 for the ridge without opponents, 0.748 with them. The gain over the ridge without opponents is +0.038 (90% CI +0.025, +0.051): **keep**. `duel-players.parquet` carries it as `exec_adj_per100`.
+Result (2026-11-13, alpha 1,207 duels, 290 players, 200 series resamples): split-half r 0.452 for the raw rate, 0.710 for the ridge without opponents, 0.748 with them. The gain over the ridge without opponents is +0.038 (90% CI +0.025, +0.052): **keep**. `duel-players.parquet` carries it as `exec_adj_per100`.
 
 ## IGL tags
 

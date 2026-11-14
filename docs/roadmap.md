@@ -99,8 +99,8 @@ See [win-probability.md](win-probability.md).
 See [war.md](war.md#duel-execution-and-quality).
 
 - [x] **Duel execution and quality** (`cs2wp duel-stats`): nested `p_base` / `p_pos` / `p_flash` cross-fits in `cs2wp duels`, player and team split-half, independence and beyond-Elo gates.
-- [ ] **Run `cs2wp duels`, `cs2wp team-factor` and `cs2wp duel-stats` on the GPU machine**, check that log loss orders `p_base` > `p_pos` > `p_flash` > `p` with `p` still 0.6050, and log the team gates in `docs/war.md`.
-- [ ] **Teams table on `/war`** from `team-duels.json` (stint, duels, execution, quality and its parts, `IntervalBar`, Liquipedia credit and backlinks) if any team stat passes. Promote player execution to a sortable column, using the opponent-adjusted `exec_adj_per100` (kept: +0.038 split-half r, 90% CI +0.025 to +0.051).
+- [x] **Team gates and Teams table on `/war`**: quality over all duels passes stability and independence, opening-only fails; no team stat adds to Elo, so all are descriptive ([war.md](war.md#duel-execution-and-quality)).
+- [ ] **Player execution column on `/war`**, using the opponent-adjusted `exec_adj_per100` (kept: +0.038 split-half r, 90% CI +0.025 to +0.052).
 - [ ] **Luck-adjusted Elo** and **round conversion over duel expectation**, both on these outputs.
 
 ## Open items

@@ -5,7 +5,7 @@ import { renderToString } from "react-dom/server";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { PlayerWar } from "./PlayerWar.tsx";
-import type { PlayerWarData } from "../war/types.ts";
+import type { PlayerWarData, TeamDuelsData } from "../war/types.ts";
 
 const warData: PlayerWarData = {
     generatedAt: "2026-11-05T23:00:00Z",
@@ -295,12 +295,72 @@ describe("PlayerWar Page", () => {
         expect(ascHtml.indexOf("apEX")).toBeLessThan(ascHtml.indexOf("noRating"));
     });
 
+    it("renders the team duel table with only published stats, sorted by execution, filtered by the search", () => {
+        const rate = (per100: number) => ({
+            per100,
+            p5: per100 - 0.3,
+            p95: per100 + 0.3,
+            per100_rounds: per100 * 6,
+            per100_rounds_p5: 0,
+            per100_rounds_p95: 0,
+        });
+        const meta = (label: string) => ({
+            label,
+            weight: "duels" as const,
+            split_half_r: 0.5,
+            split_half_r_ci: [0.3, 0.6] as [number, number],
+            k: 4000,
+            descriptive: true,
+        });
+        const teamDuels: TeamDuelsData = {
+            generated_at: "2026-11-13T00:00:00Z",
+            min_rounds: 300,
+            quality_definition: "all duels",
+            quality_parts: ["q_pos"],
+            stats: { exec: meta("Execution"), quality: meta("Quality"), q_pos: meta("Quality: positioning") },
+            source: warData.source,
+            teams: [
+                { stint_id: "a", label: "FURIA (FalleN)", lp_team: "FURIA", igl_player: "FalleN", maps: 363, rounds: 7857, duels: 50111, exec: rate(1.4), quality: rate(0.36), q_pos: rate(0.12) },
+                { stint_id: "b", label: "Team Spirit (Chopper)", lp_team: "Team Spirit", igl_player: "Chopper", maps: 140, rounds: 3000, duels: 20430, exec: rate(2.32), quality: rate(0.1), q_pos: rate(0.05) },
+            ],
+        };
+        const renderWith = (url: string) => {
+            const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+            queryClient.setQueryData(["war", "players"], warData);
+            queryClient.setQueryData(["war", "team-duels"], teamDuels);
+            return renderToString(
+                <QueryClientProvider client={queryClient}>
+                    <MemoryRouter initialEntries={[url]}>
+                        <Routes>
+                            <Route path="/war" element={<PlayerWar />} />
+                        </Routes>
+                    </MemoryRouter>
+                </QueryClientProvider>
+            );
+        };
+        const html = renderWith("/war");
+        const table = html.slice(html.indexOf("Teams / duel execution"));
+        expect(table).toContain("Positioning");
+        expect(table).not.toContain("Flashes");
+        expect(table).toContain("+2.32");
+        expect(table).toContain("(FalleN)");
+        expect(table).toContain("none improves an Elo prediction");
+        expect(table.indexOf("Team Spirit")).toBeLessThan(table.indexOf("FURIA"));
+
+        const searched = renderWith("/war?q=fallen");
+        expect(searched).toContain("1 of 2 stints");
+    });
+
     it("renders live generated public/data/war/players.json without errors", () => {
         const filePath = path.resolve(__dirname, "../../public/data/war/players.json");
         if (!fs.existsSync(filePath)) return;
         const liveData = JSON.parse(fs.readFileSync(filePath, "utf-8")) as PlayerWarData;
         const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
         queryClient.setQueryData(["war", "players"], liveData);
+        const teamPath = path.resolve(__dirname, "../../public/data/war/team-duels.json");
+        if (fs.existsSync(teamPath)) {
+            queryClient.setQueryData(["war", "team-duels"], JSON.parse(fs.readFileSync(teamPath, "utf-8")));
+        }
         const html = renderToString(
             <QueryClientProvider client={queryClient}>
                 <MemoryRouter initialEntries={["/war"]}>

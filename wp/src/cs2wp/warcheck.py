@@ -72,10 +72,14 @@ def player_maps(adjusted: pl.DataFrame, box: pl.DataFrame) -> pl.DataFrame:
     return war.with_columns(pl.col("key").str.split("/").list.first().alias("series")).sort("date", "key", "steamid")
 
 
-def _paired_halves(rows: pl.DataFrame, unit: list[str], col: str, min_half_rounds: float = 0) -> dict:
-    """Correlation of per-unit rates between `half` 0 and 1, and `k` = half rounds × (1 − r) / r."""
+def _paired_halves(rows: pl.DataFrame, unit: list[str], col: str, min_half_rounds: float = 0, weight: str = "rounds") -> dict:
+    """Correlation of per-unit rates `col / weight` between `half` 0 and 1, and `k` = half weight × (1 − r) / r.
+
+    The returned `half_rounds` and `k` are in units of `weight`.
+    """
     rows = rows.filter(pl.col(col).is_not_null())
-    rates = rows.group_by(*unit, "half").agg((pl.col(col).sum() / pl.col("rounds").sum()).alias("rate"), pl.col("rounds").sum())
+    rates = rows.group_by(*unit, "half").agg((pl.col(col).sum() / pl.col(weight).sum()).alias("rate"),
+                                             pl.col(weight).sum().alias("rounds"))
     rates = rates.filter(pl.col("rounds") >= min_half_rounds)
     paired = rates.filter(pl.col("half") == 0).join(rates.filter(pl.col("half") == 1), on=unit, suffix="_b")
     if paired.height < 10:

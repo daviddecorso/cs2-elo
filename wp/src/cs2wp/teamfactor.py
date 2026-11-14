@@ -286,16 +286,20 @@ def split_half_team_factor(
     resamples: int = DEFAULT_RESAMPLES,
     seed: int = 0,
     half_alpha: float = 1.0,
+    weight_col: str = "rounds",
 ) -> dict:
-    """Split-half reliability and `k` (rounds and maps) across alternating series for `unit` (`stint` or `team`)."""
+    """Split-half reliability and `k` (maps, and `weight_col` units as `k_rounds`) across alternating series for `unit`.
+
+    The target is `resid_col / weight_col` per map, weighted by `weight_col`; `min_rounds` is in `weight_col` units too.
+    """
     col_a, col_b = _unit_cols(unit)
     sub = maps_df.filter(pl.col("all_covered")) if "all_covered" in maps_df.columns else maps_df
     if sub.is_empty():
         return {"r": None, "r_ci": (None, None), "k_rounds": None, "k_maps": None, "units": 0, "half_rounds": None}
 
     long_df = pl.concat([
-        sub.select("key", "series", "date", pl.col(col_a).alias("unit"), "rounds"),
-        sub.select("key", "series", "date", pl.col(col_b).alias("unit"), "rounds"),
+        sub.select("key", "series", "date", pl.col(col_a).alias("unit"), pl.col(weight_col).alias("rounds")),
+        sub.select("key", "series", "date", pl.col(col_b).alias("unit"), pl.col(weight_col).alias("rounds")),
     ])
     totals = long_df.group_by("unit").agg(pl.col("rounds").sum())
     elig_units = sorted(totals.filter(pl.col("rounds") >= min_rounds)["unit"].to_list())
@@ -310,7 +314,7 @@ def split_half_team_factor(
     ha = np.array([2 * uidx[r[col_a]] + half_lookup[(r["key"], r[col_a])] for r in sub.iter_rows(named=True)], dtype=np.int64)
     hb = np.array([2 * uidx[r[col_b]] + half_lookup[(r["key"], r[col_b])] for r in sub.iter_rows(named=True)], dtype=np.int64)
     X_half = _pair_matrix(ha, hb, 2 * len(all_units))
-    w = sub["rounds"].to_numpy().astype(np.float64)
+    w = sub[weight_col].to_numpy().astype(np.float64)
     y = sub[resid_col].to_numpy().astype(np.float64) / w
 
     coef = Ridge(alpha=half_alpha, fit_intercept=False).fit(X_half, y, sample_weight=w).coef_
@@ -409,8 +413,12 @@ def fit_team_factor(
     r_win: float = 9.0,
     resamples: int = DEFAULT_RESAMPLES,
     seed: int = 0,
+    weight_col: str = "rounds",
 ) -> pl.DataFrame:
-    """Ridge team factor `tau` on `residual = tau_A - tau_B` with series-bootstrap 90% intervals."""
+    """Ridge team factor `tau` on `resid_col / weight_col = tau_A - tau_B` with series-bootstrap 90% intervals.
+
+    `tau` is per unit of `weight_col`; the `tau_waa` columns assume that unit is rounds.
+    """
     col_a, col_b = _unit_cols(unit)
     sub = maps_df.filter(pl.col("all_covered")) if "all_covered" in maps_df.columns else maps_df
     meta = _unit_meta(sub, unit, resid_col)
@@ -421,7 +429,7 @@ def fit_team_factor(
     ca = np.array([uidx[u] for u in sub[col_a].to_list()], dtype=np.int64)
     cb = np.array([uidx[u] for u in sub[col_b].to_list()], dtype=np.int64)
     X = _pair_matrix(ca, cb, len(units))
-    w = sub["rounds"].to_numpy().astype(np.float64)
+    w = sub[weight_col].to_numpy().astype(np.float64)
     y = sub[resid_col].to_numpy().astype(np.float64) / w
 
     if alpha is None or not math.isfinite(alpha):
@@ -494,8 +502,12 @@ def forward_team_factor(
     min_prior_maps: int = MIN_PRIOR_MAPS,
     resamples: int = DEFAULT_RESAMPLES,
     seed: int = 0,
+    weight_col: str = "rounds",
 ) -> dict:
-    """Walk-forward test: `prior`-mode `tau` fit strictly before event starts predicts that event's residuals."""
+    """Walk-forward test: `prior`-mode `tau` fit strictly before event starts predicts that event's residuals.
+
+    Also returns `pred` (per map, in `date, key` order; 0 where not evaluated) and the `evaluated` mask.
+    """
     col_a, col_b = _unit_cols(unit)
     sub = (prior_maps_df.filter(pl.col("all_covered")) if "all_covered" in prior_maps_df.columns else prior_maps_df).sort("date", "key")
     if sub.height < min_prior_maps + 5:
@@ -506,7 +518,7 @@ def forward_team_factor(
     ca = np.array([uidx[u] for u in sub[col_a].to_list()], dtype=np.int64)
     cb = np.array([uidx[u] for u in sub[col_b].to_list()], dtype=np.int64)
     X = _pair_matrix(ca, cb, len(units))
-    w = sub["rounds"].to_numpy().astype(np.float64)
+    w = sub[weight_col].to_numpy().astype(np.float64)
     y = sub[resid_col].to_numpy().astype(np.float64) / w
     dates = sub["date"].to_numpy()
     events = sub["event"].to_numpy()
@@ -536,7 +548,8 @@ def forward_team_factor(
     mse_pred = float(np.average((ye - pe) ** 2, weights=we))
     gain_num = we * (ye**2 - (ye - pe) ** 2)
     ci = _series_weighted_ci(gain_num, we, series[eval_mask], resamples=resamples, seed=seed)
-    return {"maps": int(eval_mask.sum()), "mse_zero": mse_zero, "mse_pred": mse_pred, "gain": mse_zero - mse_pred, "gain_ci": ci}
+    return {"maps": int(eval_mask.sum()), "mse_zero": mse_zero, "mse_pred": mse_pred, "gain": mse_zero - mse_pred, "gain_ci": ci,
+            "pred": pred, "evaluated": eval_mask}
 
 
 def sanity_check_elo(

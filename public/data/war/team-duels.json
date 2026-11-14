@@ -1,0 +1,3174 @@
+{
+ "generated_at": "2026-11-14T02:01:05+00:00",
+ "min_rounds": 300,
+ "quality_definition": "all duels",
+ "quality_parts": [
+  "q_pos",
+  "q_flash",
+  "q_hp"
+ ],
+ "stats": {
+  "exec": {
+   "label": "Execution",
+   "weight": "duels",
+   "split_half_r": 0.48969277389192734,
+   "split_half_r_ci": [
+    0.32829199492156413,
+    0.6205066991081978
+   ],
+   "k": 5265.714650086241,
+   "descriptive": true
+  },
+  "quality": {
+   "label": "Quality",
+   "weight": "duels",
+   "split_half_r": 0.5502976756510254,
+   "split_half_r_ci": [
+    0.38789315403599817,
+    0.6775927828512412
+   ],
+   "k": 4129.303003591806,
+   "descriptive": true
+  },
+  "q_pos": {
+   "label": "Quality: positioning",
+   "weight": "duels",
+   "split_half_r": 0.4379110865338189,
+   "split_half_r_ci": [
+    0.22511977168369474,
+    0.6041782189073953
+   ],
+   "k": 6485.872057329765,
+   "descriptive": true
+  },
+  "q_flash": {
+   "label": "Quality: flashes",
+   "weight": "duels",
+   "split_half_r": 0.34742824697818786,
+   "split_half_r_ci": [
+    0.16820288136313122,
+    0.5053576580892468
+   ],
+   "k": 9491.010292626655,
+   "descriptive": true
+  },
+  "q_hp": {
+   "label": "Quality: HP",
+   "weight": "duels",
+   "split_half_r": 0.5702316190086845,
+   "split_half_r_ci": [
+    0.38294171651394476,
+    0.7026057020562932
+   ],
+   "k": 3808.3114944140693,
+   "descriptive": true
+  }
+ },
+ "source": {
+  "demos": "HLTV.org match demos, parsed with awpy",
+  "attribution": "Events, rosters and player pages from Liquipedia (CC-BY-SA 3.0)",
+  "liquipedia": "https://liquipedia.net/counterstrike/"
+ },
+ "teams": [
+  {
+   "stint_id": "FURIA#0:FalleN",
+   "label": "FURIA (FalleN)",
+   "lp_team": "FURIA",
+   "liquipedia_url": "https://liquipedia.net/counterstrike/FURIA",
+   "igl_player": "FalleN",
+   "maps": 363,
+   "rounds": 7857,
+   "duels": 50111,
+   "exec": {
+    "per100": 1.396,
+    "p5": 1.029,
+    "p95": 1.712,
+    "per100_rounds": 8.903,
+    "per100_rounds_p5": 6.565,
+    "per100_rounds_p95": 10.917
+   },
+   "quality": {
+    "per100": 0.359,
+    "p5": 0.245,
+    "p95": 0.472,
+    "per100_rounds": 2.292,
+    "per100_rounds_p5": 1.56,
+    "per100_rounds_p95": 3.009
+   },
+   "q_pos": {
+    "per100": 0.119,
+    "p5": 0.059,
+    "p95": 0.177,
+    "per100_rounds": 0.757,
+    "per100_rounds_p5": 0.374,
+    "per100_rounds_p95": 1.132
+   },
+   "q_flash": {
+    "per100": 0.067,
+    "p5": 0.042,
+    "p95": 0.09,
+    "per100_rounds": 0.424,
+    "per100_rounds_p5": 0.27,
+    "per100_rounds_p95": 0.574
+   },
+   "q_hp": {
+    "per100": 0.154,
+    "p5": 0.061,
+    "p95": 0.239,
+    "per100_rounds": 0.983,
+    "per100_rounds_p5": 0.39,
+    "per100_rounds_p95": 1.527
+   }
+  },
+  {
+   "stint_id": "Team Vitality#0:ApEX",
+   "label": "Team Vitality (ApEX)",
+   "lp_team": "Team Vitality",
+   "liquipedia_url": "https://liquipedia.net/counterstrike/Team_Vitality",
+   "igl_player": "ApEX",
+   "maps": 341,
+   "rounds": 7273,
+   "duels": 47133,
+   "exec": {
+    "per100": 2.165,
+    "p5": 1.772,
+    "p95": 2.527,
+    "per100_rounds": 14.031,
+    "per100_rounds_p5": 11.486,
+    "per100_rounds_p95": 16.376
+   },
+   "quality": {
+    "per100": 0.604,
+    "p5": 0.475,
+    "p95": 0.732,
+    "per100_rounds": 3.917,
+    "per100_rounds_p5": 3.076,
+    "per100_rounds_p95": 4.745
+   },
+   "q_pos": {
+    "per100": 0.043,
+    "p5": -0.021,
+    "p95": 0.102,
+    "per100_rounds": 0.28,
+    "per100_rounds_p5": -0.136,
+    "per100_rounds_p95": 0.664
+   },
+   "q_flash": {
+    "per100": 0.12,
+    "p5": 0.093,
+    "p95": 0.143,
+    "per100_rounds": 0.775,
+    "per100_rounds_p5": 0.605,
+    "per100_rounds_p95": 0.924
+   },
+   "q_hp": {
+    "per100": 0.421,
+    "p5": 0.33,
+    "p95": 0.515,
+    "per100_rounds": 2.727,
+    "per100_rounds_p5": 2.141,
+    "per100_rounds_p95": 3.336
+   }
+  },
+  {
+   "stint_id": "The MongolZ#0:BLitz",
+   "label": "The MongolZ (BLitz)",
+   "lp_team": "The MongolZ",
+   "liquipedia_url": "https://liquipedia.net/counterstrike/The_MongolZ",
+   "igl_player": "BLitz",
+   "maps": 281,
+   "rounds": 6242,
+   "duels": 40810,
+   "exec": {
+    "per100": -0.017,
+    "p5": -0.372,
+    "p95": 0.333,
+    "per100_rounds": -0.111,
+    "per100_rounds_p5": -2.432,
+    "per100_rounds_p95": 2.176
+   },
+   "quality": {
+    "per100": -0.026,
+    "p5": -0.163,
+    "p95": 0.093,
+    "per100_rounds": -0.173,
+    "per100_rounds_p5": -1.065,
+    "per100_rounds_p95": 0.611
+   },
+   "q_pos": {
+    "per100": -0.023,
+    "p5": -0.101,
+    "p95": 0.047,
+    "per100_rounds": -0.15,
+    "per100_rounds_p5": -0.661,
+    "per100_rounds_p95": 0.304
+   },
+   "q_flash": {
+    "per100": -0.011,
+    "p5": -0.031,
+    "p95": 0.009,
+    "per100_rounds": -0.069,
+    "per100_rounds_p5": -0.205,
+    "per100_rounds_p95": 0.059
+   },
+   "q_hp": {
+    "per100": 0.0,
+    "p5": -0.11,
+    "p95": 0.099,
+    "per100_rounds": 0.001,
+    "per100_rounds_p5": -0.721,
+    "per100_rounds_p95": 0.645
+   }
+  },
+  {
+   "stint_id": "Natus Vincere#0:Aleksib",
+   "label": "Natus Vincere (Aleksib)",
+   "lp_team": "Natus Vincere",
+   "liquipedia_url": "https://liquipedia.net/counterstrike/Natus_Vincere",
+   "igl_player": "Aleksib",
+   "maps": 263,
+   "rounds": 5691,
+   "duels": 36693,
+   "exec": {
+    "per100": 1.195,
+    "p5": 0.826,
+    "p95": 1.55,
+    "per100_rounds": 7.705,
+    "per100_rounds_p5": 5.323,
+    "per100_rounds_p95": 9.994
+   },
+   "quality": {
+    "per100": 0.295,
+    "p5": 0.165,
+    "p95": 0.423,
+    "per100_rounds": 1.901,
+    "per100_rounds_p5": 1.061,
+    "per100_rounds_p95": 2.727
+   },
+   "q_pos": {
+    "per100": 0.023,
+    "p5": -0.045,
+    "p95": 0.091,
+    "per100_rounds": 0.149,
+    "per100_rounds_p5": -0.288,
+    "per100_rounds_p95": 0.59
+   },
+   "q_flash": {
+    "per100": 0.029,
+    "p5": 0.002,
+    "p95": 0.054,
+    "per100_rounds": 0.19,
+    "per100_rounds_p5": 0.011,
+    "per100_rounds_p95": 0.351
+   },
+   "q_hp": {
+    "per100": 0.23,
+    "p5": 0.121,
+    "p95": 0.33,
+    "per100_rounds": 1.485,
+    "per100_rounds_p5": 0.779,
+    "per100_rounds_p95": 2.125
+   }
+  },
+  {
+   "stint_id": "Team Falcons#0:Kyxsan",
+   "label": "Team Falcons (Kyxsan)",
+   "lp_team": "Team Falcons",
+   "liquipedia_url": "https://liquipedia.net/counterstrike/Team_Falcons",
+   "igl_player": "Kyxsan",
+   "maps": 228,
+   "rounds": 5033,
+   "duels": 32450,
+   "exec": {
+    "per100": 1.358,
+    "p5": 0.957,
+    "p95": 1.746,
+    "per100_rounds": 8.754,
+    "per100_rounds_p5": 6.168,
+    "per100_rounds_p95": 11.254
+   },
+   "quality": {
+    "per100": 0.261,
+    "p5": 0.145,
+    "p95": 0.364,
+    "per100_rounds": 1.681,
+    "per100_rounds_p5": 0.935,
+    "per100_rounds_p95": 2.344
+   },
+   "q_pos": {
+    "per100": 0.047,
+    "p5": -0.019,
+    "p95": 0.11,
+    "per100_rounds": 0.304,
+    "per100_rounds_p5": -0.123,
+    "per100_rounds_p95": 0.709
+   },
+   "q_flash": {
+    "per100": 0.03,
+    "p5": 0.004,
+    "p95": 0.056,
+    "per100_rounds": 0.191,
+    "per100_rounds_p5": 0.028,
+    "per100_rounds_p95": 0.36
+   },
+   "q_hp": {
+    "per100": 0.169,
+    "p5": 0.073,
+    "p95": 0.254,
+    "per100_rounds": 1.092,
+    "per100_rounds_p5": 0.471,
+    "per100_rounds_p95": 1.637
+   }
+  },
+  {
+   "stint_id": "MOUZ#0:Brollan",
+   "label": "MOUZ (Brollan, ....2026-04-30)",
+   "lp_team": "MOUZ",
+   "liquipedia_url": "https://liquipedia.net/counterstrike/MOUZ",
+   "igl_player": "Brollan",
+   "maps": 210,
+   "rounds": 4636,
+   "duels": 29554,
+   "exec": {
+    "per100": 1.093,
+    "p5": 0.66,
+    "p95": 1.503,
+    "per100_rounds": 6.966,
+    "per100_rounds_p5": 4.209,
+    "per100_rounds_p95": 9.58
+   },
+   "quality": {
+    "per100": 0.699,
+    "p5": 0.545,
+    "p95": 0.845,
+    "per100_rounds": 4.458,
+    "per100_rounds_p5": 3.472,
+    "per100_rounds_p95": 5.387
+   },
+   "q_pos": {
+    "per100": 0.113,
+    "p5": 0.048,
+    "p95": 0.18,
+    "per100_rounds": 0.722,
+    "per100_rounds_p5": 0.304,
+    "per100_rounds_p95": 1.148
+   },
+   "q_flash": {
+    "per100": 0.041,
+    "p5": 0.015,
+    "p95": 0.069,
+    "per100_rounds": 0.261,
+    "per100_rounds_p5": 0.096,
+    "per100_rounds_p95": 0.439
+   },
+   "q_hp": {
+    "per100": 0.528,
+    "p5": 0.415,
+    "p95": 0.633,
+    "per100_rounds": 3.363,
+    "per100_rounds_p5": 2.647,
+    "per100_rounds_p95": 4.037
+   }
+  },
+  {
+   "stint_id": "G2 Esports#1:HuNter-",
+   "label": "G2 Esports (HuNter-)",
+   "lp_team": "G2 Esports",
+   "liquipedia_url": "https://liquipedia.net/counterstrike/G2_Esports",
+   "igl_player": "HuNter-",
+   "maps": 208,
+   "rounds": 4503,
+   "duels": 28977,
+   "exec": {
+    "per100": 0.811,
+    "p5": 0.397,
+    "p95": 1.209,
+    "per100_rounds": 5.216,
+    "per100_rounds_p5": 2.553,
+    "per100_rounds_p95": 7.782
+   },
+   "quality": {
+    "per100": 0.444,
+    "p5": 0.287,
+    "p95": 0.585,
+    "per100_rounds": 2.859,
+    "per100_rounds_p5": 1.848,
+    "per100_rounds_p95": 3.763
+   },
+   "q_pos": {
+    "per100": 0.226,
+    "p5": 0.138,
+    "p95": 0.31,
+    "per100_rounds": 1.454,
+    "per100_rounds_p5": 0.891,
+    "per100_rounds_p95": 1.995
+   },
+   "q_flash": {
+    "per100": 0.065,
+    "p5": 0.034,
+    "p95": 0.093,
+    "per100_rounds": 0.417,
+    "per100_rounds_p5": 0.218,
+    "per100_rounds_p95": 0.597
+   },
+   "q_hp": {
+    "per100": 0.118,
+    "p5": 0.018,
+    "p95": 0.222,
+    "per100_rounds": 0.762,
+    "per100_rounds_p5": 0.118,
+    "per100_rounds_p95": 1.427
+   }
+  },
+  {
+   "stint_id": "3DMAX#0:Maka",
+   "label": "3DMAX (Maka)",
+   "lp_team": "3DMAX",
+   "liquipedia_url": "https://liquipedia.net/counterstrike/3DMAX",
+   "igl_player": "Maka",
+   "maps": 185,
+   "rounds": 4023,
+   "duels": 25913,
+   "exec": {
+    "per100": -0.496,
+    "p5": -0.936,
+    "p95": -0.078,
+    "per100_rounds": -3.192,
+    "per100_rounds_p5": -6.028,
+    "per100_rounds_p95": -0.503
+   },
+   "quality": {
+    "per100": 0.247,
+    "p5": 0.099,
+    "p95": 0.401,
+    "per100_rounds": 1.591,
+    "per100_rounds_p5": 0.636,
+    "per100_rounds_p95": 2.584
+   },
+   "q_pos": {
+    "per100": 0.043,
+    "p5": -0.022,
+    "p95": 0.112,
+    "per100_rounds": 0.277,
+    "per100_rounds_p5": -0.143,
+    "per100_rounds_p95": 0.719
+   },
+   "q_flash": {
+    "per100": 0.028,
+    "p5": -0.001,
+    "p95": 0.059,
+    "per100_rounds": 0.181,
+    "per100_rounds_p5": -0.007,
+    "per100_rounds_p95": 0.378
+   },
+   "q_hp": {
+    "per100": 0.164,
+    "p5": 0.05,
+    "p95": 0.273,
+    "per100_rounds": 1.058,
+    "per100_rounds_p5": 0.325,
+    "per100_rounds_p95": 1.759
+   }
+  },
+  {
+   "stint_id": "paiN Gaming#0:Biguzera",
+   "label": "paiN Gaming (Biguzera)",
+   "lp_team": "paiN Gaming",
+   "liquipedia_url": "https://liquipedia.net/counterstrike/paiN_Gaming",
+   "igl_player": "Biguzera",
+   "maps": 185,
+   "rounds": 4000,
+   "duels": 25611,
+   "exec": {
+    "per100": -0.769,
+    "p5": -1.205,
+    "p95": -0.347,
+    "per100_rounds": -4.924,
+    "per100_rounds_p5": -7.713,
+    "per100_rounds_p95": -2.222
+   },
+   "quality": {
+    "per100": 0.034,
+    "p5": -0.132,
+    "p95": 0.184,
+    "per100_rounds": 0.216,
+    "per100_rounds_p5": -0.843,
+    "per100_rounds_p95": 1.177
+   },
+   "q_pos": {
+    "per100": 0.076,
+    "p5": -0.001,
+    "p95": 0.142,
+    "per100_rounds": 0.486,
+    "per100_rounds_p5": -0.009,
+    "per100_rounds_p95": 0.907
+   },
+   "q_flash": {
+    "per100": -0.021,
+    "p5": -0.048,
+    "p95": 0.007,
+    "per100_rounds": -0.132,
+    "per100_rounds_p5": -0.31,
+    "per100_rounds_p95": 0.043
+   },
+   "q_hp": {
+    "per100": -0.03,
+    "p5": -0.139,
+    "p95": 0.082,
+    "per100_rounds": -0.194,
+    "per100_rounds_p5": -0.892,
+    "per100_rounds_p95": 0.525
+   }
+  },
+  {
+   "stint_id": "FaZe Clan#0:Karrigan",
+   "label": "FaZe Clan (Karrigan)",
+   "lp_team": "FaZe Clan",
+   "liquipedia_url": "https://liquipedia.net/counterstrike/FaZe_Clan",
+   "igl_player": "Karrigan",
+   "maps": 183,
+   "rounds": 3955,
+   "duels": 25974,
+   "exec": {
+    "per100": 0.316,
+    "p5": -0.193,
+    "p95": 0.795,
+    "per100_rounds": 2.074,
+    "per100_rounds_p5": -1.269,
+    "per100_rounds_p95": 5.222
+   },
+   "quality": {
+    "per100": -0.005,
+    "p5": -0.161,
+    "p95": 0.152,
+    "per100_rounds": -0.033,
+    "per100_rounds_p5": -1.055,
+    "per100_rounds_p95": 0.999
+   },
+   "q_pos": {
+    "per100": -0.075,
+    "p5": -0.144,
+    "p95": 0.001,
+    "per100_rounds": -0.492,
+    "per100_rounds_p5": -0.947,
+    "per100_rounds_p95": 0.008
+   },
+   "q_flash": {
+    "per100": 0.02,
+    "p5": -0.004,
+    "p95": 0.046,
+    "per100_rounds": 0.132,
+    "per100_rounds_p5": -0.029,
+    "per100_rounds_p95": 0.303
+   },
+   "q_hp": {
+    "per100": 0.046,
+    "p5": -0.071,
+    "p95": 0.156,
+    "per100_rounds": 0.303,
+    "per100_rounds_p5": -0.466,
+    "per100_rounds_p95": 1.023
+   }
+  },
+  {
+   "stint_id": "Aurora Gaming#0:MAJ3R",
+   "label": "Aurora Gaming (MAJ3R)",
+   "lp_team": "Aurora Gaming",
+   "liquipedia_url": "https://liquipedia.net/counterstrike/Aurora_Gaming",
+   "igl_player": "MAJ3R",
+   "maps": 171,
+   "rounds": 3732,
+   "duels": 24192,
+   "exec": {
+    "per100": 0.277,
+    "p5": -0.18,
+    "p95": 0.692,
+    "per100_rounds": 1.795,
+    "per100_rounds_p5": -1.166,
+    "per100_rounds_p95": 4.488
+   },
+   "quality": {
+    "per100": -0.149,
+    "p5": -0.298,
+    "p95": -0.007,
+    "per100_rounds": -0.964,
+    "per100_rounds_p5": -1.93,
+    "per100_rounds_p95": -0.045
+   },
+   "q_pos": {
+    "per100": 0.035,
+    "p5": -0.05,
+    "p95": 0.123,
+    "per100_rounds": 0.227,
+    "per100_rounds_p5": -0.327,
+    "per100_rounds_p95": 0.795
+   },
+   "q_flash": {
+    "per100": -0.031,
+    "p5": -0.055,
+    "p95": -0.005,
+    "per100_rounds": -0.204,
+    "per100_rounds_p5": -0.359,
+    "per100_rounds_p95": -0.034
+   },
+   "q_hp": {
+    "per100": -0.157,
+    "p5": -0.269,
+    "p95": -0.051,
+    "per100_rounds": -1.02,
+    "per100_rounds_p5": -1.745,
+    "per100_rounds_p95": -0.329
+   }
+  },
+  {
+   "stint_id": "Astralis#1:HooXi",
+   "label": "Astralis (HooXi)",
+   "lp_team": "Astralis",
+   "liquipedia_url": "https://liquipedia.net/counterstrike/Astralis",
+   "igl_player": "HooXi",
+   "maps": 166,
+   "rounds": 3578,
+   "duels": 23314,
+   "exec": {
+    "per100": -0.088,
+    "p5": -0.518,
+    "p95": 0.353,
+    "per100_rounds": -0.574,
+    "per100_rounds_p5": -3.374,
+    "per100_rounds_p95": 2.301
+   },
+   "quality": {
+    "per100": 0.102,
+    "p5": -0.055,
+    "p95": 0.258,
+    "per100_rounds": 0.665,
+    "per100_rounds_p5": -0.356,
+    "per100_rounds_p95": 1.679
+   },
+   "q_pos": {
+    "per100": 0.001,
+    "p5": -0.068,
+    "p95": 0.074,
+    "per100_rounds": 0.007,
+    "per100_rounds_p5": -0.444,
+    "per100_rounds_p95": 0.483
+   },
+   "q_flash": {
+    "per100": 0.035,
+    "p5": 0.012,
+    "p95": 0.058,
+    "per100_rounds": 0.228,
+    "per100_rounds_p5": 0.075,
+    "per100_rounds_p95": 0.379
+   },
+   "q_hp": {
+    "per100": 0.054,
+    "p5": -0.076,
+    "p95": 0.173,
+    "per100_rounds": 0.352,
+    "per100_rounds_p5": -0.492,
+    "per100_rounds_p95": 1.129
+   }
+  },
+  {
+   "stint_id": "Team Spirit#0:Chopper",
+   "label": "Team Spirit (Chopper)",
+   "lp_team": "Team Spirit",
+   "liquipedia_url": "https://liquipedia.net/counterstrike/Team_Spirit",
+   "igl_player": "Chopper",
+   "maps": 140,
+   "rounds": 3151,
+   "duels": 20430,
+   "exec": {
+    "per100": 2.322,
+    "p5": 1.913,
+    "p95": 2.704,
+    "per100_rounds": 15.054,
+    "per100_rounds_p5": 12.406,
+    "per100_rounds_p95": 17.535
+   },
+   "quality": {
+    "per100": 0.252,
+    "p5": 0.119,
+    "p95": 0.382,
+    "per100_rounds": 1.636,
+    "per100_rounds_p5": 0.77,
+    "per100_rounds_p95": 2.479
+   },
+   "q_pos": {
+    "per100": 0.072,
+    "p5": 0.018,
+    "p95": 0.13,
+    "per100_rounds": 0.467,
+    "per100_rounds_p5": 0.117,
+    "per100_rounds_p95": 0.842
+   },
+   "q_flash": {
+    "per100": -0.028,
+    "p5": -0.05,
+    "p95": -0.004,
+    "per100_rounds": -0.181,
+    "per100_rounds_p5": -0.324,
+    "per100_rounds_p95": -0.029
+   },
+   "q_hp": {
+    "per100": 0.204,
+    "p5": 0.084,
+    "p95": 0.315,
+    "per100_rounds": 1.32,
+    "per100_rounds_p5": 0.545,
+    "per100_rounds_p95": 2.043
+   }
+  },
+  {
+   "stint_id": "Team Spirit#1:Magixx",
+   "label": "Team Spirit (Magixx)",
+   "lp_team": "Team Spirit",
+   "liquipedia_url": "https://liquipedia.net/counterstrike/Team_Spirit",
+   "igl_player": "Magixx",
+   "maps": 143,
+   "rounds": 3077,
+   "duels": 20024,
+   "exec": {
+    "per100": 1.589,
+    "p5": 1.097,
+    "p95": 2.056,
+    "per100_rounds": 10.337,
+    "per100_rounds_p5": 7.137,
+    "per100_rounds_p95": 13.38
+   },
+   "quality": {
+    "per100": 0.545,
+    "p5": 0.349,
+    "p95": 0.74,
+    "per100_rounds": 3.547,
+    "per100_rounds_p5": 2.272,
+    "per100_rounds_p95": 4.817
+   },
+   "q_pos": {
+    "per100": 0.181,
+    "p5": 0.097,
+    "p95": 0.267,
+    "per100_rounds": 1.175,
+    "per100_rounds_p5": 0.628,
+    "per100_rounds_p95": 1.737
+   },
+   "q_flash": {
+    "per100": 0.007,
+    "p5": -0.017,
+    "p95": 0.031,
+    "per100_rounds": 0.044,
+    "per100_rounds_p5": -0.112,
+    "per100_rounds_p95": 0.2
+   },
+   "q_hp": {
+    "per100": 0.331,
+    "p5": 0.185,
+    "p95": 0.473,
+    "per100_rounds": 2.157,
+    "per100_rounds_p5": 1.203,
+    "per100_rounds_p95": 3.076
+   }
+  },
+  {
+   "stint_id": "PARIVISION#0:Jame",
+   "label": "PARIVISION (Jame)",
+   "lp_team": "PARIVISION",
+   "liquipedia_url": "https://liquipedia.net/counterstrike/PARIVISION",
+   "igl_player": "Jame",
+   "maps": 129,
+   "rounds": 2857,
+   "duels": 18127,
+   "exec": {
+    "per100": 0.282,
+    "p5": -0.194,
+    "p95": 0.77,
+    "per100_rounds": 1.791,
+    "per100_rounds_p5": -1.233,
+    "per100_rounds_p95": 4.887
+   },
+   "quality": {
+    "per100": -0.174,
+    "p5": -0.355,
+    "p95": 0.033,
+    "per100_rounds": -1.103,
+    "per100_rounds_p5": -2.25,
+    "per100_rounds_p95": 0.207
+   },
+   "q_pos": {
+    "per100": -0.136,
+    "p5": -0.219,
+    "p95": -0.043,
+    "per100_rounds": -0.86,
+    "per100_rounds_p5": -1.391,
+    "per100_rounds_p95": -0.27
+   },
+   "q_flash": {
+    "per100": -0.052,
+    "p5": -0.085,
+    "p95": -0.02,
+    "per100_rounds": -0.328,
+    "per100_rounds_p5": -0.542,
+    "per100_rounds_p95": -0.125
+   },
+   "q_hp": {
+    "per100": 0.031,
+    "p5": -0.122,
+    "p95": 0.193,
+    "per100_rounds": 0.196,
+    "per100_rounds_p5": -0.776,
+    "per100_rounds_p95": 1.224
+   }
+  },
+  {
+   "stint_id": "TYLOO#0:Mercury",
+   "label": "TYLOO (Mercury)",
+   "lp_team": "TYLOO",
+   "liquipedia_url": "https://liquipedia.net/counterstrike/TYLOO",
+   "igl_player": "Mercury",
+   "maps": 125,
+   "rounds": 2690,
+   "duels": 17325,
+   "exec": {
+    "per100": -0.325,
+    "p5": -0.842,
+    "p95": 0.2,
+    "per100_rounds": -2.093,
+    "per100_rounds_p5": -5.426,
+    "per100_rounds_p95": 1.286
+   },
+   "quality": {
+    "per100": -0.14,
+    "p5": -0.324,
+    "p95": 0.022,
+    "per100_rounds": -0.902,
+    "per100_rounds_p5": -2.084,
+    "per100_rounds_p95": 0.142
+   },
+   "q_pos": {
+    "per100": -0.02,
+    "p5": -0.117,
+    "p95": 0.062,
+    "per100_rounds": -0.127,
+    "per100_rounds_p5": -0.75,
+    "per100_rounds_p95": 0.397
+   },
+   "q_flash": {
+    "per100": 0.048,
+    "p5": 0.023,
+    "p95": 0.074,
+    "per100_rounds": 0.311,
+    "per100_rounds_p5": 0.148,
+    "per100_rounds_p95": 0.475
+   },
+   "q_hp": {
+    "per100": -0.187,
+    "p5": -0.326,
+    "p95": -0.048,
+    "per100_rounds": -1.205,
+    "per100_rounds_p5": -2.101,
+    "per100_rounds_p95": -0.312
+   }
+  },
+  {
+   "stint_id": "B8#0:Alex666",
+   "label": "B8 (Alex666)",
+   "lp_team": "B8",
+   "liquipedia_url": "https://liquipedia.net/counterstrike/B8",
+   "igl_player": "Alex666",
+   "maps": 121,
+   "rounds": 2652,
+   "duels": 17445,
+   "exec": {
+    "per100": 0.226,
+    "p5": -0.283,
+    "p95": 0.68,
+    "per100_rounds": 1.484,
+    "per100_rounds_p5": -1.859,
+    "per100_rounds_p95": 4.471
+   },
+   "quality": {
+    "per100": -0.405,
+    "p5": -0.55,
+    "p95": -0.262,
+    "per100_rounds": -2.667,
+    "per100_rounds_p5": -3.62,
+    "per100_rounds_p95": -1.722
+   },
+   "q_pos": {
+    "per100": -0.129,
+    "p5": -0.217,
+    "p95": -0.047,
+    "per100_rounds": -0.851,
+    "per100_rounds_p5": -1.426,
+    "per100_rounds_p95": -0.308
+   },
+   "q_flash": {
+    "per100": -0.096,
+    "p5": -0.125,
+    "p95": -0.064,
+    "per100_rounds": -0.631,
+    "per100_rounds_p5": -0.82,
+    "per100_rounds_p95": -0.421
+   },
+   "q_hp": {
+    "per100": -0.152,
+    "p5": -0.252,
+    "p95": -0.047,
+    "per100_rounds": -0.997,
+    "per100_rounds_p5": -1.658,
+    "per100_rounds_p95": -0.312
+   }
+  },
+  {
+   "stint_id": "GamerLegion#0:Ztr",
+   "label": "GamerLegion (Ztr)",
+   "lp_team": "GamerLegion",
+   "liquipedia_url": "https://liquipedia.net/counterstrike/GamerLegion",
+   "igl_player": "Ztr",
+   "maps": 119,
+   "rounds": 2575,
+   "duels": 16683,
+   "exec": {
+    "per100": 0.148,
+    "p5": -0.316,
+    "p95": 0.63,
+    "per100_rounds": 0.956,
+    "per100_rounds_p5": -2.045,
+    "per100_rounds_p95": 4.08
+   },
+   "quality": {
+    "per100": -0.045,
+    "p5": -0.186,
+    "p95": 0.097,
+    "per100_rounds": -0.292,
+    "per100_rounds_p5": -1.204,
+    "per100_rounds_p95": 0.631
+   },
+   "q_pos": {
+    "per100": 0.045,
+    "p5": -0.023,
+    "p95": 0.114,
+    "per100_rounds": 0.29,
+    "per100_rounds_p5": -0.148,
+    "per100_rounds_p95": 0.741
+   },
+   "q_flash": {
+    "per100": 0.02,
+    "p5": -0.009,
+    "p95": 0.051,
+    "per100_rounds": 0.133,
+    "per100_rounds_p5": -0.059,
+    "per100_rounds_p95": 0.333
+   },
+   "q_hp": {
+    "per100": -0.13,
+    "p5": -0.262,
+    "p95": -0.0,
+    "per100_rounds": -0.842,
+    "per100_rounds_p5": -1.696,
+    "per100_rounds_p95": -0.003
+   }
+  },
+  {
+   "stint_id": "Team Liquid#1:Siuhy",
+   "label": "Team Liquid (Siuhy)",
+   "lp_team": "Team Liquid",
+   "liquipedia_url": "https://liquipedia.net/counterstrike/Team_Liquid",
+   "igl_player": "Siuhy",
+   "maps": 112,
+   "rounds": 2426,
+   "duels": 15811,
+   "exec": {
+    "per100": -0.322,
+    "p5": -0.812,
+    "p95": 0.166,
+    "per100_rounds": -2.096,
+    "per100_rounds_p5": -5.289,
+    "per100_rounds_p95": 1.082
+   },
+   "quality": {
+    "per100": 0.012,
+    "p5": -0.151,
+    "p95": 0.168,
+    "per100_rounds": 0.079,
+    "per100_rounds_p5": -0.987,
+    "per100_rounds_p95": 1.092
+   },
+   "q_pos": {
+    "per100": -0.026,
+    "p5": -0.125,
+    "p95": 0.078,
+    "per100_rounds": -0.173,
+    "per100_rounds_p5": -0.812,
+    "per100_rounds_p95": 0.51
+   },
+   "q_flash": {
+    "per100": -0.04,
+    "p5": -0.065,
+    "p95": -0.013,
+    "per100_rounds": -0.26,
+    "per100_rounds_p5": -0.424,
+    "per100_rounds_p95": -0.086
+   },
+   "q_hp": {
+    "per100": 0.087,
+    "p5": -0.028,
+    "p95": 0.189,
+    "per100_rounds": 0.568,
+    "per100_rounds_p5": -0.184,
+    "per100_rounds_p95": 1.23
+   }
+  },
+  {
+   "stint_id": "Legacy#1:ArT",
+   "label": "Legacy (ArT)",
+   "lp_team": "Legacy",
+   "liquipedia_url": "https://liquipedia.net/counterstrike/Legacy",
+   "igl_player": "ArT",
+   "maps": 107,
+   "rounds": 2358,
+   "duels": 15046,
+   "exec": {
+    "per100": 0.215,
+    "p5": -0.319,
+    "p95": 0.712,
+    "per100_rounds": 1.373,
+    "per100_rounds_p5": -2.035,
+    "per100_rounds_p95": 4.544
+   },
+   "quality": {
+    "per100": 0.673,
+    "p5": 0.46,
+    "p95": 0.855,
+    "per100_rounds": 4.296,
+    "per100_rounds_p5": 2.934,
+    "per100_rounds_p95": 5.456
+   },
+   "q_pos": {
+    "per100": 0.289,
+    "p5": 0.168,
+    "p95": 0.396,
+    "per100_rounds": 1.842,
+    "per100_rounds_p5": 1.07,
+    "per100_rounds_p95": 2.527
+   },
+   "q_flash": {
+    "per100": 0.009,
+    "p5": -0.025,
+    "p95": 0.041,
+    "per100_rounds": 0.059,
+    "per100_rounds_p5": -0.16,
+    "per100_rounds_p95": 0.26
+   },
+   "q_hp": {
+    "per100": 0.335,
+    "p5": 0.207,
+    "p95": 0.442,
+    "per100_rounds": 2.139,
+    "per100_rounds_p5": 1.318,
+    "per100_rounds_p95": 2.82
+   }
+  },
+  {
+   "stint_id": "FUT Esports#0:Krabeni",
+   "label": "FUT Esports (Krabeni)",
+   "lp_team": "FUT Esports",
+   "liquipedia_url": "https://liquipedia.net/counterstrike/FUT_Esports",
+   "igl_player": "Krabeni",
+   "maps": 101,
+   "rounds": 2250,
+   "duels": 14801,
+   "exec": {
+    "per100": 0.68,
+    "p5": 0.221,
+    "p95": 1.142,
+    "per100_rounds": 4.476,
+    "per100_rounds_p5": 1.451,
+    "per100_rounds_p95": 7.511
+   },
+   "quality": {
+    "per100": -0.221,
+    "p5": -0.409,
+    "p95": -0.035,
+    "per100_rounds": -1.456,
+    "per100_rounds_p5": -2.691,
+    "per100_rounds_p95": -0.229
+   },
+   "q_pos": {
+    "per100": -0.103,
+    "p5": -0.194,
+    "p95": -0.008,
+    "per100_rounds": -0.68,
+    "per100_rounds_p5": -1.275,
+    "per100_rounds_p95": -0.049
+   },
+   "q_flash": {
+    "per100": -0.044,
+    "p5": -0.075,
+    "p95": -0.013,
+    "per100_rounds": -0.286,
+    "per100_rounds_p5": -0.495,
+    "per100_rounds_p95": -0.083
+   },
+   "q_hp": {
+    "per100": -0.059,
+    "p5": -0.183,
+    "p95": 0.078,
+    "per100_rounds": -0.387,
+    "per100_rounds_p5": -1.206,
+    "per100_rounds_p95": 0.516
+   }
+  },
+  {
+   "stint_id": "Team Falcons#1:Karrigan",
+   "label": "Team Falcons (Karrigan)",
+   "lp_team": "Team Falcons",
+   "liquipedia_url": "https://liquipedia.net/counterstrike/Team_Falcons",
+   "igl_player": "Karrigan",
+   "maps": 91,
+   "rounds": 2064,
+   "duels": 13357,
+   "exec": {
+    "per100": 0.829,
+    "p5": 0.3,
+    "p95": 1.335,
+    "per100_rounds": 5.368,
+    "per100_rounds_p5": 1.942,
+    "per100_rounds_p95": 8.637
+   },
+   "quality": {
+    "per100": 0.314,
+    "p5": 0.13,
+    "p95": 0.476,
+    "per100_rounds": 2.033,
+    "per100_rounds_p5": 0.844,
+    "per100_rounds_p95": 3.079
+   },
+   "q_pos": {
+    "per100": 0.188,
+    "p5": 0.088,
+    "p95": 0.271,
+    "per100_rounds": 1.217,
+    "per100_rounds_p5": 0.567,
+    "per100_rounds_p95": 1.751
+   },
+   "q_flash": {
+    "per100": 0.002,
+    "p5": -0.03,
+    "p95": 0.034,
+    "per100_rounds": 0.014,
+    "per100_rounds_p5": -0.193,
+    "per100_rounds_p95": 0.22
+   },
+   "q_hp": {
+    "per100": 0.086,
+    "p5": -0.048,
+    "p95": 0.217,
+    "per100_rounds": 0.555,
+    "per100_rounds_p5": -0.314,
+    "per100_rounds_p95": 1.404
+   }
+  },
+  {
+   "stint_id": "Virtus.pro#0:ElectroNic",
+   "label": "Virtus.pro (ElectroNic)",
+   "lp_team": "Virtus.pro",
+   "liquipedia_url": "https://liquipedia.net/counterstrike/Virtus.pro",
+   "igl_player": "ElectroNic",
+   "maps": 92,
+   "rounds": 2007,
+   "duels": 12728,
+   "exec": {
+    "per100": 0.356,
+    "p5": -0.217,
+    "p95": 0.917,
+    "per100_rounds": 2.258,
+    "per100_rounds_p5": -1.373,
+    "per100_rounds_p95": 5.815
+   },
+   "quality": {
+    "per100": -0.038,
+    "p5": -0.204,
+    "p95": 0.121,
+    "per100_rounds": -0.244,
+    "per100_rounds_p5": -1.294,
+    "per100_rounds_p95": 0.769
+   },
+   "q_pos": {
+    "per100": -0.002,
+    "p5": -0.062,
+    "p95": 0.056,
+    "per100_rounds": -0.014,
+    "per100_rounds_p5": -0.393,
+    "per100_rounds_p95": 0.356
+   },
+   "q_flash": {
+    "per100": -0.011,
+    "p5": -0.04,
+    "p95": 0.017,
+    "per100_rounds": -0.072,
+    "per100_rounds_p5": -0.253,
+    "per100_rounds_p95": 0.109
+   },
+   "q_hp": {
+    "per100": -0.027,
+    "p5": -0.159,
+    "p95": 0.097,
+    "per100_rounds": -0.168,
+    "per100_rounds_p5": -1.009,
+    "per100_rounds_p95": 0.614
+   }
+  },
+  {
+   "stint_id": "BetBoom Team#1:Boombl4",
+   "label": "BetBoom Team (Boombl4)",
+   "lp_team": "BetBoom Team",
+   "liquipedia_url": "https://liquipedia.net/counterstrike/BetBoom_Team",
+   "igl_player": "Boombl4",
+   "maps": 90,
+   "rounds": 1982,
+   "duels": 12797,
+   "exec": {
+    "per100": 0.575,
+    "p5": -0.079,
+    "p95": 1.172,
+    "per100_rounds": 3.715,
+    "per100_rounds_p5": -0.511,
+    "per100_rounds_p95": 7.569
+   },
+   "quality": {
+    "per100": 0.057,
+    "p5": -0.115,
+    "p95": 0.228,
+    "per100_rounds": 0.366,
+    "per100_rounds_p5": -0.742,
+    "per100_rounds_p95": 1.469
+   },
+   "q_pos": {
+    "per100": -0.031,
+    "p5": -0.127,
+    "p95": 0.067,
+    "per100_rounds": -0.2,
+    "per100_rounds_p5": -0.819,
+    "per100_rounds_p95": 0.435
+   },
+   "q_flash": {
+    "per100": -0.014,
+    "p5": -0.047,
+    "p95": 0.021,
+    "per100_rounds": -0.09,
+    "per100_rounds_p5": -0.301,
+    "per100_rounds_p95": 0.134
+   },
+   "q_hp": {
+    "per100": 0.103,
+    "p5": -0.043,
+    "p95": 0.243,
+    "per100_rounds": 0.665,
+    "per100_rounds_p5": -0.275,
+    "per100_rounds_p95": 1.567
+   }
+  },
+  {
+   "stint_id": "M80#0:S1n",
+   "label": "M80 (S1n)",
+   "lp_team": "M80",
+   "liquipedia_url": "https://liquipedia.net/counterstrike/M80",
+   "igl_player": "S1n",
+   "maps": 92,
+   "rounds": 1965,
+   "duels": 12531,
+   "exec": {
+    "per100": -0.3,
+    "p5": -0.718,
+    "p95": 0.103,
+    "per100_rounds": -1.915,
+    "per100_rounds_p5": -4.581,
+    "per100_rounds_p95": 0.657
+   },
+   "quality": {
+    "per100": -0.052,
+    "p5": -0.266,
+    "p95": 0.14,
+    "per100_rounds": -0.331,
+    "per100_rounds_p5": -1.695,
+    "per100_rounds_p95": 0.896
+   },
+   "q_pos": {
+    "per100": -0.108,
+    "p5": -0.203,
+    "p95": -0.005,
+    "per100_rounds": -0.69,
+    "per100_rounds_p5": -1.294,
+    "per100_rounds_p95": -0.034
+   },
+   "q_flash": {
+    "per100": 0.042,
+    "p5": 0.01,
+    "p95": 0.072,
+    "per100_rounds": 0.266,
+    "per100_rounds_p5": 0.065,
+    "per100_rounds_p95": 0.462
+   },
+   "q_hp": {
+    "per100": 0.007,
+    "p5": -0.141,
+    "p95": 0.145,
+    "per100_rounds": 0.042,
+    "per100_rounds_p5": -0.899,
+    "per100_rounds_p95": 0.927
+   }
+  },
+  {
+   "stint_id": "G2 Esports#0:Snax",
+   "label": "G2 Esports (Snax)",
+   "lp_team": "G2 Esports",
+   "liquipedia_url": "https://liquipedia.net/counterstrike/G2_Esports",
+   "igl_player": "Snax",
+   "maps": 82,
+   "rounds": 1811,
+   "duels": 11625,
+   "exec": {
+    "per100": 0.525,
+    "p5": 0.082,
+    "p95": 0.993,
+    "per100_rounds": 3.37,
+    "per100_rounds_p5": 0.528,
+    "per100_rounds_p95": 6.373
+   },
+   "quality": {
+    "per100": 0.316,
+    "p5": 0.133,
+    "p95": 0.458,
+    "per100_rounds": 2.027,
+    "per100_rounds_p5": 0.851,
+    "per100_rounds_p95": 2.938
+   },
+   "q_pos": {
+    "per100": 0.03,
+    "p5": -0.028,
+    "p95": 0.085,
+    "per100_rounds": 0.191,
+    "per100_rounds_p5": -0.181,
+    "per100_rounds_p95": 0.547
+   },
+   "q_flash": {
+    "per100": 0.05,
+    "p5": 0.021,
+    "p95": 0.077,
+    "per100_rounds": 0.318,
+    "per100_rounds_p5": 0.133,
+    "per100_rounds_p95": 0.491
+   },
+   "q_hp": {
+    "per100": 0.215,
+    "p5": 0.082,
+    "p95": 0.326,
+    "per100_rounds": 1.382,
+    "per100_rounds_p5": 0.528,
+    "per100_rounds_p95": 2.094
+   }
+  },
+  {
+   "stint_id": "9z Team#0:Max",
+   "label": "9z Team (Max)",
+   "lp_team": "9z Team",
+   "liquipedia_url": "https://liquipedia.net/counterstrike/9z_Team",
+   "igl_player": "Max",
+   "maps": 82,
+   "rounds": 1671,
+   "duels": 10626,
+   "exec": {
+    "per100": 0.407,
+    "p5": -0.287,
+    "p95": 1.056,
+    "per100_rounds": 2.585,
+    "per100_rounds_p5": -1.827,
+    "per100_rounds_p95": 6.713
+   },
+   "quality": {
+    "per100": -0.157,
+    "p5": -0.36,
+    "p95": 0.039,
+    "per100_rounds": -1.0,
+    "per100_rounds_p5": -2.289,
+    "per100_rounds_p95": 0.246
+   },
+   "q_pos": {
+    "per100": -0.029,
+    "p5": -0.143,
+    "p95": 0.096,
+    "per100_rounds": -0.187,
+    "per100_rounds_p5": -0.91,
+    "per100_rounds_p95": 0.611
+   },
+   "q_flash": {
+    "per100": -0.017,
+    "p5": -0.044,
+    "p95": 0.007,
+    "per100_rounds": -0.109,
+    "per100_rounds_p5": -0.278,
+    "per100_rounds_p95": 0.046
+   },
+   "q_hp": {
+    "per100": -0.115,
+    "p5": -0.234,
+    "p95": 0.005,
+    "per100_rounds": -0.729,
+    "per100_rounds_p5": -1.487,
+    "per100_rounds_p95": 0.029
+   }
+  },
+  {
+   "stint_id": "HEROIC#0:LNZ",
+   "label": "HEROIC (LNZ)",
+   "lp_team": "HEROIC",
+   "liquipedia_url": "https://liquipedia.net/counterstrike/HEROIC",
+   "igl_player": "LNZ",
+   "maps": 76,
+   "rounds": 1668,
+   "duels": 11107,
+   "exec": {
+    "per100": -0.446,
+    "p5": -0.902,
+    "p95": 0.081,
+    "per100_rounds": -2.969,
+    "per100_rounds_p5": -6.003,
+    "per100_rounds_p95": 0.541
+   },
+   "quality": {
+    "per100": -0.242,
+    "p5": -0.459,
+    "p95": -0.037,
+    "per100_rounds": -1.613,
+    "per100_rounds_p5": -3.057,
+    "per100_rounds_p95": -0.247
+   },
+   "q_pos": {
+    "per100": -0.073,
+    "p5": -0.177,
+    "p95": 0.022,
+    "per100_rounds": -0.488,
+    "per100_rounds_p5": -1.178,
+    "per100_rounds_p95": 0.149
+   },
+   "q_flash": {
+    "per100": -0.019,
+    "p5": -0.043,
+    "p95": 0.004,
+    "per100_rounds": -0.128,
+    "per100_rounds_p5": -0.283,
+    "per100_rounds_p95": 0.028
+   },
+   "q_hp": {
+    "per100": -0.137,
+    "p5": -0.31,
+    "p95": 0.028,
+    "per100_rounds": -0.91,
+    "per100_rounds_p5": -2.064,
+    "per100_rounds_p95": 0.184
+   }
+  },
+  {
+   "stint_id": "MOUZ#3:XertioN",
+   "label": "MOUZ (XertioN, 2026-06-15....)",
+   "lp_team": "MOUZ",
+   "liquipedia_url": "https://liquipedia.net/counterstrike/MOUZ",
+   "igl_player": "XertioN",
+   "maps": 74,
+   "rounds": 1608,
+   "duels": 10346,
+   "exec": {
+    "per100": 1.29,
+    "p5": 0.734,
+    "p95": 1.801,
+    "per100_rounds": 8.301,
+    "per100_rounds_p5": 4.723,
+    "per100_rounds_p95": 11.586
+   },
+   "quality": {
+    "per100": 0.291,
+    "p5": 0.042,
+    "p95": 0.541,
+    "per100_rounds": 1.871,
+    "per100_rounds_p5": 0.27,
+    "per100_rounds_p95": 3.479
+   },
+   "q_pos": {
+    "per100": 0.126,
+    "p5": -0.007,
+    "p95": 0.256,
+    "per100_rounds": 0.813,
+    "per100_rounds_p5": -0.045,
+    "per100_rounds_p95": 1.647
+   },
+   "q_flash": {
+    "per100": 0.021,
+    "p5": -0.016,
+    "p95": 0.056,
+    "per100_rounds": 0.137,
+    "per100_rounds_p5": -0.104,
+    "per100_rounds_p95": 0.361
+   },
+   "q_hp": {
+    "per100": 0.109,
+    "p5": -0.034,
+    "p95": 0.252,
+    "per100_rounds": 0.704,
+    "per100_rounds_p5": -0.218,
+    "per100_rounds_p95": 1.619
+   }
+  },
+  {
+   "stint_id": "FlyQuest#0:INS",
+   "label": "FlyQuest (INS)",
+   "lp_team": "FlyQuest",
+   "liquipedia_url": "https://liquipedia.net/counterstrike/FlyQuest",
+   "igl_player": "INS",
+   "maps": 74,
+   "rounds": 1568,
+   "duels": 10234,
+   "exec": {
+    "per100": -0.347,
+    "p5": -0.868,
+    "p95": 0.214,
+    "per100_rounds": -2.268,
+    "per100_rounds_p5": -5.665,
+    "per100_rounds_p95": 1.396
+   },
+   "quality": {
+    "per100": -0.127,
+    "p5": -0.301,
+    "p95": 0.048,
+    "per100_rounds": -0.826,
+    "per100_rounds_p5": -1.966,
+    "per100_rounds_p95": 0.311
+   },
+   "q_pos": {
+    "per100": 0.004,
+    "p5": -0.054,
+    "p95": 0.069,
+    "per100_rounds": 0.027,
+    "per100_rounds_p5": -0.354,
+    "per100_rounds_p95": 0.451
+   },
+   "q_flash": {
+    "per100": 0.036,
+    "p5": 0.007,
+    "p95": 0.064,
+    "per100_rounds": 0.232,
+    "per100_rounds_p5": 0.043,
+    "per100_rounds_p95": 0.415
+   },
+   "q_hp": {
+    "per100": -0.188,
+    "p5": -0.321,
+    "p95": -0.045,
+    "per100_rounds": -1.227,
+    "per100_rounds_p5": -2.094,
+    "per100_rounds_p95": -0.297
+   }
+  },
+  {
+   "stint_id": "Lynn Vision Gaming#0:Westmelon",
+   "label": "Lynn Vision Gaming (Westmelon)",
+   "lp_team": "Lynn Vision Gaming",
+   "liquipedia_url": "https://liquipedia.net/counterstrike/Lynn_Vision_Gaming",
+   "igl_player": "Westmelon",
+   "maps": 76,
+   "rounds": 1565,
+   "duels": 10384,
+   "exec": {
+    "per100": -0.589,
+    "p5": -1.206,
+    "p95": 0.023,
+    "per100_rounds": -3.909,
+    "per100_rounds_p5": -8.002,
+    "per100_rounds_p95": 0.15
+   },
+   "quality": {
+    "per100": -0.038,
+    "p5": -0.246,
+    "p95": 0.14,
+    "per100_rounds": -0.254,
+    "per100_rounds_p5": -1.633,
+    "per100_rounds_p95": 0.931
+   },
+   "q_pos": {
+    "per100": 0.02,
+    "p5": -0.078,
+    "p95": 0.11,
+    "per100_rounds": 0.134,
+    "per100_rounds_p5": -0.52,
+    "per100_rounds_p95": 0.73
+   },
+   "q_flash": {
+    "per100": 0.003,
+    "p5": -0.027,
+    "p95": 0.035,
+    "per100_rounds": 0.023,
+    "per100_rounds_p5": -0.18,
+    "per100_rounds_p95": 0.235
+   },
+   "q_hp": {
+    "per100": -0.071,
+    "p5": -0.215,
+    "p95": 0.067,
+    "per100_rounds": -0.473,
+    "per100_rounds_p5": -1.427,
+    "per100_rounds_p95": 0.447
+   }
+  },
+  {
+   "stint_id": "MIBR#0:Exit",
+   "label": "MIBR (Exit)",
+   "lp_team": "MIBR",
+   "liquipedia_url": "https://liquipedia.net/counterstrike/MIBR",
+   "igl_player": "Exit",
+   "maps": 70,
+   "rounds": 1562,
+   "duels": 9949,
+   "exec": {
+    "per100": -0.545,
+    "p5": -1.127,
+    "p95": 0.035,
+    "per100_rounds": -3.472,
+    "per100_rounds_p5": -7.178,
+    "per100_rounds_p95": 0.225
+   },
+   "quality": {
+    "per100": -0.145,
+    "p5": -0.305,
+    "p95": 0.025,
+    "per100_rounds": -0.923,
+    "per100_rounds_p5": -1.943,
+    "per100_rounds_p95": 0.162
+   },
+   "q_pos": {
+    "per100": -0.003,
+    "p5": -0.072,
+    "p95": 0.06,
+    "per100_rounds": -0.016,
+    "per100_rounds_p5": -0.458,
+    "per100_rounds_p95": 0.384
+   },
+   "q_flash": {
+    "per100": -0.03,
+    "p5": -0.057,
+    "p95": -0.003,
+    "per100_rounds": -0.189,
+    "per100_rounds_p5": -0.363,
+    "per100_rounds_p95": -0.021
+   },
+   "q_hp": {
+    "per100": -0.109,
+    "p5": -0.244,
+    "p95": 0.022,
+    "per100_rounds": -0.697,
+    "per100_rounds_p5": -1.553,
+    "per100_rounds_p95": 0.14
+   }
+  },
+  {
+   "stint_id": "Eternal Fire#0:MAJ3R",
+   "label": "Eternal Fire (MAJ3R)",
+   "lp_team": "Eternal Fire",
+   "liquipedia_url": "https://liquipedia.net/counterstrike/Eternal_Fire",
+   "igl_player": "MAJ3R",
+   "maps": 68,
+   "rounds": 1551,
+   "duels": 9983,
+   "exec": {
+    "per100": 0.747,
+    "p5": 0.157,
+    "p95": 1.377,
+    "per100_rounds": 4.806,
+    "per100_rounds_p5": 1.009,
+    "per100_rounds_p95": 8.866
+   },
+   "quality": {
+    "per100": -0.121,
+    "p5": -0.296,
+    "p95": 0.065,
+    "per100_rounds": -0.781,
+    "per100_rounds_p5": -1.906,
+    "per100_rounds_p95": 0.421
+   },
+   "q_pos": {
+    "per100": -0.003,
+    "p5": -0.054,
+    "p95": 0.043,
+    "per100_rounds": -0.022,
+    "per100_rounds_p5": -0.349,
+    "per100_rounds_p95": 0.277
+   },
+   "q_flash": {
+    "per100": -0.026,
+    "p5": -0.046,
+    "p95": -0.003,
+    "per100_rounds": -0.164,
+    "per100_rounds_p5": -0.297,
+    "per100_rounds_p95": -0.021
+   },
+   "q_hp": {
+    "per100": -0.089,
+    "p5": -0.236,
+    "p95": 0.063,
+    "per100_rounds": -0.572,
+    "per100_rounds_p5": -1.52,
+    "per100_rounds_p95": 0.406
+   }
+  },
+  {
+   "stint_id": "Legacy#0:Lux",
+   "label": "Legacy (Lux)",
+   "lp_team": "Legacy",
+   "liquipedia_url": "https://liquipedia.net/counterstrike/Legacy",
+   "igl_player": "Lux",
+   "maps": 70,
+   "rounds": 1485,
+   "duels": 9502,
+   "exec": {
+    "per100": 0.12,
+    "p5": -0.518,
+    "p95": 0.784,
+    "per100_rounds": 0.77,
+    "per100_rounds_p5": -3.312,
+    "per100_rounds_p95": 5.014
+   },
+   "quality": {
+    "per100": -0.025,
+    "p5": -0.217,
+    "p95": 0.168,
+    "per100_rounds": -0.158,
+    "per100_rounds_p5": -1.391,
+    "per100_rounds_p95": 1.076
+   },
+   "q_pos": {
+    "per100": -0.037,
+    "p5": -0.125,
+    "p95": 0.051,
+    "per100_rounds": -0.238,
+    "per100_rounds_p5": -0.797,
+    "per100_rounds_p95": 0.325
+   },
+   "q_flash": {
+    "per100": -0.004,
+    "p5": -0.034,
+    "p95": 0.025,
+    "per100_rounds": -0.027,
+    "per100_rounds_p5": -0.216,
+    "per100_rounds_p95": 0.161
+   },
+   "q_hp": {
+    "per100": 0.022,
+    "p5": -0.124,
+    "p95": 0.173,
+    "per100_rounds": 0.14,
+    "per100_rounds_p5": -0.792,
+    "per100_rounds_p95": 1.107
+   }
+  },
+  {
+   "stint_id": "Aurora Gaming#1:Kyxsan",
+   "label": "Aurora Gaming (Kyxsan)",
+   "lp_team": "Aurora Gaming",
+   "liquipedia_url": "https://liquipedia.net/counterstrike/Aurora_Gaming",
+   "igl_player": "Kyxsan",
+   "maps": 67,
+   "rounds": 1456,
+   "duels": 9448,
+   "exec": {
+    "per100": 0.551,
+    "p5": -0.054,
+    "p95": 1.126,
+    "per100_rounds": 3.576,
+    "per100_rounds_p5": -0.351,
+    "per100_rounds_p95": 7.306
+   },
+   "quality": {
+    "per100": 0.149,
+    "p5": -0.037,
+    "p95": 0.319,
+    "per100_rounds": 0.97,
+    "per100_rounds_p5": -0.238,
+    "per100_rounds_p95": 2.068
+   },
+   "q_pos": {
+    "per100": 0.073,
+    "p5": -0.028,
+    "p95": 0.171,
+    "per100_rounds": 0.471,
+    "per100_rounds_p5": -0.182,
+    "per100_rounds_p95": 1.112
+   },
+   "q_flash": {
+    "per100": -0.037,
+    "p5": -0.07,
+    "p95": -0.002,
+    "per100_rounds": -0.241,
+    "per100_rounds_p5": -0.457,
+    "per100_rounds_p95": -0.014
+   },
+   "q_hp": {
+    "per100": 0.111,
+    "p5": -0.044,
+    "p95": 0.24,
+    "per100_rounds": 0.723,
+    "per100_rounds_p5": -0.287,
+    "per100_rounds_p95": 1.556
+   }
+  },
+  {
+   "stint_id": "Ninjas in Pyjamas#0:Snappi",
+   "label": "Ninjas in Pyjamas (Snappi)",
+   "lp_team": "Ninjas in Pyjamas",
+   "liquipedia_url": "https://liquipedia.net/counterstrike/Ninjas_in_Pyjamas",
+   "igl_player": "Snappi",
+   "maps": 66,
+   "rounds": 1437,
+   "duels": 9416,
+   "exec": {
+    "per100": -0.594,
+    "p5": -1.175,
+    "p95": -0.036,
+    "per100_rounds": -3.893,
+    "per100_rounds_p5": -7.701,
+    "per100_rounds_p95": -0.234
+   },
+   "quality": {
+    "per100": -0.027,
+    "p5": -0.238,
+    "p95": 0.182,
+    "per100_rounds": -0.177,
+    "per100_rounds_p5": -1.558,
+    "per100_rounds_p95": 1.191
+   },
+   "q_pos": {
+    "per100": -0.027,
+    "p5": -0.11,
+    "p95": 0.062,
+    "per100_rounds": -0.178,
+    "per100_rounds_p5": -0.718,
+    "per100_rounds_p95": 0.404
+   },
+   "q_flash": {
+    "per100": -0.057,
+    "p5": -0.082,
+    "p95": -0.032,
+    "per100_rounds": -0.374,
+    "per100_rounds_p5": -0.536,
+    "per100_rounds_p95": -0.21
+   },
+   "q_hp": {
+    "per100": 0.085,
+    "p5": -0.096,
+    "p95": 0.267,
+    "per100_rounds": 0.559,
+    "per100_rounds_p5": -0.626,
+    "per100_rounds_p95": 1.747
+   }
+  },
+  {
+   "stint_id": "GamerLegion#1:Snax",
+   "label": "GamerLegion (Snax)",
+   "lp_team": "GamerLegion",
+   "liquipedia_url": "https://liquipedia.net/counterstrike/GamerLegion",
+   "igl_player": "Snax",
+   "maps": 58,
+   "rounds": 1223,
+   "duels": 7878,
+   "exec": {
+    "per100": -0.036,
+    "p5": -0.563,
+    "p95": 0.472,
+    "per100_rounds": -0.235,
+    "per100_rounds_p5": -3.625,
+    "per100_rounds_p95": 3.038
+   },
+   "quality": {
+    "per100": 0.061,
+    "p5": -0.168,
+    "p95": 0.276,
+    "per100_rounds": 0.395,
+    "per100_rounds_p5": -1.084,
+    "per100_rounds_p95": 1.776
+   },
+   "q_pos": {
+    "per100": -0.013,
+    "p5": -0.123,
+    "p95": 0.093,
+    "per100_rounds": -0.081,
+    "per100_rounds_p5": -0.793,
+    "per100_rounds_p95": 0.597
+   },
+   "q_flash": {
+    "per100": 0.029,
+    "p5": -0.001,
+    "p95": 0.059,
+    "per100_rounds": 0.187,
+    "per100_rounds_p5": -0.009,
+    "per100_rounds_p95": 0.378
+   },
+   "q_hp": {
+    "per100": 0.029,
+    "p5": -0.139,
+    "p95": 0.17,
+    "per100_rounds": 0.188,
+    "per100_rounds_p5": -0.896,
+    "per100_rounds_p95": 1.095
+   }
+  },
+  {
+   "stint_id": "Astralis#0:CadiaN",
+   "label": "Astralis (CadiaN)",
+   "lp_team": "Astralis",
+   "liquipedia_url": "https://liquipedia.net/counterstrike/Astralis",
+   "igl_player": "CadiaN",
+   "maps": 50,
+   "rounds": 1133,
+   "duels": 7282,
+   "exec": {
+    "per100": -0.741,
+    "p5": -1.368,
+    "p95": -0.148,
+    "per100_rounds": -4.759,
+    "per100_rounds_p5": -8.791,
+    "per100_rounds_p95": -0.954
+   },
+   "quality": {
+    "per100": 0.193,
+    "p5": 0.042,
+    "p95": 0.323,
+    "per100_rounds": 1.241,
+    "per100_rounds_p5": 0.271,
+    "per100_rounds_p95": 2.075
+   },
+   "q_pos": {
+    "per100": -0.034,
+    "p5": -0.087,
+    "p95": 0.018,
+    "per100_rounds": -0.219,
+    "per100_rounds_p5": -0.561,
+    "per100_rounds_p95": 0.113
+   },
+   "q_flash": {
+    "per100": 0.044,
+    "p5": 0.018,
+    "p95": 0.069,
+    "per100_rounds": 0.283,
+    "per100_rounds_p5": 0.113,
+    "per100_rounds_p95": 0.447
+   },
+   "q_hp": {
+    "per100": 0.169,
+    "p5": 0.039,
+    "p95": 0.28,
+    "per100_rounds": 1.088,
+    "per100_rounds_p5": 0.252,
+    "per100_rounds_p95": 1.803
+   }
+  },
+  {
+   "stint_id": "Complexity#0:JT",
+   "label": "Complexity (JT)",
+   "lp_team": "Complexity",
+   "liquipedia_url": "https://liquipedia.net/counterstrike/Complexity",
+   "igl_player": "JT",
+   "maps": 47,
+   "rounds": 1006,
+   "duels": 6549,
+   "exec": {
+    "per100": -0.319,
+    "p5": -0.975,
+    "p95": 0.377,
+    "per100_rounds": -2.079,
+    "per100_rounds_p5": -6.347,
+    "per100_rounds_p95": 2.455
+   },
+   "quality": {
+    "per100": -0.134,
+    "p5": -0.349,
+    "p95": 0.092,
+    "per100_rounds": -0.872,
+    "per100_rounds_p5": -2.273,
+    "per100_rounds_p95": 0.599
+   },
+   "q_pos": {
+    "per100": 0.022,
+    "p5": -0.051,
+    "p95": 0.098,
+    "per100_rounds": 0.142,
+    "per100_rounds_p5": -0.329,
+    "per100_rounds_p95": 0.639
+   },
+   "q_flash": {
+    "per100": -0.044,
+    "p5": -0.076,
+    "p95": -0.01,
+    "per100_rounds": -0.284,
+    "per100_rounds_p5": -0.494,
+    "per100_rounds_p95": -0.063
+   },
+   "q_hp": {
+    "per100": -0.105,
+    "p5": -0.263,
+    "p95": 0.068,
+    "per100_rounds": -0.683,
+    "per100_rounds_p5": -1.709,
+    "per100_rounds_p95": 0.445
+   }
+  },
+  {
+   "stint_id": "magic#0:SFade8",
+   "label": "magic (SFade8)",
+   "lp_team": "magic",
+   "liquipedia_url": "https://liquipedia.net/counterstrike/magic",
+   "igl_player": "SFade8",
+   "maps": 42,
+   "rounds": 982,
+   "duels": 6470,
+   "exec": {
+    "per100": -0.063,
+    "p5": -0.637,
+    "p95": 0.489,
+    "per100_rounds": -0.413,
+    "per100_rounds_p5": -4.195,
+    "per100_rounds_p95": 3.219
+   },
+   "quality": {
+    "per100": -0.083,
+    "p5": -0.227,
+    "p95": 0.069,
+    "per100_rounds": -0.547,
+    "per100_rounds_p5": -1.495,
+    "per100_rounds_p95": 0.454
+   },
+   "q_pos": {
+    "per100": 0.016,
+    "p5": -0.08,
+    "p95": 0.109,
+    "per100_rounds": 0.106,
+    "per100_rounds_p5": -0.526,
+    "per100_rounds_p95": 0.72
+   },
+   "q_flash": {
+    "per100": -0.018,
+    "p5": -0.041,
+    "p95": 0.005,
+    "per100_rounds": -0.117,
+    "per100_rounds_p5": -0.273,
+    "per100_rounds_p95": 0.035
+   },
+   "q_hp": {
+    "per100": -0.081,
+    "p5": -0.214,
+    "p95": 0.064,
+    "per100_rounds": -0.535,
+    "per100_rounds_p5": -1.413,
+    "per100_rounds_p95": 0.425
+   }
+  },
+  {
+   "stint_id": "MIBR#1:LNZ",
+   "label": "MIBR (LNZ)",
+   "lp_team": "MIBR",
+   "liquipedia_url": "https://liquipedia.net/counterstrike/MIBR",
+   "igl_player": "LNZ",
+   "maps": 47,
+   "rounds": 972,
+   "duels": 6388,
+   "exec": {
+    "per100": 0.503,
+    "p5": -0.169,
+    "p95": 1.182,
+    "per100_rounds": 3.309,
+    "per100_rounds_p5": -1.108,
+    "per100_rounds_p95": 7.768
+   },
+   "quality": {
+    "per100": 0.106,
+    "p5": -0.135,
+    "p95": 0.31,
+    "per100_rounds": 0.698,
+    "per100_rounds_p5": -0.89,
+    "per100_rounds_p95": 2.037
+   },
+   "q_pos": {
+    "per100": 0.077,
+    "p5": -0.041,
+    "p95": 0.181,
+    "per100_rounds": 0.507,
+    "per100_rounds_p5": -0.267,
+    "per100_rounds_p95": 1.19
+   },
+   "q_flash": {
+    "per100": 0.036,
+    "p5": 0.005,
+    "p95": 0.062,
+    "per100_rounds": 0.236,
+    "per100_rounds_p5": 0.036,
+    "per100_rounds_p95": 0.405
+   },
+   "q_hp": {
+    "per100": -0.047,
+    "p5": -0.197,
+    "p95": 0.119,
+    "per100_rounds": -0.308,
+    "per100_rounds_p5": -1.293,
+    "per100_rounds_p95": 0.779
+   }
+  },
+  {
+   "stint_id": "NRG#2:Nitr0",
+   "label": "NRG (Nitr0, 2026-01-01....)",
+   "lp_team": "NRG",
+   "liquipedia_url": "https://liquipedia.net/counterstrike/NRG",
+   "igl_player": "Nitr0",
+   "maps": 41,
+   "rounds": 886,
+   "duels": 5823,
+   "exec": {
+    "per100": -0.236,
+    "p5": -0.656,
+    "p95": 0.115,
+    "per100_rounds": -1.553,
+    "per100_rounds_p5": -4.309,
+    "per100_rounds_p95": 0.753
+   },
+   "quality": {
+    "per100": -0.196,
+    "p5": -0.421,
+    "p95": 0.063,
+    "per100_rounds": -1.286,
+    "per100_rounds_p5": -2.768,
+    "per100_rounds_p95": 0.412
+   },
+   "q_pos": {
+    "per100": -0.204,
+    "p5": -0.325,
+    "p95": -0.073,
+    "per100_rounds": -1.341,
+    "per100_rounds_p5": -2.134,
+    "per100_rounds_p95": -0.479
+   },
+   "q_flash": {
+    "per100": 0.023,
+    "p5": -0.006,
+    "p95": 0.049,
+    "per100_rounds": 0.15,
+    "per100_rounds_p5": -0.04,
+    "per100_rounds_p95": 0.321
+   },
+   "q_hp": {
+    "per100": 0.015,
+    "p5": -0.118,
+    "p95": 0.157,
+    "per100_rounds": 0.096,
+    "per100_rounds_p5": -0.774,
+    "per100_rounds_p95": 1.03
+   }
+  },
+  {
+   "stint_id": "BIG#0:TabseN",
+   "label": "BIG (TabseN)",
+   "lp_team": "BIG",
+   "liquipedia_url": "https://liquipedia.net/counterstrike/BIG",
+   "igl_player": "TabseN",
+   "maps": 42,
+   "rounds": 864,
+   "duels": 5523,
+   "exec": {
+    "per100": -0.612,
+    "p5": -1.316,
+    "p95": 0.071,
+    "per100_rounds": -3.909,
+    "per100_rounds_p5": -8.415,
+    "per100_rounds_p95": 0.455
+   },
+   "quality": {
+    "per100": -0.112,
+    "p5": -0.315,
+    "p95": 0.08,
+    "per100_rounds": -0.715,
+    "per100_rounds_p5": -2.012,
+    "per100_rounds_p95": 0.51
+   },
+   "q_pos": {
+    "per100": -0.006,
+    "p5": -0.058,
+    "p95": 0.042,
+    "per100_rounds": -0.035,
+    "per100_rounds_p5": -0.371,
+    "per100_rounds_p95": 0.266
+   },
+   "q_flash": {
+    "per100": -0.031,
+    "p5": -0.062,
+    "p95": -0.001,
+    "per100_rounds": -0.199,
+    "per100_rounds_p5": -0.398,
+    "per100_rounds_p95": -0.007
+   },
+   "q_hp": {
+    "per100": -0.063,
+    "p5": -0.223,
+    "p95": 0.086,
+    "per100_rounds": -0.404,
+    "per100_rounds_p5": -1.428,
+    "per100_rounds_p95": 0.552
+   }
+  },
+  {
+   "stint_id": "SAW#0:MUTiRiS",
+   "label": "SAW (MUTiRiS)",
+   "lp_team": "SAW",
+   "liquipedia_url": "https://liquipedia.net/counterstrike/SAW",
+   "igl_player": "MUTiRiS",
+   "maps": 41,
+   "rounds": 852,
+   "duels": 5411,
+   "exec": {
+    "per100": -0.61,
+    "p5": -1.199,
+    "p95": 0.001,
+    "per100_rounds": -3.875,
+    "per100_rounds_p5": -7.614,
+    "per100_rounds_p95": 0.007
+   },
+   "quality": {
+    "per100": 0.032,
+    "p5": -0.088,
+    "p95": 0.154,
+    "per100_rounds": 0.201,
+    "per100_rounds_p5": -0.557,
+    "per100_rounds_p95": 0.979
+   },
+   "q_pos": {
+    "per100": 0.061,
+    "p5": -0.002,
+    "p95": 0.116,
+    "per100_rounds": 0.384,
+    "per100_rounds_p5": -0.015,
+    "per100_rounds_p95": 0.739
+   },
+   "q_flash": {
+    "per100": 0.009,
+    "p5": -0.012,
+    "p95": 0.029,
+    "per100_rounds": 0.057,
+    "per100_rounds_p5": -0.074,
+    "per100_rounds_p95": 0.185
+   },
+   "q_hp": {
+    "per100": -0.065,
+    "p5": -0.184,
+    "p95": 0.06,
+    "per100_rounds": -0.414,
+    "per100_rounds_p5": -1.17,
+    "per100_rounds_p95": 0.383
+   }
+  },
+  {
+   "stint_id": "Passion UA#0:JT",
+   "label": "Passion UA (JT)",
+   "lp_team": "Passion UA",
+   "liquipedia_url": "https://liquipedia.net/counterstrike/Passion_UA",
+   "igl_player": "JT",
+   "maps": 38,
+   "rounds": 810,
+   "duels": 5371,
+   "exec": {
+    "per100": -0.324,
+    "p5": -0.865,
+    "p95": 0.197,
+    "per100_rounds": -2.151,
+    "per100_rounds_p5": -5.734,
+    "per100_rounds_p95": 1.306
+   },
+   "quality": {
+    "per100": -0.025,
+    "p5": -0.236,
+    "p95": 0.171,
+    "per100_rounds": -0.163,
+    "per100_rounds_p5": -1.567,
+    "per100_rounds_p95": 1.132
+   },
+   "q_pos": {
+    "per100": -0.011,
+    "p5": -0.083,
+    "p95": 0.066,
+    "per100_rounds": -0.075,
+    "per100_rounds_p5": -0.552,
+    "per100_rounds_p95": 0.44
+   },
+   "q_flash": {
+    "per100": 0.017,
+    "p5": -0.015,
+    "p95": 0.044,
+    "per100_rounds": 0.113,
+    "per100_rounds_p5": -0.097,
+    "per100_rounds_p95": 0.291
+   },
+   "q_hp": {
+    "per100": -0.04,
+    "p5": -0.231,
+    "p95": 0.129,
+    "per100_rounds": -0.266,
+    "per100_rounds_p5": -1.531,
+    "per100_rounds_p95": 0.853
+   }
+  },
+  {
+   "stint_id": "Gentle Mates#0:Alex_(Spanish_player)",
+   "label": "Gentle Mates (Alex_(Spanish_player))",
+   "lp_team": "Gentle Mates",
+   "liquipedia_url": "https://liquipedia.net/counterstrike/Gentle_Mates",
+   "igl_player": "Alex_(Spanish_player)",
+   "maps": 37,
+   "rounds": 791,
+   "duels": 5184,
+   "exec": {
+    "per100": -0.289,
+    "p5": -0.705,
+    "p95": 0.177,
+    "per100_rounds": -1.895,
+    "per100_rounds_p5": -4.621,
+    "per100_rounds_p95": 1.16
+   },
+   "quality": {
+    "per100": 0.287,
+    "p5": 0.042,
+    "p95": 0.5,
+    "per100_rounds": 1.881,
+    "per100_rounds_p5": 0.277,
+    "per100_rounds_p95": 3.279
+   },
+   "q_pos": {
+    "per100": 0.178,
+    "p5": 0.066,
+    "p95": 0.279,
+    "per100_rounds": 1.166,
+    "per100_rounds_p5": 0.433,
+    "per100_rounds_p95": 1.828
+   },
+   "q_flash": {
+    "per100": -0.025,
+    "p5": -0.044,
+    "p95": -0.005,
+    "per100_rounds": -0.161,
+    "per100_rounds_p5": -0.287,
+    "per100_rounds_p95": -0.031
+   },
+   "q_hp": {
+    "per100": 0.102,
+    "p5": -0.075,
+    "p95": 0.254,
+    "per100_rounds": 0.669,
+    "per100_rounds_p5": -0.493,
+    "per100_rounds_p95": 1.668
+   }
+  },
+  {
+   "stint_id": "Team Liquid#0:Twistzz",
+   "label": "Team Liquid (Twistzz)",
+   "lp_team": "Team Liquid",
+   "liquipedia_url": "https://liquipedia.net/counterstrike/Team_Liquid",
+   "igl_player": "Twistzz",
+   "maps": 35,
+   "rounds": 772,
+   "duels": 4918,
+   "exec": {
+    "per100": 0.81,
+    "p5": 0.147,
+    "p95": 1.381,
+    "per100_rounds": 5.161,
+    "per100_rounds_p5": 0.939,
+    "per100_rounds_p95": 8.797
+   },
+   "quality": {
+    "per100": 0.178,
+    "p5": -0.038,
+    "p95": 0.393,
+    "per100_rounds": 1.135,
+    "per100_rounds_p5": -0.241,
+    "per100_rounds_p95": 2.504
+   },
+   "q_pos": {
+    "per100": 0.001,
+    "p5": -0.06,
+    "p95": 0.062,
+    "per100_rounds": 0.004,
+    "per100_rounds_p5": -0.382,
+    "per100_rounds_p95": 0.396
+   },
+   "q_flash": {
+    "per100": -0.0,
+    "p5": -0.02,
+    "p95": 0.018,
+    "per100_rounds": -0.002,
+    "per100_rounds_p5": -0.127,
+    "per100_rounds_p95": 0.113
+   },
+   "q_hp": {
+    "per100": 0.18,
+    "p5": -0.017,
+    "p95": 0.368,
+    "per100_rounds": 1.144,
+    "per100_rounds_p5": -0.107,
+    "per100_rounds_p95": 2.347
+   }
+  },
+  {
+   "stint_id": "FaZe Clan#1:Twistzz",
+   "label": "FaZe Clan (Twistzz)",
+   "lp_team": "FaZe Clan",
+   "liquipedia_url": "https://liquipedia.net/counterstrike/FaZe_Clan",
+   "igl_player": "Twistzz",
+   "maps": 32,
+   "rounds": 717,
+   "duels": 4595,
+   "exec": {
+    "per100": 0.489,
+    "p5": 0.046,
+    "p95": 0.942,
+    "per100_rounds": 3.132,
+    "per100_rounds_p5": 0.297,
+    "per100_rounds_p95": 6.039
+   },
+   "quality": {
+    "per100": 0.069,
+    "p5": -0.116,
+    "p95": 0.265,
+    "per100_rounds": 0.44,
+    "per100_rounds_p5": -0.74,
+    "per100_rounds_p95": 1.698
+   },
+   "q_pos": {
+    "per100": -0.111,
+    "p5": -0.189,
+    "p95": -0.007,
+    "per100_rounds": -0.714,
+    "per100_rounds_p5": -1.213,
+    "per100_rounds_p95": -0.045
+   },
+   "q_flash": {
+    "per100": -0.004,
+    "p5": -0.026,
+    "p95": 0.018,
+    "per100_rounds": -0.024,
+    "per100_rounds_p5": -0.169,
+    "per100_rounds_p95": 0.117
+   },
+   "q_hp": {
+    "per100": 0.219,
+    "p5": 0.058,
+    "p95": 0.364,
+    "per100_rounds": 1.402,
+    "per100_rounds_p5": 0.372,
+    "per100_rounds_p95": 2.332
+   }
+  },
+  {
+   "stint_id": "Wildcard#0:Stanislaw",
+   "label": "Wildcard (Stanislaw)",
+   "lp_team": "Wildcard",
+   "liquipedia_url": "https://liquipedia.net/counterstrike/Wildcard",
+   "igl_player": "Stanislaw",
+   "maps": 31,
+   "rounds": 703,
+   "duels": 4582,
+   "exec": {
+    "per100": -0.309,
+    "p5": -1.043,
+    "p95": 0.485,
+    "per100_rounds": -2.016,
+    "per100_rounds_p5": -6.795,
+    "per100_rounds_p95": 3.161
+   },
+   "quality": {
+    "per100": -0.089,
+    "p5": -0.25,
+    "p95": 0.07,
+    "per100_rounds": -0.58,
+    "per100_rounds_p5": -1.63,
+    "per100_rounds_p95": 0.457
+   },
+   "q_pos": {
+    "per100": -0.031,
+    "p5": -0.089,
+    "p95": 0.019,
+    "per100_rounds": -0.199,
+    "per100_rounds_p5": -0.581,
+    "per100_rounds_p95": 0.126
+   },
+   "q_flash": {
+    "per100": 0.011,
+    "p5": -0.014,
+    "p95": 0.032,
+    "per100_rounds": 0.07,
+    "per100_rounds_p5": -0.088,
+    "per100_rounds_p95": 0.206
+   },
+   "q_hp": {
+    "per100": -0.07,
+    "p5": -0.204,
+    "p95": 0.07,
+    "per100_rounds": -0.454,
+    "per100_rounds_p5": -1.328,
+    "per100_rounds_p95": 0.457
+   }
+  },
+  {
+   "stint_id": "MOUZ#1:XertioN",
+   "label": "MOUZ (XertioN, 2026-05-01..2026-05-31)",
+   "lp_team": "MOUZ",
+   "liquipedia_url": "https://liquipedia.net/counterstrike/MOUZ",
+   "igl_player": "XertioN",
+   "maps": 32,
+   "rounds": 670,
+   "duels": 4309,
+   "exec": {
+    "per100": 0.669,
+    "p5": 0.047,
+    "p95": 1.236,
+    "per100_rounds": 4.299,
+    "per100_rounds_p5": 0.303,
+    "per100_rounds_p95": 7.951
+   },
+   "quality": {
+    "per100": 0.417,
+    "p5": 0.106,
+    "p95": 0.701,
+    "per100_rounds": 2.68,
+    "per100_rounds_p5": 0.679,
+    "per100_rounds_p95": 4.506
+   },
+   "q_pos": {
+    "per100": 0.148,
+    "p5": 0.043,
+    "p95": 0.243,
+    "per100_rounds": 0.95,
+    "per100_rounds_p5": 0.274,
+    "per100_rounds_p95": 1.562
+   },
+   "q_flash": {
+    "per100": 0.049,
+    "p5": 0.008,
+    "p95": 0.094,
+    "per100_rounds": 0.314,
+    "per100_rounds_p5": 0.052,
+    "per100_rounds_p95": 0.606
+   },
+   "q_hp": {
+    "per100": 0.149,
+    "p5": -0.062,
+    "p95": 0.333,
+    "per100_rounds": 0.957,
+    "per100_rounds_p5": -0.401,
+    "per100_rounds_p95": 2.142
+   }
+  },
+  {
+   "stint_id": "HOTU#0:Dukefissura",
+   "label": "HOTU (Dukefissura)",
+   "lp_team": "HOTU",
+   "liquipedia_url": "https://liquipedia.net/counterstrike/HOTU",
+   "igl_player": "Dukefissura",
+   "maps": 31,
+   "rounds": 660,
+   "duels": 4359,
+   "exec": {
+    "per100": 0.223,
+    "p5": -0.423,
+    "p95": 0.844,
+    "per100_rounds": 1.474,
+    "per100_rounds_p5": -2.794,
+    "per100_rounds_p95": 5.576
+   },
+   "quality": {
+    "per100": -0.144,
+    "p5": -0.35,
+    "p95": 0.084,
+    "per100_rounds": -0.952,
+    "per100_rounds_p5": -2.308,
+    "per100_rounds_p95": 0.553
+   },
+   "q_pos": {
+    "per100": -0.022,
+    "p5": -0.141,
+    "p95": 0.081,
+    "per100_rounds": -0.146,
+    "per100_rounds_p5": -0.932,
+    "per100_rounds_p95": 0.536
+   },
+   "q_flash": {
+    "per100": -0.024,
+    "p5": -0.061,
+    "p95": 0.012,
+    "per100_rounds": -0.159,
+    "per100_rounds_p5": -0.403,
+    "per100_rounds_p95": 0.077
+   },
+   "q_hp": {
+    "per100": -0.083,
+    "p5": -0.221,
+    "p95": 0.076,
+    "per100_rounds": -0.547,
+    "per100_rounds_p5": -1.459,
+    "per100_rounds_p95": 0.503
+   }
+  },
+  {
+   "stint_id": "Nemiga Gaming#0:1eeR",
+   "label": "Nemiga Gaming (1eeR)",
+   "lp_team": "Nemiga Gaming",
+   "liquipedia_url": "https://liquipedia.net/counterstrike/Nemiga_Gaming",
+   "igl_player": "1eeR",
+   "maps": 30,
+   "rounds": 653,
+   "duels": 4189,
+   "exec": {
+    "per100": -0.266,
+    "p5": -0.785,
+    "p95": 0.241,
+    "per100_rounds": -1.707,
+    "per100_rounds_p5": -5.036,
+    "per100_rounds_p95": 1.548
+   },
+   "quality": {
+    "per100": -0.042,
+    "p5": -0.252,
+    "p95": 0.157,
+    "per100_rounds": -0.272,
+    "per100_rounds_p5": -1.618,
+    "per100_rounds_p95": 1.006
+   },
+   "q_pos": {
+    "per100": -0.028,
+    "p5": -0.095,
+    "p95": 0.042,
+    "per100_rounds": -0.178,
+    "per100_rounds_p5": -0.612,
+    "per100_rounds_p95": 0.268
+   },
+   "q_flash": {
+    "per100": -0.024,
+    "p5": -0.053,
+    "p95": 0.005,
+    "per100_rounds": -0.154,
+    "per100_rounds_p5": -0.341,
+    "per100_rounds_p95": 0.03
+   },
+   "q_hp": {
+    "per100": 0.033,
+    "p5": -0.112,
+    "p95": 0.172,
+    "per100_rounds": 0.21,
+    "per100_rounds_p5": -0.721,
+    "per100_rounds_p95": 1.102
+   }
+  },
+  {
+   "stint_id": "Monte#0:Gizmy",
+   "label": "Monte (Gizmy)",
+   "lp_team": "Monte",
+   "liquipedia_url": "https://liquipedia.net/counterstrike/Monte",
+   "igl_player": "Gizmy",
+   "maps": 30,
+   "rounds": 647,
+   "duels": 4094,
+   "exec": {
+    "per100": -0.555,
+    "p5": -1.287,
+    "p95": 0.153,
+    "per100_rounds": -3.512,
+    "per100_rounds_p5": -8.145,
+    "per100_rounds_p95": 0.966
+   },
+   "quality": {
+    "per100": 0.358,
+    "p5": 0.101,
+    "p95": 0.573,
+    "per100_rounds": 2.267,
+    "per100_rounds_p5": 0.638,
+    "per100_rounds_p95": 3.623
+   },
+   "q_pos": {
+    "per100": 0.081,
+    "p5": -0.027,
+    "p95": 0.18,
+    "per100_rounds": 0.513,
+    "per100_rounds_p5": -0.171,
+    "per100_rounds_p95": 1.138
+   },
+   "q_flash": {
+    "per100": 0.032,
+    "p5": 0.007,
+    "p95": 0.056,
+    "per100_rounds": 0.2,
+    "per100_rounds_p5": 0.044,
+    "per100_rounds_p95": 0.352
+   },
+   "q_hp": {
+    "per100": 0.205,
+    "p5": 0.062,
+    "p95": 0.323,
+    "per100_rounds": 1.295,
+    "per100_rounds_p5": 0.393,
+    "per100_rounds_p95": 2.045
+   }
+  },
+  {
+   "stint_id": "Imperial Esports#0:VINI",
+   "label": "Imperial Esports (VINI)",
+   "lp_team": "Imperial Esports",
+   "liquipedia_url": "https://liquipedia.net/counterstrike/Imperial_Esports",
+   "igl_player": "VINI",
+   "maps": 30,
+   "rounds": 624,
+   "duels": 4080,
+   "exec": {
+    "per100": -0.39,
+    "p5": -0.85,
+    "p95": 0.07,
+    "per100_rounds": -2.547,
+    "per100_rounds_p5": -5.559,
+    "per100_rounds_p95": 0.458
+   },
+   "quality": {
+    "per100": 0.155,
+    "p5": -0.124,
+    "p95": 0.423,
+    "per100_rounds": 1.012,
+    "per100_rounds_p5": -0.813,
+    "per100_rounds_p95": 2.768
+   },
+   "q_pos": {
+    "per100": 0.088,
+    "p5": -0.008,
+    "p95": 0.191,
+    "per100_rounds": 0.576,
+    "per100_rounds_p5": -0.051,
+    "per100_rounds_p95": 1.246
+   },
+   "q_flash": {
+    "per100": 0.027,
+    "p5": -0.001,
+    "p95": 0.056,
+    "per100_rounds": 0.174,
+    "per100_rounds_p5": -0.009,
+    "per100_rounds_p95": 0.366
+   },
+   "q_hp": {
+    "per100": 0.002,
+    "p5": -0.202,
+    "p95": 0.186,
+    "per100_rounds": 0.011,
+    "per100_rounds_p5": -1.318,
+    "per100_rounds_p95": 1.219
+   }
+  },
+  {
+   "stint_id": "HEROIC#1:Chr1zN",
+   "label": "HEROIC (Chr1zN)",
+   "lp_team": "HEROIC",
+   "liquipedia_url": "https://liquipedia.net/counterstrike/HEROIC",
+   "igl_player": "Chr1zN",
+   "maps": 31,
+   "rounds": 613,
+   "duels": 3985,
+   "exec": {
+    "per100": -0.434,
+    "p5": -0.988,
+    "p95": 0.127,
+    "per100_rounds": -2.821,
+    "per100_rounds_p5": -6.422,
+    "per100_rounds_p95": 0.824
+   },
+   "quality": {
+    "per100": -0.256,
+    "p5": -0.497,
+    "p95": 0.03,
+    "per100_rounds": -1.667,
+    "per100_rounds_p5": -3.234,
+    "per100_rounds_p95": 0.196
+   },
+   "q_pos": {
+    "per100": 0.035,
+    "p5": -0.051,
+    "p95": 0.117,
+    "per100_rounds": 0.231,
+    "per100_rounds_p5": -0.332,
+    "per100_rounds_p95": 0.759
+   },
+   "q_flash": {
+    "per100": -0.049,
+    "p5": -0.082,
+    "p95": -0.013,
+    "per100_rounds": -0.318,
+    "per100_rounds_p5": -0.534,
+    "per100_rounds_p95": -0.086
+   },
+   "q_hp": {
+    "per100": -0.232,
+    "p5": -0.458,
+    "p95": 0.01,
+    "per100_rounds": -1.511,
+    "per100_rounds_p5": -2.975,
+    "per100_rounds_p95": 0.065
+   }
+  },
+  {
+   "stint_id": "BIG#1:BlameF",
+   "label": "BIG (BlameF)",
+   "lp_team": "BIG",
+   "liquipedia_url": "https://liquipedia.net/counterstrike/BIG",
+   "igl_player": "BlameF",
+   "maps": 28,
+   "rounds": 601,
+   "duels": 3905,
+   "exec": {
+    "per100": -0.271,
+    "p5": -0.717,
+    "p95": 0.183,
+    "per100_rounds": -1.758,
+    "per100_rounds_p5": -4.661,
+    "per100_rounds_p95": 1.192
+   },
+   "quality": {
+    "per100": 0.182,
+    "p5": -0.042,
+    "p95": 0.401,
+    "per100_rounds": 1.181,
+    "per100_rounds_p5": -0.275,
+    "per100_rounds_p95": 2.608
+   },
+   "q_pos": {
+    "per100": 0.121,
+    "p5": 0.001,
+    "p95": 0.229,
+    "per100_rounds": 0.784,
+    "per100_rounds_p5": 0.01,
+    "per100_rounds_p95": 1.489
+   },
+   "q_flash": {
+    "per100": -0.018,
+    "p5": -0.041,
+    "p95": 0.004,
+    "per100_rounds": -0.116,
+    "per100_rounds_p5": -0.265,
+    "per100_rounds_p95": 0.023
+   },
+   "q_hp": {
+    "per100": 0.053,
+    "p5": -0.086,
+    "p95": 0.184,
+    "per100_rounds": 0.344,
+    "per100_rounds_p5": -0.56,
+    "per100_rounds_p95": 1.196
+   }
+  },
+  {
+   "stint_id": "NRG#0:Nitr0",
+   "label": "NRG (Nitr0, ....2025-10-31)",
+   "lp_team": "NRG",
+   "liquipedia_url": "https://liquipedia.net/counterstrike/NRG",
+   "igl_player": "Nitr0",
+   "maps": 23,
+   "rounds": 503,
+   "duels": 3312,
+   "exec": {
+    "per100": -0.24,
+    "p5": -0.72,
+    "p95": 0.278,
+    "per100_rounds": -1.582,
+    "per100_rounds_p5": -4.742,
+    "per100_rounds_p95": 1.828
+   },
+   "quality": {
+    "per100": -0.127,
+    "p5": -0.266,
+    "p95": 0.025,
+    "per100_rounds": -0.837,
+    "per100_rounds_p5": -1.753,
+    "per100_rounds_p95": 0.165
+   },
+   "q_pos": {
+    "per100": -0.063,
+    "p5": -0.116,
+    "p95": -0.008,
+    "per100_rounds": -0.412,
+    "per100_rounds_p5": -0.764,
+    "per100_rounds_p95": -0.053
+   },
+   "q_flash": {
+    "per100": 0.017,
+    "p5": -0.004,
+    "p95": 0.041,
+    "per100_rounds": 0.114,
+    "per100_rounds_p5": -0.029,
+    "per100_rounds_p95": 0.267
+   },
+   "q_hp": {
+    "per100": -0.081,
+    "p5": -0.241,
+    "p95": 0.085,
+    "per100_rounds": -0.534,
+    "per100_rounds_p5": -1.586,
+    "per100_rounds_p95": 0.563
+   }
+  },
+  {
+   "stint_id": "Fluxo#0:ArT",
+   "label": "Fluxo (ArT)",
+   "lp_team": "Fluxo",
+   "liquipedia_url": "https://liquipedia.net/counterstrike/Fluxo",
+   "igl_player": "ArT",
+   "maps": 24,
+   "rounds": 475,
+   "duels": 3111,
+   "exec": {
+    "per100": -0.895,
+    "p5": -1.477,
+    "p95": -0.332,
+    "per100_rounds": -5.862,
+    "per100_rounds_p5": -9.676,
+    "per100_rounds_p95": -2.174
+   },
+   "quality": {
+    "per100": -0.238,
+    "p5": -0.419,
+    "p95": -0.046,
+    "per100_rounds": -1.556,
+    "per100_rounds_p5": -2.747,
+    "per100_rounds_p95": -0.299
+   },
+   "q_pos": {
+    "per100": -0.01,
+    "p5": -0.115,
+    "p95": 0.089,
+    "per100_rounds": -0.063,
+    "per100_rounds_p5": -0.755,
+    "per100_rounds_p95": 0.583
+   },
+   "q_flash": {
+    "per100": 0.012,
+    "p5": -0.009,
+    "p95": 0.035,
+    "per100_rounds": 0.081,
+    "per100_rounds_p5": -0.058,
+    "per100_rounds_p95": 0.228
+   },
+   "q_hp": {
+    "per100": -0.26,
+    "p5": -0.458,
+    "p95": -0.038,
+    "per100_rounds": -1.7,
+    "per100_rounds_p5": -3.0,
+    "per100_rounds_p95": -0.247
+   }
+  },
+  {
+   "stint_id": "Virtus.pro#1:Perfecto",
+   "label": "Virtus.pro (Perfecto)",
+   "lp_team": "Virtus.pro",
+   "liquipedia_url": "https://liquipedia.net/counterstrike/Virtus.pro",
+   "igl_player": "Perfecto",
+   "maps": 21,
+   "rounds": 456,
+   "duels": 2883,
+   "exec": {
+    "per100": 0.312,
+    "p5": -0.191,
+    "p95": 0.804,
+    "per100_rounds": 1.972,
+    "per100_rounds_p5": -1.208,
+    "per100_rounds_p95": 5.081
+   },
+   "quality": {
+    "per100": -0.136,
+    "p5": -0.307,
+    "p95": 0.027,
+    "per100_rounds": -0.859,
+    "per100_rounds_p5": -1.943,
+    "per100_rounds_p95": 0.173
+   },
+   "q_pos": {
+    "per100": -0.086,
+    "p5": -0.164,
+    "p95": -0.007,
+    "per100_rounds": -0.541,
+    "per100_rounds_p5": -1.037,
+    "per100_rounds_p95": -0.043
+   },
+   "q_flash": {
+    "per100": 0.035,
+    "p5": 0.008,
+    "p95": 0.062,
+    "per100_rounds": 0.22,
+    "per100_rounds_p5": 0.053,
+    "per100_rounds_p95": 0.393
+   },
+   "q_hp": {
+    "per100": -0.093,
+    "p5": -0.217,
+    "p95": 0.019,
+    "per100_rounds": -0.59,
+    "per100_rounds_p5": -1.372,
+    "per100_rounds_p95": 0.119
+   }
+  },
+  {
+   "stint_id": "Nemiga Gaming#1:Robo",
+   "label": "Nemiga Gaming (Robo)",
+   "lp_team": "Nemiga Gaming",
+   "liquipedia_url": "https://liquipedia.net/counterstrike/Nemiga_Gaming",
+   "igl_player": "Robo",
+   "maps": 19,
+   "rounds": 425,
+   "duels": 2813,
+   "exec": {
+    "per100": 0.368,
+    "p5": -0.322,
+    "p95": 0.979,
+    "per100_rounds": 2.433,
+    "per100_rounds_p5": -2.129,
+    "per100_rounds_p95": 6.48
+   },
+   "quality": {
+    "per100": -0.085,
+    "p5": -0.225,
+    "p95": 0.088,
+    "per100_rounds": -0.563,
+    "per100_rounds_p5": -1.486,
+    "per100_rounds_p95": 0.581
+   },
+   "q_pos": {
+    "per100": -0.078,
+    "p5": -0.138,
+    "p95": -0.012,
+    "per100_rounds": -0.519,
+    "per100_rounds_p5": -0.911,
+    "per100_rounds_p95": -0.081
+   },
+   "q_flash": {
+    "per100": 0.0,
+    "p5": -0.034,
+    "p95": 0.034,
+    "per100_rounds": 0.0,
+    "per100_rounds_p5": -0.225,
+    "per100_rounds_p95": 0.225
+   },
+   "q_hp": {
+    "per100": 0.016,
+    "p5": -0.106,
+    "p95": 0.146,
+    "per100_rounds": 0.103,
+    "per100_rounds_p5": -0.699,
+    "per100_rounds_p95": 0.966
+   }
+  },
+  {
+   "stint_id": "Inner Circle Esports#0:Onic",
+   "label": "Inner Circle Esports (Onic)",
+   "lp_team": "Inner Circle Esports",
+   "liquipedia_url": "https://liquipedia.net/counterstrike/Inner_Circle_Esports",
+   "igl_player": "Onic",
+   "maps": 17,
+   "rounds": 362,
+   "duels": 2359,
+   "exec": {
+    "per100": 0.002,
+    "p5": -0.647,
+    "p95": 0.54,
+    "per100_rounds": 0.014,
+    "per100_rounds_p5": -4.218,
+    "per100_rounds_p95": 3.518
+   },
+   "quality": {
+    "per100": 0.25,
+    "p5": -0.021,
+    "p95": 0.5,
+    "per100_rounds": 1.627,
+    "per100_rounds_p5": -0.14,
+    "per100_rounds_p95": 3.257
+   },
+   "q_pos": {
+    "per100": 0.049,
+    "p5": -0.059,
+    "p95": 0.172,
+    "per100_rounds": 0.322,
+    "per100_rounds_p5": -0.385,
+    "per100_rounds_p95": 1.119
+   },
+   "q_flash": {
+    "per100": -0.012,
+    "p5": -0.032,
+    "p95": 0.006,
+    "per100_rounds": -0.079,
+    "per100_rounds_p5": -0.206,
+    "per100_rounds_p95": 0.037
+   },
+   "q_hp": {
+    "per100": 0.209,
+    "p5": 0.04,
+    "p95": 0.354,
+    "per100_rounds": 1.364,
+    "per100_rounds_p5": 0.26,
+    "per100_rounds_p95": 2.306
+   }
+  },
+  {
+   "stint_id": "Team Liquid#2:JT",
+   "label": "Team Liquid (JT)",
+   "lp_team": "Team Liquid",
+   "liquipedia_url": "https://liquipedia.net/counterstrike/Team_Liquid",
+   "igl_player": "JT",
+   "maps": 14,
+   "rounds": 316,
+   "duels": 1991,
+   "exec": {
+    "per100": 0.006,
+    "p5": -0.457,
+    "p95": 0.41,
+    "per100_rounds": 0.04,
+    "per100_rounds_p5": -2.88,
+    "per100_rounds_p95": 2.586
+   },
+   "quality": {
+    "per100": -0.085,
+    "p5": -0.281,
+    "p95": 0.115,
+    "per100_rounds": -0.536,
+    "per100_rounds_p5": -1.768,
+    "per100_rounds_p95": 0.724
+   },
+   "q_pos": {
+    "per100": -0.048,
+    "p5": -0.127,
+    "p95": 0.034,
+    "per100_rounds": -0.305,
+    "per100_rounds_p5": -0.802,
+    "per100_rounds_p95": 0.213
+   },
+   "q_flash": {
+    "per100": -0.007,
+    "p5": -0.016,
+    "p95": 0.001,
+    "per100_rounds": -0.043,
+    "per100_rounds_p5": -0.101,
+    "per100_rounds_p95": 0.009
+   },
+   "q_hp": {
+    "per100": -0.012,
+    "p5": -0.102,
+    "p95": 0.079,
+    "per100_rounds": -0.076,
+    "per100_rounds_p5": -0.64,
+    "per100_rounds_p95": 0.496
+   }
+  }
+ ]
+}

@@ -19,7 +19,7 @@ Real dates: Valve published the PGL Major Singapore invitation snapshot on 2 Nov
 | 4. Demo pipeline | **Gate passed**; backfill in progress |
 | 5. Win probability and WPA | **Walk-forward gate passed** (2026-11-12); out-of-sample credit & monthly job built; WPA page not yet live |
 | 6. Player WAR | Items 1–8 built; WAA, usage, conversion, and `vs HLTV` gap live at `/war` on `production`; team factor & APM built (`cs2wp team-factor`, gates not passed at 90% CI); roster-change test open |
-| 7. Team and tactics metrics | Player-version RW over expected built & gated (`cs2wp team-factor`, Stage 1 gate failed on current archive); rest not started |
+| 7. Team and tactics metrics | Player-version RW over expected built & gated (`cs2wp team-factor`, Stage 1 gate failed on current archive); duel execution and quality built (`cs2wp duel-stats`), player execution gate passes, team gates wait on the GPU `cs2wp duels` rebuild; rest not started |
 
 ### Changes from the old plan
 
@@ -383,7 +383,7 @@ Every round outcome splits into four layers: economy and map, duel execution (ai
 - **Veto data.** Map Elo for rarely played maps is thin, which is often why a team permabans a map. Shrink those estimates hard, or the model will recommend maps teams never practice. Coaches share veto decisions, so label the stat a team decision, not pure IGL.
 - **Clutch noise.** In most sports clutch is mostly noise. Check stability before publishing.
 
-**Status: not started.** Upstream inputs for Order 1–2 exist from Phases 5 and 6 (`data/wp/reports/team_drift.parquet` for time-and-position value, `data/war/duels.parquet` and `data/war/duel-sides.parquet` for expected duels).
+**Status: order 1 built.** `cs2wp duel-stats` ([war.md](war.md#duel-execution-and-quality)) scores duel execution (`win − p`) and duel quality (`p − p_base`, where `p_base` knows only the buy and side, split into positioning, flash and HP parts) per player and per team, with split-half, independence and beyond-Elo gates. Player execution passes its gate. The team gates need the nested baselines from a GPU `cs2wp duels` rebuild. Order 2 inputs exist from Phases 5 and 6 (`data/wp/reports/team_drift.parquet` for time-and-position value).
 
 ## Site architecture
 

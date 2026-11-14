@@ -27,6 +27,12 @@ GROUPS = {"weapons": ["x_gun", "y_gun"], "peeker vs holder": ["x_speed", "y_spee
           "HP and armor": ["x_hp", "y_hp", "x_armor", "y_armor", "x_helmet", "y_helmet"], "distance": ["distance"],
           "side": ["x_ct"]}
 FEATURES = [c for cols in GROUPS.values() for c in cols]
+# Nested baselines for duel quality (`cs2wp duel-stats`): each adds one group, and FEATURES adds HP last.
+BASE = [*GROUPS["weapons"], "x_armor", "y_armor", "x_helmet", "y_helmet", *GROUPS["side"]]
+POSITION = [*BASE, *GROUPS["peeker vs holder"], *GROUPS["distance"]]
+FLASH = [*POSITION, *GROUPS["flashed"]]
+NESTED = {"p_base": ("Base: weapons, armor, side", BASE), "p_pos": ("Base + peeker vs holder, distance", POSITION),
+          "p_flash": ("Base + position + flashed", FLASH)}
 # Experiment: kept out of FEATURES unless it beats noise (docs/war.md).
 SMOKE = ["x_smoke", "y_smoke"]
 MONOTONE = {"x_hp": 1, "y_hp": -1, "x_blind": -1, "y_blind": 1}
@@ -201,6 +207,15 @@ def cross_fit(d: pl.DataFrame, cols: list[str], folds: np.ndarray, device: str =
     return p, n
 
 
+def opening(d: pl.DataFrame) -> pl.Series:
+    """True for the first duel of each round, by start tick, then kill tick."""
+    first = (d.select("key", "round_num", "start", "tick", "kill").sort("start", "tick", "kill")
+             .group_by("key", "round_num", maintain_order=True).agg(pl.col("kill").first()))
+    hit = d.select("key", "round_num", "kill").join(first.with_columns(pl.lit(True).alias("opening")),
+                                                    on=["key", "round_num", "kill"], how="left")
+    return hit["opening"].fill_null(False)
+
+
 def side_totals(d: pl.DataFrame, p: np.ndarray) -> pl.DataFrame:
     """Per (key, steamid, side): duels, wins and expected wins, counting each duel once for each player."""
     side = pl.col("attacker_side").cast(pl.Int32)
@@ -338,6 +353,10 @@ def build(ablations: bool = False, device: str = "auto") -> int:
     rows = [("All", _scores(p), n)]
     smoke_row, smoke_lines = smoke_experiment(d, p, folds, resolved)
     rows.append(smoke_row)
+    nested = {}
+    for col, (label, cols) in NESTED.items():
+        nested[col], nv = cross_fit(d, cols, folds, device=resolved)
+        rows.append((label, _scores(nested[col]), nv))
     variants = [("Weapons only", GROUPS["weapons"])]
     if ablations:
         variants += [(f"All but {g}", [c for c in FEATURES if c not in cols]) for g, cols in GROUPS.items()]
@@ -346,7 +365,8 @@ def build(ablations: bool = False, device: str = "auto") -> int:
         rows.append((label, _scores(pv), nv))
 
     model = fit(oriented(d), FEATURES, n, device=resolved)
-    d = d.with_columns(pl.Series("p", p), pl.Series("fold", folds))
+    d = d.with_columns(pl.Series("p", p), *(pl.Series(c, v) for c, v in nested.items()), pl.Series("fold", folds))
+    d = d.with_columns(opening(d))
     rr = pl.read_parquet(ROLE_ROUNDS).select("key", "date", "map", "event", "lp_team", "lp_player", "steamid", "side",
                                             "role", "rounds")
     sides = (rr.join(side_totals(d, p), on=["key", "steamid", "side"], how="left")

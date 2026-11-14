@@ -1,0 +1,1867 @@
+{
+ "generated_at": "2026-11-14T02:56:38+00:00",
+ "min_rounds": 300,
+ "stats": {
+  "tpv": {
+   "label": "Time-and-position value",
+   "split_half_r": 0.4153406367484651,
+   "split_half_r_ci": [
+    0.2386139537768663,
+    0.5771588118737506
+   ],
+   "persistence_r": 0.3789586912884497,
+   "persistence_r_ci": [
+    0.23757367788776557,
+    0.4957458960405114
+   ],
+   "descriptive": true
+  },
+  "rwoe_econ": {
+   "label": "Round wins over expected (economy)",
+   "split_half_r": 0.6624041691369595,
+   "split_half_r_ci": [
+    0.5294291272008153,
+    0.7636621913212527
+   ],
+   "persistence_r": 0.5699252895268061,
+   "persistence_r_ci": [
+    0.4768818170641455,
+    0.6435670459011523
+   ],
+   "descriptive": true
+  },
+  "ct_def": {
+   "label": "Adjusted CT (defense)",
+   "split_half_r": 0.6056105319095769,
+   "split_half_r_ci": [
+    0.5063008892627837,
+    0.6974759695992842
+   ],
+   "gain_vs_raw": 0.00022969851843093137,
+   "gain_vs_raw_ci": [
+    7.928361020695551e-05,
+    0.0003852531179339611
+   ],
+   "descriptive": true
+  },
+  "t_off": {
+   "label": "Adjusted T (offense)",
+   "split_half_r": 0.6324699395245489,
+   "split_half_r_ci": [
+    0.5116000106109736,
+    0.727356138844692
+   ],
+   "gain_vs_raw": 0.00022969851843093137,
+   "gain_vs_raw_ci": [
+    7.928361020695551e-05,
+    0.0003852531179339611
+   ],
+   "descriptive": true
+  }
+ },
+ "source": {
+  "demos": "HLTV.org match demos, parsed with awpy",
+  "attribution": "Events, rosters and player pages from Liquipedia (CC-BY-SA 3.0)",
+  "liquipedia": "https://liquipedia.net/counterstrike/"
+ },
+ "teams": [
+  {
+   "stint_id": "FURIA#0:FalleN",
+   "label": "FURIA (FalleN)",
+   "lp_team": "FURIA",
+   "liquipedia_url": "https://liquipedia.net/counterstrike/FURIA",
+   "igl_player": "FalleN",
+   "maps": 363,
+   "rounds": 7857,
+   "tpv": {
+    "per100": -0.367,
+    "p5": -0.574,
+    "p95": -0.161
+   },
+   "rwoe_econ": {
+    "per100": 3.515,
+    "p5": 2.616,
+    "p95": 4.293
+   },
+   "ct_def": {
+    "per100": 2.374,
+    "p5": 1.14,
+    "p95": 3.954
+   },
+   "t_off": {
+    "per100": 4.201,
+    "p5": 2.887,
+    "p95": 5.153
+   }
+  },
+  {
+   "stint_id": "Team Vitality#0:ApEX",
+   "label": "Team Vitality (ApEX)",
+   "lp_team": "Team Vitality",
+   "liquipedia_url": "https://liquipedia.net/counterstrike/Team_Vitality",
+   "igl_player": "ApEX",
+   "maps": 341,
+   "rounds": 7273,
+   "tpv": {
+    "per100": -0.28,
+    "p5": -0.45,
+    "p95": -0.099
+   },
+   "rwoe_econ": {
+    "per100": 7.19,
+    "p5": 6.214,
+    "p95": 8.052
+   },
+   "ct_def": {
+    "per100": 8.239,
+    "p5": 6.636,
+    "p95": 9.403
+   },
+   "t_off": {
+    "per100": 6.272,
+    "p5": 5.089,
+    "p95": 7.721
+   }
+  },
+  {
+   "stint_id": "The MongolZ#0:BLitz",
+   "label": "The MongolZ (BLitz)",
+   "lp_team": "The MongolZ",
+   "liquipedia_url": "https://liquipedia.net/counterstrike/The_MongolZ",
+   "igl_player": "BLitz",
+   "maps": 281,
+   "rounds": 6242,
+   "tpv": {
+    "per100": 0.523,
+    "p5": 0.312,
+    "p95": 0.716
+   },
+   "rwoe_econ": {
+    "per100": 2.234,
+    "p5": 1.33,
+    "p95": 3.097
+   },
+   "ct_def": {
+    "per100": 1.991,
+    "p5": 0.714,
+    "p95": 3.364
+   },
+   "t_off": {
+    "per100": 1.633,
+    "p5": 0.354,
+    "p95": 2.998
+   }
+  },
+  {
+   "stint_id": "Natus Vincere#0:Aleksib",
+   "label": "Natus Vincere (Aleksib)",
+   "lp_team": "Natus Vincere",
+   "liquipedia_url": "https://liquipedia.net/counterstrike/Natus_Vincere",
+   "igl_player": "Aleksib",
+   "maps": 263,
+   "rounds": 5691,
+   "tpv": {
+    "per100": -0.202,
+    "p5": -0.416,
+    "p95": 0.017
+   },
+   "rwoe_econ": {
+    "per100": 3.521,
+    "p5": 2.532,
+    "p95": 4.431
+   },
+   "ct_def": {
+    "per100": 2.875,
+    "p5": 1.611,
+    "p95": 4.614
+   },
+   "t_off": {
+    "per100": 3.426,
+    "p5": 2.339,
+    "p95": 4.59
+   }
+  },
+  {
+   "stint_id": "Team Falcons#0:Kyxsan",
+   "label": "Team Falcons (Kyxsan)",
+   "lp_team": "Team Falcons",
+   "liquipedia_url": "https://liquipedia.net/counterstrike/Team_Falcons",
+   "igl_player": "Kyxsan",
+   "maps": 228,
+   "rounds": 5033,
+   "tpv": {
+    "per100": -0.372,
+    "p5": -0.621,
+    "p95": -0.14
+   },
+   "rwoe_econ": {
+    "per100": 4.304,
+    "p5": 3.217,
+    "p95": 5.37
+   },
+   "ct_def": {
+    "per100": 3.167,
+    "p5": 1.8,
+    "p95": 4.572
+   },
+   "t_off": {
+    "per100": 4.901,
+    "p5": 3.673,
+    "p95": 6.581
+   }
+  },
+  {
+   "stint_id": "MOUZ#0:Brollan",
+   "label": "MOUZ (Brollan, ....2026-04-30)",
+   "lp_team": "MOUZ",
+   "liquipedia_url": "https://liquipedia.net/counterstrike/MOUZ",
+   "igl_player": "Brollan",
+   "maps": 210,
+   "rounds": 4636,
+   "tpv": {
+    "per100": -0.875,
+    "p5": -1.106,
+    "p95": -0.652
+   },
+   "rwoe_econ": {
+    "per100": 3.306,
+    "p5": 2.289,
+    "p95": 4.202
+   },
+   "ct_def": {
+    "per100": 2.63,
+    "p5": 1.213,
+    "p95": 4.058
+   },
+   "t_off": {
+    "per100": 2.965,
+    "p5": 1.114,
+    "p95": 4.099
+   }
+  },
+  {
+   "stint_id": "G2 Esports#1:HuNter-",
+   "label": "G2 Esports (HuNter-)",
+   "lp_team": "G2 Esports",
+   "liquipedia_url": "https://liquipedia.net/counterstrike/G2_Esports",
+   "igl_player": "HuNter-",
+   "maps": 208,
+   "rounds": 4503,
+   "tpv": {
+    "per100": -0.01,
+    "p5": -0.219,
+    "p95": 0.211
+   },
+   "rwoe_econ": {
+    "per100": 2.72,
+    "p5": 1.614,
+    "p95": 3.872
+   },
+   "ct_def": {
+    "per100": 2.219,
+    "p5": 0.797,
+    "p95": 3.849
+   },
+   "t_off": {
+    "per100": 2.453,
+    "p5": 1.024,
+    "p95": 3.714
+   }
+  },
+  {
+   "stint_id": "3DMAX#0:Maka",
+   "label": "3DMAX (Maka)",
+   "lp_team": "3DMAX",
+   "liquipedia_url": "https://liquipedia.net/counterstrike/3DMAX",
+   "igl_player": "Maka",
+   "maps": 185,
+   "rounds": 4023,
+   "tpv": {
+    "per100": 0.118,
+    "p5": -0.108,
+    "p95": 0.333
+   },
+   "rwoe_econ": {
+    "per100": 0.286,
+    "p5": -0.92,
+    "p95": 1.376
+   },
+   "ct_def": {
+    "per100": -0.884,
+    "p5": -2.29,
+    "p95": 0.856
+   },
+   "t_off": {
+    "per100": 0.689,
+    "p5": -0.899,
+    "p95": 2.303
+   }
+  },
+  {
+   "stint_id": "paiN Gaming#0:Biguzera",
+   "label": "paiN Gaming (Biguzera)",
+   "lp_team": "paiN Gaming",
+   "liquipedia_url": "https://liquipedia.net/counterstrike/paiN_Gaming",
+   "igl_player": "Biguzera",
+   "maps": 185,
+   "rounds": 4000,
+   "tpv": {
+    "per100": 0.002,
+    "p5": -0.25,
+    "p95": 0.236
+   },
+   "rwoe_econ": {
+    "per100": -0.609,
+    "p5": -1.848,
+    "p95": 0.497
+   },
+   "ct_def": {
+    "per100": -1.603,
+    "p5": -3.354,
+    "p95": 0.124
+   },
+   "t_off": {
+    "per100": -0.422,
+    "p5": -1.651,
+    "p95": 0.708
+   }
+  },
+  {
+   "stint_id": "FaZe Clan#0:Karrigan",
+   "label": "FaZe Clan (Karrigan)",
+   "lp_team": "FaZe Clan",
+   "liquipedia_url": "https://liquipedia.net/counterstrike/FaZe_Clan",
+   "igl_player": "Karrigan",
+   "maps": 183,
+   "rounds": 3955,
+   "tpv": {
+    "per100": 0.247,
+    "p5": -0.039,
+    "p95": 0.576
+   },
+   "rwoe_econ": {
+    "per100": 1.809,
+    "p5": 0.589,
+    "p95": 2.984
+   },
+   "ct_def": {
+    "per100": 0.878,
+    "p5": -0.602,
+    "p95": 2.391
+   },
+   "t_off": {
+    "per100": 2.212,
+    "p5": 0.218,
+    "p95": 3.86
+   }
+  },
+  {
+   "stint_id": "Aurora Gaming#0:MAJ3R",
+   "label": "Aurora Gaming (MAJ3R)",
+   "lp_team": "Aurora Gaming",
+   "liquipedia_url": "https://liquipedia.net/counterstrike/Aurora_Gaming",
+   "igl_player": "MAJ3R",
+   "maps": 171,
+   "rounds": 3732,
+   "tpv": {
+    "per100": -0.268,
+    "p5": -0.496,
+    "p95": -0.025
+   },
+   "rwoe_econ": {
+    "per100": 1.97,
+    "p5": 0.788,
+    "p95": 3.073
+   },
+   "ct_def": {
+    "per100": 2.041,
+    "p5": 0.362,
+    "p95": 3.469
+   },
+   "t_off": {
+    "per100": 1.015,
+    "p5": -0.781,
+    "p95": 2.285
+   }
+  },
+  {
+   "stint_id": "Astralis#1:HooXi",
+   "label": "Astralis (HooXi)",
+   "lp_team": "Astralis",
+   "liquipedia_url": "https://liquipedia.net/counterstrike/Astralis",
+   "igl_player": "HooXi",
+   "maps": 166,
+   "rounds": 3578,
+   "tpv": {
+    "per100": 0.003,
+    "p5": -0.21,
+    "p95": 0.216
+   },
+   "rwoe_econ": {
+    "per100": 1.003,
+    "p5": -0.267,
+    "p95": 2.275
+   },
+   "ct_def": {
+    "per100": 0.822,
+    "p5": -0.401,
+    "p95": 2.134
+   },
+   "t_off": {
+    "per100": 0.321,
+    "p5": -1.999,
+    "p95": 2.247
+   }
+  },
+  {
+   "stint_id": "Team Spirit#0:Chopper",
+   "label": "Team Spirit (Chopper)",
+   "lp_team": "Team Spirit",
+   "liquipedia_url": "https://liquipedia.net/counterstrike/Team_Spirit",
+   "igl_player": "Chopper",
+   "maps": 140,
+   "rounds": 3151,
+   "tpv": {
+    "per100": -0.866,
+    "p5": -1.178,
+    "p95": -0.548
+   },
+   "rwoe_econ": {
+    "per100": 5.64,
+    "p5": 4.467,
+    "p95": 6.655
+   },
+   "ct_def": {
+    "per100": 4.882,
+    "p5": 3.17,
+    "p95": 6.721
+   },
+   "t_off": {
+    "per100": 5.537,
+    "p5": 4.089,
+    "p95": 6.996
+   }
+  },
+  {
+   "stint_id": "Team Spirit#1:Magixx",
+   "label": "Team Spirit (Magixx)",
+   "lp_team": "Team Spirit",
+   "liquipedia_url": "https://liquipedia.net/counterstrike/Team_Spirit",
+   "igl_player": "Magixx",
+   "maps": 143,
+   "rounds": 3077,
+   "tpv": {
+    "per100": -0.381,
+    "p5": -0.611,
+    "p95": -0.159
+   },
+   "rwoe_econ": {
+    "per100": 5.051,
+    "p5": 3.635,
+    "p95": 6.502
+   },
+   "ct_def": {
+    "per100": 5.173,
+    "p5": 3.757,
+    "p95": 6.745
+   },
+   "t_off": {
+    "per100": 3.888,
+    "p5": 1.983,
+    "p95": 5.633
+   }
+  },
+  {
+   "stint_id": "PARIVISION#0:Jame",
+   "label": "PARIVISION (Jame)",
+   "lp_team": "PARIVISION",
+   "liquipedia_url": "https://liquipedia.net/counterstrike/PARIVISION",
+   "igl_player": "Jame",
+   "maps": 129,
+   "rounds": 2857,
+   "tpv": {
+    "per100": -0.238,
+    "p5": -0.548,
+    "p95": 0.111
+   },
+   "rwoe_econ": {
+    "per100": 1.285,
+    "p5": 0.027,
+    "p95": 2.44
+   },
+   "ct_def": {
+    "per100": 0.81,
+    "p5": -1.203,
+    "p95": 2.737
+   },
+   "t_off": {
+    "per100": 0.773,
+    "p5": -0.63,
+    "p95": 2.06
+   }
+  },
+  {
+   "stint_id": "TYLOO#0:Mercury",
+   "label": "TYLOO (Mercury)",
+   "lp_team": "TYLOO",
+   "liquipedia_url": "https://liquipedia.net/counterstrike/TYLOO",
+   "igl_player": "Mercury",
+   "maps": 125,
+   "rounds": 2690,
+   "tpv": {
+    "per100": 0.6,
+    "p5": 0.365,
+    "p95": 0.828
+   },
+   "rwoe_econ": {
+    "per100": -1.419,
+    "p5": -2.834,
+    "p95": -0.122
+   },
+   "ct_def": {
+    "per100": -1.231,
+    "p5": -2.726,
+    "p95": 0.658
+   },
+   "t_off": {
+    "per100": -2.217,
+    "p5": -3.796,
+    "p95": -0.269
+   }
+  },
+  {
+   "stint_id": "B8#0:Alex666",
+   "label": "B8 (Alex666)",
+   "lp_team": "B8",
+   "liquipedia_url": "https://liquipedia.net/counterstrike/B8",
+   "igl_player": "Alex666",
+   "maps": 121,
+   "rounds": 2652,
+   "tpv": {
+    "per100": 0.075,
+    "p5": -0.216,
+    "p95": 0.333
+   },
+   "rwoe_econ": {
+    "per100": 0.462,
+    "p5": -0.91,
+    "p95": 1.623
+   },
+   "ct_def": {
+    "per100": 0.874,
+    "p5": -0.797,
+    "p95": 2.962
+   },
+   "t_off": {
+    "per100": -0.814,
+    "p5": -2.802,
+    "p95": 0.811
+   }
+  },
+  {
+   "stint_id": "GamerLegion#0:Ztr",
+   "label": "GamerLegion (Ztr)",
+   "lp_team": "GamerLegion",
+   "liquipedia_url": "https://liquipedia.net/counterstrike/GamerLegion",
+   "igl_player": "Ztr",
+   "maps": 119,
+   "rounds": 2575,
+   "tpv": {
+    "per100": 0.107,
+    "p5": -0.179,
+    "p95": 0.381
+   },
+   "rwoe_econ": {
+    "per100": 0.707,
+    "p5": -0.766,
+    "p95": 2.152
+   },
+   "ct_def": {
+    "per100": 0.203,
+    "p5": -1.779,
+    "p95": 2.138
+   },
+   "t_off": {
+    "per100": 0.454,
+    "p5": -1.105,
+    "p95": 2.127
+   }
+  },
+  {
+   "stint_id": "Team Liquid#1:Siuhy",
+   "label": "Team Liquid (Siuhy)",
+   "lp_team": "Team Liquid",
+   "liquipedia_url": "https://liquipedia.net/counterstrike/Team_Liquid",
+   "igl_player": "Siuhy",
+   "maps": 112,
+   "rounds": 2426,
+   "tpv": {
+    "per100": 0.353,
+    "p5": 0.104,
+    "p95": 0.602
+   },
+   "rwoe_econ": {
+    "per100": -1.213,
+    "p5": -2.639,
+    "p95": 0.05
+   },
+   "ct_def": {
+    "per100": -1.298,
+    "p5": -3.269,
+    "p95": 0.373
+   },
+   "t_off": {
+    "per100": -1.891,
+    "p5": -3.79,
+    "p95": 0.225
+   }
+  },
+  {
+   "stint_id": "Legacy#1:ArT",
+   "label": "Legacy (ArT)",
+   "lp_team": "Legacy",
+   "liquipedia_url": "https://liquipedia.net/counterstrike/Legacy",
+   "igl_player": "ArT",
+   "maps": 107,
+   "rounds": 2358,
+   "tpv": {
+    "per100": -0.573,
+    "p5": -0.824,
+    "p95": -0.276
+   },
+   "rwoe_econ": {
+    "per100": 1.509,
+    "p5": -0.101,
+    "p95": 2.94
+   },
+   "ct_def": {
+    "per100": 0.942,
+    "p5": -1.259,
+    "p95": 2.555
+   },
+   "t_off": {
+    "per100": 0.939,
+    "p5": -0.977,
+    "p95": 2.389
+   }
+  },
+  {
+   "stint_id": "FUT Esports#0:Krabeni",
+   "label": "FUT Esports (Krabeni)",
+   "lp_team": "FUT Esports",
+   "liquipedia_url": "https://liquipedia.net/counterstrike/FUT_Esports",
+   "igl_player": "Krabeni",
+   "maps": 101,
+   "rounds": 2250,
+   "tpv": {
+    "per100": 0.297,
+    "p5": -0.03,
+    "p95": 0.636
+   },
+   "rwoe_econ": {
+    "per100": 2.379,
+    "p5": 1.177,
+    "p95": 3.456
+   },
+   "ct_def": {
+    "per100": 2.457,
+    "p5": 0.56,
+    "p95": 3.685
+   },
+   "t_off": {
+    "per100": 1.123,
+    "p5": -0.683,
+    "p95": 2.579
+   }
+  },
+  {
+   "stint_id": "Team Falcons#1:Karrigan",
+   "label": "Team Falcons (Karrigan)",
+   "lp_team": "Team Falcons",
+   "liquipedia_url": "https://liquipedia.net/counterstrike/Team_Falcons",
+   "igl_player": "Karrigan",
+   "maps": 91,
+   "rounds": 2064,
+   "tpv": {
+    "per100": -0.001,
+    "p5": -0.236,
+    "p95": 0.216
+   },
+   "rwoe_econ": {
+    "per100": 4.191,
+    "p5": 2.881,
+    "p95": 5.336
+   },
+   "ct_def": {
+    "per100": 3.384,
+    "p5": 1.816,
+    "p95": 5.02
+   },
+   "t_off": {
+    "per100": 3.617,
+    "p5": 1.434,
+    "p95": 5.582
+   }
+  },
+  {
+   "stint_id": "Virtus.pro#0:ElectroNic",
+   "label": "Virtus.pro (ElectroNic)",
+   "lp_team": "Virtus.pro",
+   "liquipedia_url": "https://liquipedia.net/counterstrike/Virtus.pro",
+   "igl_player": "ElectroNic",
+   "maps": 92,
+   "rounds": 2007,
+   "tpv": {
+    "per100": 0.153,
+    "p5": -0.164,
+    "p95": 0.462
+   },
+   "rwoe_econ": {
+    "per100": 0.374,
+    "p5": -1.178,
+    "p95": 1.903
+   },
+   "ct_def": {
+    "per100": -0.496,
+    "p5": -2.084,
+    "p95": 1.423
+   },
+   "t_off": {
+    "per100": 0.586,
+    "p5": -0.986,
+    "p95": 2.342
+   }
+  },
+  {
+   "stint_id": "BetBoom Team#1:Boombl4",
+   "label": "BetBoom Team (Boombl4)",
+   "lp_team": "BetBoom Team",
+   "liquipedia_url": "https://liquipedia.net/counterstrike/BetBoom_Team",
+   "igl_player": "Boombl4",
+   "maps": 90,
+   "rounds": 1982,
+   "tpv": {
+    "per100": 0.264,
+    "p5": -0.006,
+    "p95": 0.53
+   },
+   "rwoe_econ": {
+    "per100": 1.813,
+    "p5": 0.249,
+    "p95": 3.109
+   },
+   "ct_def": {
+    "per100": 2.549,
+    "p5": 0.426,
+    "p95": 4.314
+   },
+   "t_off": {
+    "per100": -0.089,
+    "p5": -1.327,
+    "p95": 1.391
+   }
+  },
+  {
+   "stint_id": "M80#0:S1n",
+   "label": "M80 (S1n)",
+   "lp_team": "M80",
+   "liquipedia_url": "https://liquipedia.net/counterstrike/M80",
+   "igl_player": "S1n",
+   "maps": 92,
+   "rounds": 1965,
+   "tpv": {
+    "per100": 0.009,
+    "p5": -0.205,
+    "p95": 0.235
+   },
+   "rwoe_econ": {
+    "per100": -0.846,
+    "p5": -2.195,
+    "p95": 0.475
+   },
+   "ct_def": {
+    "per100": -0.038,
+    "p5": -2.074,
+    "p95": 1.533
+   },
+   "t_off": {
+    "per100": -2.29,
+    "p5": -3.805,
+    "p95": -0.529
+   }
+  },
+  {
+   "stint_id": "G2 Esports#0:Snax",
+   "label": "G2 Esports (Snax)",
+   "lp_team": "G2 Esports",
+   "liquipedia_url": "https://liquipedia.net/counterstrike/G2_Esports",
+   "igl_player": "Snax",
+   "maps": 82,
+   "rounds": 1811,
+   "tpv": {
+    "per100": -0.9,
+    "p5": -1.195,
+    "p95": -0.568
+   },
+   "rwoe_econ": {
+    "per100": 1.434,
+    "p5": -0.063,
+    "p95": 2.869
+   },
+   "ct_def": {
+    "per100": -0.179,
+    "p5": -1.946,
+    "p95": 1.723
+   },
+   "t_off": {
+    "per100": 2.36,
+    "p5": -0.074,
+    "p95": 4.536
+   }
+  },
+  {
+   "stint_id": "9z Team#0:Max",
+   "label": "9z Team (Max)",
+   "lp_team": "9z Team",
+   "liquipedia_url": "https://liquipedia.net/counterstrike/9z_Team",
+   "igl_player": "Max",
+   "maps": 82,
+   "rounds": 1671,
+   "tpv": {
+    "per100": -0.145,
+    "p5": -0.332,
+    "p95": 0.05
+   },
+   "rwoe_econ": {
+    "per100": 0.229,
+    "p5": -1.836,
+    "p95": 2.112
+   },
+   "ct_def": {
+    "per100": 0.971,
+    "p5": -1.131,
+    "p95": 2.957
+   },
+   "t_off": {
+    "per100": -1.743,
+    "p5": -3.651,
+    "p95": 0.606
+   }
+  },
+  {
+   "stint_id": "HEROIC#0:LNZ",
+   "label": "HEROIC (LNZ)",
+   "lp_team": "HEROIC",
+   "liquipedia_url": "https://liquipedia.net/counterstrike/HEROIC",
+   "igl_player": "LNZ",
+   "maps": 76,
+   "rounds": 1668,
+   "tpv": {
+    "per100": 0.142,
+    "p5": -0.223,
+    "p95": 0.499
+   },
+   "rwoe_econ": {
+    "per100": -0.296,
+    "p5": -1.869,
+    "p95": 1.11
+   },
+   "ct_def": {
+    "per100": -1.426,
+    "p5": -2.895,
+    "p95": 0.317
+   },
+   "t_off": {
+    "per100": 0.34,
+    "p5": -1.773,
+    "p95": 2.148
+   }
+  },
+  {
+   "stint_id": "MOUZ#3:XertioN",
+   "label": "MOUZ (XertioN, 2026-06-15....)",
+   "lp_team": "MOUZ",
+   "liquipedia_url": "https://liquipedia.net/counterstrike/MOUZ",
+   "igl_player": "XertioN",
+   "maps": 74,
+   "rounds": 1608,
+   "tpv": {
+    "per100": -0.701,
+    "p5": -1.011,
+    "p95": -0.348
+   },
+   "rwoe_econ": {
+    "per100": 4.119,
+    "p5": 2.482,
+    "p95": 5.823
+   },
+   "ct_def": {
+    "per100": 4.323,
+    "p5": 2.529,
+    "p95": 5.821
+   },
+   "t_off": {
+    "per100": 2.191,
+    "p5": 0.638,
+    "p95": 4.16
+   }
+  },
+  {
+   "stint_id": "FlyQuest#0:INS",
+   "label": "FlyQuest (INS)",
+   "lp_team": "FlyQuest",
+   "liquipedia_url": "https://liquipedia.net/counterstrike/FlyQuest",
+   "igl_player": "INS",
+   "maps": 74,
+   "rounds": 1568,
+   "tpv": {
+    "per100": 0.119,
+    "p5": -0.19,
+    "p95": 0.452
+   },
+   "rwoe_econ": {
+    "per100": -1.366,
+    "p5": -2.817,
+    "p95": 0.264
+   },
+   "ct_def": {
+    "per100": -0.052,
+    "p5": -2.173,
+    "p95": 1.593
+   },
+   "t_off": {
+    "per100": -2.838,
+    "p5": -4.897,
+    "p95": -0.789
+   }
+  },
+  {
+   "stint_id": "Lynn Vision Gaming#0:Westmelon",
+   "label": "Lynn Vision Gaming (Westmelon)",
+   "lp_team": "Lynn Vision Gaming",
+   "liquipedia_url": "https://liquipedia.net/counterstrike/Lynn_Vision_Gaming",
+   "igl_player": "Westmelon",
+   "maps": 76,
+   "rounds": 1565,
+   "tpv": {
+    "per100": 0.027,
+    "p5": -0.34,
+    "p95": 0.392
+   },
+   "rwoe_econ": {
+    "per100": -2.796,
+    "p5": -4.484,
+    "p95": -1.066
+   },
+   "ct_def": {
+    "per100": -1.001,
+    "p5": -3.118,
+    "p95": 0.677
+   },
+   "t_off": {
+    "per100": -4.525,
+    "p5": -6.227,
+    "p95": -2.729
+   }
+  },
+  {
+   "stint_id": "MIBR#0:Exit",
+   "label": "MIBR (Exit)",
+   "lp_team": "MIBR",
+   "liquipedia_url": "https://liquipedia.net/counterstrike/MIBR",
+   "igl_player": "Exit",
+   "maps": 70,
+   "rounds": 1562,
+   "tpv": {
+    "per100": 0.416,
+    "p5": -0.015,
+    "p95": 0.879
+   },
+   "rwoe_econ": {
+    "per100": -1.953,
+    "p5": -3.561,
+    "p95": -0.331
+   },
+   "ct_def": {
+    "per100": -3.138,
+    "p5": -5.294,
+    "p95": -0.866
+   },
+   "t_off": {
+    "per100": -0.932,
+    "p5": -3.065,
+    "p95": 1.04
+   }
+  },
+  {
+   "stint_id": "Eternal Fire#0:MAJ3R",
+   "label": "Eternal Fire (MAJ3R)",
+   "lp_team": "Eternal Fire",
+   "liquipedia_url": "https://liquipedia.net/counterstrike/Eternal_Fire",
+   "igl_player": "MAJ3R",
+   "maps": 68,
+   "rounds": 1551,
+   "tpv": {
+    "per100": 0.242,
+    "p5": -0.078,
+    "p95": 0.52
+   },
+   "rwoe_econ": {
+    "per100": 2.987,
+    "p5": 1.314,
+    "p95": 4.633
+   },
+   "ct_def": {
+    "per100": 2.139,
+    "p5": 0.437,
+    "p95": 4.213
+   },
+   "t_off": {
+    "per100": 2.758,
+    "p5": 0.687,
+    "p95": 4.948
+   }
+  },
+  {
+   "stint_id": "Legacy#0:Lux",
+   "label": "Legacy (Lux)",
+   "lp_team": "Legacy",
+   "liquipedia_url": "https://liquipedia.net/counterstrike/Legacy",
+   "igl_player": "Lux",
+   "maps": 70,
+   "rounds": 1485,
+   "tpv": {
+    "per100": -0.273,
+    "p5": -0.678,
+    "p95": 0.163
+   },
+   "rwoe_econ": {
+    "per100": -0.642,
+    "p5": -2.157,
+    "p95": 0.805
+   },
+   "ct_def": {
+    "per100": -0.855,
+    "p5": -2.685,
+    "p95": 0.983
+   },
+   "t_off": {
+    "per100": -0.809,
+    "p5": -3.1,
+    "p95": 1.679
+   }
+  },
+  {
+   "stint_id": "Aurora Gaming#1:Kyxsan",
+   "label": "Aurora Gaming (Kyxsan)",
+   "lp_team": "Aurora Gaming",
+   "liquipedia_url": "https://liquipedia.net/counterstrike/Aurora_Gaming",
+   "igl_player": "Kyxsan",
+   "maps": 67,
+   "rounds": 1456,
+   "tpv": {
+    "per100": -0.074,
+    "p5": -0.361,
+    "p95": 0.223
+   },
+   "rwoe_econ": {
+    "per100": 2.491,
+    "p5": 0.684,
+    "p95": 4.021
+   },
+   "ct_def": {
+    "per100": 3.956,
+    "p5": 2.162,
+    "p95": 5.798
+   },
+   "t_off": {
+    "per100": -0.433,
+    "p5": -2.128,
+    "p95": 0.88
+   }
+  },
+  {
+   "stint_id": "Ninjas in Pyjamas#0:Snappi",
+   "label": "Ninjas in Pyjamas (Snappi)",
+   "lp_team": "Ninjas in Pyjamas",
+   "liquipedia_url": "https://liquipedia.net/counterstrike/Ninjas_in_Pyjamas",
+   "igl_player": "Snappi",
+   "maps": 66,
+   "rounds": 1437,
+   "tpv": {
+    "per100": 0.496,
+    "p5": 0.241,
+    "p95": 0.761
+   },
+   "rwoe_econ": {
+    "per100": -0.539,
+    "p5": -2.215,
+    "p95": 1.078
+   },
+   "ct_def": {
+    "per100": -0.847,
+    "p5": -2.662,
+    "p95": 0.944
+   },
+   "t_off": {
+    "per100": -0.727,
+    "p5": -2.422,
+    "p95": 0.768
+   }
+  },
+  {
+   "stint_id": "GamerLegion#1:Snax",
+   "label": "GamerLegion (Snax)",
+   "lp_team": "GamerLegion",
+   "liquipedia_url": "https://liquipedia.net/counterstrike/GamerLegion",
+   "igl_player": "Snax",
+   "maps": 58,
+   "rounds": 1223,
+   "tpv": {
+    "per100": 0.099,
+    "p5": -0.166,
+    "p95": 0.361
+   },
+   "rwoe_econ": {
+    "per100": 0.222,
+    "p5": -1.614,
+    "p95": 1.981
+   },
+   "ct_def": {
+    "per100": -2.019,
+    "p5": -4.88,
+    "p95": 0.676
+   },
+   "t_off": {
+    "per100": 1.775,
+    "p5": -0.182,
+    "p95": 3.219
+   }
+  },
+  {
+   "stint_id": "Astralis#0:CadiaN",
+   "label": "Astralis (CadiaN)",
+   "lp_team": "Astralis",
+   "liquipedia_url": "https://liquipedia.net/counterstrike/Astralis",
+   "igl_player": "CadiaN",
+   "maps": 50,
+   "rounds": 1133,
+   "tpv": {
+    "per100": -0.576,
+    "p5": -0.967,
+    "p95": -0.189
+   },
+   "rwoe_econ": {
+    "per100": -0.492,
+    "p5": -2.121,
+    "p95": 0.94
+   },
+   "ct_def": {
+    "per100": -1.58,
+    "p5": -3.354,
+    "p95": 0.138
+   },
+   "t_off": {
+    "per100": 0.271,
+    "p5": -1.299,
+    "p95": 1.503
+   }
+  },
+  {
+   "stint_id": "Complexity#0:JT",
+   "label": "Complexity (JT)",
+   "lp_team": "Complexity",
+   "liquipedia_url": "https://liquipedia.net/counterstrike/Complexity",
+   "igl_player": "JT",
+   "maps": 47,
+   "rounds": 1006,
+   "tpv": {
+    "per100": 0.609,
+    "p5": 0.338,
+    "p95": 0.859
+   },
+   "rwoe_econ": {
+    "per100": -0.582,
+    "p5": -2.472,
+    "p95": 1.613
+   },
+   "ct_def": {
+    "per100": -0.556,
+    "p5": -3.124,
+    "p95": 1.637
+   },
+   "t_off": {
+    "per100": -0.84,
+    "p5": -2.918,
+    "p95": 1.523
+   }
+  },
+  {
+   "stint_id": "magic#0:SFade8",
+   "label": "magic (SFade8)",
+   "lp_team": "magic",
+   "liquipedia_url": "https://liquipedia.net/counterstrike/magic",
+   "igl_player": "SFade8",
+   "maps": 42,
+   "rounds": 982,
+   "tpv": {
+    "per100": -0.106,
+    "p5": -0.406,
+    "p95": 0.215
+   },
+   "rwoe_econ": {
+    "per100": -0.474,
+    "p5": -1.948,
+    "p95": 0.965
+   },
+   "ct_def": {
+    "per100": -0.656,
+    "p5": -2.071,
+    "p95": 0.897
+   },
+   "t_off": {
+    "per100": -0.736,
+    "p5": -2.398,
+    "p95": 0.858
+   }
+  },
+  {
+   "stint_id": "MIBR#1:LNZ",
+   "label": "MIBR (LNZ)",
+   "lp_team": "MIBR",
+   "liquipedia_url": "https://liquipedia.net/counterstrike/MIBR",
+   "igl_player": "LNZ",
+   "maps": 47,
+   "rounds": 972,
+   "tpv": {
+    "per100": 0.429,
+    "p5": 0.147,
+    "p95": 0.706
+   },
+   "rwoe_econ": {
+    "per100": 1.749,
+    "p5": -0.496,
+    "p95": 3.664
+   },
+   "ct_def": {
+    "per100": 2.258,
+    "p5": 0.235,
+    "p95": 4.311
+   },
+   "t_off": {
+    "per100": 0.233,
+    "p5": -2.77,
+    "p95": 2.279
+   }
+  },
+  {
+   "stint_id": "NRG#2:Nitr0",
+   "label": "NRG (Nitr0, 2026-01-01....)",
+   "lp_team": "NRG",
+   "liquipedia_url": "https://liquipedia.net/counterstrike/NRG",
+   "igl_player": "Nitr0",
+   "maps": 41,
+   "rounds": 886,
+   "tpv": {
+    "per100": 0.273,
+    "p5": -0.085,
+    "p95": 0.611
+   },
+   "rwoe_econ": {
+    "per100": -0.972,
+    "p5": -2.482,
+    "p95": 0.606
+   },
+   "ct_def": {
+    "per100": 0.113,
+    "p5": -2.011,
+    "p95": 1.924
+   },
+   "t_off": {
+    "per100": -2.532,
+    "p5": -4.666,
+    "p95": -0.504
+   }
+  },
+  {
+   "stint_id": "BIG#0:TabseN",
+   "label": "BIG (TabseN)",
+   "lp_team": "BIG",
+   "liquipedia_url": "https://liquipedia.net/counterstrike/BIG",
+   "igl_player": "TabseN",
+   "maps": 42,
+   "rounds": 864,
+   "tpv": {
+    "per100": -0.104,
+    "p5": -0.414,
+    "p95": 0.227
+   },
+   "rwoe_econ": {
+    "per100": -1.294,
+    "p5": -3.345,
+    "p95": 0.773
+   },
+   "ct_def": {
+    "per100": -1.593,
+    "p5": -3.33,
+    "p95": 0.308
+   },
+   "t_off": {
+    "per100": -0.883,
+    "p5": -2.784,
+    "p95": 1.57
+   }
+  },
+  {
+   "stint_id": "SAW#0:MUTiRiS",
+   "label": "SAW (MUTiRiS)",
+   "lp_team": "SAW",
+   "liquipedia_url": "https://liquipedia.net/counterstrike/SAW",
+   "igl_player": "MUTiRiS",
+   "maps": 41,
+   "rounds": 852,
+   "tpv": {
+    "per100": 0.262,
+    "p5": 0.041,
+    "p95": 0.471
+   },
+   "rwoe_econ": {
+    "per100": -1.559,
+    "p5": -3.344,
+    "p95": 0.146
+   },
+   "ct_def": {
+    "per100": -2.117,
+    "p5": -4.418,
+    "p95": -0.143
+   },
+   "t_off": {
+    "per100": -0.929,
+    "p5": -2.346,
+    "p95": 0.791
+   }
+  },
+  {
+   "stint_id": "Passion UA#0:JT",
+   "label": "Passion UA (JT)",
+   "lp_team": "Passion UA",
+   "liquipedia_url": "https://liquipedia.net/counterstrike/Passion_UA",
+   "igl_player": "JT",
+   "maps": 38,
+   "rounds": 810,
+   "tpv": {
+    "per100": 0.39,
+    "p5": 0.128,
+    "p95": 0.619
+   },
+   "rwoe_econ": {
+    "per100": -1.596,
+    "p5": -3.349,
+    "p95": 0.102
+   },
+   "ct_def": {
+    "per100": -0.384,
+    "p5": -2.165,
+    "p95": 2.04
+   },
+   "t_off": {
+    "per100": -2.584,
+    "p5": -4.443,
+    "p95": -0.31
+   }
+  },
+  {
+   "stint_id": "Gentle Mates#0:Alex_(Spanish_player)",
+   "label": "Gentle Mates (Alex_(Spanish_player))",
+   "lp_team": "Gentle Mates",
+   "liquipedia_url": "https://liquipedia.net/counterstrike/Gentle_Mates",
+   "igl_player": "Alex_(Spanish_player)",
+   "maps": 37,
+   "rounds": 791,
+   "tpv": {
+    "per100": -0.058,
+    "p5": -0.419,
+    "p95": 0.312
+   },
+   "rwoe_econ": {
+    "per100": 0.68,
+    "p5": -1.041,
+    "p95": 2.35
+   },
+   "ct_def": {
+    "per100": 0.322,
+    "p5": -1.62,
+    "p95": 1.976
+   },
+   "t_off": {
+    "per100": 0.362,
+    "p5": -1.222,
+    "p95": 2.094
+   }
+  },
+  {
+   "stint_id": "Team Liquid#0:Twistzz",
+   "label": "Team Liquid (Twistzz)",
+   "lp_team": "Team Liquid",
+   "liquipedia_url": "https://liquipedia.net/counterstrike/Team_Liquid",
+   "igl_player": "Twistzz",
+   "maps": 35,
+   "rounds": 772,
+   "tpv": {
+    "per100": -0.222,
+    "p5": -0.532,
+    "p95": 0.097
+   },
+   "rwoe_econ": {
+    "per100": 1.879,
+    "p5": -0.087,
+    "p95": 3.714
+   },
+   "ct_def": {
+    "per100": 2.131,
+    "p5": -0.286,
+    "p95": 4.357
+   },
+   "t_off": {
+    "per100": 0.314,
+    "p5": -1.375,
+    "p95": 2.025
+   }
+  },
+  {
+   "stint_id": "FaZe Clan#1:Twistzz",
+   "label": "FaZe Clan (Twistzz)",
+   "lp_team": "FaZe Clan",
+   "liquipedia_url": "https://liquipedia.net/counterstrike/FaZe_Clan",
+   "igl_player": "Twistzz",
+   "maps": 32,
+   "rounds": 717,
+   "tpv": {
+    "per100": -0.068,
+    "p5": -0.37,
+    "p95": 0.272
+   },
+   "rwoe_econ": {
+    "per100": 1.352,
+    "p5": -0.517,
+    "p95": 3.187
+   },
+   "ct_def": {
+    "per100": -0.411,
+    "p5": -2.169,
+    "p95": 1.095
+   },
+   "t_off": {
+    "per100": 1.841,
+    "p5": 0.195,
+    "p95": 3.515
+   }
+  },
+  {
+   "stint_id": "Wildcard#0:Stanislaw",
+   "label": "Wildcard (Stanislaw)",
+   "lp_team": "Wildcard",
+   "liquipedia_url": "https://liquipedia.net/counterstrike/Wildcard",
+   "igl_player": "Stanislaw",
+   "maps": 31,
+   "rounds": 703,
+   "tpv": {
+    "per100": 0.129,
+    "p5": -0.11,
+    "p95": 0.373
+   },
+   "rwoe_econ": {
+    "per100": -1.078,
+    "p5": -3.04,
+    "p95": 1.192
+   },
+   "ct_def": {
+    "per100": -1.156,
+    "p5": -3.633,
+    "p95": 0.892
+   },
+   "t_off": {
+    "per100": -0.883,
+    "p5": -3.999,
+    "p95": 2.223
+   }
+  },
+  {
+   "stint_id": "MOUZ#1:XertioN",
+   "label": "MOUZ (XertioN, 2026-05-01..2026-05-31)",
+   "lp_team": "MOUZ",
+   "liquipedia_url": "https://liquipedia.net/counterstrike/MOUZ",
+   "igl_player": "XertioN",
+   "maps": 32,
+   "rounds": 670,
+   "tpv": {
+    "per100": -0.245,
+    "p5": -0.457,
+    "p95": -0.002
+   },
+   "rwoe_econ": {
+    "per100": 3.038,
+    "p5": 0.859,
+    "p95": 4.932
+   },
+   "ct_def": {
+    "per100": 2.334,
+    "p5": -0.072,
+    "p95": 4.693
+   },
+   "t_off": {
+    "per100": 1.866,
+    "p5": 0.251,
+    "p95": 3.42
+   }
+  },
+  {
+   "stint_id": "HOTU#0:Dukefissura",
+   "label": "HOTU (Dukefissura)",
+   "lp_team": "HOTU",
+   "liquipedia_url": "https://liquipedia.net/counterstrike/HOTU",
+   "igl_player": "Dukefissura",
+   "maps": 31,
+   "rounds": 660,
+   "tpv": {
+    "per100": 0.187,
+    "p5": -0.114,
+    "p95": 0.497
+   },
+   "rwoe_econ": {
+    "per100": 0.994,
+    "p5": -1.111,
+    "p95": 2.912
+   },
+   "ct_def": {
+    "per100": -0.162,
+    "p5": -1.826,
+    "p95": 2.673
+   },
+   "t_off": {
+    "per100": 1.057,
+    "p5": -0.344,
+    "p95": 2.411
+   }
+  },
+  {
+   "stint_id": "Nemiga Gaming#0:1eeR",
+   "label": "Nemiga Gaming (1eeR)",
+   "lp_team": "Nemiga Gaming",
+   "liquipedia_url": "https://liquipedia.net/counterstrike/Nemiga_Gaming",
+   "igl_player": "1eeR",
+   "maps": 30,
+   "rounds": 653,
+   "tpv": {
+    "per100": 0.429,
+    "p5": 0.005,
+    "p95": 0.818
+   },
+   "rwoe_econ": {
+    "per100": 0.1,
+    "p5": -1.518,
+    "p95": 1.453
+   },
+   "ct_def": {
+    "per100": -0.72,
+    "p5": -1.952,
+    "p95": 0.319
+   },
+   "t_off": {
+    "per100": 0.836,
+    "p5": -1.075,
+    "p95": 2.896
+   }
+  },
+  {
+   "stint_id": "Monte#0:Gizmy",
+   "label": "Monte (Gizmy)",
+   "lp_team": "Monte",
+   "liquipedia_url": "https://liquipedia.net/counterstrike/Monte",
+   "igl_player": "Gizmy",
+   "maps": 30,
+   "rounds": 647,
+   "tpv": {
+    "per100": -0.028,
+    "p5": -0.254,
+    "p95": 0.209
+   },
+   "rwoe_econ": {
+    "per100": 0.36,
+    "p5": -1.586,
+    "p95": 2.087
+   },
+   "ct_def": {
+    "per100": -0.476,
+    "p5": -2.651,
+    "p95": 1.373
+   },
+   "t_off": {
+    "per100": 0.537,
+    "p5": -1.046,
+    "p95": 2.145
+   }
+  },
+  {
+   "stint_id": "Imperial Esports#0:VINI",
+   "label": "Imperial Esports (VINI)",
+   "lp_team": "Imperial Esports",
+   "liquipedia_url": "https://liquipedia.net/counterstrike/Imperial_Esports",
+   "igl_player": "VINI",
+   "maps": 30,
+   "rounds": 624,
+   "tpv": {
+    "per100": 0.066,
+    "p5": -0.216,
+    "p95": 0.368
+   },
+   "rwoe_econ": {
+    "per100": -2.059,
+    "p5": -4.059,
+    "p95": 0.174
+   },
+   "ct_def": {
+    "per100": -2.954,
+    "p5": -5.404,
+    "p95": -0.501
+   },
+   "t_off": {
+    "per100": -0.217,
+    "p5": -1.863,
+    "p95": 1.396
+   }
+  },
+  {
+   "stint_id": "HEROIC#1:Chr1zN",
+   "label": "HEROIC (Chr1zN)",
+   "lp_team": "HEROIC",
+   "liquipedia_url": "https://liquipedia.net/counterstrike/HEROIC",
+   "igl_player": "Chr1zN",
+   "maps": 31,
+   "rounds": 613,
+   "tpv": {
+    "per100": 0.047,
+    "p5": -0.171,
+    "p95": 0.263
+   },
+   "rwoe_econ": {
+    "per100": -1.894,
+    "p5": -3.817,
+    "p95": -0.07
+   },
+   "ct_def": {
+    "per100": -1.982,
+    "p5": -3.756,
+    "p95": -0.359
+   },
+   "t_off": {
+    "per100": -1.196,
+    "p5": -3.275,
+    "p95": 0.384
+   }
+  },
+  {
+   "stint_id": "BIG#1:BlameF",
+   "label": "BIG (BlameF)",
+   "lp_team": "BIG",
+   "liquipedia_url": "https://liquipedia.net/counterstrike/BIG",
+   "igl_player": "BlameF",
+   "maps": 28,
+   "rounds": 601,
+   "tpv": {
+    "per100": -0.01,
+    "p5": -0.272,
+    "p95": 0.281
+   },
+   "rwoe_econ": {
+    "per100": -0.368,
+    "p5": -1.786,
+    "p95": 0.992
+   },
+   "ct_def": {
+    "per100": 0.212,
+    "p5": -2.333,
+    "p95": 2.54
+   },
+   "t_off": {
+    "per100": -1.236,
+    "p5": -3.637,
+    "p95": 0.861
+   }
+  },
+  {
+   "stint_id": "NRG#0:Nitr0",
+   "label": "NRG (Nitr0, ....2025-10-31)",
+   "lp_team": "NRG",
+   "liquipedia_url": "https://liquipedia.net/counterstrike/NRG",
+   "igl_player": "Nitr0",
+   "maps": 23,
+   "rounds": 503,
+   "tpv": {
+    "per100": -0.722,
+    "p5": -1.155,
+    "p95": -0.281
+   },
+   "rwoe_econ": {
+    "per100": -0.901,
+    "p5": -2.486,
+    "p95": 0.837
+   },
+   "ct_def": {
+    "per100": -1.217,
+    "p5": -3.443,
+    "p95": 0.333
+   },
+   "t_off": {
+    "per100": -0.234,
+    "p5": -2.725,
+    "p95": 1.917
+   }
+  },
+  {
+   "stint_id": "Fluxo#0:ArT",
+   "label": "Fluxo (ArT)",
+   "lp_team": "Fluxo",
+   "liquipedia_url": "https://liquipedia.net/counterstrike/Fluxo",
+   "igl_player": "ArT",
+   "maps": 24,
+   "rounds": 475,
+   "tpv": {
+    "per100": 0.155,
+    "p5": -0.204,
+    "p95": 0.513
+   },
+   "rwoe_econ": {
+    "per100": -3.233,
+    "p5": -5.28,
+    "p95": -0.963
+   },
+   "ct_def": {
+    "per100": -1.572,
+    "p5": -3.442,
+    "p95": 0.514
+   },
+   "t_off": {
+    "per100": -3.279,
+    "p5": -4.796,
+    "p95": -0.682
+   }
+  },
+  {
+   "stint_id": "Virtus.pro#1:Perfecto",
+   "label": "Virtus.pro (Perfecto)",
+   "lp_team": "Virtus.pro",
+   "liquipedia_url": "https://liquipedia.net/counterstrike/Virtus.pro",
+   "igl_player": "Perfecto",
+   "maps": 21,
+   "rounds": 456,
+   "tpv": {
+    "per100": -0.179,
+    "p5": -0.597,
+    "p95": 0.209
+   },
+   "rwoe_econ": {
+    "per100": -1.55,
+    "p5": -3.593,
+    "p95": 0.558
+   },
+   "ct_def": {
+    "per100": -1.07,
+    "p5": -3.144,
+    "p95": 1.497
+   },
+   "t_off": {
+    "per100": -1.526,
+    "p5": -3.17,
+    "p95": -0.036
+   }
+  },
+  {
+   "stint_id": "Nemiga Gaming#1:Robo",
+   "label": "Nemiga Gaming (Robo)",
+   "lp_team": "Nemiga Gaming",
+   "liquipedia_url": "https://liquipedia.net/counterstrike/Nemiga_Gaming",
+   "igl_player": "Robo",
+   "maps": 19,
+   "rounds": 425,
+   "tpv": {
+    "per100": 0.209,
+    "p5": 0.004,
+    "p95": 0.407
+   },
+   "rwoe_econ": {
+    "per100": 2.234,
+    "p5": -0.024,
+    "p95": 4.27
+   },
+   "ct_def": {
+    "per100": 0.857,
+    "p5": -1.184,
+    "p95": 1.96
+   },
+   "t_off": {
+    "per100": 1.749,
+    "p5": -0.168,
+    "p95": 3.41
+   }
+  },
+  {
+   "stint_id": "Inner Circle Esports#0:Onic",
+   "label": "Inner Circle Esports (Onic)",
+   "lp_team": "Inner Circle Esports",
+   "liquipedia_url": "https://liquipedia.net/counterstrike/Inner_Circle_Esports",
+   "igl_player": "Onic",
+   "maps": 17,
+   "rounds": 362,
+   "tpv": {
+    "per100": 0.146,
+    "p5": -0.081,
+    "p95": 0.363
+   },
+   "rwoe_econ": {
+    "per100": 0.896,
+    "p5": -1.799,
+    "p95": 3.155
+   },
+   "ct_def": {
+    "per100": -0.701,
+    "p5": -2.106,
+    "p95": 0.794
+   },
+   "t_off": {
+    "per100": 1.559,
+    "p5": -0.141,
+    "p95": 3.445
+   }
+  },
+  {
+   "stint_id": "Team Liquid#2:JT",
+   "label": "Team Liquid (JT)",
+   "lp_team": "Team Liquid",
+   "liquipedia_url": "https://liquipedia.net/counterstrike/Team_Liquid",
+   "igl_player": "JT",
+   "maps": 14,
+   "rounds": 316,
+   "tpv": {
+    "per100": 0.348,
+    "p5": 0.115,
+    "p95": 0.586
+   },
+   "rwoe_econ": {
+    "per100": 0.271,
+    "p5": -1.451,
+    "p95": 1.851
+   },
+   "ct_def": {
+    "per100": -0.128,
+    "p5": -1.665,
+    "p95": 1.402
+   },
+   "t_off": {
+    "per100": -0.122,
+    "p5": -1.314,
+    "p95": 1.032
+   }
+  }
+ ]
+}

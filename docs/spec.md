@@ -19,7 +19,7 @@ Real dates: Valve published the PGL Major Singapore invitation snapshot on 2 Nov
 | 4. Demo pipeline | **Gate passed**; backfill in progress |
 | 5. Win probability and WPA | **Walk-forward gate passed** (2026-11-12); out-of-sample credit & monthly job built; WPA page not yet live |
 | 6. Player WAR | Items 1–8 built; WAA, usage, conversion, and `vs HLTV` gap live at `/war` on `production`; team factor & APM built (`cs2wp team-factor`, gates not passed at 90% CI); roster-change test open |
-| 7. Team and tactics metrics | Player-version RW over expected built & gated (`cs2wp team-factor`, Stage 1 gate failed on current archive); duel execution and quality built (`cs2wp duel-stats`), player execution gate passes, team gates wait on the GPU `cs2wp duels` rebuild; rest not started |
+| 7. Team and tactics metrics | Orders 1–2 built. Duel execution and quality (`cs2wp duel-stats`) is published as descriptive. Round stats (`cs2wp team-stats`): time-and-position value, RW over expected (economy) and adjusted T/CT are published; conversion and the player version fail persistence. Orders 3–5 not started |
 
 ### Changes from the old plan
 
@@ -383,7 +383,18 @@ Every round outcome splits into four layers: economy and map, duel execution (ai
 - **Veto data.** Map Elo for rarely played maps is thin, which is often why a team permabans a map. Shrink those estimates hard, or the model will recommend maps teams never practice. Coaches share veto decisions, so label the stat a team decision, not pure IGL.
 - **Clutch noise.** In most sports clutch is mostly noise. Check stability before publishing.
 
-**Status: order 1 built.** `cs2wp duel-stats` ([war.md](war.md#duel-execution-and-quality)) scores duel execution (`win − p`) and duel quality (`p − p_base`, where `p_base` knows only the buy and side, split into positioning, flash and HP parts) per player and per team, with split-half, independence and beyond-Elo gates. Player execution passes its gate. The team gates need the nested baselines from a GPU `cs2wp duels` rebuild. Order 2 inputs exist from Phases 5 and 6 (`data/wp/reports/team_drift.parquet` for time-and-position value).
+**Status: orders 1 and 2 built.**
+
+Order 1 is `cs2wp duel-stats` ([war.md](war.md#duel-execution-and-quality)). It scores duel execution (`win − p`) and duel quality (`p − p_base`, split into positioning, flash and HP parts) per player and per team. Player execution passes its gate. Team quality passes stability and independence, but no team stat adds to Elo, so all are descriptive.
+
+Order 2 is `cs2wp team-stats` ([war.md](war.md#team-round-stats)), with stints as the unit:
+
+- **Time-and-position value and RW over expected (economy)** pass split-half and are published as descriptive. The economy version is r 0.93 with Elo. Time-and-position value inherits Elo through the WP model's drift (r −0.48).
+- **Adjusted T and CT ratings** beat raw win rates walk-forward: +0.00023 log loss per round, 90% CI +0.00008 to +0.00039. They are published as descriptive.
+- **Round conversion over duels** passes split-half (0.32) but fails quarter-to-quarter persistence (0.065, CI −0.066 to 0.194). It does pass by `lp_team` (0.162).
+- **The player version** (team factor) fails both tests.
+
+Conversion and the player version stay off the site until more archive accumulates.
 
 ## Site architecture
 

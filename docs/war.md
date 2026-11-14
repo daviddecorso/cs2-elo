@@ -2,7 +2,7 @@
 
 ## Overview
 
-Phase 6 of [spec.md](spec.md): wins above replacement, comparing each player with a replacement in the same role. Built so far: **CT positions** (item 1), **T roles** (item 2), **role validation** (item 3), **role baselines** (item 4), **expected duels** (item 5), **IGL tags** (item 6), **Wins Above Average & replacement hook** (item 7), **bootstrap uncertainty & web publishing** (item 8), and **team factor & APM** (`cs2wp team-factor`, gated off-site). The code lives in `wp/` (`cs2wp positions`, `cs2wp roles`, `cs2wp validate-roles`, `cs2wp baselines`, `cs2wp duels`, `cs2wp igls`, `cs2wp usage`, `cs2wp war`, `cs2wp validate-war`, `cs2wp team-factor`). The public site publishes provisional WAA rankings at `/war` (`public/data/war/players.json`).
+Phase 6 of [spec.md](spec.md): wins above replacement, comparing each player with a replacement in the same role. Built so far: **CT positions** (item 1), **T roles** (item 2), **role validation** (item 3), **role baselines** (item 4), **expected duels** (item 5), **IGL tags** (item 6), **Wins Above Average & replacement hook** (item 7), **bootstrap uncertainty & web publishing** (item 8), **team factor & APM** (`cs2wp team-factor`, gated off-site), and the Phase 7 team stats: **duel execution and quality** (`cs2wp duel-stats`) and **team round stats** (`cs2wp team-stats`). The code lives in `wp/` (`cs2wp positions`, `cs2wp roles`, `cs2wp validate-roles`, `cs2wp baselines`, `cs2wp duels`, `cs2wp duel-stats`, `cs2wp igls`, `cs2wp usage`, `cs2wp war`, `cs2wp validate-war`, `cs2wp team-factor`, `cs2wp team-stats`). The public site publishes provisional WAA rankings at `/war` (`public/data/war/players.json`).
 
 ## CT positions
 
@@ -331,6 +331,79 @@ Independence of quality from execution (stints, all duels): same-half r 0.504, c
 **Opponent adjustment (experiment).** A sparse ridge over duels, `win − p = θ_x − θ_y`, with alpha set to the raw per-duel `k`, fit per alternating-series half. The comparator is the same ridge without opponent terms (`sum / (duels + alpha)`), not the raw rate: shrinkage alone raises split-half r by pulling small samples toward zero, and that isn't what the experiment tests.
 
 Result (2026-11-13, alpha 1,207 duels, 290 players, 200 series resamples): split-half r 0.452 for the raw rate, 0.710 for the ridge without opponents, 0.748 with them. The gain over the ridge without opponents is +0.038 (90% CI +0.025, +0.052): **keep**. `duel-players.parquet` carries it as `exec_adj_per100`.
+
+## Team round stats
+
+`wp/src/cs2wp/teamstats.py`. Phase 7, order 2 ([spec.md](spec.md)). Five team stats measured on rounds, none with team Elo in its expectation.
+
+```
+cd wp
+uv run cs2wp team-stats [--min-rounds 300] [--resamples 1000] [--publish]
+```
+
+It needs `team-map-residuals.parquet` (`cs2wp team-factor`), `resource-rounds.parquet` (`cs2wp usage`), `duels.parquet` (`cs2wp duels`) and `data/wp/reports/conservation.parquet` (`cs2wp credit`). It runs on CPU in about 10 minutes at 1,000 resamples, and writes:
+
+- `data/war/team-rounds.parquet`: per round, with `p_econ` and `p_duel`
+- `team-stat-maps.parquet`: per team-map
+- `team-stats.parquet`: ridge estimates per stint and per team, with p5 and p95
+- `team-side-ratings.parquet`: adjusted T and CT ratings
+- `reports/team-stats.md`
+
+**Round expectations.** Both models are XGBoost, cross-fit by event, with monotone constraints on equipment and kills.
+
+- `p_econ` is P(CT wins the round) from map, both teams' equipment at the end of buy time, pistol round and overtime. Its log loss is 0.6015, against 0.6922 for the base rate.
+- `p_duel` adds the round's gun kills per side and the side that won the opening duel. Its log loss is 0.0926.
+
+Calibration by buy pair is within 0.03 for both, on every bucket with 200+ rounds.
+
+**Stats.** Each stat is summed from the team's view over a map's rounds and is zero-sum between the two teams. The weight is the number of rounds the stat covers.
+
+| Stat | Per round, CT view (T view is the negative) |
+| --- | --- |
+| Time-and-position value (`tpv`) | WP drift between events (`credit.conservation`), centered per map so the side offset of about −0.076 cancels |
+| Round wins over expected, economy (`rwoe_econ`) | `ct_win − p_econ` |
+| Round conversion over duels (`conv`) | `ct_win − p_duel`: post-plants, saves, utility and bomb kills. Trades are duel wins, so they count in execution, not here |
+| Round wins over expected, player WAR (`rwoe_war`) | `resid_wpa_opp` from `cs2wp team-factor` (Stage 1), on maps where all ten players have priors |
+
+The battery is the one `duel-stats` uses: alternating-series split-half, ridge estimates, walk-forward, r with Elo, and the Elo + stat log-loss test (`duelstats.team_results`).
+
+`teamfactor.window_persistence` adds a quarter-to-quarter test. It fits τ per unit in each calendar quarter, at alpha 1 as the split-half does. It then correlates τ in quarter q with τ in q+1, pooling every consecutive pair in which the unit has half the minimum sample in both quarters. The 90% interval comes from resampling series.
+
+**Adjusted T and CT ratings.** `logit P(CT wins) = logit(p_econ) + d[CT unit] − o[T unit]` is fit as a logistic ridge (L-BFGS with a fixed offset). The offset controls for map, side and economy, and the pairing controls for the opponent.
+
+The comparator is each unit's raw CT and T round win rate above the league rate, shrunk by `k` rounds, on the same offset. Gating is walk-forward by event: alpha and `k` are tuned on the first half of events, and the second half is scored per round, with a 90% interval from resampling events. Ratings are published as win-rate points per 100 rounds on that side, at the league CT rate.
+
+**Gates.**
+
+- Every stat must pass stint split-half, with the lower CI bound above 0.
+- Conversion and the player-WAR version must also persist across quarters (lower CI bound above 0).
+- Time-and-position value and the economy version are descriptive, as the spec says.
+- Adjusted T and CT must beat raw win rates. They have no Elo test, so they are labelled descriptive.
+
+**Results (2026-11-13).** 67,409 rounds on 3,111 maps. The player-WAR version uses the 2,671 maps where every player has priors.
+
+| Stat (62 stints, 300+ rounds) | Split-half r (90% CI) | k (rounds) | Quarter persistence r (90% CI) | r with Elo | Elo + stat gain (90% CI) | Verdict |
+| --- | --- | --- | --- | --- | --- | --- |
+| Time-and-position value | 0.415 (0.239, 0.577) | 1,102 | 0.379 (0.238, 0.496) | −0.48 | +0.0005 (−0.0007, +0.0016) | Published, descriptive |
+| Round wins over expected, economy | 0.662 (0.529, 0.764) | 399 | 0.570 (0.477, 0.644) | 0.93 | −0.0001 (−0.0012, +0.0009) | Published, descriptive |
+| Round conversion over duels | 0.323 (0.118, 0.508) | 1,641 | 0.065 (−0.066, 0.194) | 0.19 | −0.0003 (−0.0009, +0.0002) | **Fails persistence** |
+| Round wins over expected, player WAR | 0.239 (−0.018, 0.467) | 2,290 | 0.094 (−0.035, 0.219) | 0.56 | +0.0013 (−0.0006, +0.0030) | **Fails** both (same as Stage 1) |
+
+Adjusted T and CT ratings, by stint:
+
+- Alpha 100, raw `k` 800 rounds.
+- On 32,748 rounds in 26 test events, log loss is 0.6004 for the offset only, 0.5987 for raw win rates and 0.5985 adjusted.
+- The gain over raw is **+0.00023 (+0.00008, +0.00039): passes.** By `lp_team` it is +0.00035 (+0.00019, +0.00052).
+- Split-half r is 0.606 for CT and 0.632 for T. They correlate 0.88 (CT) and 0.79 (T) with Elo, so mostly they measure strength, split by side.
+
+Findings:
+
+- **The economy version is Elo without Elo** (r 0.93). It measures strength honestly, but adds nothing to Elo.
+- **Time-and-position value is not Elo-free.** Drift comes from the WP model, which includes `elo_diff_ct`. A favourite's p0 already prices its edge, so strong teams tend to lose drift (r −0.48). Treat it as "positioning given the rating", not as a pure tactics measure.
+- **Conversion is reliable inside a window but doesn't carry across quarters for stints.** By `lp_team` it does: r 0.162 (0.031, 0.278). Rosters and callers change between quarters, so a whole team carries it better than an IGL stint. It isn't published until the stint test passes.
+- **The player-WAR version** reproduces Stage 1 and fails for the same reason: too little archive.
+
+`team-stats.json` publishes `tpv`, `rwoe_econ`, `ct_def` and `t_off` for 62 stints. They appear as the "Teams / round-level stats" table on `/war` (`src/pages/TeamRounds.tsx`).
 
 ## IGL tags
 

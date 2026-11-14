@@ -5,7 +5,7 @@ import { renderToString } from "react-dom/server";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { PlayerWar } from "./PlayerWar.tsx";
-import type { PlayerWarData, TeamDuelsData } from "../war/types.ts";
+import type { PlayerWarData, TeamDuelsData, TeamStatsData } from "../war/types.ts";
 
 const warData: PlayerWarData = {
     generatedAt: "2026-11-05T23:00:00Z",
@@ -351,6 +351,48 @@ describe("PlayerWar Page", () => {
         expect(searched).toContain("1 of 2 stints");
     });
 
+    it("renders the team round-stat table with only published stats, sorted by round wins over economy", () => {
+        const rate = (per100: number) => ({ per100, p5: per100 - 0.5, p95: per100 + 0.5 });
+        const meta = (label: string, extra = {}) => ({
+            label,
+            split_half_r: 0.6,
+            split_half_r_ci: [0.5, 0.7] as [number, number],
+            descriptive: true,
+            ...extra,
+        });
+        const teamStats: TeamStatsData = {
+            generated_at: "2026-11-13T00:00:00Z",
+            min_rounds: 300,
+            stats: {
+                rwoe_econ: meta("Round wins over expected (economy)"),
+                ct_def: meta("Adjusted CT (defense)", { gain_vs_raw: 0.0002, gain_vs_raw_ci: [0.0001, 0.0004] }),
+            },
+            source: warData.source,
+            teams: [
+                { stint_id: "a", label: "FURIA (FalleN)", lp_team: "FURIA", igl_player: "FalleN", maps: 363, rounds: 7857, rwoe_econ: rate(3.51), ct_def: rate(1.2) },
+                { stint_id: "b", label: "Team Vitality (apEX)", lp_team: "Team Vitality", igl_player: "apEX", maps: 341, rounds: 7272, rwoe_econ: rate(7.19), ct_def: rate(8.24) },
+            ],
+        };
+        const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+        queryClient.setQueryData(["war", "players"], warData);
+        queryClient.setQueryData(["war", "team-stats"], teamStats);
+        const html = renderToString(
+            <QueryClientProvider client={queryClient}>
+                <MemoryRouter initialEntries={["/war"]}>
+                    <Routes>
+                        <Route path="/war" element={<PlayerWar />} />
+                    </Routes>
+                </MemoryRouter>
+            </QueryClientProvider>
+        );
+        const table = html.slice(html.indexOf("Teams / round-level stats"));
+        expect(table).toContain("RW over econ");
+        expect(table).toContain("Adj. CT");
+        expect(table).not.toContain("Conversion");
+        expect(table).toContain("+7.19");
+        expect(table.indexOf("Team Vitality")).toBeLessThan(table.indexOf("FURIA"));
+    });
+
     it("renders live generated public/data/war/players.json without errors", () => {
         const filePath = path.resolve(__dirname, "../../public/data/war/players.json");
         if (!fs.existsSync(filePath)) return;
@@ -360,6 +402,10 @@ describe("PlayerWar Page", () => {
         const teamPath = path.resolve(__dirname, "../../public/data/war/team-duels.json");
         if (fs.existsSync(teamPath)) {
             queryClient.setQueryData(["war", "team-duels"], JSON.parse(fs.readFileSync(teamPath, "utf-8")));
+        }
+        const roundsPath = path.resolve(__dirname, "../../public/data/war/team-stats.json");
+        if (fs.existsSync(roundsPath)) {
+            queryClient.setQueryData(["war", "team-stats"], JSON.parse(fs.readFileSync(roundsPath, "utf-8")));
         }
         const html = renderToString(
             <QueryClientProvider client={queryClient}>

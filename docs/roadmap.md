@@ -101,7 +101,10 @@ See [war.md](war.md#duel-execution-and-quality).
 - [x] **Duel execution and quality** (`cs2wp duel-stats`): nested `p_base` / `p_pos` / `p_flash` cross-fits in `cs2wp duels`, player and team split-half, independence and beyond-Elo gates.
 - [x] **Team gates and Teams table on `/war`**: quality over all duels passes stability and independence, opening-only fails; no team stat adds to Elo, so all are descriptive ([war.md](war.md#duel-execution-and-quality)).
 - [ ] **Player execution column on `/war`**, using the opponent-adjusted `exec_adj_per100` (kept: +0.038 split-half r, 90% CI +0.025 to +0.052).
-- [ ] **Luck-adjusted Elo** and **round conversion over duel expectation**, both on these outputs.
+- [x] **Order 2 round stats** (`cs2wp team-stats`): time-and-position value, RW over expected (economy) and adjusted T/CT are published as descriptive. Conversion fails quarter persistence on stints, and the player version fails both tests ([war.md](war.md#team-round-stats)).
+- [ ] **Re-run `cs2wp team-stats` after the backfill.** Conversion persistence is 0.065 on stints (CI −0.066 to 0.194) and 0.162 by team, so it may pass with more archive.
+- [ ] **Elo-free time-and-position value.** Recompute drift with `elo_diff_ct` held at 0, so the stat stops inheriting Elo (r −0.48).
+- [ ] **Luck-adjusted Elo**, on the duel outputs.
 
 ## Open items
 

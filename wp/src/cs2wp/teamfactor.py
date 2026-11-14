@@ -552,6 +552,89 @@ def forward_team_factor(
             "pred": pred, "evaluated": eval_mask}
 
 
+def _quarter(date: str) -> str:
+    return f"{date[:4]}Q{(int(date[5:7]) - 1) // 3 + 1}"
+
+
+def window_persistence(
+    maps_df: pl.DataFrame,
+    unit: str = "stint",
+    resid_col: str = "resid_wpa_opp",
+    min_window: float = 150.0,
+    resamples: int = DEFAULT_RESAMPLES,
+    seed: int = 0,
+    half_alpha: float = 1.0,
+    weight_col: str = "rounds",
+) -> dict:
+    """Does a unit's residual carry from one calendar quarter to the next?
+
+    Fits `tau` per unit per quarter (alpha `half_alpha`, as the split-half does) and correlates `tau` in quarter q
+    with q + 1, pooling every consecutive pair where the unit has `min_window` of `weight_col` in both. The 90%
+    interval resamples series, centered in Fisher z as in `split_half_team_factor`.
+    """
+    empty = {"r": None, "r_ci": (None, None), "pairs": 0, "units": 0, "windows": 0}
+    col_a, col_b = _unit_cols(unit)
+    sub = (maps_df.filter(pl.col("all_covered")) if "all_covered" in maps_df.columns else maps_df)
+    sub = sub.filter(pl.col(weight_col) > 0).with_columns(pl.col("date").map_elements(_quarter, return_dtype=pl.String)
+                                                          .alias("_window"))
+    windows = sorted(sub["_window"].unique().to_list())
+    if len(windows) < 2:
+        return empty
+    units = sorted(set(sub[col_a].to_list()) | set(sub[col_b].to_list()))
+    uidx = {u: i for i, u in enumerate(units)}
+    n_u = len(units)
+    _, s_ids = np.unique(sub["series"].to_numpy(), return_inverse=True)
+    n_series = int(s_ids.max()) + 1
+    eye = half_alpha * np.eye(n_u, dtype=np.float64)
+
+    # Each window is its own block of the design, so grams are kept per window: (series in window, units, units).
+    blocks = []
+    for wd in windows:
+        part = sub.filter(pl.col("_window") == wd)
+        mask = (sub["_window"] == wd).to_numpy()
+        ca = np.array([uidx[u] for u in part[col_a].to_list()], dtype=np.int64)
+        cb = np.array([uidx[u] for u in part[col_b].to_list()], dtype=np.int64)
+        X = _pair_matrix(ca, cb, n_u)
+        w = part[weight_col].to_numpy().astype(np.float64)
+        y = part[resid_col].to_numpy().astype(np.float64) / w
+        present, local = np.unique(s_ids[mask], return_inverse=True)
+        Gs, bs, rds = _group_grams(X, y, w, local)
+        blocks.append((present, Gs, bs, rds))
+
+    def corr(mult: np.ndarray | None) -> tuple[float | None, int, int]:
+        coefs, weights = [], []
+        for present, Gs, bs, rds in blocks:
+            m = np.ones(len(present)) if mult is None else mult[present]
+            coefs.append(np.linalg.solve(np.tensordot(m, Gs, axes=(0, 0)) + eye, m @ bs))
+            weights.append(m @ rds)
+        a_vals, b_vals, seen = [], [], set()
+        for i in range(len(windows) - 1):
+            ok = (weights[i] >= min_window) & (weights[i + 1] >= min_window)
+            a_vals.append(coefs[i][ok])
+            b_vals.append(coefs[i + 1][ok])
+            seen.update(np.flatnonzero(ok).tolist())
+        va, vb = np.concatenate(a_vals), np.concatenate(b_vals)
+        if len(va) < MIN_HALF_TEAMS or np.std(va) < 1e-12 or np.std(vb) < 1e-12:
+            return None, len(va), len(seen)
+        return float(np.corrcoef(va, vb)[0, 1]), len(va), len(seen)
+
+    r_obs, pairs, n_units = corr(None)
+    if r_obs is None:
+        return {**empty, "pairs": pairs, "units": n_units, "windows": len(windows)}
+    rng = np.random.default_rng(seed)
+    boot = []
+    for mult in rng.multinomial(n_series, np.full(n_series, 1.0 / n_series), size=resamples).astype(np.float64):
+        rb, _, _ = corr(mult)
+        if rb is not None:
+            boot.append(rb)
+    ci = (None, None)
+    if len(boot) >= 10:
+        zb = np.arctanh(np.clip(boot, -0.9999, 0.9999))
+        zc = zb - float(np.mean(zb)) + math.atanh(max(-0.9999, min(0.9999, r_obs)))
+        ci = (float(np.tanh(np.quantile(zc, 0.05))), float(np.tanh(np.quantile(zc, 0.95))))
+    return {"r": r_obs, "r_ci": ci, "pairs": pairs, "units": n_units, "windows": len(windows)}
+
+
 def sanity_check_elo(
     maps_df: pl.DataFrame,
     tf_df: pl.DataFrame,

@@ -180,6 +180,12 @@ def cmd_duel_stats(args) -> int:
     return build(min_duels=args.min_duels, min_rounds=args.min_rounds, resamples=args.resamples, publish=args.publish)
 
 
+def cmd_team_stats(args) -> int:
+    from .teamstats import build
+
+    return build(min_rounds=args.min_rounds, resamples=args.resamples, publish=args.publish)
+
+
 def main() -> None:
     ap = argparse.ArgumentParser(prog="cs2wp")
     sub = ap.add_subparsers(dest="cmd", required=True)
@@ -270,6 +276,11 @@ def main() -> None:
     p.add_argument("--min-rounds", type=int, default=300, help="Rounds a team or stint needs for the split-half")
     p.add_argument("--resamples", type=int, default=1000)
     p.add_argument("--publish", action="store_true", help="Write public/data/war/team-duels.json for the stats that pass")
+    p = sub.add_parser("team-stats", help="Time-and-position value, round wins over expected, round conversion, and "
+                                          "adjusted T/CT ratings per team, with their gates")
+    p.add_argument("--min-rounds", type=int, default=300, help="Rounds a team or stint needs for the split-half")
+    p.add_argument("--resamples", type=int, default=1000)
+    p.add_argument("--publish", action="store_true", help="Write public/data/war/team-stats.json for the stats that pass")
 
     args = ap.parse_args()
     handlers = {"sync": cmd_sync, "states": cmd_states, "train": cmd_train, "credit": cmd_credit,
@@ -278,7 +289,7 @@ def main() -> None:
                 "validate": cmd_validate, "publish": cmd_publish, "positions": cmd_positions, "roles": cmd_roles,
                 "validate-roles": cmd_validate_roles, "baselines": cmd_baselines, "duels": cmd_duels,
                 "usage": cmd_usage, "igls": cmd_igls, "war": cmd_war, "validate-war": cmd_validate_war,
-                "team-factor": cmd_team_factor, "duel-stats": cmd_duel_stats}
+                "team-factor": cmd_team_factor, "duel-stats": cmd_duel_stats, "team-stats": cmd_team_stats}
     sys.exit(handlers[args.cmd](args))
 
 

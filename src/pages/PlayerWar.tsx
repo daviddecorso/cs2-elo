@@ -23,6 +23,7 @@ import { LiquipediaCredit } from "../components/LiquipediaCredit.tsx";
 import { TeamLogo } from "../components/TeamLogo.tsx";
 import { liquipediaUrl } from "../utils/liquipedia.ts";
 import { TeamDuels } from "./TeamDuels.tsx";
+import { TeamRounds } from "./TeamRounds.tsx";
 import type { CreditVersion, HltvGap, PlayerWarData, WarEstimate, WarPlayer, WarRate } from "../war/types.ts";
 
 const ROLE_FILTERS = ["all", "awp", "entry", "rifle"] as const;
@@ -685,6 +686,8 @@ export const PlayerWar = () => {
             </Section>
 
             <TeamDuels query={query} />
+
+            <TeamRounds query={query} />
 
             <Section
                 title="Validation diagnostics"

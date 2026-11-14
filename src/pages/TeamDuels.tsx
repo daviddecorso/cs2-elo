@@ -7,7 +7,8 @@ import { TeamLogo } from "../components/TeamLogo.tsx";
 import { liquipediaUrl } from "../utils/liquipedia.ts";
 import { columnOrder, nextSort, type SortState } from "../utils/tableSort.ts";
 import { textMatches } from "../utils/search.ts";
-import type { DuelRate, DuelStatKey, TeamDuelStint, TeamDuelsData } from "../war/types.ts";
+import { RateCell } from "../components/RateCell.tsx";
+import type { DuelStatKey, TeamDuelStint, TeamDuelsData } from "../war/types.ts";
 
 const STAT_ORDER: DuelStatKey[] = ["exec", "quality", "q_pos", "q_flash", "q_hp"];
 const SHORT_LABEL: Record<DuelStatKey, string> = {
@@ -34,22 +35,6 @@ const fetchTeamDuels = async (): Promise<TeamDuelsData | null> => {
     if (!res.ok) throw new Error(`Failed to load team duels: HTTP ${res.status}`);
     return res.json();
 };
-
-const signed = (n: number) => (n > 0 ? `+${n.toFixed(2)}` : n.toFixed(2));
-
-const RateCell = ({ rate, label }: { rate?: DuelRate; label: string }) =>
-    rate ? (
-        <Tooltip
-            content={`${label} per 100 duels\n90% series bootstrap: (${signed(rate.p5)}, ${signed(rate.p95)})\nPer 100 rounds: ${signed(rate.per100_rounds)}`}
-        >
-            <span className="tabular-nums">
-                <span className={rate.p5 > 0 ? "text-up" : rate.p95 < 0 ? "text-down" : "text-fg"}>{signed(rate.per100)}</span>
-                <span className="text-muted text-[10px] ml-1">{`(${signed(rate.p5)}, ${signed(rate.p95)})`}</span>
-            </span>
-        </Tooltip>
-    ) : (
-        <span className="text-muted">–</span>
-    );
 
 const duelCount = (t: TeamDuelStint) => t.duels ?? t.opening_duels ?? null;
 
@@ -177,7 +162,7 @@ export const TeamDuels = ({ query }: { query: string }) => {
                                         align="right"
                                         className={s === "exec" || s === "quality" ? "" : "hidden lg:table-cell"}
                                     >
-                                        <RateCell rate={t[s]} label={data.stats[s]!.label} />
+                                        <RateCell rate={t[s]} label={data.stats[s]!.label} unit="duels" />
                                     </Td>
                                 ))}
                             </Row>

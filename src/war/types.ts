@@ -71,11 +71,15 @@ export interface WarPlayer {
     resources?: WarResources | null;
 }
 
-/** Per 100 duels (or opening duels), and per 100 rounds, with 90% series-bootstrap intervals. */
-export interface DuelRate {
+/** Per 100 of the stat's weight, with a 90% series-bootstrap interval. */
+export interface Rate {
     per100: number;
     p5: number;
     p95: number;
+}
+
+/** Per 100 duels (or opening duels), and per 100 rounds, with 90% series-bootstrap intervals. */
+export interface DuelRate extends Rate {
     per100_rounds: number;
     per100_rounds_p5: number;
     per100_rounds_p95: number;
@@ -113,6 +117,39 @@ export interface TeamDuelsData {
     stats: Partial<Record<DuelStatKey, DuelStatMeta>>;
     source: { demos: string; attribution: string; liquipedia: string };
     teams: TeamDuelStint[];
+}
+
+export type TeamStatKey = "tpv" | "rwoe_econ" | "conv" | "rwoe_war" | "ct_def" | "t_off";
+
+export interface TeamStatMeta {
+    label: string;
+    split_half_r: number;
+    split_half_r_ci: [number, number];
+    persistence_r?: number | null;
+    persistence_r_ci?: [number | null, number | null];
+    /** Adjusted T/CT only: walk-forward per-round log-loss gain over raw win rates. */
+    gain_vs_raw?: number;
+    gain_vs_raw_ci?: [number, number];
+    descriptive: boolean;
+}
+
+/** Rates are per 100 rounds; for `ct_def` and `t_off`, win-rate points per 100 rounds on that side. */
+export interface TeamStatStint extends Partial<Record<TeamStatKey, Rate>> {
+    stint_id: string;
+    label: string;
+    lp_team: string;
+    igl_player: string | null;
+    maps: number;
+    rounds: number;
+}
+
+/** `cs2wp team-stats --publish`; only stats that passed their gates appear in `stats`. */
+export interface TeamStatsData {
+    generated_at: string;
+    min_rounds: number;
+    stats: Partial<Record<TeamStatKey, TeamStatMeta>>;
+    source: { demos: string; attribution: string; liquipedia: string };
+    teams: TeamStatStint[];
 }
 
 export interface ValidationScore {

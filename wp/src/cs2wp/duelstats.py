@@ -198,14 +198,20 @@ def player_table(pm: pl.DataFrame, k_duels: float | None, adjusted: pl.DataFrame
 
 
 def team_maps(values: pl.DataFrame, role_rounds: pl.DataFrame, residuals: pl.DataFrame) -> pl.DataFrame:
-    """One row per map in the `team_a` / `team_b` shape `teamfactor` fits, with stints, rounds and Elo from
-    `team-map-residuals.parquet`. Each stat is team_a's sum over its players' duel views (team_b's is the negative);
-    `duels` and `duels_open` are the weights."""
+    """One row per map in the `team_a` / `team_b` shape `teamfactor` fits. Each stat is team_a's sum over its players'
+    duel views (team_b's is the negative); `duels` and `duels_open` are the weights."""
     teams = role_rounds.select("key", "steamid", "lp_team").unique(["key", "steamid"])
     per = values.join(teams, on=["key", "steamid"]).group_by("key", "lp_team").agg(
         pl.len().cast(pl.Float64).alias("duels"), pl.col("opening").sum().cast(pl.Float64).alias("duels_open"),
         *(pl.col(s).sum() for s in STATS), *(pl.col(s).filter(pl.col("opening")).sum().alias(f"{s}_open") for s in STATS))
+    return (pair_maps(per, residuals, weights=["duels", "duels_open"], stats=[*STATS, *OPEN])
+            .filter((pl.col("duels") > 0) & (pl.col("duels_open") > 0)))
 
+
+def pair_maps(per: pl.DataFrame, residuals: pl.DataFrame, weights: list[str], stats: list[str]) -> pl.DataFrame:
+    """Per-(key, lp_team) sums → one row per map in the `team_a` / `team_b` shape, with stints, rounds, result and Elo
+    from `team-map-residuals.parquet`. Weights are averaged over the two teams and stats are halved differences, so a
+    stat whose two rows already sum to zero keeps team_a's value."""
     def side(s: str) -> list[pl.Expr]:
         return [pl.col("lp_team").alias(f"team_{s}"), pl.col("stint_id").alias(f"stint_{s}"),
                 pl.col("stint_label").alias(f"stint_label_{s}"), pl.col("igl_player").alias(f"igl_name_{s}"),
@@ -215,15 +221,15 @@ def team_maps(values: pl.DataFrame, role_rounds: pl.DataFrame, residuals: pl.Dat
         "key", "series", "event", "date", "rounds", pl.col("won").alias("y"), *side("a"),
         pl.col("opponent").alias("team_b"))
     b = residuals.select("key", *side("b"))
-    cols = ["duels", "duels_open", *STATS, *OPEN]
+    cols = [*weights, *stats]
+    per = per.select("key", "lp_team", *cols)
     pa = per.rename({"lp_team": "team_a", **{c: f"{c}__a" for c in cols}})
     pb = per.rename({"lp_team": "team_b", **{c: f"{c}__b" for c in cols}})
     maps = a.join(b, on=["key", "team_b"]).join(pa, on=["key", "team_a"]).join(pb, on=["key", "team_b"])
-    return (maps.with_columns(*(((pl.col(f"{c}__a") + pl.col(f"{c}__b")) / 2).alias(c) for c in ("duels", "duels_open")),
-                              *(((pl.col(f"{c}__a") - pl.col(f"{c}__b")) / 2).alias(c) for c in (*STATS, *OPEN)),
+    return (maps.with_columns(*(((pl.col(f"{c}__a") + pl.col(f"{c}__b")) / 2).alias(c) for c in weights),
+                              *(((pl.col(f"{c}__a") - pl.col(f"{c}__b")) / 2).alias(c) for c in stats),
                               ((pl.col("elo_a") - pl.col("elo_b")) * math.log(10) / 400).alias("elo_logit"))
             .drop(*(f"{c}__{s}" for c in cols for s in "ab"))
-            .filter((pl.col("duels") > 0) & (pl.col("duels_open") > 0))
             .sort("date", "key"))
 
 
@@ -316,9 +322,10 @@ def _unit_weights(maps: pl.DataFrame, unit: str, weight_col: str) -> pl.DataFram
             .group_by("unit_id").agg(pl.col("weight").sum()))
 
 
-def _estimates(maps: pl.DataFrame, unit: str, stat: str, alpha: float | None, resamples: int) -> pl.DataFrame:
-    """Ridge estimate per unit, per 100 duels and per 100 rounds, with series-bootstrap p5 / p95."""
-    wcol = weight_of(stat)
+def _estimates(maps: pl.DataFrame, unit: str, stat: str, alpha: float | None, resamples: int,
+               wcol: str | None = None) -> pl.DataFrame:
+    """Ridge estimate per unit, per 100 of `wcol` (duels by default) and per 100 rounds, with series-bootstrap p5 / p95."""
+    wcol = wcol or weight_of(stat)
     est = tf.fit_team_factor(maps, unit=unit, resid_col=stat, alpha=alpha, resamples=resamples, weight_col=wcol)
     per_round = pl.col("weight") / pl.col("rounds")
     return (est.join(_unit_weights(maps, unit, wcol), on="unit_id", how="left")
@@ -331,18 +338,20 @@ def _estimates(maps: pl.DataFrame, unit: str, stat: str, alpha: float | None, re
                     (pl.col("tau_per100_p95") * per_round).alias("per100_rounds_p95")))
 
 
-def team_results(maps: pl.DataFrame, min_rounds: int, resamples: int) -> tuple[dict, pl.DataFrame]:
-    """Per unit and stat: split-half, ridge estimates, walk-forward, correlation with Elo and the Elo log-loss test."""
+def team_results(maps: pl.DataFrame, min_rounds: int, resamples: int, stats: tuple[str, ...] = (*STATS, *OPEN),
+                 weight=weight_of) -> tuple[dict, pl.DataFrame]:
+    """Per unit and stat: split-half, ridge estimates, walk-forward, correlation with Elo and the Elo log-loss test.
+    `weight(stat)` names the stat's weight column; `min_rounds` is converted to it at the maps' mean ratio."""
     results: dict = {}
     tables = []
     for unit in UNITS:
         results[unit] = {}
-        for stat in (*STATS, *OPEN):
-            wcol = weight_of(stat)
+        for stat in stats:
+            wcol = weight(stat)
             min_w = min_rounds * maps[wcol].sum() / maps["rounds"].sum()
             sh = tf.split_half_team_factor(maps, unit=unit, resid_col=stat, min_rounds=min_w, resamples=resamples,
                                            weight_col=wcol)
-            est = _estimates(maps, unit, stat, sh["k_rounds"], resamples)
+            est = _estimates(maps, unit, stat, sh["k_rounds"], resamples, wcol)
             fw = tf.forward_team_factor(maps, unit=unit, resid_col=stat, k_rounds=sh["k_rounds"], resamples=resamples,
                                         weight_col=wcol)
             elig = est.filter((pl.col("rounds") >= min_rounds) & pl.col("elo_mean").is_not_null())

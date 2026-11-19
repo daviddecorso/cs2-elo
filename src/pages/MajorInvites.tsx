@@ -252,6 +252,13 @@ export const MajorInvites = () => {
                                                 </span>
                                             </Tooltip>
                                         )}
+                                        {r.regionLocked && (
+                                            <Tooltip content="Appeared on another region's VRS list in the preceding 3 calendar months, so the invite passes down">
+                                                <span className="ml-1.5 text-[10px] font-mono text-heat">
+                                                    region locked
+                                                </span>
+                                            </Tooltip>
+                                        )}
                                         <span className="block pl-[28px] text-[10px] font-mono text-muted whitespace-normal">{r.players.join(", ")}</span>
                                     </Td>
                                     <Td align="right">

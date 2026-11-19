@@ -5,7 +5,7 @@ import { gsl, roundRobin } from "./formats/groups.ts";
 import { swiss } from "./formats/swiss.ts";
 import { StageLocks, type KnownMatch } from "./locks.ts";
 import type { SeriesModel } from "./predict.ts";
-import { makeRng, type Rng } from "./rng.ts";
+import { makeRng, subSeed, type Rng } from "./rng.ts";
 import { loserOf, winnerOf, type SimMatch, type SlotPlace, type StageResult, type StageRunner, type TeamId } from "./types.ts";
 
 const FORMATS: Record<StageFormat, StageRunner> = {
@@ -23,6 +23,8 @@ export interface EventInput {
     known: Map<string, KnownMatch[]>;
     /** Days from the ratings' as-of date to the event's start. */
     horizon: number;
+    /** When set, each series draws from its own stream keyed by stage, round and pairing, so a replay with one team swapped repeats every unchanged matchup; `rng` is then unused. */
+    seriesSeed?: number;
 }
 
 export interface EventOutcome {
@@ -39,6 +41,7 @@ export const eventTeams = (config: EventConfig): TeamId[] => [...new Set(config.
 
 export const runEvent = (input: EventInput, predictor: SeriesModel, rng: Rng): EventOutcome => {
     const { config } = input;
+    predictor.setTier?.(config.tier ?? null);
     const results = new Map<string, StageResult>();
     const placements = new Map<TeamId, string>();
     const reached = new Map<TeamId, string[]>();
@@ -54,10 +57,26 @@ export const runEvent = (input: EventInput, predictor: SeriesModel, rng: Rng): E
         const teams = [...(stage.invited ?? []), ...advancers];
         for (const t of teams) reached.set(t, [...(reached.get(t) ?? []), stage.id]);
 
+        const seed = new Map(teams.map((t, i) => [t, i]));
+        const meetings = new Map<string, number>();
+        const seriesRng = (a: TeamId, b: TeamId, round: number): Rng => {
+            if (input.seriesSeed === undefined) return rng;
+            const key = `${stage.id}|${round}|${[a, b].sort().join("|")}`;
+            const k = meetings.get(key) ?? 0;
+            meetings.set(key, k + 1);
+            return makeRng(subSeed(input.seriesSeed, `${key}|${k}`));
+        };
+        const simulated = (a: TeamId, b: TeamId, bestOf: number, round: number): 0 | 1 => {
+            const r = seriesRng(a, b, round);
+            if (!predictor.playSeries) return r() < predictor.seriesProbability(a, b, bestOf) ? 0 : 1;
+            const [high, low] = (seed.get(a) ?? 0) <= (seed.get(b) ?? 0) ? [a, b] : [b, a];
+            const won = predictor.playSeries(high, low, bestOf, r, config.vetoOrder?.[bestOf]);
+            return (won === 0 ? high : low) === a ? 0 : 1;
+        };
         const locks = new StageLocks(input.known.get(stage.id) ?? []);
         const result = FORMATS[stage.format](teams, {
             config: stage,
-            rng,
+            rng: input.seriesSeed === undefined ? rng : makeRng(subSeed(input.seriesSeed, `${stage.id}|format`)),
             knownPairings: (round) => locks.pairings(round),
             play: (a, b, bestOf, round, place) => {
                 const lock = locks.take(a, b);
@@ -65,7 +84,7 @@ export const runEvent = (input: EventInput, predictor: SeriesModel, rng: Rng): E
                     const winner = (lock.teams[lock.winner!] === a ? 0 : 1) as 0 | 1;
                     return { stage: stage.id, round, ...place, teams: [a, b], bestOf, winner, locked: true, t: lock.t };
                 }
-                const winner = rng() < predictor.seriesProbability(a, b, bestOf) ? 0 : 1;
+                const winner = simulated(a, b, bestOf, round);
                 return { stage: stage.id, round, ...place, teams: [a, b], bestOf, winner, locked: false, t: null };
             },
         });
@@ -74,6 +93,7 @@ export const runEvent = (input: EventInput, predictor: SeriesModel, rng: Rng): E
             if (!label) throw new Error(`${config.slug}: stage ${stage.id} has no placement for exit "${key}"`);
             placements.set(team, label);
         }
+        if (stage.exits.advance) for (const team of result.advancing) placements.set(team, stage.exits.advance);
         results.set(stage.id, result);
         matches.push(...result.matches);
         diverged.push(...locks.unused());

@@ -9,18 +9,25 @@ import type { RawRow } from "./lib/elo/normalize.ts";
 import { DEFAULT_PARAMS } from "./lib/elo/params.ts";
 import { readUpcoming } from "./lib/liquipedia/upcoming.ts";
 import { stageBrackets } from "./lib/sim/bracketView.ts";
+import { tierOf } from "./lib/sim/catalog.ts";
 import { EVENTS_DIR, loadEventConfigs, type EventConfig } from "./lib/sim/config.ts";
 import {
     allocateInvites,
     loadInviteConfig,
     loadInviteConfigs,
     makeIntactCheck,
+    makeRegionEligibleCheck,
+    previousMajorSlots,
     REGIONS,
     type InviteConfig,
 } from "./lib/sim/invites.ts";
+import { readSquadRows, squadSets, squadsByTeamId, teamIdResolver } from "./lib/sim/inputs.ts";
 import { knownMatches } from "./lib/sim/locks.ts";
-import { Predictor } from "./lib/sim/predict.ts";
+import { resolveParticipants } from "./lib/sim/participants.ts";
+import { readPriorRegionalRosters, readPublishedSnapshot } from "./lib/vrs/publishedStandings.ts";
+import { DRIFT_PER_DAY, Predictor } from "./lib/sim/predict.ts";
 import { simulateEvents, type EventInput, type EventSummary } from "./lib/sim/simulate.ts";
+import { loadVetoModel, VETO_MODEL, VetoModel } from "./lib/sim/veto.ts";
 import { projectStandings } from "./lib/sim/vrsPool.ts";
 import {
     canonicalEventId,
@@ -37,8 +44,6 @@ import type { Matchdata, Overrides } from "./lib/vrs/buildMatchdata.ts";
 import { isMajorTier } from "./lib/vrs/majorStages.ts";
 import { saveJson } from "./lib/writeJson.ts";
 
-/** Elo² per day, from `npm run fit-sim-noise` on 2025-01 to 2026-10 series. */
-const DRIFT_PER_DAY = 58;
 const args = process.argv.slice(2);
 const option = (name: string, fallback: string) => {
     const i = args.indexOf(`--${name}`);
@@ -48,11 +53,13 @@ const CONFIG_DIR = path.resolve(option("config-dir", EVENTS_DIR));
 const INVITE_FILE = option("invites", "");
 const OUT_DIR = path.resolve(option("out", "public/data/sim"));
 const n = Number(option("n", "10000"));
-const vrsN = Number(option("vrs-n", "1000"));
+const vrsN = Number(option("vrs-n", "5000"));
 const seed = Number(option("seed", "1"));
 const workers = Number(option("workers", String(Math.max(1, Math.min(os.availableParallelism() - 1, 8)))));
 const only = option("events", "").split(",").filter(Boolean);
 const skipVrs = args.includes("--no-vrs");
+// Off until a veto model passes the series gate; `hltv` also waits on HLTV's publishing terms (docs/simulator.md).
+const vetoMode = option("vetoes", "off");
 
 const readJson = <T>(file: string, fallback: T): T =>
     fs.existsSync(file) ? (JSON.parse(fs.readFileSync(file, "utf8")) as T) : fallback;
@@ -75,12 +82,34 @@ const placementRows = [...readJson<RawRow[]>("data/raw/placements.json", []), ..
 const tournamentRows = [...readJson<RawRow[]>("data/raw/tournaments.json", []), ...(upcoming?.tournaments ?? [])];
 const overrides = readJson<Overrides>("data/overrides.json", {});
 
-const selected = loadEventConfigs(CONFIG_DIR).filter((c) => only.length === 0 || only.includes(c.slug));
+const valveRoot = path.resolve("vendor/counter-strike_regional_standings");
+const snapshot = (date: string) => {
+    try {
+        return readPublishedSnapshot(valveRoot, date).rosters;
+    } catch {
+        return null;
+    }
+};
+const resolveContext = { matchRows, placementRows, invites: loadInviteConfigs(CONFIG_DIR), snapshot };
+const pendingReasons = new Map<string, string>();
+const previousNames = new Map<string, string[]>();
+const selected = loadEventConfigs(CONFIG_DIR)
+    .filter((c) => only.length === 0 || only.includes(c.slug))
+    .map((c) => {
+        const { config, sources, unresolved, previousNames: renamed } = resolveParticipants(c, resolveContext);
+        for (const [team, names] of renamed) previousNames.set(team, [...new Set([...(previousNames.get(team) ?? []), ...names])]);
+        for (const s of config.stages) {
+            if (sources[s.id] && sources[s.id] !== "config") console.log(`${c.slug} ${s.id} from ${sources[s.id]}: ${s.invited!.join(", ")}`);
+        }
+        if (unresolved.length) pendingReasons.set(c.slug, [...new Set(unresolved)].join("; "));
+        const tier = tierOf(tournamentRows.findLast((t) => t.pagename === c.liquipedia));
+        return tier !== null && config.tier === undefined ? { ...config, tier } : config;
+    });
 // A stage with an empty `invited` list is waiting on Liquipedia's participant list.
 const isPending = (c: EventConfig) => c.stages.some((s) => s.invited !== undefined && s.invited.length === 0);
 const pending = selected.filter(isPending);
 const configs = selected.filter((c) => !isPending(c));
-for (const c of pending) console.log(`${c.slug}: participants not announced yet; skipped.`);
+for (const c of pending) console.log(`${c.slug}: participants not resolved (${pendingReasons.get(c.slug)}); skipped.`);
 // Once a snapshot has passed, Valve's published standings replace the projection.
 const inviteConfigs = (INVITE_FILE ? [loadInviteConfig(INVITE_FILE)] : loadInviteConfigs(CONFIG_DIR)).filter(
     (c) => c.snapshotDate >= asOf
@@ -96,10 +125,29 @@ const inputs: EventInput[] = configs.map((config) => ({
     horizon: Math.max(0, daysBetween(asOf, config.startDate)),
 }));
 
+const vetoModel = (): VetoModel | undefined => {
+    if (vetoMode === "off") return undefined;
+    if (vetoMode !== "hltv" && vetoMode !== "liquipedia") throw new Error(`--vetoes ${vetoMode}: expected off, liquipedia or hltv`);
+    const file = loadVetoModel();
+    if (!file) {
+        console.warn(`${VETO_MODEL} is missing; run \`cs2wp sim-veto --write\`. Simulating without vetoes.`);
+        return undefined;
+    }
+    const pool = engine.activePool(lastT);
+    if ([...pool].sort().join() !== [...file.pool].sort().join()) {
+        console.warn(`Veto model pool (${file.pool.join(", ")}) isn't today's (${pool.join(", ")}); simulating without vetoes.`);
+        return undefined;
+    }
+    console.log(`Simulating vetoes (${vetoMode}, model as of ${file.asOf}).`);
+    return new VetoModel(file, vetoMode);
+};
+
 const predictor = new Predictor(engine, DEFAULT_PARAMS, lastT, {
     driftPerDay: DRIFT_PER_DAY,
     horizons: inputs.map((i) => i.horizon),
     fallbackRating: engine.tierMean(2, lastT),
+    previousNames,
+    veto: vetoModel(),
 });
 
 // --- Event simulation
@@ -132,7 +180,7 @@ const eventOdds = (config: EventConfig, summary: EventSummary, input: EventInput
         playedMatches: [...input.known.values()].flat().filter((k) => k.winner !== null).length,
         teams: summary.teams
             .map((team) => {
-                const lineage = engine.teamLineageOf(team);
+                const lineage = predictor.lineageOf(team);
                 return {
                     team,
                     rating: lineage ? Math.round(lineage.rating * 10) / 10 : null,
@@ -162,24 +210,10 @@ saveJson(path.join(OUT_DIR, "events", "index.json"), JSON.stringify(index), `${i
 
 // --- VRS projection and invites
 
-const storedSquads = readJson<{ rows: Array<{ pagename: string; link: string; objectname?: string }> }>("data/raw/squads.json", {
-    rows: [],
-}).rows;
-// Without `objectname` the store kept one player per team, which would fail every roster's intact check.
-const squadRows = storedSquads.every((r) => r.objectname) ? storedSquads : [];
-if (squadRows.length < storedSquads.length) console.warn("data/raw/squads.json is incomplete; ignoring squads until the next fetch-liquipedia.");
+const squadRows = readSquadRows();
 
-const loadSquads = (): Map<string, Set<string>> => {
-    const squads = new Map<string, Set<string>>();
-    for (const { pagename, link } of squadRows) {
-        const team = pagename.replace(/_/g, " ");
-        if (!squads.has(team)) squads.set(team, new Set());
-        squads.get(team)!.add(link.toLowerCase());
-        const nick = feed.players[link]?.nick ?? feed.players[link.replace(/_/g, " ")]?.nick;
-        if (nick) squads.get(team)!.add(nick.toLowerCase());
-    }
-    return squads;
-};
+const nickOfPlayer = (link: string) => feed.players[link]?.nick ?? feed.players[link.replace(/_/g, " ")]?.nick;
+
 
 const roundSlots = (slots: Record<Region, number>) =>
     Object.fromEntries(REGIONS.map((r) => [r, Math.round(slots[r] * 100) / 100])) as Record<Region, number>;
@@ -190,21 +224,20 @@ const percentile = (sorted: number[], q: number) => sorted[Math.min(sorted.lengt
 const projectInvites = async (invite: InviteConfig): Promise<InviteOdds | null> => {
     const base = readJson<Matchdata | null>("data/matchdata.json", null);
     if (!base) throw new Error("data/matchdata.json is missing; run npm run build-matchdata first");
-    const teamIdOf = canonicalTeamId(overrides);
     const lineups = latestLineups(base);
-    const squadsByTeamId = new Map<string, string[]>();
-    for (const { pagename, link } of squadRows) {
-        const id = teamIdOf(pagename.replace(/_/g, " "));
-        squadsByTeamId.set(id, [...(squadsByTeamId.get(id) ?? []), link]);
-    }
-    console.log(`Using the current Liquipedia squad for ${preferSquads(base, lineups, squadsByTeamId)} teams.`);
+    const resolveTeamId = teamIdResolver(canonicalTeamId(overrides), lineups, previousNames);
+    console.log(`Using the current Liquipedia squad for ${preferSquads(base, lineups, squadsByTeamId(squadRows, resolveTeamId), nickOfPlayer)} teams.`);
 
+    const baseEvents = new Map(base.events.map((e) => [String(e.eventId), e]));
     const eventStatus: InviteOdds["events"] = [];
     const included: Array<{ index: number; event: ProjectionEvent }> = [];
     configs.forEach((config, index) => {
         const entry = { slug: config.slug, name: config.name, liquipedia: config.liquipedia };
         const prizes = prizesByEvent.get(config.slug);
-        const missingLineups = summaries[index].teams.filter((t) => !lineups.has(teamIdOf(t)));
+        const missingLineups = summaries[index].teams.filter((t) => !lineups.has(resolveTeamId(t)));
+        const eventId = canonicalEventId(overrides, config.liquipedia);
+        const allKnownPlayed = [...inputs[index].known.values()].every((ks) => ks.length > 0 && ks.every((k) => k.winner !== null));
+        const inBaseFinished = baseEvents.get(eventId)?.finished === true;
         let reason: string | undefined;
         if (config.endDate > invite.snapshotDate) reason = "Ends after the snapshot";
         else if (!prizes) reason = "No prize distribution on Liquipedia yet";
@@ -213,12 +246,13 @@ const projectInvites = async (invite: InviteConfig): Promise<InviteOdds | null> 
         else if (missingLineups.length) reason = `No match history for ${missingLineups.join(", ")}`;
         eventStatus.push({ ...entry, included: !reason, ...(reason ? { reason } : {}) });
         if (reason) return;
+        if (config.endDate <= asOf && summaries[index].divergedRuns === 0 && allKnownPlayed && inBaseFinished) return;
         const tournament = tournamentRows.find((t) => t.pagename === config.liquipedia);
         included.push({
             index,
             event: {
                 config,
-                eventId: canonicalEventId(overrides, config.liquipedia),
+                eventId,
                 prizePool: `$${Math.round(Number(tournament?.prizepool) || [...prizes!.values()].reduce((a, b) => a + b, 0)).toLocaleString("en-US")}`,
                 prizes: prizes!,
                 major: isMajorTier(tournament?.publishertier),
@@ -238,46 +272,43 @@ const projectInvites = async (invite: InviteConfig): Promise<InviteOdds | null> 
             included.map((i) => i.event),
             included.map((i) => run[i.index]),
             lineups,
-            teamIdOf
+            resolveTeamId
         )
     );
     console.log(`Projecting VRS at ${invite.snapshotDate} for ${deltas.length} simulations on ${workers} workers...`);
     const started = Date.now();
-    const projected = await projectStandings(base, invite.snapshotDate, deltas, workers, (done) => {
-        if (done % 100 === 0) console.log(`  ${done}/${deltas.length} (${Math.round((Date.now() - started) / 1000)}s)`);
+    const { projected, inexact } = await projectStandings(base, invite.snapshotDate, deltas, workers, (done) => {
+        if (done % 500 === 0) console.log(`  ${done}/${deltas.length} (${Math.round((Date.now() - started) / 1000)}s)`);
     });
+    console.log(`  done in ${Math.round((Date.now() - started) / 1000)}s; ${inexact} inexact reruns fell back to a full run.`);
 
     const rosterOfTeam = (team: string) => {
-        const lineup = lineups.get(teamIdOf(team));
+        const lineup = lineups.get(resolveTeamId(team));
         return lineup ? getRosterKey(lineup.players.map((p) => p.nick)) : null;
     };
-    const intactCheck = makeIntactCheck(loadSquads(), invite.minRetained);
+    const intactCheck = makeIntactCheck(squadSets(squadRows, nickOfPlayer), invite.minRetained);
+    const regionEligible = makeRegionEligibleCheck(
+        readPriorRegionalRosters(valveRoot, invite.snapshotDate),
+        invite.regionExceptions ?? [],
+        invite.minRetained
+    );
     const stats = new Map<string, { roster: ProjectedRoster; stages: number[]; ranks: number[]; regions: Map<Region, number> }>();
     const zero = (): Record<Region, number> => ({ Europe: 0, Americas: 0, Asia: 0 });
     const slotTotals = { stage3: zero(), stage2: zero() };
 
-    const previousMajorSlots = (s: number, rosters: ProjectedRoster[]) => {
-        if ("slots" in previous) return { 3: previous.slots.stage3, 2: previous.slots.stage2 };
-        const byKey = new Map(rosters.map((r) => [r.rosterKey, r]));
-        const slots = { 3: zero(), 2: zero() };
-        for (const [team, stages] of outcomes[s][majorIndex].reached) {
-            const stage = stages.includes(previous.stage3From) ? 3 : stages.includes(previous.stage2From) ? 2 : null;
-            if (!stage) continue;
-            const key = rosterOfTeam(team);
-            const region = (key && byKey.get(key)?.region) || REGIONS[engine.teamLineageOf(team)?.region ?? 0];
-            slots[stage][region]++;
-        }
-        return slots;
-    };
-
     projected.forEach((rosters, s) => {
-        const slots = { ...previousMajorSlots(s, rosters), 1: invite.stage1 };
+        const byKey = new Map(rosters.map((r) => [r.rosterKey, r]));
+        const regionOf = (team: string) => {
+            const key = rosterOfTeam(team);
+            return (key && byKey.get(key)?.region) || REGIONS[predictor.lineageOf(team)?.region ?? 0];
+        };
+        const slots = { ...previousMajorSlots(previous, majorIndex >= 0 ? outcomes[s][majorIndex].reached : null, regionOf), 1: invite.stage1 };
         for (const r of REGIONS) {
             slotTotals.stage3[r] += slots[3][r] / projected.length;
             slotTotals.stage2[r] += slots[2][r] / projected.length;
         }
 
-        const invites = allocateInvites(rosters, slots, (r) => intactCheck(r) !== false);
+        const invites = allocateInvites(rosters, slots, (r) => intactCheck(r) !== false && regionEligible(r));
         for (const r of rosters) {
             if (!stats.has(r.rosterKey)) stats.set(r.rosterKey, { roster: r, stages: [0, 0, 0, 0], ranks: [], regions: new Map() });
             const st = stats.get(r.rosterKey)!;
@@ -293,10 +324,12 @@ const projectInvites = async (invite: InviteConfig): Promise<InviteOdds | null> 
             // A roster unranked in some runs counts as a miss there.
             const missing = total - ranks.length;
             const sorted = [...ranks, ...Array<number>(missing).fill(999)].sort((a, b) => a - b);
+            const region = [...regions].sort((a, b) => b[1] - a[1])[0][0];
+            const regionLocked = !regionEligible({ region, players: roster.players });
             return {
                 rosterKey: roster.rosterKey,
                 teamName: roster.teamName,
-                region: [...regions].sort((a, b) => b[1] - a[1])[0][0],
+                region,
                 players: roster.players,
                 stage3: stages[3] / total,
                 stage2: stages[2] / total,
@@ -304,6 +337,7 @@ const projectInvites = async (invite: InviteConfig): Promise<InviteOdds | null> 
                 miss: (stages[0] + missing) / total,
                 rank: { p10: percentile(sorted, 0.1), p50: percentile(sorted, 0.5), p90: percentile(sorted, 0.9) },
                 intact: intactCheck(roster),
+                ...(regionLocked ? { regionLocked } : {}),
             };
         })
         .filter((r) => r.miss < 1 || r.rank.p50 <= 40)

@@ -13,7 +13,7 @@ import { TeamLogo } from "../components/TeamLogo.tsx";
 import { liquipediaUrl } from "../utils/liquipedia.ts";
 import { percent } from "../utils/format.ts";
 import { fetchSimJson } from "../sim/fetch.ts";
-import type { EventIndexEntry, EventOdds as EventOddsData, EventOddsTeam, StageBracket } from "../sim/types.ts";
+import type { EventIndexEntry, EventOdds as EventOddsData, EventOddsTeam, SeasonImpact, SeasonImpactTeam, StageBracket } from "../sim/types.ts";
 
 
 /** Probability of finishing at or above `label` in the event's best-first placement list. */
@@ -224,8 +224,140 @@ export const EventOdds = () => {
                 </DataTable>
                 <LiquipediaCredit what="Brackets, results, prize and team logo data" />
             </Section>
+            <ImpactSection slug={slug} />
             {data.bracket && data.bracket.length > 0 && <BracketSection stages={data.bracket} />}
         </div>
+    );
+};
+
+const signed = (x: number) => `${x > 0 ? "+" : x < 0 ? "−" : ""}${Math.abs(x).toFixed(1)}`;
+
+const Delta = ({ value, runs, minRuns }: { value: number | undefined; runs?: number; minRuns: number }) => {
+    if (value === undefined) return <span className="text-muted/50">–</span>;
+    const low = runs !== undefined && runs < minRuns;
+    return (
+        <span className={low ? "text-muted/50" : value > 0 ? "text-up" : value < 0 ? "text-down" : "text-muted"} title={low ? `Only ${runs} runs` : undefined}>
+            {signed(value)}
+        </span>
+    );
+};
+
+const ImpactPlacements = ({ team, minRuns }: { team: SeasonImpactTeam; minRuns: number }) => (
+    <Inset className="text-xs font-mono">
+        <dl className="space-y-0.5 max-w-md">
+            <Label>Placement / share / points change (starting value + head to head)</Label>
+            {team.placements.map((p) => (
+                <DataRow key={p.placement} label={p.placement}>
+                    <Pct p={p.p} strong /> / <Delta value={p.delta} runs={p.runs} minRuns={minRuns} />
+                    <span className="text-muted">
+                        {" "}
+                        ({signed(p.start)} + {signed(p.h2h)})
+                    </span>
+                </DataRow>
+            ))}
+        </dl>
+    </Inset>
+);
+
+const ImpactSection = ({ slug }: { slug: string }) => {
+    const { data } = useQuery({
+        queryKey: ["sim", "season", "impact", slug],
+        queryFn: () => fetchSimJson<SeasonImpact>(`season/impact/${slug}.json`),
+    });
+    const { sort, onSort } = useTableSort<string>(["expected", "win", "worst", "team"]);
+    const [expanded, setExpanded] = useState<Set<string>>(new Set());
+    const lastLabel = (t: SeasonImpactTeam) => t.placements[t.placements.length - 1];
+    const teams = useMemo(() => {
+        if (!data) return [];
+        const value = (t: SeasonImpactTeam): number | string | null => {
+            if (sort.key === "team") return t.team;
+            if (sort.key === "win") return t.placements.find((p) => p.placement === "1")?.delta ?? null;
+            if (sort.key === "worst") return lastLabel(t)?.delta ?? null;
+            return t.expected;
+        };
+        return [...data.teams].sort((a, b) => columnOrder(value(a), value(b), { ascending: sort.key === "team", reversed: sort.reversed }));
+    }, [data, sort]);
+    if (!data || data.teams.length === 0) return null;
+
+    const toggle = (team: string) =>
+        setExpanded((prev) => {
+            const next = new Set(prev);
+            if (next.has(team)) next.delete(team);
+            else next.add(team);
+            return next;
+        });
+
+    return (
+        <Section
+            title="VRS impact"
+            subtitle={`Points change at the ${data.checkpoint} VRS list from this event, against the same season without it, over ${data.n.toLocaleString("en-US")} season simulations. One-team estimate: other rosters stay as they are (check against exact reruns: mean error ${data.check.mean}, p95 ${data.check.p95} points). Faded values come from fewer than ${data.minRuns} runs.`}
+        >
+            <DataTable>
+                <TableHead>
+                    <SortHeader sortKey="team" sort={sort} onSort={onSort} ascending align="left">
+                        Team
+                    </SortHeader>
+                    <SortHeader sortKey="expected" sort={sort} onSort={onSort}>
+                        Expected
+                    </SortHeader>
+                    <SortHeader sortKey="win" sort={sort} onSort={onSort}>
+                        If win
+                    </SortHeader>
+                    <SortHeader sortKey="worst" sort={sort} onSort={onSort}>
+                        If last
+                    </SortHeader>
+                </TableHead>
+                <TableBody>
+                    {teams.map((t) => {
+                        const isExpanded = expanded.has(t.team);
+                        const win = t.placements.find((p) => p.placement === "1");
+                        const worst = lastLabel(t);
+                        return (
+                            <React.Fragment key={t.team}>
+                                <Row>
+                                    <Td className="font-sans">
+                                        <button
+                                            type="button"
+                                            aria-expanded={isExpanded}
+                                            onClick={() => toggle(t.team)}
+                                            className="group inline-flex items-center gap-2 font-medium text-fg hover:text-accent transition-colors cursor-pointer"
+                                        >
+                                            <svg
+                                                viewBox="0 0 16 16"
+                                                fill="currentColor"
+                                                aria-hidden="true"
+                                                className={`w-3 h-3 text-muted group-hover:text-accent transition-transform ${isExpanded ? "rotate-90" : ""}`}
+                                            >
+                                                <path d="M6 3.5 11 8l-5 4.5z" />
+                                            </svg>
+                                            <TeamLogo team={t.team} />
+                                            {t.team}
+                                        </button>
+                                    </Td>
+                                    <Td align="right">
+                                        <Delta value={t.expected} minRuns={data.minRuns} />
+                                    </Td>
+                                    <Td align="right">
+                                        <Delta value={win?.delta} runs={win?.runs} minRuns={data.minRuns} />
+                                    </Td>
+                                    <Td align="right">
+                                        <Delta value={worst?.delta} runs={worst?.runs} minRuns={data.minRuns} />
+                                    </Td>
+                                </Row>
+                                {isExpanded && (
+                                    <tr>
+                                        <td colSpan={4} className="px-3 pt-1 pb-3">
+                                            <ImpactPlacements team={t} minRuns={data.minRuns} />
+                                        </td>
+                                    </tr>
+                                )}
+                            </React.Fragment>
+                        );
+                    })}
+                </TableBody>
+            </DataTable>
+            <LiquipediaCredit what="Fields, results and prize data" />
+        </Section>
     );
 };
 

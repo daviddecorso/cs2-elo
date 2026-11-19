@@ -16,13 +16,13 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Check out submodule with full history
+      - name: Check out submodules with full history
         run: |
-          git submodule update --init vendor/counter-strike_regional_standings
+          git submodule update --init vendor/counter-strike_regional_standings vendor/counter-strike_rules_and_regs
           if [ "$(git -C vendor/counter-strike_regional_standings rev-parse --is-shallow-repository)" = "true" ]; then
             git -C vendor/counter-strike_regional_standings fetch --unshallow
           fi
-      - name: Update submodule and check for model changes
+      - name: Update submodules and check for model or rulebook changes
         run: |
           OLD_COMMIT=$(git -C vendor/counter-strike_regional_standings rev-parse HEAD)
           git submodule update --remote vendor/counter-strike_regional_standings
@@ -32,6 +32,12 @@ jobs:
               echo "::error::Valve updated model/ inside the submodule; failing rather than auto-adopting."
               exit 1
             fi
+          fi
+          OLD_RULES=$(git -C vendor/counter-strike_rules_and_regs rev-parse HEAD)
+          git submodule update --remote vendor/counter-strike_rules_and_regs
+          NEW_RULES=$(git -C vendor/counter-strike_rules_and_regs rev-parse HEAD)
+          if [ "$OLD_RULES" != "$NEW_RULES" ]; then
+            echo "::warning::Valve updated vendor/counter-strike_rules_and_regs ($OLD_RULES -> $NEW_RULES); review rulebook diffs."
           fi
       - uses: actions/setup-node@v4
         with:
@@ -77,6 +83,10 @@ jobs:
       - name: Simulate events and Major invites
         continue-on-error: true
         run: npm run simulate
+      - name: Simulate season and schedules
+        continue-on-error: true
+        timeout-minutes: 30
+        run: npm run simulate-season
       - run: npm run test:run
       - uses: actions/upload-artifact@v4
         with:
@@ -87,7 +97,7 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add public/data public/logos vendor/counter-strike_regional_standings data/overrides.json data/history
+          git add public/data public/logos vendor/counter-strike_regional_standings vendor/counter-strike_rules_and_regs data/overrides.json data/history
           if ! git diff --cached --quiet; then
             git commit -m "Update data"
             git pull --rebase

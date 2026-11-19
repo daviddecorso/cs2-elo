@@ -1,0 +1,54 @@
+name: Plan schedules
+
+on:
+  workflow_dispatch:
+    inputs:
+      max:
+        description: Teams to plan
+        default: "8"
+      budget:
+        description: Minutes to spend planning
+        default: "240"
+  schedule:
+    - cron: "0 13 * * 1" # Mondays, after the 09:23 UTC nightly
+
+permissions:
+  contents: write
+
+concurrency: plan-schedules
+
+jobs:
+  plan:
+    if: github.ref == 'refs/heads/main' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    timeout-minutes: 300
+    steps:
+      - uses: actions/checkout@v4
+      - run: git submodule update --init vendor/counter-strike_regional_standings vendor/counter-strike_rules_and_regs
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      # Restore only: the nightly owns this cache, and planning makes no Liquipedia requests.
+      - uses: actions/cache/restore@v4
+        with:
+          path: data/raw
+          key: liquipedia-raw-
+          restore-keys: liquipedia-raw-
+          fail-on-cache-miss: true
+      - name: Build matchdata
+        run: npm run build-matchdata -- --date $(date -u +%Y-%m-%d)
+      - name: Plan teams on the invite bubble
+        run: npm run plan-batch -- --max ${{ inputs.max || '8' }} --budget-minutes ${{ inputs.budget || '240' }}
+      - run: npm run test:run
+      - name: Commit plans
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add public/data/sim/plan
+          if ! git diff --cached --quiet; then
+            git commit -m "Update plans"
+            git pull --rebase
+            git push
+          fi

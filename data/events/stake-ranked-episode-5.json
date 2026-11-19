@@ -12,7 +12,7 @@
             "page": "Stake_Ranked/Episode_5",
             "format": "bracket",
             "bestOf": { "default": 3 },
-            "invited": ["Astralis", "Fnatic", "BIG", "Magic", "IC Esports", "Team Nemesis", "Eternal Fire", "MIBR"],
+            "invited": ["Astralis", "Fnatic", "BIG", "magic", "IC Esports", "Team Nemesis", "Eternal Fire", "MIBR"],
             "matches": [
                 { "id": "u1", "teams": ["s1", "s2"] },
                 { "id": "u2", "teams": ["s3", "s4"] },

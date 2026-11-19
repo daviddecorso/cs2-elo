@@ -3,8 +3,9 @@ import type { RawRow } from "../elo/normalize.ts";
 import type { Matchdata, Overrides, ValveEvent, ValveMatch, ValvePlayer } from "../vrs/buildMatchdata.ts";
 import { isSplitStagePage, splitMajorStages } from "../vrs/majorStages.ts";
 import type { EventConfig } from "./config.ts";
+import { LARGE_ROUND } from "./formats/elimination.ts";
 import type { EventOutcome } from "./simulate.ts";
-import type { TeamId } from "./types.ts";
+import type { SimMatch, TeamId } from "./types.ts";
 
 export interface ProjectionEvent {
     config: EventConfig;
@@ -14,6 +15,12 @@ export interface ProjectionEvent {
     /** Placement label → USD. */
     prizes: Map<string, number>;
     major?: boolean;
+    /** False when Valve doesn't rank the event; defaults to true. */
+    ranked?: boolean;
+    /** Liquipedia's `publishertier`; "Tier 2 Qualifier" brackets are unranked when Bo1. */
+    publisherTier?: string;
+    /** Event id a qualifier sends its teams to, so Valve adds half that event's prize pool to this one's. */
+    qualifies?: string;
 }
 
 export interface ProjectedRoster {
@@ -68,18 +75,31 @@ export const latestLineups = (
 
 const playerKey = (id: string | number) => String(id).replace(/ /g, "_").toLowerCase();
 
+export const isCoachRole = (role?: string): boolean => typeof role === "string" && /coach/i.test(role);
+
 /** Teams often change a player just before an event, so a complete current squad keeping 3+ of the last lineup replaces it. */
 export const preferSquads = (
     matchdata: Matchdata,
     lineups: Map<string, { name: string; players: ValvePlayer[] }>,
-    squads: Map<string, string[]>
+    squads: Map<string, string[]>,
+    nickOf?: (link: string) => string | undefined
 ): number => {
     const players = new Map<string, ValvePlayer>();
-    for (const m of matchdata.matches) for (const p of [...m.team1Players, ...m.team2Players]) players.set(playerKey(p.playerId), p);
+    const playersByNick = new Map<string, ValvePlayer>();
+    for (const m of matchdata.matches) {
+        for (const p of [...m.team1Players, ...m.team2Players]) {
+            players.set(playerKey(p.playerId), p);
+            playersByNick.set(playerKey(p.nick), p);
+        }
+    }
     let swapped = 0;
     for (const [teamId, squad] of squads) {
         const lineup = lineups.get(teamId);
-        const resolved = squad.map((link) => players.get(playerKey(link)));
+        const resolved = squad.map((link) => {
+            const k = playerKey(link);
+            const nick = nickOf?.(link);
+            return players.get(k) ?? playersByNick.get(k) ?? (nick ? playersByNick.get(playerKey(nick)) : undefined);
+        });
         if (!lineup || resolved.length !== 5 || resolved.some((p) => !p)) continue;
         const kept = resolved.filter((p) => lineup.players.some((q) => q.playerId === p!.playerId)).length;
         if (kept < 3 || kept === 5) continue;
@@ -90,6 +110,16 @@ export const preferSquads = (
 };
 
 const dayStart =(date: string) => Date.parse(`${date}T12:00:00Z`) / 1000;
+
+const ELIMINATION = new Set(["single_elim", "double_elim", "bracket"]);
+
+/** Valve's ranked rule for one simulated match, as `buildMatchdata` applies it: HLTV skips Bo1 bracket rounds of more than 8 matches, and every Bo1 bracket match of a Tier 2 qualifier. */
+export const isRankedMatch = (ev: ProjectionEvent, m: SimMatch, roundSize: number): boolean => {
+    if (ev.ranked === false) return false;
+    const stage = ev.config.stages.find((s) => s.id === m.stage);
+    if (m.bestOf !== 1 || !stage || !ELIMINATION.has(stage.format)) return true;
+    return roundSize <= LARGE_ROUND && ev.publisherTier !== "Tier 2 Qualifier";
+};
 
 /** One simulation's matches and prize table for each event; played matches are already in the model input unless `includeLocked`. */
 export const simulationDelta = (
@@ -109,6 +139,9 @@ export const simulationDelta = (
         const splitStages = ev.major ? config.stages.filter((s) => isSplitStagePage(s.page)) : [];
         const stageEventId = (stage: (typeof config.stages)[number]) =>
             splitStages.includes(stage) ? stage.page : ev.eventId;
+        const roundSizes = new Map<string, number>();
+        const roundKey = (m: SimMatch) => `${m.stage}|${m.lane}|${m.round}`;
+        for (const m of outcome.matches) roundSizes.set(roundKey(m), (roundSizes.get(roundKey(m)) ?? 0) + 1);
         config.stages.forEach((stage, s) => {
             const stageMatches = outcome.matches.filter((m) => m.stage === stage.id);
             stageMatches.forEach((m, k) => {
@@ -127,7 +160,7 @@ export const simulationDelta = (
                     team2Players: lb.players,
                     eventId: stageEventId(stage),
                     winningTeam: m.winner === 0 ? 1 : 2,
-                    valveRanked: true,
+                    valveRanked: isRankedMatch(ev, m, roundSizes.get(roundKey(m)) ?? 0),
                     forfeited: false,
                 });
             });
@@ -144,7 +177,7 @@ export const simulationDelta = (
                 placement: Number(/^\d+/.exec(label)?.[0] ?? 99),
                 prize: ev.prizes.get(label) ?? 0,
                 clubShare: 0,
-                qualifiedEvents: [],
+                qualifiedEvents: ev.qualifies ? [ev.qualifies] : [],
             })),
         };
         if (splitStages.length === 0) {

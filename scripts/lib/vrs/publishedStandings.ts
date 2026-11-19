@@ -4,8 +4,17 @@ import path from "node:path";
 import { getRosterKey, type Region, type Roster, type Standings } from "../../../src/vrs/types.ts";
 
 export const findLatestSnapshot = (valveRoot: string): string => {
-    const dates: string[] = [];
-    for (const sub of ["invitation", "live"]) {
+    const dates = publishedSnapshotDates(valveRoot);
+    if (dates.length === 0) {
+        throw new Error(`No published snapshots found in ${valveRoot}`);
+    }
+    return dates.at(-1)!;
+};
+
+/** Dates of every vendored global standings file, ascending. */
+export const publishedSnapshotDates = (valveRoot: string, subs: string[] = ["invitation", "live"]): string[] => {
+    const dates = new Set<string>();
+    for (const sub of subs) {
         const subDir = path.join(valveRoot, sub);
         if (!fs.existsSync(subDir)) continue;
         for (const yr of fs.readdirSync(subDir)) {
@@ -14,16 +23,12 @@ export const findLatestSnapshot = (valveRoot: string): string => {
             for (const f of fs.readdirSync(yrDir)) {
                 const match = /^standings_global_(\d{4})_(\d{2})_(\d{2})\.md$/.exec(f);
                 if (match) {
-                    dates.push(`${match[1]}-${match[2]}-${match[3]}`);
+                    dates.add(`${match[1]}-${match[2]}-${match[3]}`);
                 }
             }
         }
     }
-    if (dates.length === 0) {
-        throw new Error(`No published snapshots found in ${valveRoot}`);
-    }
-    dates.sort();
-    return dates.at(-1)!;
+    return [...dates].sort();
 };
 
 const defaultValveRoot = path.resolve(
@@ -231,4 +236,41 @@ export const readPublishedSnapshot = (valveRoot: string, date: string): Standing
         generatedAt: new Date().toISOString(),
         rosters,
     };
+};
+
+const REGION_FILES: Array<[Region, string]> = [
+    ["Europe", "europe"],
+    ["Americas", "americas"],
+    ["Asia", "asia"],
+];
+
+/** Regional invitation lists strictly before `snapshotDate` within the preceding `months` calendar months. */
+export const readPriorRegionalRosters = (
+    valveRoot: string,
+    snapshotDate: string,
+    months = 3
+): Array<{ region: Region; players: string[] }> => {
+    const [y, m] = snapshotDate.split("-").map(Number);
+    const totalMonths = y * 12 + (m - 1) - months;
+    const minDate = `${Math.floor(totalMonths / 12)}-${String((totalMonths % 12) + 1).padStart(2, "0")}-01`;
+    const invRoot = path.join(valveRoot, "invitation");
+    if (!fs.existsSync(invRoot)) return [];
+
+    const out: Array<{ region: Region; players: string[] }> = [];
+    for (const yr of fs.readdirSync(invRoot)) {
+        const yrDir = path.join(invRoot, yr);
+        if (!fs.statSync(yrDir).isDirectory()) continue;
+        for (const [region, slug] of REGION_FILES) {
+            const prefix = `standings_${slug}_`;
+            for (const f of fs.readdirSync(yrDir)) {
+                if (!f.startsWith(prefix) || !f.endsWith(".md")) continue;
+                const date = f.slice(prefix.length, -3).replaceAll("_", "-");
+                if (date < minDate || date >= snapshotDate) continue;
+                for (const row of parseStandingsTable(fs.readFileSync(path.join(yrDir, f), "utf8"))) {
+                    if (row.players.length) out.push({ region, players: row.players });
+                }
+            }
+        }
+    }
+    return out;
 };

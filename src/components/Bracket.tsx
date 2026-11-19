@@ -3,8 +3,8 @@ import type { BracketSlot, StageBracket } from "../sim/types.ts";
 import { TeamLogo } from "./TeamLogo.tsx";
 import { Tooltip } from "./ui.tsx";
 import { percent } from "../utils/format.ts";
+import { byRound, FIXED, record, swissRoundModel, type DestinationCarrier, type DestinationInfo, type TeamRoundStatus } from "./bracketModel.ts";
 
-const FIXED = 0.99;
 const CANDIDATES = 4;
 
 interface Selection {
@@ -53,18 +53,6 @@ const Pairing = ({ teams, slot, ...sel }: { teams: [string, string]; slot: Brack
         ))}
     </div>
 );
-
-interface DestinationInfo {
-    label: string;
-    p: number;
-    win?: number;
-    isCurrent: boolean;
-    key: string;
-}
-
-interface DestinationCarrier {
-    destinations: DestinationInfo[];
-}
 
 const DestinationTooltip = ({
     team,
@@ -233,12 +221,6 @@ const MatchCard = ({
     );
 };
 
-const byRound = (slots: BracketSlot[]) => {
-    const rounds = new Map<number, BracketSlot[]>();
-    for (const s of slots) rounds.set(s.round, [...(rounds.get(s.round) ?? []), s]);
-    return [...rounds].sort((a, b) => a[0] - b[0]);
-};
-
 const eliminationRoundModel = (stage: StageBracket) => {
     const rounds = byRound(stage.slots);
     const roundTeams = new Map<number, Map<string, TeamElimStatus>>();
@@ -328,85 +310,7 @@ const Elimination = ({ stage, ...sel }: { stage: StageBracket } & Selection) => 
     );
 };
 
-const record = (slot: BracketSlot) => slot.id.split(":")[1] ?? slot.id;
 const wins = (slot: BracketSlot) => Number(record(slot).split("-")[0]);
-const parseWL = (slot: BracketSlot) => record(slot).split("-").map(Number);
-
-interface TeamRoundStatus extends DestinationCarrier {
-    bestKey: string;
-}
-
-const swissRoundModel = (stage: StageBracket) => {
-    const maxW = Math.max(...stage.slots.map((s) => parseWL(s)[0] || 0));
-    const maxL = Math.max(...stage.slots.map((s) => parseWL(s)[1] || 0));
-    const rounds = byRound(stage.slots);
-    const roundTeams = new Map<number, Map<string, TeamRoundStatus>>();
-
-    const allTeams = new Set<string>();
-    for (const s of stage.slots) {
-        for (const t of s.teams) allTeams.add(t.team);
-        if (s.results) for (const r of s.results) for (const t of r.teams) allTeams.add(t);
-        for (const m of s.matchups) for (const t of m.teams) allTeams.add(t);
-    }
-
-    for (const [round, currentSlots] of rounds) {
-        const pastSlots = stage.slots.filter((s) => s.round < round);
-        const teamMap = new Map<string, TeamRoundStatus>();
-
-        for (const team of allTeams) {
-            let advBefore = 0;
-            let elimBefore = 0;
-            for (const s of pastSlots) {
-                const [w, l] = parseWL(s);
-                const t = s.teams.find((x) => x.team === team);
-                if (!t) continue;
-                if (w === maxW) advBefore += t.win;
-                if (l === maxL) elimBefore += t.here - t.win;
-            }
-
-            const currentDests: Array<{ label: string; p: number; win?: number; key: string }> = [];
-            if (advBefore >= 0.005) {
-                currentDests.push({
-                    label: round === 4 ? "Qualified (3-0)" : "Qualified",
-                    p: advBefore,
-                    key: "adv",
-                });
-            }
-            for (const s of currentSlots) {
-                const t = s.teams.find((x) => x.team === team);
-                if (t && t.here >= 0.005) {
-                    currentDests.push({
-                        label: record(s),
-                        p: t.here,
-                        win: t.win,
-                        key: s.id,
-                    });
-                }
-            }
-            if (elimBefore >= 0.005) {
-                currentDests.push({
-                    label: round === 4 ? "Eliminated (0-3)" : "Eliminated",
-                    p: elimBefore,
-                    key: "elim",
-                });
-            }
-
-            if (currentDests.length === 0) continue;
-
-            currentDests.sort((a, b) => b.p - a.p);
-            const bestKey = currentDests[0].key;
-            const destinations: DestinationInfo[] = currentDests.map((d) => ({
-                ...d,
-                isCurrent: d.key === bestKey,
-            }));
-
-            teamMap.set(team, { bestKey, destinations });
-        }
-        roundTeams.set(round, teamMap);
-    }
-
-    return roundTeams;
-};
 
 const StatusCard = ({
     title,

@@ -27,6 +27,7 @@ const slotView = (tally: SlotTally, n: number): BracketSlot => {
         lane: tally.lane,
         bestOf: tally.bestOf,
         reach: share(tally.runs, n),
+        size: share([...tally.here.values()].reduce((a, b) => a + b, 0), n),
         teams,
         matchups,
         ...(locked && tally.runs === n ? { results: locked.map(({ teams, winner }) => ({ teams, winner })) } : {}),

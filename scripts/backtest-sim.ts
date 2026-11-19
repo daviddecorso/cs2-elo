@@ -9,7 +9,7 @@ import { knownMatches } from "./lib/sim/locks.ts";
 import { Predictor, type SeriesModel } from "./lib/sim/predict.ts";
 import { runEvent, simulateEvents, type EventInput } from "./lib/sim/simulate.ts";
 import { makeRng } from "./lib/sim/rng.ts";
-import { projectOnce } from "./lib/sim/vrsPool.ts";
+import { projectFull } from "./lib/sim/vrsPool.ts";
 import { canonicalEventId, canonicalTeamId, latestLineups, prizeTable, simulationDelta } from "./lib/sim/vrsProjection.ts";
 import type { Matchdata, Overrides } from "./lib/vrs/buildMatchdata.ts";
 import { isMajorTier, isSplitStagePage } from "./lib/vrs/majorStages.ts";
@@ -115,8 +115,8 @@ const delta = simulationDelta(
 );
 console.log(`VRS: ${base.matches.length - stripped.matches.length} real matches for ${eventId}, ${delta.matches.length} rebuilt.`);
 
-const real = projectOnce(base, { matches: [], events: [] }, snapshot);
-const rebuilt = projectOnce(stripped, delta, snapshot);
+const real = projectFull(base, { matches: [], events: [] }, snapshot);
+const rebuilt = projectFull(stripped, delta, snapshot);
 const rebuiltByKey = new Map(rebuilt.map((r) => [r.rosterKey, r]));
 const top = real.filter((r) => r.regionalRank! <= 50);
 const sameRank = top.filter((r) => rebuiltByKey.get(r.rosterKey)?.regionalRank === r.regionalRank).length;

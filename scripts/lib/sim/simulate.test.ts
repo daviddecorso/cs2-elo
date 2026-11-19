@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { stageBrackets } from "./bracketView.ts";
 import type { EventConfig } from "./config.ts";
 import type { SeriesModel } from "./predict.ts";
-import { simulateEvents, type EventInput } from "./simulate.ts";
+import { runEvent, simulateEvents, type EventInput } from "./simulate.ts";
 
 const fixedOdds = (p: number): SeriesModel => ({ resample: () => {}, setHorizon: () => {}, seriesProbability: () => p });
 
@@ -38,6 +38,28 @@ const majorLike = (teams: string[]): EventConfig => ({
 });
 
 const teams = Array.from({ length: 16 }, (_, i) => `T${i + 1}`);
+
+describe("runEvent with per-series streams", () => {
+    const bracket = (field: string[]): EventConfig => ({
+        ...majorLike([]),
+        stages: [{ ...majorLike([]).stages[1], from: undefined, invited: field }],
+    });
+    const play = (field: string[]) =>
+        runEvent({ config: bracket(field), known: new Map(), horizon: 0, seriesSeed: 11 }, fixedOdds(0.5), () => {
+            throw new Error("the shared stream is unused");
+        }).matches;
+
+    it("repeats every matchup a swapped team doesn't touch", () => {
+        const field = ["T1", "T2", "T3", "T4", "T5", "T6", "T7", "T8"];
+        const before = play(field);
+        const after = play(field.map((t) => (t === "T8" ? "X" : t)));
+        const key = (m: { stage: string; round: number; teams: string[] }) => `${m.stage}|${m.round}|${[...m.teams].sort().join("|")}`;
+        const winners = new Map(after.map((m) => [key(m), m.teams[m.winner!]]));
+        const shared = before.filter((m) => winners.has(key(m)));
+        expect(shared.filter((m) => m.round === 1)).toHaveLength(3);
+        for (const m of shared) expect(winners.get(key(m))).toBe(m.teams[m.winner!]);
+    });
+});
 
 describe("simulateEvents", () => {
     it("matches the series probability for a two-team final within Monte Carlo error", () => {

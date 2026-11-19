@@ -105,3 +105,58 @@ const mh = points.reduce((a, p) => a + p.h, 0) / points.length;
 const mv = points.reduce((a, p) => a + p.v, 0) / points.length;
 const q = points.reduce((a, p) => a + (p.h - mh) * (p.v - mv), 0) / points.reduce((a, p) => a + (p.h - mh) ** 2, 0);
 console.log(`Drift q = ${q.toFixed(2)} Elo²/day (σ at 30 days ${Math.sqrt(30 * q).toFixed(1)}), jitter c = ${(mv - q * mh).toFixed(0)}`);
+
+// Tier temperature: series odds with the map-level Elo gap multiplied by τ, per event tier; fit on 2025, scored on 2026.
+type TierItem = { d: number; bo: number; y: 0 | 1 };
+const TIER_BUCKETS = [1, 2, 3] as const;
+const bucketOf = (tier: number) => Math.min(3, tier);
+const clampP = (p: number) => Math.min(1 - 1e-9, Math.max(1e-9, p));
+const logLoss = (items: TierItem[], tau: number) =>
+    items.reduce((s, x) => {
+        const p = clampP(seriesP(tau * x.d, x.bo));
+        return s - (x.y ? Math.log(p) : Math.log(1 - p));
+    }, 0) / Math.max(1, items.length);
+/** Logistic slope of outcome on the series logit, by Newton's method; 1 is calibrated, below 1 overconfident. */
+const slopeOf = (items: TierItem[], tau: number) => {
+    let b = 1;
+    for (let it = 0; it < 30; it++) {
+        let g = 0;
+        let h = 0;
+        for (const x of items) {
+            const p = clampP(seriesP(tau * x.d, x.bo));
+            const z = Math.log(p / (1 - p));
+            const s = 1 / (1 + Math.exp(-b * z));
+            g += (x.y - s) * z;
+            h += s * (1 - s) * z * z;
+        }
+        if (h === 0) break;
+        b += g / h;
+    }
+    return b;
+};
+const fitTau = (items: TierItem[]) => {
+    let lo = 0.3;
+    let hi = 1.5;
+    for (let i = 0; i < 60; i++) {
+        const a = lo + (hi - lo) / 3;
+        const b = hi - (hi - lo) / 3;
+        if (logLoss(items, a) < logLoss(items, b)) hi = b;
+        else lo = a;
+    }
+    return (lo + hi) / 2;
+};
+const tierItems = (from: string, to: string, bucket: number): TierItem[] =>
+    predictions.flatMap((p) => {
+        const day = new Date(p.t * 1000).toISOString().slice(0, 10);
+        if (day < from || day > to || bucketOf(p.tier) !== bucket || p.p <= 0.001 || p.p >= 0.999) return [];
+        return [{ d: gapFor(p.p, p.bestOf), bo: p.bestOf, y: p.y }];
+    });
+console.log("\nTier temperature (τ scales the map-level Elo gap; fit on 2025, scored on 2026):");
+for (const bucket of TIER_BUCKETS) {
+    const train = tierItems("2025-01-01", "2025-12-31", bucket);
+    const test = tierItems("2026-01-01", "2026-12-31", bucket);
+    const tau = fitTau(train);
+    console.log(
+        `  tier ${bucket === 3 ? "3+" : bucket}: τ ${tau.toFixed(3)} (2025 n ${train.length}); 2026 n ${test.length}: log loss ${logLoss(test, 1).toFixed(4)} → ${logLoss(test, tau).toFixed(4)}, slope ${slopeOf(test, 1).toFixed(3)} → ${slopeOf(test, tau).toFixed(3)}`
+    );
+}

@@ -3,12 +3,22 @@ import type { EloParams } from "../elo/params.ts";
 import { seriesLength, seriesWinProbability } from "../elo/series.ts";
 import { normal, type Rng } from "./rng.ts";
 import type { TeamId } from "./types.ts";
+import type { VetoModel } from "./veto.ts";
+
+/** Elo² per day, from `npm run fit-sim-noise` on 2025-01 to 2026-10 series. */
+export const DRIFT_PER_DAY = 58;
+/** Multiplier on the map-level Elo gap by Liquipedia tier; 1 where unlisted. Tier 2 from `npm run fit-sim-noise` (2025 fit, 2026-11-18); tiers 1 and 3+ didn't improve on 2026. */
+export const TIER_TEMP: Record<number, number> = { 2: 0.905 };
 
 export interface SeriesModel {
     resample(teams: Iterable<TeamId>, rng: Rng): void;
     /** Days from the ratings' as-of date to the event being played. */
     setHorizon(days: number): void;
+    /** Liquipedia tier of the event being played; null when unknown. */
+    setTier?(tier: number | null): void;
     seriesProbability(a: TeamId, b: TeamId, bestOf: number): number;
+    /** One simulated series, `a` the higher seed; models without it draw against `seriesProbability`. */
+    playSeries?(a: TeamId, b: TeamId, bestOf: number, rng: Rng, vetoOrder?: string): 0 | 1;
 }
 
 export interface PredictorOptions {
@@ -18,6 +28,12 @@ export interface PredictorOptions {
     horizons: number[];
     /** Rating for teams with no Elo lineage. */
     fallbackRating: number;
+    /** Earlier Liquipedia pages of a renamed team, tried in order when the current page has no Elo lineage yet. */
+    previousNames?: Map<TeamId, TeamId[]>;
+    /** Simulates each series' veto and plays its maps; without it every map gets the pool-averaged probability. */
+    veto?: VetoModel;
+    /** Defaults to `TIER_TEMP`; `{}` turns it off. */
+    tierTemp?: Record<number, number>;
 }
 
 /** Series odds from Elo as of today, with each team's rating drifting along one random walk per simulation. */
@@ -27,6 +43,7 @@ export class Predictor implements SeriesModel {
     /** Team → rating offset at each of `horizons`. */
     private paths = new Map<TeamId, number[]>();
     private horizonIndex = 0;
+    private tierTemp = 1;
     readonly unrated = new Set<TeamId>();
     private engine: EloEngine;
     private params: EloParams;
@@ -41,13 +58,23 @@ export class Predictor implements SeriesModel {
         this.horizons = [...new Set(options.horizons.map((h) => Math.max(0, h)))].sort((a, b) => a - b);
     }
 
+    lineageOf(team: TeamId) {
+        const lineage = this.engine.teamLineageOf(team);
+        if (lineage) return lineage;
+        for (const name of this.options.previousNames?.get(team) ?? []) {
+            const previous = this.engine.teamLineageOf(name);
+            if (previous) return previous;
+        }
+        return undefined;
+    }
+
     /** Map win probability for `a`, averaged over the active pool, without drift. */
     mapProbability(a: TeamId, b: TeamId): number {
         const key = `${a}\u0000${b}`;
         let p = this.mapP.get(key);
         if (p === undefined) {
-            const la = this.engine.teamLineageOf(a);
-            const lb = this.engine.teamLineageOf(b);
+            const la = this.lineageOf(a);
+            const lb = this.lineageOf(b);
             if (!la) this.unrated.add(a);
             if (!lb) this.unrated.add(b);
             if (la && lb) p = this.engine.mapProbability(la, lb, null, this.t);
@@ -84,10 +111,51 @@ export class Predictor implements SeriesModel {
         this.horizonIndex = i;
     }
 
+    setTier(tier: number | null): void {
+        this.tierTemp = tier === null ? 1 : ((this.options.tierTemp ?? TIER_TEMP)[tier] ?? 1);
+    }
+
     seriesProbability(a: TeamId, b: TeamId, bestOf: number): number {
         let p = this.mapProbability(a, b);
-        const shift = (this.paths.get(a)?.[this.horizonIndex] ?? 0) - (this.paths.get(b)?.[this.horizonIndex] ?? 0);
-        if (shift !== 0) p = expectedScore(this.params.scale * Math.log10(p / (1 - p)) + shift, this.params.scale);
+        const shift = this.shift(a, b);
+        if (shift !== 0 || this.tierTemp !== 1) p = expectedScore(this.tierTemp * (this.params.scale * Math.log10(p / (1 - p)) + shift), this.params.scale);
         return seriesWinProbability(p, seriesLength(bestOf), this.params.seriesMapTemp);
+    }
+
+    private shift(a: TeamId, b: TeamId): number {
+        return (this.paths.get(a)?.[this.horizonIndex] ?? 0) - (this.paths.get(b)?.[this.horizonIndex] ?? 0);
+    }
+
+    /** Natural-log map logit from overall ratings and drift alone, as `veto.py`'s base. */
+    baseLogit(a: TeamId, b: TeamId): number {
+        const rating = (team: TeamId) => {
+            const lineage = this.lineageOf(team);
+            if (!lineage) this.unrated.add(team);
+            return lineage?.rating ?? this.options.fallbackRating;
+        };
+        return ((rating(a) - rating(b) + this.shift(a, b)) * Math.LN10) / this.params.scale;
+    }
+
+    /** The veto model's key for a team: its page, an earlier name, or its lineage's current name. */
+    vetoKey(team: TeamId): TeamId {
+        const veto = this.options.veto!;
+        for (const name of [team, ...(this.options.previousNames?.get(team) ?? []), this.lineageOf(team)?.team]) {
+            if (name && veto.has(name)) return name;
+        }
+        return team;
+    }
+
+    playSeries(a: TeamId, b: TeamId, bestOf: number, rng: Rng, vetoOrder?: string): 0 | 1 {
+        const veto = this.options.veto;
+        if (!veto || ![1, 3, 5].includes(bestOf)) return rng() < this.seriesProbability(a, b, bestOf) ? 0 : 1;
+        const sampled = veto.sample(this.vetoKey(a), this.vetoKey(b), bestOf, rng, vetoOrder);
+        const temp = (bestOf > 1 ? this.params.seriesMapTemp : 1) * this.tierTemp;
+        const need = Math.floor(bestOf / 2) + 1;
+        const wins = [0, 0];
+        for (const l of veto.logits(sampled, this.baseLogit(a, b))) {
+            const w = rng() < 1 / (1 + Math.exp(-l * temp)) ? 0 : 1;
+            if (++wins[w] === need) return w;
+        }
+        throw new Error(`Bo${bestOf} veto produced ${sampled.maps.length} maps`);
     }
 }

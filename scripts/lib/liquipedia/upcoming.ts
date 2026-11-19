@@ -1,6 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { fetchLiquipediaAll } from "./client.ts";
+import { catalogParents, rankedRules } from "../sim/catalog.ts";
 import { addDays, type Row } from "./rawStore.ts";
 
 export const UPCOMING_DAYS = 200;
@@ -17,14 +18,24 @@ export interface UpcomingStore {
 /** `parent` is the event's main page on every stage subpage's rows, and on the main page's own rows. */
 const parentConditions = (parents: string[]) => parents.map((p) => `[[parent::${p.replace(/ /g, "_")}]]`).join(" OR ");
 
-/** Replaces `upcoming.json` whole, since unfinished rows change until they're played. One request per table per 50 events. */
-export const fetchUpcoming = async (outDir: string, today: string, parents: string[]): Promise<UpcomingStore> => {
-    console.log(`Fetching /tournament starting ${today} to ${addDays(today, UPCOMING_DAYS)}...`);
+const MAX_PARENTS = 100;
+
+/** Replaces `upcoming.json` whole, since unfinished rows change until they're played; one request per table per 50 parent pages. */
+export const fetchUpcoming = async (outDir: string, today: string, configured: string[]): Promise<UpcomingStore> => {
+    const until = addDays(today, UPCOMING_DAYS);
+    console.log(`Fetching /tournament starting ${today} to ${until}...`);
     const tournaments = await fetchLiquipediaAll("tournament", {
-        conditions: `[[game::cs2]] AND [[startdate::>${today}]] AND [[startdate::<${addDays(today, UPCOMING_DAYS)}]]`,
+        conditions: `[[game::cs2]] AND [[startdate::>${today}]] AND [[startdate::<${until}]]`,
         order: "objectname ASC",
         limit: 500,
     });
+
+    const storedFile = path.join(outDir, "tournaments.json");
+    const stored = fs.existsSync(storedFile) ? (JSON.parse(fs.readFileSync(storedFile, "utf8")) as Row[]) : [];
+    const overridesFile = path.resolve("data/overrides.json");
+    const overrides = fs.existsSync(overridesFile) ? JSON.parse(fs.readFileSync(overridesFile, "utf8")) : {};
+    const { parents, dropped } = catalogParents(configured, [...stored, ...tournaments], today, until, MAX_PARENTS, rankedRules(overrides), "all");
+    if (dropped) console.warn(`Warning: ${dropped} catalog pages over the ${MAX_PARENTS}-page cap were not fetched.`);
 
     const matches: Row[] = [];
     const placements: Row[] = [];

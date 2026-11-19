@@ -5,11 +5,13 @@
     "startDate": "2026-11-25",
     "endDate": "2026-12-13",
     "lan": true,
+    "vetoOrder": { "3": "FSFSSF" },
     "stages": [
         {
             "id": "stage1",
             "name": "Stage 1",
             "page": "PGL/2026/Singapore/Stage_1",
+            "vrsStage": 1,
             "format": "swiss",
             "bestOf": { "default": 1, "decider": 3 },
             "invited": [],
@@ -20,6 +22,7 @@
             "id": "stage2",
             "name": "Stage 2",
             "page": "PGL/2026/Singapore/Stage_2",
+            "vrsStage": 2,
             "format": "swiss",
             "bestOf": { "default": 1, "decider": 3 },
             "invited": [],
@@ -31,6 +34,7 @@
             "id": "stage3",
             "name": "Stage 3",
             "page": "PGL/2026/Singapore/Stage_3",
+            "vrsStage": 3,
             "format": "swiss",
             "bestOf": { "default": 3 },
             "invited": [],
@@ -42,11 +46,30 @@
             "id": "playoffs",
             "name": "Playoffs",
             "page": "PGL/2026/Singapore/Playoffs",
-            "format": "single_elim",
+            "format": "bracket",
             "bestOf": { "default": 3, "final": 5 },
             "from": "stage3",
+            "matches": [
+                { "id": "qf1", "teams": ["s1", "s8"] },
+                { "id": "qf2", "teams": ["s4", "s5"] },
+                { "id": "qf3", "teams": ["s2", "s7"] },
+                { "id": "qf4", "teams": ["s3", "s6"] },
+                { "id": "sf1", "teams": ["w:qf1", "w:qf2"] },
+                { "id": "sf2", "teams": ["w:qf3", "w:qf4"] },
+                { "id": "third", "teams": ["l:sf1", "l:sf2"] },
+                { "id": "gf", "teams": ["w:sf1", "w:sf2"], "bestOf": 5 }
+            ],
             "advance": 0,
-            "exits": { "r1": "5-8", "r2": "3-4", "r3": "2", "champion": "1" }
+            "exits": {
+                "qf1": "5-8",
+                "qf2": "5-8",
+                "qf3": "5-8",
+                "qf4": "5-8",
+                "third": "4",
+                "w:third": "3",
+                "gf": "2",
+                "w:gf": "1"
+            }
         }
     ]
 }

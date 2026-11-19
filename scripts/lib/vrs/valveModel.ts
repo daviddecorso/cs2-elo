@@ -11,7 +11,7 @@ import { parseDetailsFile, type ParsedDetailsFile } from "./valveDetails.ts";
 const currentDir = path.dirname(fileURLToPath(import.meta.url));
 const repoRoot = path.resolve(currentDir, "../../../");
 const submodulePath = path.resolve(repoRoot, "vendor/counter-strike_regional_standings");
-const valveModelDir = path.resolve(submodulePath, "model");
+export const valveModelDir = path.resolve(submodulePath, "model");
 
 let inMemoryJson = "";
 const inMemoryFiles = new Map<string, string>();
@@ -33,6 +33,12 @@ const fsShim = {
 
 const moduleCache = new Map<string, { exports: unknown }>();
 
+/** Module-private functions that `valveWorld.ts` calls; attached to each module's exports at load. */
+const INTERNAL_EXPORTS: Record<string, string[]> = {
+    "ranking.js": ["seedTeams", "runMatches", "applyRanking"],
+    "data_loader.js": ["Event", "sortMatches", "filterIncompleteMatches", "filterUnrankedMatches", "filterMatchesByTime"],
+};
+
 export const loadValveCjs = (filePath: string): unknown => {
     let resolved = filePath;
     if (!fs.existsSync(resolved) && fs.existsSync(`${resolved}.js`)) {
@@ -42,7 +48,8 @@ export const loadValveCjs = (filePath: string): unknown => {
         return moduleCache.get(resolved)!.exports;
     }
 
-    const code = fs.readFileSync(resolved, "utf8");
+    const internals = resolved.startsWith(valveModelDir) ? INTERNAL_EXPORTS[path.basename(resolved)] : undefined;
+    const code = fs.readFileSync(resolved, "utf8") + (internals ? `\nObject.assign(module.exports, { ${internals.join(", ")} });\n` : "");
     const wrapper = Module.wrap(code);
     const script = new vm.Script(wrapper, { filename: resolved });
     const fn = script.runInThisContext();
@@ -72,7 +79,7 @@ interface ValveGlickoTeam {
     rank: () => number;
 }
 
-interface ValveTeam {
+export interface ValveTeam {
     name: string;
     rankValue: number;
     rankValueSeed: number;
@@ -113,7 +120,7 @@ const getReportModule = (): ValveReportModule => {
 let cachedValveCommit = "";
 let cachedModelCommit = "";
 
-const getSubmoduleCommits = (): { valveCommit: string; modelCommit: string } => {
+export const getSubmoduleCommits = ():{ valveCommit: string; modelCommit: string } => {
     if (!cachedValveCommit || !cachedModelCommit) {
         cachedValveCommit = execFileSync("git", ["-C", submodulePath, "rev-parse", "HEAD"], {
             encoding: "utf8",
@@ -210,6 +217,12 @@ interface SnapshotEvent {
     endDate?: string;
 }
 
+/** Valve treats an event as unfinished while its pull holds later matches or it ends after the snapshot. */
+export const finishedAtSnapshot = (ev: SnapshotEvent, snapshotDate: string, eventsWithLaterMatches: Set<string>): boolean =>
+    ev.finished !== false &&
+    !(typeof ev.endDate === "string" && ev.endDate > snapshotDate) &&
+    !eventsWithLaterMatches.has(String(ev.eventId));
+
 const prepareSnapshotInput = (
     matchData: unknown[],
     eventData: unknown[],
@@ -225,10 +238,7 @@ const prepareSnapshotInput = (
         matches.filter((m) => m.matchStartTime > pullTime).map((m) => String(m.eventId))
     );
     const events = (eventData as SnapshotEvent[]).map((ev) => {
-        const finished =
-            ev.finished !== false &&
-            !(typeof ev.endDate === "string" && ev.endDate > snapshotDate) &&
-            !eventsWithLaterMatches.has(String(ev.eventId));
+        const finished = finishedAtSnapshot(ev, snapshotDate, eventsWithLaterMatches);
         return finished === ev.finished ? ev : { ...ev, finished };
     });
 
@@ -241,7 +251,7 @@ const prepareSnapshotInput = (
     };
 };
 
-const toRoster = (team: ValveTeam): Roster => {
+export const toRoster = (team: ValveTeam): Roster => {
     const players = team.activeRoster.map((p) => p.nick);
     const regionIdx = team.region.findIndex((v) => v === 1);
     const points = team.glickoTeam.rank();

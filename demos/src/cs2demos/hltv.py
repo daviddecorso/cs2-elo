@@ -216,13 +216,13 @@ class Hltv:
                 raise ChallengeError(f"still on a challenge or error page after {timeout_s}s")
             time.sleep(2)
 
-    def match_page(self, hltv_id: int) -> str:
-        cached = self.cache / f"match-{hltv_id}.html"
+    def _cached_html(self, filename: str, url_path: str, label: str) -> str:
+        cached = self.cache / filename
         if cached.exists() and not is_server_error(html := cached.read_text()):
             return html
         self._wait_turn()
         tab = self._tab()
-        self._run(_navigate(tab, f"{BASE}/matches/{hltv_id}/match"))
+        self._run(_navigate(tab, f"{BASE}{url_path}"))
         # Give Turnstile up to 8s to auto-resolve before raising ChallengeError
         deadline = time.monotonic() + 8.0
         while self._run(_is_challenge(tab)):
@@ -230,13 +230,21 @@ class Hltv:
                 raise ChallengeError("HLTV served a Cloudflare challenge; run `uv run cs2demos login`")
             time.sleep(0.5)
         if self._run(_is_error_page(tab)):
-            raise ServerError(f"HLTV match {hltv_id} failed with browser network error")
+            raise ServerError(f"HLTV {label} failed with browser network error")
         html = self._run(tab.get_content())
         if is_server_error(html):
-            raise ServerError(f"HLTV match {hltv_id} returned a server error page")
+            raise ServerError(f"HLTV {label} returned a server error page")
         self.cache.mkdir(parents=True, exist_ok=True)
         cached.write_text(html)
         return html
+
+    def match_page(self, hltv_id: int) -> str:
+        return self._cached_html(f"match-{hltv_id}.html", f"/matches/{hltv_id}/match", f"match {hltv_id}")
+
+    def ranking_page(self, day: str) -> str:
+        d = date.fromisoformat(day)
+        url_path = f"/ranking/teams/{d.year}/{d.strftime('%B').lower()}/{d.day}"
+        return self._cached_html(f"ranking-{day}.html", url_path, f"ranking {day}")
 
     def results_day(self, day: str) -> list[dict]:
         """HLTV's results for one `YYYY-MM-DD`. Cached once the day is settled."""

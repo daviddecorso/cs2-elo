@@ -1,6 +1,7 @@
 """Series data parsed from cached HLTV match pages: the map veto, format, both teams' rankings and half scores."""
 
 import html
+import json
 import re
 from dataclasses import dataclass
 from datetime import datetime
@@ -10,10 +11,10 @@ import polars as pl
 
 from .hltv import is_server_error
 from .liquipedia import LpMap, LpMatch, _names, _norm
-from .paths import HLTV_CACHE
+from .paths import HLTV_CACHE, HLTV_TABLES
 
 FORMAT_BOX = re.compile(r'class="standard-box veto-box"><div class="padding preformatted-text">(.*?)</div>', re.DOTALL)
-VETO_BOX = re.compile(r'class="standard-box veto-box"><div class="padding">((?:<div>.*?</div>)+)</div></div>', re.DOTALL)
+VETO_BOX = re.compile(r'class="standard-box veto-box(?: [\w-]+)*"><div class="padding">((?:<div>.*?</div>)+)</div></div>', re.DOTALL)
 STEP = re.compile(r"<div>(.*?)</div>", re.DOTALL)
 PICK_OR_BAN = re.compile(r"^(\d+)\. (.+) (removed|picked) (\S+)$")
 LEFT_OVER = re.compile(r"^(\d+)\. (\S+) was left over$")
@@ -27,6 +28,9 @@ HALF_SCORES = re.compile(r'class="results-center-half-score">(.*?)</div>', re.DO
 # Each score span's class is the side that team played that half.
 REGULATION_HALF = re.compile(r'<span class="(ct|t)">(\d+)</span><span class="">:</span><span class="(?:ct|t)">(\d+)</span>')
 OVERTIME = re.compile(r'<span>(\d+)</span><span class="">:</span><span>(\d+)</span>')
+RANKING_POSITION = re.compile(r'class="position[^"]*">#(\d+)<')
+RANKING_POINTS = re.compile(r'class="points">\((\d+)[^)]*\)<')
+RANKING_TEAM = re.compile(r'href="/team/(\d+)/')
 
 
 @dataclass
@@ -223,3 +227,64 @@ def match_page_tables(m: LpMatch, page: str) -> dict[str, pl.DataFrame]:
         if df is not None:
             tables[name] = df
     return tables
+
+
+def parse_ranking(page: str) -> dict[int, tuple[int, int]]:
+    """Map of `hltv_team_id -> (rank, points)` from a weekly HLTV ranking page."""
+    out: dict[int, tuple[int, int]] = {}
+    for block in re.split(r'class="ranked-team(?:\s|")', page)[1:]:
+        pos, pts, team = RANKING_POSITION.search(block), RANKING_POINTS.search(block), RANKING_TEAM.search(block)
+        if pos and pts and team:
+            out[int(team.group(1))] = (int(pos.group(1)), int(pts.group(1)))
+    return out
+
+
+def _cached_ranking(day: str | None, cache: Path, parsed: dict[str, dict[int, tuple[int, int]]]) -> dict[int, tuple[int, int]]:
+    if not day:
+        return {}
+    if day not in parsed:
+        page = cache / f"ranking-{day}.html"
+        html_text = page.read_text() if page.exists() else ""
+        parsed[day] = parse_ranking(html_text) if html_text and not is_server_error(html_text) else {}
+    return parsed[day]
+
+
+def _series_points(rows: list[dict], cache: Path, rankings: dict[str, dict[int, tuple[int, int]]]) -> list[int] | None:
+    points: list[int] = []
+    for row in rows:
+        entry = _cached_ranking(row["hltv_ranking_date"], cache, rankings).get(row["hltv_team_id"])
+        if entry is None:
+            return None
+        page_rank, pts = entry
+        if page_rank != row["hltv_rank"]:
+            print(
+                f"warning: ranking mismatch for match {row['hltv_match_id']} team {row['hltv_team_id']} "
+                f"({row['hltv_ranking_date']}): badge #{row['hltv_rank']} != page #{page_rank}"
+            )
+            return None
+        points.append(pts)
+    return points
+
+
+def write_ranks(tables: Path = HLTV_TABLES, cache: Path = HLTV_CACHE) -> Path:
+    """Exports every series with both HLTV ranks to `ranks.jsonl`, ordered by Liquipedia opponent."""
+    out = tables / "ranks.jsonl"
+    series_dir = tables / "series"
+    lines = []
+    rankings: dict[str, dict[int, tuple[int, int]]] = {}
+    if series_dir.exists():
+        for p in sorted(series_dir.glob("*.parquet")):
+            df = pl.read_parquet(p).sort("opponent")
+            if df.height != 2 or df["hltv_rank"].null_count() > 0:
+                continue
+            rows = df.to_dicts()
+            lines.append(json.dumps({
+                "match2id": rows[0]["lp_match2id"],
+                "hltvMatchId": rows[0]["hltv_match_id"],
+                "ranks": [rows[0]["hltv_rank"], rows[1]["hltv_rank"]],
+                "points": _series_points(rows, cache, rankings),
+                "rankingDate": rows[0]["hltv_ranking_date"],
+            }))
+    out.parent.mkdir(parents=True, exist_ok=True)
+    out.write_text("\n".join(lines) + ("\n" if lines else ""))
+    return out

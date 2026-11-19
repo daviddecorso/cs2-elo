@@ -88,6 +88,21 @@ def test_rounds_from_events_restart_and_restore():
     ]
 
 
+def test_rounds_from_events_2023_numeric_winner_and_reason():
+    # Ticks from Vitality vs BetBoom (2367124) m1 part 1, IEM Sydney 2023: three rounds, then a match restart.
+    events = {
+        "round_start": pl.DataFrame({"tick": [5408, 11164, 17773, 23926]}),
+        "round_freeze_end": pl.DataFrame({"tick": [1300, 6700, 12500]}),
+        "round_end": pl.DataFrame({"reason": [9, 9, 1], "tick": [5088, 10844, 17453], "winner": [2, 2, 2]}),
+        "round_officially_ended": pl.DataFrame({"tick": [5408, 11164, 17773, 23926]}),
+    }
+    out = rounds_from_events(events)
+    assert out["end_tick"].to_list() == [5088, 10844, 17453]
+    assert out["winner"].to_list() == [SIDE_T, SIDE_T, SIDE_T]
+    assert out["reason"].to_list() == [9, 9, 1]
+    assert out["reason_name"].to_list() == ["terrorists_win", "terrorists_win", "target_bombed"]
+
+
 def test_fill_round_starts_after_restore_stub():
     rounds = pl.DataFrame(
         {"start_tick": [None, 96601, None], "freeze_end_tick": [500, None, 112013],

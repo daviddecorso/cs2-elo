@@ -4,7 +4,13 @@ import { fetchLiquipediaAll, getNetworkRequestCount } from "./lib/liquipedia/cli
 import { addDays } from "./lib/liquipedia/rawStore.ts";
 
 // The archive in data/raw/archive/ was fetched without `links`, so demos/ can't find HLTV match IDs before the hot store.
-const FROM = "2025-01-01";
+// `--from` / `--to` (YYYY-MM-DD, `--to` exclusive) default to 2025-01-01 and the hot store's start.
+const args = process.argv.slice(2);
+const option = (name: string) => {
+    const i = args.indexOf(`--${name}`);
+    return i >= 0 ? args[i + 1] : undefined;
+};
+const FROM = option("from") ?? "2025-01-01";
 
 interface LinkRow {
     match2id?: string;
@@ -23,7 +29,8 @@ const hltvMatchId = (row: LinkRow): number | null => {
 
 const main = async () => {
     const rawDir = path.resolve(process.cwd(), "data/raw");
-    const hotFrom = (JSON.parse(fs.readFileSync(path.join(rawDir, "meta.json"), "utf8")) as { from: string }).from;
+    const hotFrom = option("to") ?? (JSON.parse(fs.readFileSync(path.join(rawDir, "meta.json"), "utf8")) as { from: string }).from;
+    if (![FROM, hotFrom].every((d) => /^\d{4}-\d{2}-\d{2}$/.test(d)) || FROM >= hotFrom) throw new Error(`Bad range ${FROM} to ${hotFrom}`);
     const outPath = path.resolve(process.cwd(), "data/demos/hltv-links.json");
     const store: LinkStore = fs.existsSync(outPath) ? JSON.parse(fs.readFileSync(outPath, "utf8")) : {};
 

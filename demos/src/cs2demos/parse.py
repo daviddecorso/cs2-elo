@@ -33,6 +33,9 @@ EVENT_REASONS = {
     "ct_killed": (9, "terrorists_win"),
     "time_ran_out": (12, "target_saved"),
 }
+REASONS_BY_CODE = {code: (code, name) for code, name in EVENT_REASONS.values()}
+# 2023 CS2 builds give round_end's winner as a team number and its reason as awpy's numeric code.
+WINNER_BY_TEAM_NUM = {"3": "CT", "2": "T"}
 ROUND_EVENTS = ("round_start", "round_freeze_end", "round_end", "round_officially_ended")
 # awpy's error when a recording stops mid-command, e.g. after a server crash.
 TRUNCATED = re.compile(r"command at byte (\d+) .*unexpected end of data")
@@ -149,7 +152,7 @@ def rounds_from_events(events: dict[str, pl.DataFrame]) -> pl.DataFrame:
     prev_official = 0
     if ends is not None and "winner" in ends.columns:
         won = (
-            ends.with_columns(pl.col("winner").cast(pl.Utf8, strict=False))
+            ends.with_columns(pl.col("winner").cast(pl.Utf8, strict=False).replace(WINNER_BY_TEAM_NUM))
             .filter(pl.col("winner").is_in(["CT", "T"]))
             .sort("tick")
             .rows(named=True)
@@ -160,7 +163,11 @@ def rounds_from_events(events: dict[str, pl.DataFrame]) -> pl.DataFrame:
             # The latest start wins, so a match restart or backup restore mid-round starts it over.
             start = max([prev_official, *(t for t in starts if t <= end)])
             official = next((t for t in officials if end <= t < next_end), end)
-            reason, reason_name = EVENT_REASONS.get(row["reason"], (None, row["reason"]))
+            raw = row["reason"]
+            if isinstance(raw, int) and raw in REASONS_BY_CODE:
+                reason, reason_name = REASONS_BY_CODE[raw]
+            else:
+                reason, reason_name = EVENT_REASONS.get(raw, (None, raw))
             rows.append({
                 "start_tick": start,
                 "freeze_end_tick": max((t for t in freezes if start < t <= end), default=None),

@@ -1,7 +1,9 @@
+import json
+
 import pytest
 
 from cs2demos.liquipedia import LpMap, LpMatch, LpOpponent
-from cs2demos.match_page import HltvMapScore, map_score, parse_series_info, parse_veto, series_table, veto_table
+from cs2demos.match_page import HltvMapScore, map_score, parse_ranking, parse_series_info, parse_veto, series_table, veto_table, write_ranks
 
 PAGE = (
     '<div class="standard-box veto-box"><div class="padding preformatted-text">Best of 3 (LAN)\n\n'
@@ -35,6 +37,12 @@ def test_parse_veto_skips_format_box():
         (6, "MOUZ", "ban", "de_ancient"), (7, None, "decider", "de_nuke"),
     ]
     assert parse_veto("<html></html>") == []
+
+
+def test_parse_veto_accepts_extra_box_classes():
+    page = PAGE.replace('veto-box"><div class="padding"><div>', 'veto-box real-veto-only"><div class="padding"><div>')
+    assert len(parse_veto(page)) == 7
+    assert parse_series_info(page).best_of == 3
 
 
 def test_veto_table_numbers_opponents_and_played_maps():
@@ -88,3 +96,77 @@ def test_series_table_rejects_unknown_teams():
     with pytest.raises(ValueError, match="lineup teams"):
         series_table(match([], team1=("Astralis", "Astralis", "AST")),
                      parse_series_info(PAGE.replace("MOUZ</a>", "Heroic</a>")))
+
+
+def test_write_ranks_exports_only_series_with_both_ranks_in_opponent_order(tmp_path):
+    series_dir = tmp_path / "series"
+    series_dir.mkdir()
+    both_df = series_table(match([("Dust II", "de_dust2"), ("Mirage", "de_mirage")]), parse_series_info(PAGE))
+    both_df.write_parquet(series_dir / "123.parquet")
+
+    one_null_page = PAGE.replace(
+        '<a href="/ranking/teams/2026/october/12/4494" class="ranking-badge hltv-ranking"><span>HLTV: </span>#3</a>',
+        "",
+    )
+    m2 = LpMatch("m2", "Event/2026", "1", "2026-10-02", 456, match([]).opponents, [])
+    series_table(m2, parse_series_info(one_null_page)).write_parquet(series_dir / "456.parquet")
+
+    out = write_ranks(tmp_path, cache=tmp_path)
+    lines = out.read_text().splitlines()
+    assert len(lines) == 1
+    assert json.loads(lines[0]) == {
+        "match2id": "m1",
+        "hltvMatchId": 123,
+        "ranks": [1, 3],
+        "points": None,
+        "rankingDate": "2026-09-28",
+    }
+
+
+RANKING_PAGE = (
+    '<div class="ranked-team standard-box"><div class="bg-holder"><div class="ranking-header">'
+    '<span class="position wide-position">#1</span>'
+    '<div class="relative"><div class="teamLine sectionTeamPlayers teamLineExpanded">'
+    '<span class="name">Spirit</span><span class="points">(912<span class="gtSmartphone-only"> HLTV</span> points)</span>'
+    '</div></div></div><div class="lineup-con "><div class="more">'
+    '<a href="/team/7020/spirit" class="moreLink">HLTV Team profile</a>'
+    '</div></div></div></div>'
+    '<div class="ranked-team standard-box"><div class="bg-holder"><div class="ranking-header">'
+    '<span class="position wide-position">#168</span>'
+    '<div class="relative"><div class="teamLine sectionTeamPlayers ">'
+    '<span class="name">MOUZ</span><span class="points">(4<span class="gtSmartphone-only"> HLTV</span> points)</span>'
+    '</div></div></div><div class="lineup-con hidden"><div class="more">'
+    '<a href="/team/4494/mouz" class="moreLink">HLTV Team profile</a>'
+    '</div></div></div></div>'
+)
+
+
+def test_parse_ranking_extracts_rank_and_points():
+    assert parse_ranking(RANKING_PAGE) == {7020: (1, 912), 4494: (168, 4)}
+    assert parse_ranking("<html></html>") == {}
+
+
+def test_write_ranks_joins_points_and_warns_on_mismatch(tmp_path, capsys):
+    series_dir = tmp_path / "series"
+    series_dir.mkdir()
+    same_week = PAGE.replace("/2026/october/12/4494", "/2026/september/28/4494")
+    series_table(match([("Dust II", "de_dust2"), ("Mirage", "de_mirage")]), parse_series_info(same_week)).write_parquet(
+        series_dir / "123.parquet"
+    )
+
+    cache = tmp_path / "cache"
+    cache.mkdir()
+    ranking_file = cache / "ranking-2026-09-28.html"
+    ranking_file.write_text(RANKING_PAGE.replace("#168", "#3").replace("(4", "(615"))
+    row = json.loads(write_ranks(tmp_path, cache=cache).read_text().splitlines()[0])
+    assert row["points"] == [912, 615]
+    assert capsys.readouterr().out == ""
+
+    ranking_file.write_text(RANKING_PAGE)
+    row = json.loads(write_ranks(tmp_path, cache=cache).read_text().splitlines()[0])
+    assert row["points"] is None
+    assert "ranking mismatch" in capsys.readouterr().out
+
+    ranking_file.write_text('<div class="ranked-team' + RANKING_PAGE.split('<div class="ranked-team')[1])
+    row = json.loads(write_ranks(tmp_path, cache=cache).read_text().splitlines()[0])
+    assert row["points"] is None

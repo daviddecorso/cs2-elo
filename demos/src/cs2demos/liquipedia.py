@@ -8,6 +8,7 @@ from pathlib import Path
 from .paths import HLTV_LINKS, LAN_SERIES, LP_RAW
 
 LAN_SINCE = "2025-01-01"
+AUTO_SINCE = "2024-01-01"
 DEMO_MAP_NAMES = {
     "Ancient": "de_ancient",
     "Anubis": "de_anubis",

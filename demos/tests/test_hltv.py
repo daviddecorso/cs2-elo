@@ -15,6 +15,16 @@ def test_server_error_page_is_not_a_match_page(tmp_path):
         hltv.match_page(1)
 
 
+def test_ranking_page_uses_cache_and_formats_url(tmp_path):
+    cache = tmp_path / "cache"
+    cache.mkdir()
+    (cache / "ranking-2026-11-09.html").write_text("<html>ok</html>")
+    hltv = Hltv(max_pages=0, profile=tmp_path / "profile", cache=cache)
+    assert hltv.ranking_page("2026-11-09") == "<html>ok</html>"
+    with pytest.raises(PageBudgetExhausted):
+        hltv.ranking_page("2026-11-02")
+
+
 def test_demo_path_from_html():
     html_with_href = '<a href="/download/demo/12345" class="stream-box">Demo</a>'
     assert demo_path_from_html(html_with_href) == "/download/demo/12345"

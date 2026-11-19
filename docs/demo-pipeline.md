@@ -31,6 +31,7 @@ uv run cs2demos auto [--max-pages 60] [--dry-run]
 uv run cs2demos status
 uv run cs2demos schema [--key 2399384/m1]
 uv run cs2demos match-pages [--event <page>] [--no-upload]
+uv run cs2demos rankings [--max-pages 30] [--no-upload]
 uv run cs2demos cache [--restore]
 ```
 
@@ -63,8 +64,9 @@ Local, gitignored, under `data/demos/`:
 | `raw/<hltvMatchId>.<ext>` | Series archives (see Raw retention). |
 | `work/<hltvMatchId>/` | Extraction scratch, deleted after each series. |
 | `parquet/` | Staging. Only kept with `--no-upload`. |
-| `hltv-cache/` | HLTV match page HTML and per-day results. |
+| `hltv-cache/` | HLTV match pages (`match-*.html`), weekly rankings (`ranking-*.html`) and per-day results. |
 | `hltv/{veto,series}/<hltvMatchId>.parquet` | Tables from the match page (see Match page data). |
+| `hltv/ranks.jsonl` | Pre-match HLTV ranks exported from `series/` for the Elo backtest. |
 | `lp/lan-series.json` | Recent tier-1 LAN rows from the nightly CI artifact. |
 | `manifest.json` | Mirror of the R2 manifest. |
 
@@ -91,8 +93,9 @@ R2 (bucket in `R2_BUCKET`):
 
 - `veto`: one row per veto step, from the veto box. Liquipedia has no veto data. Columns: `hltv_match_id`, `lp_match2id`, `step`, `opponent` (Liquipedia opponent 1/2, null for the decider), `team` (HLTV's name), `action` (`ban`, `pick`, `decider`), `map` (`de_*`) and `map_number` (set on the picks and decider that were played). Skipped when the picks plus decider don't start with Liquipedia's played maps in order.
 - `series`: one row per Liquipedia opponent. Columns: `best_of`, `lan` and `note` from the format box (stage, and any map advantage, one per line), plus `team`, `hltv_team_id`, `hltv_rank` and `vrs_rank` from the lineup headers, each with its ranking's date. The HLTV rank is the latest weekly ranking before the match, so the backtest can use it as a baseline without fetching ranking pages. A rank is null when the team is unranked.
+- `ranks.jsonl`: exported from `series/*.parquet` by `write_ranks` at the end of `match-pages`, `rankings`, `run` and `auto`. One JSON line per series with both HLTV ranks present (`match2id`, `hltvMatchId`, `ranks` and `points` in Liquipedia opponent order, `rankingDate`), used by `scripts/backtest-elo.ts` as an informational baseline. Points come from `ranking-YYYY-MM-DD.html` (fetched by `rankings` and at the end of `auto`), verified against each team's match-page badge rank and left `null` when the week isn't cached, a team is missing or a rank mismatches.
 
-On 2026-10-23 the cache held 27 series, and all 27 produced both tables. Not taken: per-map stats tables (Rating 3.0, Round Swing, eco-adjusted K/D, ADR and KAST). They're on the same page and would benchmark WPA credit, so parse them from the cache when `wp/` needs them. Everything else on the page is in Liquipedia or the demos already.
+On 2026-11-14 the cache held 1,431 series: 1,358 produced a veto table and 1,363 a series table. HLTV marks most veto boxes `veto-box real-veto-only`, so the regex allows extra classes on the box. Not taken: per-map stats tables (Rating 3.0, Round Swing, eco-adjusted K/D, ADR and KAST). They're on the same page and would benchmark WPA credit, so parse them from the cache when `wp/` needs them. Everything else on the page is in Liquipedia or the demos already.
 
 Every table carries `hltv_match_id`, `map_number`, `map`, `lp_match2id`, `lp_pagename`, `tier` and `parser_version`. Event tables carry `round_num`, which is the rebuilt round. Rows from dropped rounds (warmup, knife, replayed) are removed.
 
@@ -130,6 +133,7 @@ Each kept round must add exactly one round to exactly one team.
 - A part cut off mid-write (a crash) makes awpy fail with "unexpected end of data" at a byte offset. The work copy is cut at that command boundary and parsed again, and the manifest notes it. The raw archive is never modified.
 - In PARIVISION vs BetBoom (Thunderpick 2026, Ancient), part 1 crashed after round 16 and part 2 resumed from a backup at round 17. The rebuild stitches them to the official 13–10. A round owns its ticks from its start until the next round starts, so exit frags stay with it.
 - awpy drops every round before the last `begin_new_match`. When a part ends on one (a match restart at the cut-over), awpy finds no rounds in it. That part's rounds are then rebuilt from demoparser2's raw round events, mapped to awpy's columns and reason codes, and the manifest notes it. The event tables aren't affected. This happened on map 2 of Aurora vs 9z and G2 vs NAVI (ESL Pro League S24).
+- 2023 CS2 builds give `round_end`'s `winner` as a team number (2 = T, 3 = CT) and its `reason` as awpy's numeric code, so that rebuild read no rounds from them. Both forms are accepted since 2026-11-15, found on Vitality vs BetBoom (IEM Sydney 2023, Mirage), whose part 1 ends on a restart at 3–0. Maps parsed before the fix are unaffected; no parser version bump.
 - awpy can also lose every round before a backup restore. Its table then starts at the restored round (a `still_in_progress` stub), and the rebuild fails with a score jump. When that happens, the rebuild is retried from the raw round events, and the manifest notes it. Each event round starts at the latest `round_start` before its end, so a match restart or a restore replaces the attempts before it. This happened on map 3 of G2 vs BIG (FISSURE Playground 3), restored during round 13.
 
 Halves are 12 rounds each in regulation and 3 in overtime.
@@ -169,7 +173,7 @@ The parser version also carries `SCHEMA_VERSION` from `parse.py` (`awpy3.1.1-dp0
 
 ## Scheduling and backfill
 
-`cs2demos auto` is the scheduled entry point. Its scope is every tier-1 (`liquipediatier` 1) offline event since 2025-01-01, grouped by parent page: 38 events, 1,360 series and 3,043 maps as of 2026-10-22. Each run:
+`cs2demos auto` is the scheduled entry point. Its scope is every tier-1 (`liquipediatier` 1) offline event since 2025-01-01, grouped by parent page: 38 events, 1,360 series and 3,043 maps as of 2026-10-22. Once those were done, the scope was extended back to 2024-01-01 (`AUTO_SINCE`): another 19 events and 684 series, 682 of them already linked in `hltv-links.json`. Ordering newest first keeps 2024 behind any newer event. `status` and `match-pages` still start at 2025. Each run:
 
 1. Takes a lock (`data/demos/auto.lock`). A second run exits.
 2. Pulls the `lan-series` artifact from the latest successful `Update data` run on main with `gh`. CI's `export-lan-series` step writes it from `data/raw/matches.json`: tier-1 offline rows from the last 30 days, with no extra API calls. This machine has no fresh `data/raw/`, so new events reach it this way. If the pull fails, it uses the copy on disk.

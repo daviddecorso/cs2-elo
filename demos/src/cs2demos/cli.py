@@ -7,18 +7,21 @@ import sys
 import tempfile
 import time
 import traceback
+from contextlib import contextmanager
 from datetime import date, timedelta
 from pathlib import Path
 
+import polars as pl
+
 from .archive import extract, group_by_map
 from .backlog import build_queue, is_done, is_map_done
-from .hltv import ChallengeError, Hltv, PageBudgetExhausted, ServerError, demo_path_from_html
+from .hltv import ChallengeError, Hltv, PageBudgetExhausted, ServerError, demo_path_from_html, is_server_error
 from .identity import IdentityTable
-from .liquipedia import LpMatch, load_event, load_lan_events, load_steam_ids, resolve_from_results, save_link
+from .liquipedia import AUTO_SINCE, LpMatch,load_event, load_lan_events, load_steam_ids, resolve_from_results, save_link
 from .parse import PARSER_VERSION, parse_map
 from .paths import AUTO_LOCK, LAN_SERIES, PARQUET, RAW_DEMOS, REPO_ROOT, STEAM_PLAYERS, UNRESOLVED_PLAYERS, HLTV_TABLES, WORK
 from .store import R2, Manifest, backup_hltv_cache, map_key, object_prefix, restore_hltv_cache, write_tables
-from .match_page import cached_page, match_page_tables
+from .match_page import cached_page, match_page_tables, write_ranks
 
 RAW_RETENTION_DAYS = 30
 RAW_CAP_GB = 10
@@ -142,6 +145,33 @@ def run_matches(matches: list[LpMatch], hltv: Hltv, manifest: Manifest, identity
             process_match(m, archive, manifest, identity, r2)
 
 
+def ranking_dates(tables: Path = HLTV_TABLES) -> list[str]:
+    """Distinct `hltv_ranking_date` values from `hltv/series/*.parquet`, newest first."""
+    series_dir = tables / "series"
+    if not series_dir.exists():
+        return []
+    dates: set[str] = set()
+    for p in series_dir.glob("*.parquet"):
+        dates.update(pl.read_parquet(p, columns=["hltv_ranking_date"])["hltv_ranking_date"].drop_nulls().to_list())
+    return sorted(dates, reverse=True)
+
+
+def run_rankings(hltv: Hltv, tables: Path = HLTV_TABLES) -> int:
+    fetched = 0
+    for day in ranking_dates(tables):
+        cached = hltv.cache / f"ranking-{day}.html"
+        was_cached = cached.exists() and not is_server_error(cached.read_text())
+        try:
+            hltv.ranking_page(day)
+        except ServerError as e:
+            print(f"  {e}; retrying next run")
+            continue
+        if not was_cached:
+            fetched += 1
+            print(f"fetched ranking {day}")
+    return fetched
+
+
 def drive(matches: list[LpMatch], max_pages: int, manifest: Manifest, identity: IdentityTable,
           r2: R2 | None, proxy: str | None = None, rotate: bool = False,
           proxy_index: int | None = None) -> tuple[int, int]:
@@ -151,12 +181,14 @@ def drive(matches: list[LpMatch], max_pages: int, manifest: Manifest, identity: 
     try:
         with hltv:
             run_matches(matches, hltv, manifest, identity, r2)
+            run_rankings(hltv)
     except ChallengeError as e:
         print(e)
         code = 2
     except (PageBudgetExhausted, DiskLow) as e:
         print(f"{e}; rerun later to continue")
     finally:
+        write_ranks()
         identity.save(STEAM_PLAYERS, UNRESOLVED_PLAYERS)
         prune_raw(manifest, RAW_RETENTION_DAYS, RAW_CAP_GB)
         if r2:
@@ -229,6 +261,7 @@ def cmd_reparse(args) -> int:
                 print(f"{m.opponents[0].name} vs {m.opponents[1].name} ({m.hltv_id})")
                 process_match(m, archive, manifest, identity, r2, redo_parsed=args.all)
     finally:
+        write_ranks()
         identity.save(STEAM_PLAYERS, UNRESOLVED_PLAYERS)
     return 0
 
@@ -310,18 +343,27 @@ def _event_counts(manifest: Manifest, matches: list[LpMatch]) -> dict[str, int]:
     return counts
 
 
-def cmd_auto(args) -> int:
+@contextmanager
+def _auto_lock():
     AUTO_LOCK.parent.mkdir(parents=True, exist_ok=True)
     with open(AUTO_LOCK, "w") as lock:
         try:
             fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
         except BlockingIOError:
+            yield False
+        else:
+            yield True
+
+
+def cmd_auto(args) -> int:
+    with _auto_lock() as acquired:
+        if not acquired:
             print("another cs2demos auto run is in progress")
             return 1
         refresh_lan_series()
         r2 = None if args.no_upload else R2()
         manifest = Manifest(r2)
-        queue = build_queue(load_lan_events(), manifest)
+        queue = build_queue(load_lan_events(AUTO_SINCE), manifest)
         pending = sum(not is_done(manifest, m) for e in queue for m in e.matches)
         print(f"{len(queue)} events, {pending} series pending; budget {args.max_pages} HLTV requests")
         if args.dry_run:
@@ -387,8 +429,34 @@ def cmd_match_pages(args) -> int:
         matches = [m for ms in load_lan_events().values() for m in ms]
     r2 = None if args.no_upload else R2()
     stored = [name for m in matches if m.hltv_id for name in store_match_page(m, r2)]
+    write_ranks()
     print(f"{len(matches)} series: {stored.count('veto')} vetoes, {stored.count('series')} series rows stored")
     return 0
+
+
+def cmd_rankings(args) -> int:
+    with _auto_lock() as acquired:
+        if not acquired:
+            print("another cs2demos auto run is in progress")
+            return 1
+        r2 = None if args.no_upload else R2()
+        code = 0
+        hltv = Hltv(args.max_pages, proxy=_get_proxy(args), rotate=getattr(args, "rotate", False),
+                    proxy_index=getattr(args, "proxy_index", None))
+        try:
+            with hltv:
+                fetched = run_rankings(hltv)
+                print(f"{fetched} ranking weeks fetched ({hltv.pages_used} HLTV requests)")
+        except ChallengeError as e:
+            print(e)
+            code = 2
+        except PageBudgetExhausted as e:
+            print(f"{e}; rerun later to continue")
+        finally:
+            write_ranks()
+            if r2:
+                backup_hltv_cache(r2)
+        return code
 
 
 def cmd_cache(args) -> int:
@@ -400,14 +468,18 @@ def cmd_cache(args) -> int:
     return 0
 
 
+def _add_proxy_args(p: argparse.ArgumentParser) -> None:
+    p.add_argument("--proxy", help="Upstream proxy URL, comma-separated list, or file (default: $HLTV_PROXY)")
+    p.add_argument("--no-proxy", action="store_true", help="Bypass configured proxy and connect directly")
+    p.add_argument("--proxy-index", type=int, help="Select proxy by 0-based index from the pool")
+    p.add_argument("--rotate", action="store_true", help="Advance to next proxy in the pool for this run")
+
+
 def main() -> None:
     ap = argparse.ArgumentParser(prog="cs2demos")
     sub = ap.add_subparsers(dest="cmd", required=True)
     p_login = sub.add_parser("login", help="Open HLTV in the saved browser profile to clear Cloudflare by hand")
-    p_login.add_argument("--proxy", help="Upstream proxy URL, comma-separated list, or file (default: $HLTV_PROXY)")
-    p_login.add_argument("--no-proxy", action="store_true", help="Bypass configured proxy and connect directly")
-    p_login.add_argument("--proxy-index", type=int, help="Select proxy by 0-based index from the pool")
-    p_login.add_argument("--rotate", action="store_true", help="Advance to next proxy in the pool for this run")
+    _add_proxy_args(p_login)
     for name, help_ in (("run", "Download, parse, validate and store an event's demos"),
                         ("reparse", "Re-run parse/validate/store from raw demos on disk"),
                         ("report", "Per-map status for an event; exits 0 only if every map is parsed")):
@@ -417,20 +489,14 @@ def main() -> None:
         p.add_argument("--no-upload", action="store_true", help="Keep Parquet locally in data/demos/parquet/")
         if name == "run":
             p.add_argument("--max-pages", type=int, default=30, help="HLTV requests allowed this run")
-            p.add_argument("--proxy", help="Upstream proxy URL, comma-separated list, or file (default: $HLTV_PROXY)")
-            p.add_argument("--no-proxy", action="store_true", help="Bypass configured proxy and connect directly")
-            p.add_argument("--proxy-index", type=int, help="Select proxy by 0-based index from the pool")
-            p.add_argument("--rotate", action="store_true", help="Advance to next proxy in the pool for this run")
+            _add_proxy_args(p)
         if name == "reparse":
             p.add_argument("--all", action="store_true", help="Also re-run maps already parsed at this version")
     p = sub.add_parser("auto", help="Scheduled run: new tier-1 LANs first, then the backfill, within a request budget")
     p.add_argument("--max-pages", type=int, default=AUTO_MAX_PAGES, help="HLTV requests allowed this run")
     p.add_argument("--dry-run", action="store_true", help="Print the queue without opening a browser")
     p.add_argument("--no-upload", action="store_true", help="Keep Parquet locally in data/demos/parquet/")
-    p.add_argument("--proxy", help="Upstream proxy URL, comma-separated list, or file (default: $HLTV_PROXY)")
-    p.add_argument("--no-proxy", action="store_true", help="Bypass configured proxy and connect directly")
-    p.add_argument("--proxy-index", type=int, help="Select proxy by 0-based index from the pool")
-    p.add_argument("--rotate", action="store_true", help="Advance to next proxy in the pool for this run")
+    _add_proxy_args(p)
     sub.add_parser("status", help="Per-event map counts for every tier-1 LAN since 2025, from the local manifest")
     p = sub.add_parser("prune", help="Delete parsed raw demos older than --days or beyond --max-gb, oldest first")
     p.add_argument("--days", type=int, default=RAW_RETENTION_DAYS)
@@ -441,11 +507,15 @@ def main() -> None:
     p = sub.add_parser("match-pages", help="Store vetoes and series info from cached HLTV match pages; never fetches")
     p.add_argument("--event", help="Liquipedia tournament page (default: every tier-1 LAN since 2025)")
     p.add_argument("--no-upload", action="store_true", help="Keep Parquet in data/demos/hltv/ only")
+    p = sub.add_parser("rankings", help="Fetch uncached HLTV weekly ranking pages for series in hltv/series/")
+    p.add_argument("--max-pages", type=int, default=30, help="HLTV requests allowed this run")
+    p.add_argument("--no-upload", action="store_true", help="Skip R2 cache backup")
+    _add_proxy_args(p)
     p = sub.add_parser("cache", help="Back up data/demos/hltv-cache/ to R2, or restore what's missing locally")
     p.add_argument("--restore", action="store_true")
 
     args = ap.parse_args()
     handlers = {"login": cmd_login, "run": cmd_run, "reparse": cmd_reparse, "prune": cmd_prune,
                 "report": cmd_report, "auto": cmd_auto, "status": cmd_status, "schema": cmd_schema,
-                "match-pages": cmd_match_pages, "cache": cmd_cache}
+                "match-pages": cmd_match_pages, "rankings": cmd_rankings, "cache": cmd_cache}
     sys.exit(handlers[args.cmd](args))

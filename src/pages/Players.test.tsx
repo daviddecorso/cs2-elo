@@ -4,8 +4,9 @@ import { describe, expect, it } from "vitest";
 import { renderToString } from "react-dom/server";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { PlayerWar } from "./PlayerWar.tsx";
-import type { PlayerWarData, TeamDuelsData, TeamStatsData } from "../war/types.ts";
+import { Players } from "./Players.tsx";
+import { PlayerPage } from "./PlayerPage.tsx";
+import type { ClutchData, PlayerWarData } from "../war/types.ts";
 
 const warData: PlayerWarData = {
     generatedAt: "2026-11-05T23:00:00Z",
@@ -97,24 +98,48 @@ const warData: PlayerWarData = {
     ],
 };
 
-const render = (url = "/war") => {
+const clutchData: ClutchData = {
+    generated_at: "2026-11-15T00:00:00Z",
+    min_entries: { stint: 60, player: 30 },
+    team_stats: {},
+    player_stats: {
+        clutch: {
+            label: "Clutch",
+            year_r: 0.152,
+            year_r_ci: [0.034, 0.274],
+            split_half_r: 0.009,
+            split_half_r_ci: [-0.2, 0.2],
+            r_elo: null,
+            entries: 5000,
+        },
+    },
+    source: { demos: "HLTV", attribution: "Liquipedia", liquipedia: "https://liquipedia.net/counterstrike/" },
+    teams: [],
+    players: [{ steamid: "1", name: "donk", entries: 73, clutch: { per100: 8.05, p5: 0.69, p95: 16.01 } }],
+};
+
+const renderWith = (data: PlayerWarData, url = "/players", clutch?: ClutchData) => {
     const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-    queryClient.setQueryData(["war", "players"], warData);
+    queryClient.setQueryData(["war", "players"], data);
+    if (clutch) queryClient.setQueryData(["war", "clutch"], clutch);
     return renderToString(
         <QueryClientProvider client={queryClient}>
             <MemoryRouter initialEntries={[url]}>
                 <Routes>
-                    <Route path="/war" element={<PlayerWar />} />
+                    <Route path="/players" element={<Players />} />
+                    <Route path="/players/:player" element={<PlayerPage />} />
                 </Routes>
             </MemoryRouter>
         </QueryClientProvider>
     );
 };
 
-describe("PlayerWar Page", () => {
+const render = (url = "/players") => renderWith(warData, url);
+
+describe("Players page", () => {
     it("renders player WAA rankings, bootstrap intervals, provisional notice, and Liquipedia credit", () => {
         const html = render();
-        expect(html).toContain("CS2 Player WAA");
+        expect(html).toContain("CS2 Player Rankings");
         expect(html).toContain("Provisional:");
         expect(html).toContain("donk");
         expect(html).toContain("+11.35");
@@ -125,7 +150,7 @@ describe("PlayerWar Page", () => {
     });
 
     it("sorts by per100 descending by default", () => {
-        const flippedData: PlayerWarData = {
+        const html = renderWith({
             ...warData,
             players: [
                 {
@@ -144,18 +169,7 @@ describe("PlayerWar Page", () => {
                     },
                 },
             ],
-        };
-        const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-        queryClient.setQueryData(["war", "players"], flippedData);
-        const html = renderToString(
-            <QueryClientProvider client={queryClient}>
-                <MemoryRouter initialEntries={["/war"]}>
-                    <Routes>
-                        <Route path="/war" element={<PlayerWar />} />
-                    </Routes>
-                </MemoryRouter>
-            </QueryClientProvider>
-        );
+        });
         expect(html.indexOf("apEX")).toBeLessThan(html.indexOf("donk"));
     });
 
@@ -166,26 +180,26 @@ describe("PlayerWar Page", () => {
         expect(html.indexOf("donk")).toBeLessThan(iglHeadingIdx);
         expect(html.indexOf("apEX")).toBeGreaterThan(iglHeadingIdx);
 
-        const awpHtml = render("/war?role=awp");
+        const awpHtml = render("/players?role=awp");
         expect(awpHtml).not.toContain("donk");
         expect(awpHtml).toContain("0 of 1 players");
         expect(awpHtml).toContain("apEX");
 
-        const searchHtml = render("/war?q=spirit");
+        const searchHtml = render("/players?q=spirit");
         expect(searchHtml).toContain("donk");
         expect(searchHtml).not.toContain("apEX");
         expect(searchHtml).toContain("No IGLs match “spirit”");
     });
 
     it("switches credit version and shows empty state when unmatched", () => {
-        const neutralHtml = render("/war?credit=nwpa_mancount");
+        const neutralHtml = render("/players?credit=nwpa_mancount");
         expect(neutralHtml).toContain("+8.10");
         expect(neutralHtml).toContain("(+5.50, +10.70)");
 
-        const rawHtml = render("/war?credit=wpa");
+        const rawHtml = render("/players?credit=wpa");
         expect(rawHtml).toContain("(+6.10, +12.74)");
 
-        const emptyHtml = render("/war?q=nobody");
+        const emptyHtml = render("/players?q=nobody");
         expect(emptyHtml).toContain("No players match “nobody”");
     });
 
@@ -208,24 +222,11 @@ describe("PlayerWar Page", () => {
                 warData.players[1],
             ],
         };
-        const renderWith = (url: string) => {
-            const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-            queryClient.setQueryData(["war", "players"], withUsage);
-            return renderToString(
-                <QueryClientProvider client={queryClient}>
-                    <MemoryRouter initialEntries={[url]}>
-                        <Routes>
-                            <Route path="/war" element={<PlayerWar />} />
-                        </Routes>
-                    </MemoryRouter>
-                </QueryClientProvider>
-            );
-        };
-        const html = renderWith("/war");
+        const html = renderWith(withUsage);
         expect(html).toContain("Conversion");
         expect(html).toContain("(+0.31, +0.35)");
         expect(html).toContain("(+1.40, +2.50)");
-        expect(renderWith("/war?credit=wpa")).not.toContain("(+1.40, +2.50)");
+        expect(renderWith(withUsage, "/players?credit=wpa")).not.toContain("(+1.40, +2.50)");
     });
 
     it("renders vs HLTV gap per credit version, handles nulls, and sorts with nulls last", () => {
@@ -263,162 +264,83 @@ describe("PlayerWar Page", () => {
                 },
             ],
         };
-        const renderWith = (url: string) => {
-            const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-            queryClient.setQueryData(["war", "players"], withGap);
-            return renderToString(
-                <QueryClientProvider client={queryClient}>
-                    <MemoryRouter initialEntries={[url]}>
-                        <Routes>
-                            <Route path="/war" element={<PlayerWar />} />
-                        </Routes>
-                    </MemoryRouter>
-                </QueryClientProvider>
-            );
-        };
 
-        const html = renderWith("/war");
+        const html = renderWith(withGap);
         expect(html).toContain("vs HLTV");
         expect(html).toContain("-0.45");
         expect(html).toContain("+0.88");
 
-        const wpaHtml = renderWith("/war?credit=wpa");
+        const wpaHtml = renderWith(withGap, "/players?credit=wpa");
         expect(wpaHtml).toContain("-0.71");
         expect(wpaHtml).toContain("+0.64");
 
-        const descHtml = renderWith("/war?sort=hltvGap");
+        const descHtml = renderWith(withGap, "/players?sort=hltvGap");
         expect(descHtml.indexOf("apEX")).toBeLessThan(descHtml.indexOf("donk"));
         expect(descHtml.indexOf("donk")).toBeLessThan(descHtml.indexOf("noRating"));
 
-        const ascHtml = renderWith("/war?sort=hltvGap&rev=1");
+        const ascHtml = renderWith(withGap, "/players?sort=hltvGap&rev=1");
         expect(ascHtml.indexOf("donk")).toBeLessThan(ascHtml.indexOf("apEX"));
         expect(ascHtml.indexOf("apEX")).toBeLessThan(ascHtml.indexOf("noRating"));
     });
 
-    it("renders the team duel table with only published stats, sorted by execution, filtered by the search", () => {
-        const rate = (per100: number) => ({
-            per100,
-            p5: per100 - 0.3,
-            p95: per100 + 0.3,
-            per100_rounds: per100 * 6,
-            per100_rounds_p5: 0,
-            per100_rounds_p95: 0,
-        });
-        const meta = (label: string) => ({
-            label,
-            weight: "duels" as const,
-            split_half_r: 0.5,
-            split_half_r_ci: [0.3, 0.6] as [number, number],
-            k: 4000,
-            descriptive: true,
-        });
-        const teamDuels: TeamDuelsData = {
-            generated_at: "2026-11-13T00:00:00Z",
-            min_rounds: 300,
-            quality_definition: "all duels",
-            quality_parts: ["q_pos"],
-            stats: { exec: meta("Execution"), quality: meta("Quality"), q_pos: meta("Quality: positioning") },
-            source: warData.source,
-            teams: [
-                { stint_id: "a", label: "FURIA (FalleN)", lp_team: "FURIA", igl_player: "FalleN", maps: 363, rounds: 7857, duels: 50111, exec: rate(1.4), quality: rate(0.36), q_pos: rate(0.12) },
-                { stint_id: "b", label: "Team Spirit (Chopper)", lp_team: "Team Spirit", igl_player: "Chopper", maps: 140, rounds: 3000, duels: 20430, exec: rate(2.32), quality: rate(0.1), q_pos: rate(0.05) },
-            ],
-        };
-        const renderWith = (url: string) => {
-            const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-            queryClient.setQueryData(["war", "players"], warData);
-            queryClient.setQueryData(["war", "team-duels"], teamDuels);
-            return renderToString(
-                <QueryClientProvider client={queryClient}>
-                    <MemoryRouter initialEntries={[url]}>
-                        <Routes>
-                            <Route path="/war" element={<PlayerWar />} />
-                        </Routes>
-                    </MemoryRouter>
-                </QueryClientProvider>
-            );
-        };
-        const html = renderWith("/war");
-        const table = html.slice(html.indexOf("Teams / duel execution"));
-        expect(table).toContain("Positioning");
-        expect(table).not.toContain("Flashes");
-        expect(table).toContain("+2.32");
-        expect(table).toContain("(FalleN)");
-        expect(table).toContain("none improves an Elo prediction");
-        expect(table.indexOf("Team Spirit")).toBeLessThan(table.indexOf("FURIA"));
-
-        const searched = renderWith("/war?q=fallen");
-        expect(searched).toContain("1 of 2 stints");
+    it("links players to their pages and teams to team pages, and leaves team tables to Rankings", () => {
+        const html = render();
+        expect(html).toContain('href="/players/donk"');
+        expect(html).toContain('href="/teams/Team_Spirit"');
+        expect(html).not.toContain("Teams / duel execution");
     });
 
-    it("renders the team round-stat table with only published stats, sorted by round wins over economy", () => {
-        const rate = (per100: number) => ({ per100, p5: per100 - 0.5, p95: per100 + 0.5 });
-        const meta = (label: string, extra = {}) => ({
-            label,
-            split_half_r: 0.6,
-            split_half_r_ci: [0.5, 0.7] as [number, number],
-            descriptive: true,
-            ...extra,
-        });
-        const teamStats: TeamStatsData = {
-            generated_at: "2026-11-13T00:00:00Z",
-            min_rounds: 300,
-            stats: {
-                rwoe_econ: meta("Round wins over expected (economy)"),
-                ct_def: meta("Adjusted CT (defense)", { gain_vs_raw: 0.0002, gain_vs_raw_ci: [0.0001, 0.0004] }),
-            },
-            source: warData.source,
-            teams: [
-                { stint_id: "a", label: "FURIA (FalleN)", lp_team: "FURIA", igl_player: "FalleN", maps: 363, rounds: 7857, rwoe_econ: rate(3.51), ct_def: rate(1.2) },
-                { stint_id: "b", label: "Team Vitality (apEX)", lp_team: "Team Vitality", igl_player: "apEX", maps: 341, rounds: 7272, rwoe_econ: rate(7.19), ct_def: rate(8.24) },
-            ],
-        };
-        const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-        queryClient.setQueryData(["war", "players"], warData);
-        queryClient.setQueryData(["war", "team-stats"], teamStats);
-        const html = renderToString(
-            <QueryClientProvider client={queryClient}>
-                <MemoryRouter initialEntries={["/war"]}>
-                    <Routes>
-                        <Route path="/war" element={<PlayerWar />} />
-                    </Routes>
-                </MemoryRouter>
-            </QueryClientProvider>
-        );
-        const table = html.slice(html.indexOf("Teams / round-level stats"));
-        expect(table).toContain("RW over econ");
-        expect(table).toContain("Adj. CT");
-        expect(table).not.toContain("Conversion");
-        expect(table).toContain("+7.19");
-        expect(table.indexOf("Team Vitality")).toBeLessThan(table.indexOf("FURIA"));
+    it("splits WAR, clutch and validation into views", () => {
+        expect(render()).not.toContain("Validation diagnostics");
+
+        const validation = render("/players?view=validation&credit=wpa");
+        expect(validation).toContain("Validation diagnostics");
+        expect(validation).toContain("0.684");
+        expect(validation).not.toContain("IGLs / separate leaderboard");
+
+        const clutch = renderWith(warData, "/players?view=clutch", clutchData);
+        expect(clutch).toContain("Players / clutch conversion");
+        expect(clutch).toContain('href="/players/donk"');
+        expect(clutch).toContain('href="/teams/Team_Spirit"');
+        expect(clutch).not.toContain("IGLs / separate leaderboard");
     });
 
     it("renders live generated public/data/war/players.json without errors", () => {
         const filePath = path.resolve(__dirname, "../../public/data/war/players.json");
         if (!fs.existsSync(filePath)) return;
         const liveData = JSON.parse(fs.readFileSync(filePath, "utf-8")) as PlayerWarData;
-        const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-        queryClient.setQueryData(["war", "players"], liveData);
-        const teamPath = path.resolve(__dirname, "../../public/data/war/team-duels.json");
-        if (fs.existsSync(teamPath)) {
-            queryClient.setQueryData(["war", "team-duels"], JSON.parse(fs.readFileSync(teamPath, "utf-8")));
-        }
-        const roundsPath = path.resolve(__dirname, "../../public/data/war/team-stats.json");
-        if (fs.existsSync(roundsPath)) {
-            queryClient.setQueryData(["war", "team-stats"], JSON.parse(fs.readFileSync(roundsPath, "utf-8")));
-        }
-        const html = renderToString(
-            <QueryClientProvider client={queryClient}>
-                <MemoryRouter initialEntries={["/war"]}>
-                    <Routes>
-                        <Route path="/war" element={<PlayerWar />} />
-                    </Routes>
-                </MemoryRouter>
-            </QueryClientProvider>
-        );
-        expect(html).toContain("CS2 Player WAA");
+        const html = renderWith(liveData);
+        expect(html).toContain("CS2 Player Rankings");
         expect(html).toContain("donk");
         expect(html).toContain("ZywOo");
         expect(html).toContain("karrigan");
+        expect(renderWith(liveData, "/players/ZywOo")).toContain("Profile");
+    });
+});
+
+describe("Player page", () => {
+    it("shows every credit version with ranks, the profile, clutch and teammates", () => {
+        const html = renderWith(
+            { ...warData, players: [...warData.players, { ...warData.players[1], steamid: "4", name: "zont1x", lpTeam: "Team Spirit", isIgl: false }] },
+            "/players/donk",
+            clutchData
+        );
+        expect(html).toContain("donk");
+        expect(html).toContain("WPA (team-neutral)");
+        expect(html).toContain("Neutral (event)");
+        expect(html).toContain("(+5.40, +10.40)");
+        expect(html).toContain("1 / 2");
+        expect(html).toContain("Profile");
+        expect(html).toContain("mirage (28m)");
+        expect(html).toContain("Clutch conversion");
+        expect(html).toContain("Teammates");
+        expect(html).toContain('href="/players/zont1x"');
+        expect(html).toContain('href="/teams/Team_Spirit"');
+        expect(html).toContain("Liquipedia");
+    });
+
+    it("matches names case-insensitively and reports unknown players", () => {
+        expect(render("/players/DONK")).toContain("Profile");
+        expect(render("/players/nobody")).toContain("No rated data for “nobody”");
     });
 });

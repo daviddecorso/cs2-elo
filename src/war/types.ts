@@ -152,6 +152,73 @@ export interface TeamStatsData {
     teams: TeamStatStint[];
 }
 
+/** `contact` is per 100 rounds; `post_*` are win-rate points per 100 post-plant rounds, T planting or CT defending. */
+export type TacticsKey = "contact" | "post_t_off" | "post_ct_def";
+
+export interface TacticsMeta extends TeamStatMeta {
+    season_r?: number | null;
+    season_r_ci?: [number | null, number | null];
+}
+
+export interface TacticsStint extends Partial<Record<TacticsKey, Rate>> {
+    stint_id: string;
+    label: string;
+    lp_team: string;
+    igl_player: string | null;
+    maps: number;
+}
+
+/** `cs2wp tactics --publish`; `stats` is keyed by stat (`contact`, `post`), so `post` covers both post-plant columns. */
+export interface TacticsData {
+    generated_at: string;
+    min_rounds: number;
+    stats: Partial<Record<"contact" | "post" | "exec" | "ctrl30" | "ctrl45" | "ctrl60", TacticsMeta>>;
+    source: { demos: string; attribution: string; liquipedia: string };
+    teams: TacticsStint[];
+}
+
+/** `clutch` is 1vN, `disadv` the first time a team falls behind in men alive; `adv` never passed its gate. */
+export type ClutchKey = "clutch" | "adv" | "disadv";
+
+export interface ClutchMeta {
+    label: string;
+    year_r: number | null;
+    year_r_ci: [number | null, number | null];
+    split_half_r: number | null;
+    split_half_r_ci: [number | null, number | null];
+    r_elo: number | null;
+    entries: number;
+}
+
+/** Round wins per 100 entries above the Elo-neutral win-probability expectation. */
+export type ClutchRate = Rate & { entries: number };
+
+export interface ClutchStint extends Partial<Record<ClutchKey, ClutchRate>> {
+    stint_id: string;
+    label: string;
+    lp_team: string;
+    igl_player: string | null;
+    maps: number;
+}
+
+export interface ClutchPlayer {
+    steamid: string;
+    name: string;
+    entries: number;
+    clutch: Rate;
+}
+
+/** `cs2wp clutch --publish`; only classes that passed year-to-year stability appear. */
+export interface ClutchData {
+    generated_at: string;
+    min_entries: { stint: number; player: number };
+    team_stats: Partial<Record<ClutchKey, ClutchMeta>>;
+    player_stats: Partial<Record<"clutch", ClutchMeta>>;
+    source: { demos: string; attribution: string; liquipedia: string };
+    teams: ClutchStint[];
+    players: ClutchPlayer[];
+}
+
 export interface ValidationScore {
     r: number | null;
     pairs?: number;

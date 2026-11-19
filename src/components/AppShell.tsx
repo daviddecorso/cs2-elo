@@ -2,11 +2,12 @@ import { Link, Outlet, useLocation } from "react-router-dom";
 import { SettingsMenu } from "./SettingsMenu.tsx";
 
 const NAV_ITEMS = [
-    { path: "/elo", label: "Elo" },
-    { path: "/", label: "Standings", alsoActive: ["/standings"] },
+    { path: "/rankings", label: "Rankings", alsoActive: ["/teams"] },
+    { path: "/", label: "VRS", alsoActive: ["/vrs", "/standings"] },
     { path: "/events", label: "Events" },
     { path: "/major-invites", label: "Major invites" },
-    { path: "/war", label: "WAR" },
+    { path: "/vrs-sim", label: "Season sim" },
+    { path: "/players", label: "Players" },
     { path: "/model", label: "Model" },
     { path: "/methodology", label: "Methodology" },
 ];
@@ -39,7 +40,7 @@ export const AppShell = () => {
                     <div className="flex items-center justify-between h-12">
                         <div className="flex items-center gap-2 sm:gap-3">
                             <Link
-                                to="/elo"
+                                to="/rankings"
                                 className="font-mono font-bold text-sm tracking-tight text-fg hover:text-accent transition-colors"
                             >
                                 Davelo

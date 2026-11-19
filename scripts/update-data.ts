@@ -1,6 +1,6 @@
 import fs from "node:fs";
 import path from "node:path";
-import { INVITE_CUTOFFS } from "../src/vrs/inviteCutoffs.ts";
+import { cutoffsForSnapshot } from "../src/vrs/inviteCutoffs.ts";
 import { matchPreviousRanks } from "../src/vrs/rankMatching.ts";
 import { compareStandings } from "./lib/vrs/compareStandings.ts";
 import { validateMatchdata } from "./lib/vrs/matchdataSchema.ts";
@@ -33,7 +33,7 @@ const main = async () => {
             throw new Error(`Matchdata validation failed: ${validation.errors.join("; ")}`);
         }
         const modelStandings = computeStandings(matchJson.matches, matchJson.events, latestDate);
-        const report = compareStandings(modelStandings, standings, INVITE_CUTOFFS);
+        const report = compareStandings(modelStandings, standings, cutoffsForSnapshot(latestDate));
         if (!report.gate.passed) {
             console.warn(
                 `::warning::Model verification failed the gate: ${report.gate.withinMaxMiss}/${report.gate.total} top rosters within ±2, mean points error ${report.gate.meanPointsError.toFixed(2)}.`

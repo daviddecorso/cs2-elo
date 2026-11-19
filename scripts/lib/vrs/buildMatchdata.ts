@@ -52,6 +52,7 @@ export interface Matchdata {
 export interface Overrides {
     rankedEvents?: Array<{ eventId: string; reason: string }>;
     unrankedEvents?: Array<{ eventId: string; reason: string }>;
+    unrankedBo1Matchlists?: Array<{ eventId: string; reason: string }>;
     eventRollups?: Record<string, { parentEventId: string; reason: string }>;
     eventOverrides?: Record<
         string,
@@ -428,6 +429,9 @@ const isUntrackedQualifierMatch = (
     return (roundSizes.get(roundKey(m)) ?? 0) > 8 || publisherTier === "Tier 2 Qualifier";
 };
 
+const isUntrackedEseaDivision = (pagename: string): boolean =>
+    /^ESEA\/Season_\d+\/(Main|Entry|Open10)\//.test(pagename);
+
 // Valve's HLTV data always has the 5-player lineup, which the team's nearby matches predict.
 export const resolveLineups = (matches: ValveMatch[]): ValveMatch[] => {
     const resolve = makeLineupResolver(
@@ -493,6 +497,11 @@ export const buildMatchdata = (
     const unrankedEventIds = new Set(
         overrides.unrankedEvents
             ? overrides.unrankedEvents.map((u) => (typeof u === "string" ? u : (u as { eventId: string }).eventId))
+            : []
+    );
+    const unrankedBo1MatchlistIds = new Set(
+        overrides.unrankedBo1Matchlists
+            ? overrides.unrankedBo1Matchlists.map((u) => u.eventId)
             : []
     );
     const excludedMatchIds = new Set(
@@ -647,7 +656,15 @@ export const buildMatchdata = (
         } else if (unrankedEventIds.has(eventId) || unrankedEventIds.has(matchPagename)) {
             valveRanked = false;
         }
-        if (isUntrackedQualifierMatch(m, roundSizes, effectivePubTier)) {
+        if (isUntrackedQualifierMatch(m, roundSizes, effectivePubTier) || isUntrackedEseaDivision(matchPagename)) {
+            valveRanked = false;
+        }
+        const bracketType = (m.match2bracketdata as Record<string, unknown> | undefined)?.type;
+        if (
+            Number(m.bestof) === 1 &&
+            bracketType === "matchlist" &&
+            (unrankedBo1MatchlistIds.has(eventId) || unrankedBo1MatchlistIds.has(matchPagename))
+        ) {
             valveRanked = false;
         }
 
@@ -710,6 +727,7 @@ export const buildMatchdata = (
     }
 
     // Process placements into event prize distributions
+    const qualifierTargets = new Map<string, string>();
     for (const pl of rawPlacements) {
         const placePagename = String(pl.pagename ?? "");
         const placeParent = typeof pl.parent === "string" ? pl.parent : undefined;
@@ -755,6 +773,49 @@ export const buildMatchdata = (
             clubShare: 0,
             qualifiedEvents: [],
         });
+
+        const rawQualPage = typeof pl.qualifierpage === "string" ? pl.qualifierpage.trim().replace(/ /g, "_") : "";
+        if (rawQualPage) {
+            const qParent = typeof tournamentDb.get(rawQualPage)?.parent === "string" ? String(tournamentDb.get(rawQualPage)!.parent) : undefined;
+            const qEventId = getCanonicalEventId(rawQualPage, qParent);
+            if (qEventId !== eventId && !qualifierTargets.has(qEventId)) {
+                qualifierTargets.set(qEventId, eventId);
+            }
+        }
+    }
+
+    // Fallback for sub-event qualifiers whose main page doesn't populate `qualifierpage` (e.g., Thunderpick Europe/1, CCT Play-In).
+    for (const ev of eventMap.values()) {
+        const id = String(ev.eventId);
+        if (qualifierTargets.has(id) || isSplitStagePage(id)) continue;
+        const parts = id.split("/");
+        for (let i = parts.length - 1; i >= 1; i--) {
+            const anc = parts.slice(0, i).join("/");
+            if (anc !== id && eventMap.has(anc)) {
+                qualifierTargets.set(id, anc);
+                break;
+            }
+        }
+    }
+
+    for (const [qId, targetId] of qualifierTargets) {
+        const qEv = eventMap.get(qId);
+        if (!qEv || qEv.prizeDistribution.some((p) => p.qualifiedEvents.length > 0)) continue;
+        if (qEv.prizeDistribution.length === 0) {
+            const sample = matches.find((m) => String(m.eventId) === qId);
+            if (!sample) continue;
+            qEv.prizeDistribution.push({
+                teamId: sample.winningTeam === 1 ? sample.team1Id : sample.team2Id,
+                placement: 1,
+                prize: 0,
+                clubShare: 0,
+                qualifiedEvents: [targetId],
+            });
+        } else {
+            for (const item of qEv.prizeDistribution) {
+                item.qualifiedEvents = [targetId];
+            }
+        }
     }
 
     for (const parent of [...eventMap.values()]) {

@@ -29,6 +29,9 @@ const render = (live: StandingsData | null, url = "/") => {
     );
 };
 
+const topRoster = latestData.rosters.find((r) => r.globalRank === 1)!;
+const vitality = latestData.rosters.find((r) => r.teamName === "Vitality" && r.globalRank !== null)!;
+
 const liveData: StandingsData = {
     ...latestData,
     source: "model",
@@ -37,7 +40,7 @@ const liveData: StandingsData = {
     previousSnapshot: latestData.snapshotDate,
     rosters: latestData.rosters.map((r) => ({
         ...r,
-        previousRank: r.teamName === "Spirit" ? 3 : r.globalRank,
+        previousRank: r.rosterKey === topRoster.rosterKey ? 3 : r.globalRank,
     })),
 };
 
@@ -52,9 +55,9 @@ describe("Standings Page", () => {
         expect(html).toContain("Asia");
 
         // Top team row
-        expect(html).toContain("Spirit");
-        expect(html).toContain("2046");
-        expect(html).toContain("donk, magixx, sh1ro, tN1R, zont1x");
+        expect(html).toContain(topRoster.teamName);
+        expect(html).toContain(String(Math.round(topRoster.points)));
+        expect(html).toContain(topRoster.players.join(", "));
 
         // Footer elements
         expect(html).toContain(latestData.snapshotDate);
@@ -80,9 +83,18 @@ describe("Standings Page", () => {
     });
 
     it("filters rosters by query and shows empty state when nothing matches", () => {
-        const spiritHtml = render(null, "/?q=donk");
-        expect(spiritHtml).toContain("Spirit");
-        expect(spiritHtml).toContain("1 of ");
+        const query =
+            topRoster.players.find(
+                (p) =>
+                    latestData.rosters.filter(
+                        (r) =>
+                            r.teamName.toLowerCase().includes(p.toLowerCase()) ||
+                            r.players.some((q) => q.toLowerCase().includes(p.toLowerCase()))
+                    ).length === 1
+            ) ?? topRoster.teamName;
+        const topHtml = render(null, `/?q=${encodeURIComponent(query)}`);
+        expect(topHtml).toContain(topRoster.teamName);
+        expect(topHtml).toContain("1 of ");
 
         const emptyHtml = render(null, "/?q=nonexistentteamxyz");
         expect(emptyHtml).toContain("No teams match “nonexistentteamxyz”");
@@ -93,12 +105,13 @@ describe("Standings Page", () => {
         const liveWithModifiedVitality: StandingsData = {
             ...liveData,
             rosters: liveData.rosters.map((r) => {
-                if (r.teamName === "Vitality") {
+                if (r.rosterKey === vitality.rosterKey) {
+                    const nextPlayers = [...vitality.players.slice(0, 4), "jL"];
                     return {
                         ...r,
-                        globalRank: 2,
-                        players: ["ZywOo", "flameZ", "mezii", "ropz", "jL"],
-                        rosterKey: "flamez,jl,mezii,ropz,zywoo",
+                        globalRank: vitality.globalRank! - 1,
+                        players: nextPlayers,
+                        rosterKey: nextPlayers.map((p) => p.toLowerCase()).sort().join(","),
                         previousRank: null,
                     };
                 }

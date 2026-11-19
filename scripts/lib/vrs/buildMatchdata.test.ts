@@ -155,6 +155,69 @@ describe("buildMatchdata", () => {
         );
         expect(result.matches.map((m) => m.valveRanked)).toEqual([false, true]);
     });
+
+    it("unranks ESEA Main/Entry/Open10 divisions but keeps Advanced ranked", () => {
+        const esea = (div: string) => ({
+            ...rawMatches[0],
+            pagename: `ESEA/Season_58/${div}/Europe`,
+            bestof: 3,
+            publishertier: "Tier 2 Qualifier",
+        });
+        const result = buildMatchdata(
+            [esea("Main"), esea("Entry"), esea("Open10"), esea("Advanced")],
+            [],
+            [],
+            []
+        );
+        expect(result.matches.map((m) => m.valveRanked)).toEqual([false, false, false, true]);
+    });
+
+    it("unranks Bo1 matchlist matches for unrankedBo1Matchlists while keeping Bo3 brackets ranked", () => {
+        const matches = [
+            {
+                ...rawMatches[0],
+                pagename: "Parken_Challenger_Championship/8",
+                match2bracketdata: { type: "matchlist" },
+                bestof: 1,
+                publishertier: "Tier 2",
+            },
+            {
+                ...rawMatches[0],
+                pagename: "Parken_Challenger_Championship/8",
+                match2bracketdata: { type: "bracket" },
+                bestof: 3,
+                publishertier: "Tier 2",
+            },
+        ];
+        const result = buildMatchdata(matches, [], [], [], {
+            unrankedBo1Matchlists: [
+                { eventId: "Parken_Challenger_Championship/8", reason: "Bo1 groups untracked" },
+            ],
+        });
+        expect(result.matches.map((m) => m.valveRanked)).toEqual([false, true]);
+    });
+
+    it("links qualifiers to main events from qualifierpage and ancestor paths", () => {
+        const matches = [
+            { ...rawMatches[0], pagename: "MainEv" },
+            { ...rawMatches[0], pagename: "MainEv/Qual" },
+            { ...rawMatches[0], pagename: "OtherQual" },
+        ];
+        const tournaments = [
+            { pagename: "MainEv", name: "Main", prizepool: "$100,000", enddate: "2026-09-10" },
+            { pagename: "MainEv/Qual", name: "Main Qual", prizepool: "$0", enddate: "2026-09-02" },
+            { pagename: "OtherMain", name: "Other", prizepool: "$50,000", enddate: "2026-09-10" },
+            { pagename: "OtherQual", name: "Other Qual", prizepool: "$0", enddate: "2026-09-02" },
+        ];
+        const placements = [
+            { pagename: "OtherMain", opponentname: "Team A", placement: "1", prizemoney: 25000, qualifierpage: "OtherQual" },
+            { pagename: "OtherQual", opponentname: "Team A", placement: "1", prizemoney: 0 },
+        ];
+        const result = buildMatchdata(matches, tournaments, placements, []);
+        const byId = new Map(result.events.map((e) => [e.eventId, e]));
+        expect(byId.get("MainEv/Qual")!.prizeDistribution[0].qualifiedEvents).toEqual(["MainEv"]);
+        expect(byId.get("OtherQual")!.prizeDistribution[0].qualifiedEvents).toEqual(["OtherMain"]);
+    });
 });
 
 describe("resolveLineups", () => {

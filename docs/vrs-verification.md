@@ -8,7 +8,7 @@ We verify the pipeline by running Valve's model on our matchdata for a published
 
 Valve's data pull runs into the snapshot day, and its 180-day window ends at the latest match in that pull, not at midnight. For published snapshots, the window end is calibrated from the age weights in the details files and stored in `scripts/lib/vrs/snapshotWindowEnds.json` (Unix seconds). `getSnapshotWindow` in `scripts/lib/vrs/valveModel.ts` uses the calibrated end as both pull cutoff and `versionTimestamp`. Uncalibrated dates fall back to 07:00 America/Los_Angeles with `versionTimestamp -1`.
 
-An age weight `w < 1` on a match at time `t` implies `windowEnd = t + 180d − 150d·w`. `npm run calibrate-window -- --date <date> [--write]` matches every decaying details row to our matchdata (by Los Angeles date, 3+ shared players, then opponent name), turns each into a ±0.0005-weight interval, and takes the range most rows agree on, snapped to a match time when one falls inside it. It only needs matches from the last 150 days of the window, so the hot store is enough. The calibrated values are 2026-07-06 → `1783346400`, 2026-08-03 → `1785769920`, 2026-09-07 → `1788817680` and 2026-10-05 → `1791208800`. The script reproduces the two earlier values exactly.
+An age weight `w < 1` on a match at time `t` implies `windowEnd = t + 180d − 150d·w`. `npm run calibrate-window -- --date <date> [--write]` matches every decaying details row to our matchdata (by Los Angeles date, 3+ shared players, then opponent name), turns each into a ±0.0005-weight interval, and takes the range most rows agree on, snapped to a match time when one falls inside it. It only needs matches from the last 150 days of the window, so the hot store is enough. The calibrated values are 2026-07-06 → `1783346400`, 2026-08-03 → `1785769920`, 2026-09-07 → `1788817680`, 2026-10-05 → `1791208800` and 2026-11-02 → `1793632320`.
 
 `verify-vrs` refuses a snapshot whose 180-day window starts before the matchdata does.
 
@@ -23,20 +23,17 @@ Live standings (`public/data/vrs/live.json`, from `update-data`) and simulator p
 
 ## Current accuracy (published global top 50)
 
-From `verify-vrs --all-calibrated`:
+From `verify-vrs --all-calibrated` (with `--include-archive`):
 
 | Snapshot | Exact rank | Within ±2 | Worst rank miss | Mean / p90 points error | Cutoff membership |
 | --- | --- | --- | --- | --- | --- |
-| 2026-10-05 | 21 | 45 | 4 | 11.9 / 24.2 | exact |
-| 2026-09-07 | 18 | 42 | 5 | 22.8 / 36.8 | Asia: 5star out, EGOISTO in |
-| 2026-08-03 | 30 | 47 | unranked ×2 | 57.6 / 12.6 | exact |
-| 2026-07-06 | 27 | 44 | 8 | 6.8 / 18.8 | Asia: Chinggis Warriors out, DEPO in |
+| 2026-11-02 | 37 | 50 | 2 | 1.62 / 3.59 | exact |
+| 2026-10-05 | 40 | 50 | 2 | 1.67 / 2.95 | Europe: Alliance out, BIG in (1483.4 tie) |
+| 2026-09-07 | 33 | 50 | 2 | 1.45 / 3.86 | exact |
+| 2026-08-03 | 46 | 50 | 2 | 2.26 / 5.18 | exact |
+| 2026-07-06 | 31 | 49 | 6 | 3.73 / 7.55 | Europe: BIG out, Alliance in |
 
-Splitting Majors into stages (see [matchdata-pipeline.md](matchdata-pipeline.md)) changed the mean points error from 12.4 to 6.8 on 2026-07-06, from 62.5 to 57.6 on 2026-08-03, from 19.3 to 22.8 on 2026-09-07 and from 11.1 to 11.9 on 2026-10-05. Cologne's event weights and prize dates now match Valve's exactly, so the later regressions come from errors the old weights were offsetting.
-
-On 2026-09-07, bounty offered for the top 50 is within 0.005 of Valve's. What's left is systematic: LAN factor is about 0.03 low for every roster below the top two, and opponent network is low too. Both are scaled by the 5th-highest roster. DEPO and Omega carry dozens of Central Asian tier-3 LAN matches that Valve doesn't have (`diff-details --team DEPO`), which lifts our LAN reference from Valve's 0.890 to 0.921.
-
-Points error is the furthest from the gate on every snapshot. On 2026-08-03 it's dominated by Echo (#42) and Bulgaria (#44), which the model doesn't rank. Their active rosters pick up a player from Esports Nations Cup 2026 qualifier lineups (Lucky for Echo, shaiK/SHiPZ for Bulgaria). Valve's details files list only some of those qualifier matches, which suggests HLTV covered them only partly.
+With `placements-2026-01..05.json` and `2026-05` matches/tournaments archived, `isUntrackedEseaDivision` (`Main`/`Entry`/`Open10`), `unrankedBo1Matchlists` for Tier-2 LAN group stages (`Parken_Challenger_Championship/6..8`, `Roman_Imperium_Cup/8`, `Journey/2026/Summer`), `EXTREMESLAND/2026` `Oceania`/`Mongolia` unranking, `Alter Ego` `DFRAG/Invitational/2026` lineup fixes, and `propose-prize-overrides` payouts (`Journey/2026/Summer`, `Moscow_Cyber_Games/2026`, `DraculaN/Season_7`, `CyberClash/Season_2`, `CCT/Season_3/Europe/Series_13 & 15`), 3 of 5 calibrated snapshots (`2026-08-03`, `2026-09-07`, `2026-11-02`) pass the gate and mean points error is under 5 on all 5 (`1.45`–`3.73`). (`2026-10-05` misses only on a 0.0-point tie at the Europe #18 cutoff; `2026-07-06` misses `BIG`'s `$22,000` `NODWIN_Gaming/Clutch_Series/5` placement whose matches are absent from Liquipedia's March 2026 match export.)
 
 ## The gate
 
@@ -48,4 +45,4 @@ Exact points for every ranked roster isn't reachable from Liquipedia data, and i
 
 `compareStandings` reports both the gate (`report.gate`, thresholds in `GATE`) and the strict check (`report.passed`: exact rank and rounded points for every roster). A roster in the published top 50 that the model doesn't rank counts as a rank miss with its full points as error. `verify-vrs` exits on the gate, or on the strict check with `--strict`. `--all-calibrated` runs every date in `snapshotWindowEnds.json` and also fails if there are fewer than three. The nightly `update-data` warning uses the gate.
 
-Invite cutoffs in `src/vrs/inviteCutoffs.ts` (Europe 16, Americas 8, Asia 8) are still unconfirmed against Valve's rulebook.
+Invite cutoffs in `src/vrs/inviteCutoffs.ts` (`cutoffsForSnapshot`) match `vendor/counter-strike_rules_and_regs/major-supplemental-rulebook.md` (`16/10/6` pre-Cologne 2026, `18/9/5` post-Cologne 2026).

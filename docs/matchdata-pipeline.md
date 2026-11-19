@@ -26,7 +26,8 @@ Valve's model reads a `matchdata.json` built from HLTV data, and Valve doesn't p
 | `prizePool` | tournament `prizepool`, formatted `"$N"` |
 | `lan` | tournament `type === "offline"` |
 | `prize` | placement `prizemoney` |
-| `clubShare`, `qualifiedEvents` | always `0` and `[]` today (see [roadmap.md](roadmap.md), factor gaps) |
+| `clubShare` | always `0` today; ESL IEM Rio/Atlanta payout differences handled via `prizeDistributionOverrides` |
+| `qualifiedEvents` | populated from `/placement` `qualifierpage` with an ancestor-page fallback (plus `splitMajorStages` for Majors) |
 
 ## HLTV-coverage rules
 

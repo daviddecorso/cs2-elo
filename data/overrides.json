@@ -3259,6 +3259,22 @@
     "enrage 2024": {
       "targetTeamId": "ENRAGE",
       "reason": "Aligned with 2 matches in Valve details"
+    },
+    "PVISION": {
+      "targetTeamId": "PARIVISION",
+      "reason": "Post-Oct-5 Liquipedia page rename"
+    },
+    "GOSH": {
+      "targetTeamId": "BC.Game",
+      "reason": "Post-Oct-5 Liquipedia page rename"
+    },
+    "The One": {
+      "targetTeamId": "1win",
+      "reason": "Post-Oct-5 Liquipedia page rename"
+    },
+    "BB Team": {
+      "targetTeamId": "BETBOOM",
+      "reason": "Post-Oct-5 Liquipedia page rename"
     }
   },
   "rankedEvents": [
@@ -5583,10 +5599,257 @@
     {
       "eventId": "5EPLAY/Pro_League/2026/Season_4",
       "reason": "Not ranked by Valve"
+    },
+    {
+      "eventId": "Stake_Pulse/Beat_I/Qualifier/2",
+      "reason": "Untracked Tier 2 qualifier on HLTV"
+    },
+    {
+      "eventId": "Stake_Pulse/Beat_II/Qualifier/1",
+      "reason": "Untracked Tier 2 qualifier on HLTV"
+    },
+    {
+      "eventId": "Stake_Pulse/Beat_II/Qualifier/2",
+      "reason": "Untracked Tier 2 qualifier on HLTV"
+    },
+    {
+      "eventId": "Stake_Pulse/Beat_III/Qualifier/1",
+      "reason": "Untracked Tier 2 qualifier on HLTV"
+    },
+    {
+      "eventId": "Stake_Pulse/Beat_III/Qualifier/2",
+      "reason": "Untracked Tier 2 qualifier on HLTV"
+    },
+    {
+      "eventId": "Pavlodar_Ertis_Cup/2026/Qualifier/1",
+      "reason": "Untracked Tier 2 qualifier on HLTV"
+    },
+    {
+      "eventId": "Akmola_International_Esports_Cup/2026/Qualifier/1",
+      "reason": "Untracked Tier 2 qualifier on HLTV"
+    },
+    {
+      "eventId": "FRAG.gg/Battle_Cup/2026/Spring/Qualifier",
+      "reason": "Untracked Tier 2 qualifier on HLTV"
+    },
+    {
+      "eventId": "CS_Asia_Championships/2026/Qualifier/Rest_of_Asia",
+      "reason": "Untracked Rest of Asia qualifier on HLTV"
+    },
+    {
+      "eventId": "RLG/RES/Showdown/2026/Fall/Europe/Eastern_Europe",
+      "reason": "Untracked RLG RES Showdown qualifier on HLTV"
+    },
+    {
+      "eventId": "RLG/RES/Showdown/2026/Fall/Europe/Adria",
+      "reason": "Untracked RLG RES Showdown qualifier on HLTV"
+    },
+    {
+      "eventId": "RLG/RES/Showdown/2026/Fall/Europe/Nordics",
+      "reason": "Untracked RLG RES Showdown qualifier on HLTV"
+    },
+    {
+      "eventId": "RLG/RES/Showdown/2026/Fall/Europe/Western_Europe",
+      "reason": "Untracked RLG RES Showdown qualifier on HLTV"
+    },
+    {
+      "eventId": "EXTREMESLAND/2026/Oceania",
+      "reason": "0 matches covered by HLTV in Valve 2026-11-02 details (0/16)"
+    },
+    {
+      "eventId": "EXTREMESLAND/2026/Mongolia",
+      "reason": "0 matches covered by HLTV in Valve 2026-11-02 details (0/16)"
     }
   ],
   "eventRollups": {},
-  "prizeDistributionOverrides": [],
+  "prizeDistributionOverrides": [
+    {
+      "eventId": "Intel_Extreme_Masters/2026/Rio",
+      "teamId": "Vitality",
+      "prize": 295000,
+      "reason": "Align IEM Rio 2026 payout with Valve ESL split"
+    },
+    {
+      "eventId": "Intel_Extreme_Masters/2026/Rio",
+      "teamId": "Spirit",
+      "prize": 170000,
+      "reason": "Align IEM Rio 2026 payout with Valve ESL split"
+    },
+    {
+      "eventId": "Intel_Extreme_Masters/2026/Rio",
+      "teamId": "Falcons",
+      "prize": 125000,
+      "reason": "Align IEM Rio 2026 payout with Valve ESL split"
+    },
+    {
+      "eventId": "Intel_Extreme_Masters/2026/Rio",
+      "teamId": "FURIA",
+      "prize": 95000,
+      "reason": "Align IEM Rio 2026 payout with Valve ESL split"
+    },
+    {
+      "eventId": "Intel_Extreme_Masters/2026/Rio",
+      "teamId": "MOUZ",
+      "prize": 67500,
+      "reason": "Align IEM Rio 2026 payout with Valve ESL split"
+    },
+    {
+      "eventId": "Intel_Extreme_Masters/2026/Rio",
+      "teamId": "Natus Vincere",
+      "prize": 67500,
+      "reason": "Align IEM Rio 2026 payout with Valve ESL split"
+    },
+    {
+      "eventId": "Intel_Extreme_Masters/2026/Rio",
+      "teamId": "Aurora",
+      "prize": 42000,
+      "reason": "Align IEM Rio 2026 payout with Valve ESL split"
+    },
+    {
+      "eventId": "Intel_Extreme_Masters/2026/Rio",
+      "teamId": "G2",
+      "prize": 42000,
+      "reason": "Align IEM Rio 2026 payout with Valve ESL split"
+    },
+    {
+      "eventId": "Intel_Extreme_Masters/2026/Rio",
+      "teamId": "3DMAX",
+      "prize": 20000,
+      "reason": "Align IEM Rio 2026 payout with Valve ESL split"
+    },
+    {
+      "eventId": "Intel_Extreme_Masters/2026/Rio",
+      "teamId": "B8",
+      "prize": 20000,
+      "reason": "Align IEM Rio 2026 payout with Valve ESL split"
+    },
+    {
+      "eventId": "Intel_Extreme_Masters/2026/Rio",
+      "teamId": "HOTU",
+      "prize": 20000,
+      "reason": "Align IEM Rio 2026 payout with Valve ESL split"
+    },
+    {
+      "eventId": "Intel_Extreme_Masters/2026/Rio",
+      "teamId": "RED Canids",
+      "prize": 20000,
+      "reason": "Align IEM Rio 2026 payout with Valve ESL split"
+    },
+    {
+      "eventId": "Intel_Extreme_Masters/2026/Atlanta",
+      "teamId": "Natus Vincere",
+      "prize": 295000,
+      "reason": "Align IEM Atlanta 2026 payout with Valve ESL split"
+    },
+    {
+      "eventId": "Intel_Extreme_Masters/2026/Atlanta",
+      "teamId": "GamerLegion",
+      "prize": 170000,
+      "reason": "Align IEM Atlanta 2026 payout with Valve ESL split"
+    },
+    {
+      "eventId": "Intel_Extreme_Masters/2026/Atlanta",
+      "teamId": "Legacy",
+      "prize": 125000,
+      "reason": "Align IEM Atlanta 2026 payout with Valve ESL split"
+    },
+    {
+      "eventId": "Intel_Extreme_Masters/2026/Atlanta",
+      "teamId": "BETBOOM",
+      "prize": 95000,
+      "reason": "Align IEM Atlanta 2026 payout with Valve ESL split"
+    },
+    {
+      "eventId": "Intel_Extreme_Masters/2026/Atlanta",
+      "teamId": "paiN",
+      "prize": 67500,
+      "reason": "Align IEM Atlanta 2026 payout with Valve ESL split"
+    },
+    {
+      "eventId": "Intel_Extreme_Masters/2026/Atlanta",
+      "teamId": "Vitality",
+      "prize": 67500,
+      "reason": "Align IEM Atlanta 2026 payout with Valve ESL split"
+    },
+    {
+      "eventId": "Intel_Extreme_Masters/2026/Atlanta",
+      "teamId": "Astralis",
+      "prize": 42000,
+      "reason": "Align IEM Atlanta 2026 payout with Valve ESL split"
+    },
+    {
+      "eventId": "Intel_Extreme_Masters/2026/Atlanta",
+      "teamId": "B8",
+      "prize": 42000,
+      "reason": "Align IEM Atlanta 2026 payout with Valve ESL split"
+    },
+    {
+      "eventId": "Intel_Extreme_Masters/2026/Atlanta",
+      "teamId": "FaZe",
+      "prize": 20000,
+      "reason": "Align IEM Atlanta 2026 payout with Valve ESL split"
+    },
+    {
+      "eventId": "Intel_Extreme_Masters/2026/Atlanta",
+      "teamId": "FUT",
+      "prize": 20000,
+      "reason": "Align IEM Atlanta 2026 payout with Valve ESL split"
+    },
+    {
+      "eventId": "Intel_Extreme_Masters/2026/Atlanta",
+      "teamId": "SINNERS",
+      "prize": 20000,
+      "reason": "Align IEM Atlanta 2026 payout with Valve ESL split"
+    },
+    {
+      "eventId": "Intel_Extreme_Masters/2026/Atlanta",
+      "teamId": "Liquid",
+      "prize": 20000,
+      "reason": "Align IEM Atlanta 2026 payout with Valve ESL split"
+    },
+    {
+      "eventId": "Journey/2026/Summer",
+      "teamId": "Alliance",
+      "prize": 10000,
+      "reason": "Align Journey 2026 Summer payout with Valve details across 07-06..10-05"
+    },
+    {
+      "eventId": "Moscow_Cyber_Games/2026",
+      "teamId": "1win",
+      "prize": 96646,
+      "reason": "Align Moscow Cyber Games 2026 RUB->USD payout with Valve 11-02 details"
+    },
+    {
+      "eventId": "Moscow_Cyber_Games/2026",
+      "teamId": "HOTU",
+      "prize": 48323,
+      "reason": "Align Moscow Cyber Games 2026 RUB->USD payout with Valve 11-02 details"
+    },
+    {
+      "eventId": "DraculaN/Season_7",
+      "teamId": "SINNERS",
+      "prize": 8750,
+      "reason": "Align DraculaN Season 7 payout with Valve 11-02 details"
+    },
+    {
+      "eventId": "CyberClash/Season_2",
+      "teamId": "PRIVATE",
+      "prize": 15000,
+      "reason": "Align CyberClash Season 2 RUB->USD payout with Valve 11-02 details"
+    },
+    {
+      "eventId": "CCT/Season_3/Europe/Series_13",
+      "teamId": "GamerLegion",
+      "prize": 4500,
+      "reason": "Align CCT S3 Europe Series 13 payout with Valve 07-06 details"
+    },
+    {
+      "eventId": "CCT/Season_3/Europe/Series_15",
+      "teamId": "Acend",
+      "prize": 5600,
+      "reason": "Align CCT S3 Europe Series 15 payout with Valve 07-06 details"
+    }
+  ],
   "playerAliases": {
     "Martinez": {
       "nick": "MartinezSa",
@@ -9655,5 +9918,1213 @@
       "countryIso": "ru",
       "reason": "Russian stand-in on BankaPEPSI missing flag in Liquipedia"
     }
-  }
+  },
+  "excludedMatches": [
+    {
+      "matchId": "Intel_Extreme_Masters/2026/Cologne:srjw8TEfcU_R01-M001",
+      "reason": "Team Germany vs Team Poland showmatch not counted by Valve"
+    },
+    {
+      "matchId": "Esports_Nations_Cup/2026/Middle_East_&_Central_Asia/Kyrgyzstan:IHrB7HtyIT_R01-M001",
+      "reason": "Esports Nations Cup 2026 qualifier match not covered by HLTV"
+    },
+    {
+      "matchId": "Esports_Nations_Cup/2026/Oceania/Australia:hN4qjKddYM_R01-M001",
+      "reason": "Esports Nations Cup 2026 qualifier match not covered by HLTV"
+    },
+    {
+      "matchId": "Esports_Nations_Cup/2026/Oceania/Australia:hN4qjKddYM_R01-M002",
+      "reason": "Esports Nations Cup 2026 qualifier match not covered by HLTV"
+    },
+    {
+      "matchId": "Esports_Nations_Cup/2026/Oceania/Australia:hN4qjKddYM_R02-M001",
+      "reason": "Esports Nations Cup 2026 qualifier match not covered by HLTV"
+    },
+    {
+      "matchId": "Esports_Nations_Cup/2026/Southeast_Asia/Philippines:ox2wfhSRLS_R01-M001",
+      "reason": "Esports Nations Cup 2026 qualifier match not covered by HLTV"
+    },
+    {
+      "matchId": "Esports_Nations_Cup/2026/Southeast_Asia/Thailand:N9luZWsqdy_R01-M001",
+      "reason": "Esports Nations Cup 2026 qualifier match not covered by HLTV"
+    },
+    {
+      "matchId": "Esports_Nations_Cup/2026/Southeast_Asia/Malaysia:KaYtMpFl8C_R01-M001",
+      "reason": "Esports Nations Cup 2026 qualifier match not covered by HLTV"
+    },
+    {
+      "matchId": "Esports_Nations_Cup/2026/Southeast_Asia/Indonesia:ZaQZGm0KwT_R01-M001",
+      "reason": "Esports Nations Cup 2026 qualifier match not covered by HLTV"
+    },
+    {
+      "matchId": "Esports_Nations_Cup/2026/South_America/Chile:rdAHRwu4Jh_R01-M001",
+      "reason": "Esports Nations Cup 2026 qualifier match not covered by HLTV"
+    },
+    {
+      "matchId": "Esports_Nations_Cup/2026/Sub-Saharan_Africa/South_Africa:3Uk9UjectA_R01-M001",
+      "reason": "Esports Nations Cup 2026 qualifier match not covered by HLTV"
+    },
+    {
+      "matchId": "Esports_Nations_Cup/2026/Sub-Saharan_Africa/South_Africa:3Uk9UjectA_R01-M002",
+      "reason": "Esports Nations Cup 2026 qualifier match not covered by HLTV"
+    },
+    {
+      "matchId": "Esports_Nations_Cup/2026/Sub-Saharan_Africa/South_Africa:3Uk9UjectA_R02-M001",
+      "reason": "Esports Nations Cup 2026 qualifier match not covered by HLTV"
+    },
+    {
+      "matchId": "Esports_Nations_Cup/2026/South_&_East_Asia/Taiwan:sDviFiUbHP_R01-M001",
+      "reason": "Esports Nations Cup 2026 qualifier match not covered by HLTV"
+    },
+    {
+      "matchId": "Esports_Nations_Cup/2026/South_&_East_Asia/Hong_Kong:mT69ayEPmy_R01-M001",
+      "reason": "Esports Nations Cup 2026 qualifier match not covered by HLTV"
+    },
+    {
+      "matchId": "Esports_Nations_Cup/2026/Southeast_Asia/Singapore:w4cQm3gHfj_R01-M001",
+      "reason": "Esports Nations Cup 2026 qualifier match not covered by HLTV"
+    },
+    {
+      "matchId": "Esports_Nations_Cup/2026/Southeast_Asia/Vietnam:TTC1RJ8lka_R01-M001",
+      "reason": "Esports Nations Cup 2026 qualifier match not covered by HLTV"
+    },
+    {
+      "matchId": "Esports_Nations_Cup/2026/South_&_East_Asia/Pakistan:uT8cYH4jUB_R01-M001",
+      "reason": "Esports Nations Cup 2026 qualifier match not covered by HLTV"
+    },
+    {
+      "matchId": "Esports_Nations_Cup/2026/Middle_East_&_Central_Asia/Uzbekistan:UEZNBCEKSn_R01-M001",
+      "reason": "Esports Nations Cup 2026 qualifier match not covered by HLTV"
+    },
+    {
+      "matchId": "Esports_Nations_Cup/2026/South_&_East_Asia/India:FJyrPOBCMk_R01-M001",
+      "reason": "Esports Nations Cup 2026 qualifier match not covered by HLTV"
+    },
+    {
+      "matchId": "Esports_Nations_Cup/2026/South_&_East_Asia/India:FJyrPOBCMk_R01-M002",
+      "reason": "Esports Nations Cup 2026 qualifier match not covered by HLTV"
+    },
+    {
+      "matchId": "Esports_Nations_Cup/2026/South_&_East_Asia/India:FJyrPOBCMk_R02-M001",
+      "reason": "Esports Nations Cup 2026 qualifier match not covered by HLTV"
+    },
+    {
+      "matchId": "Esports_Nations_Cup/2026/Western_Europe/Netherlands:68SYACQZ1x_R01-M001",
+      "reason": "Esports Nations Cup 2026 qualifier match not covered by HLTV"
+    },
+    {
+      "matchId": "Esports_Nations_Cup/2026/Western_Europe/Netherlands:68SYACQZ1x_R01-M002",
+      "reason": "Esports Nations Cup 2026 qualifier match not covered by HLTV"
+    },
+    {
+      "matchId": "Esports_Nations_Cup/2026/Middle_East_&_Central_Asia/Turkey:TEUeRNKCEY_R01-M001",
+      "reason": "Esports Nations Cup 2026 qualifier match not covered by HLTV"
+    },
+    {
+      "matchId": "Esports_Nations_Cup/2026/Middle_East_&_Central_Asia/Turkey:TEUeRNKCEY_R01-M002",
+      "reason": "Esports Nations Cup 2026 qualifier match not covered by HLTV"
+    },
+    {
+      "matchId": "Esports_Nations_Cup/2026/Eastern_Europe/Bulgaria:BEUNLCGAKR_R01-M001",
+      "reason": "Esports Nations Cup 2026 qualifier match not covered by HLTV"
+    },
+    {
+      "matchId": "Esports_Nations_Cup/2026/Western_Europe/Netherlands:68SYACQZ1x_R02-M001",
+      "reason": "Esports Nations Cup 2026 qualifier match not covered by HLTV"
+    },
+    {
+      "matchId": "Esports_Nations_Cup/2026/Middle_East_&_Central_Asia/Turkey:TEUeRNKCEY_R02-M001",
+      "reason": "Esports Nations Cup 2026 qualifier match not covered by HLTV"
+    },
+    {
+      "matchId": "Esports_Nations_Cup/2026/North_America/Canada:bb1BEUNLCG_R01-M001",
+      "reason": "Esports Nations Cup 2026 qualifier match not covered by HLTV"
+    },
+    {
+      "matchId": "Esports_Nations_Cup/2026/Western_Europe/United_Kingdom:UbKBGUBenc_R01-M001",
+      "reason": "Esports Nations Cup 2026 qualifier match not covered by HLTV"
+    },
+    {
+      "matchId": "Esports_Nations_Cup/2026/South_&_East_Asia/Mongolia:rSvfGIdepp_R01-M001",
+      "reason": "Esports Nations Cup 2026 qualifier match not covered by HLTV"
+    },
+    {
+      "matchId": "Esports_Nations_Cup/2026/South_&_East_Asia/Mongolia:rSvfGIdepp_R01-M002",
+      "reason": "Esports Nations Cup 2026 qualifier match not covered by HLTV"
+    },
+    {
+      "matchId": "Esports_Nations_Cup/2026/South_&_East_Asia/China:8IZ2ISqz61_R01-M001",
+      "reason": "Esports Nations Cup 2026 qualifier match not covered by HLTV"
+    },
+    {
+      "matchId": "Esports_Nations_Cup/2026/Eastern_Europe/Ukraine:qjKddYMCY5_R01-M001",
+      "reason": "Esports Nations Cup 2026 qualifier match not covered by HLTV"
+    },
+    {
+      "matchId": "Esports_Nations_Cup/2026/Eastern_Europe/Ukraine:qjKddYMCY5_R01-M002",
+      "reason": "Esports Nations Cup 2026 qualifier match not covered by HLTV"
+    },
+    {
+      "matchId": "Esports_Nations_Cup/2026/Eastern_Europe/Ukraine:qjKddYMCY5_R02-M001",
+      "reason": "Esports Nations Cup 2026 qualifier match not covered by HLTV"
+    },
+    {
+      "matchId": "Esports_Nations_Cup/2026/Eastern_Europe/Romania:FfGPdDXyTo_R01-M002",
+      "reason": "Esports Nations Cup 2026 qualifier match not covered by HLTV"
+    },
+    {
+      "matchId": "Esports_Nations_Cup/2026/Eastern_Europe/Romania:FfGPdDXyTo_R02-M001",
+      "reason": "Esports Nations Cup 2026 qualifier match not covered by HLTV"
+    },
+    {
+      "matchId": "Esports_Nations_Cup/2026/North_America/United_States:0un0tFICbU_R01-M001",
+      "reason": "Esports Nations Cup 2026 qualifier match not covered by HLTV"
+    },
+    {
+      "matchId": "Esports_Nations_Cup/2026/North_America/United_States:0un0tFICbU_R01-M002",
+      "reason": "Esports Nations Cup 2026 qualifier match not covered by HLTV"
+    },
+    {
+      "matchId": "Esports_Nations_Cup/2026/North_America/United_States:0un0tFICbU_R02-M001",
+      "reason": "Esports Nations Cup 2026 qualifier match not covered by HLTV"
+    },
+    {
+      "matchId": "Esports_Nations_Cup/2026/Middle_East_&_Central_Asia/Kazakhstan:KEaZRaKHST_R01-M001",
+      "reason": "Esports Nations Cup 2026 qualifier match not covered by HLTV"
+    },
+    {
+      "matchId": "Esports_Nations_Cup/2026/Eastern_Europe/Poland:qjPdOYLAYK_R01-M001",
+      "reason": "Esports Nations Cup 2026 qualifier match not covered by HLTV"
+    },
+    {
+      "matchId": "Esports_Nations_Cup/2026/Eastern_Europe/Poland:qjPdOYLAYK_R01-M002",
+      "reason": "Esports Nations Cup 2026 qualifier match not covered by HLTV"
+    },
+    {
+      "matchId": "Esports_Nations_Cup/2026/Eastern_Europe/Poland:qjPdOYLAYK_R02-M001",
+      "reason": "Esports Nations Cup 2026 qualifier match not covered by HLTV"
+    },
+    {
+      "matchId": "Esports_Nations_Cup/2026/South_America/Argentina:A9xeo5qMS6_R01-M001",
+      "reason": "Esports Nations Cup 2026 qualifier match not covered by HLTV"
+    },
+    {
+      "matchId": "Esports_Nations_Cup/2026/South_&_East_Asia/Mongolia:rSvfGIdepp_R02-M001",
+      "reason": "Esports Nations Cup 2026 qualifier match not covered by HLTV"
+    },
+    {
+      "matchId": "Esports_Nations_Cup/2026/South_America:ERjOlIwgV5_R01-M001",
+      "reason": "Esports Nations Cup 2026 qualifier match not covered by HLTV"
+    },
+    {
+      "matchId": "Esports_Nations_Cup/2026/South_America:ERjOlIwgV5_R01-M002",
+      "reason": "Esports Nations Cup 2026 qualifier match not covered by HLTV"
+    },
+    {
+      "matchId": "Esports_Nations_Cup/2026/South_America:ERjOlIwgV5_R01-M003",
+      "reason": "Esports Nations Cup 2026 qualifier match not covered by HLTV"
+    },
+    {
+      "matchId": "Esports_Nations_Cup/2026/South_America:ERjOlIwgV5_R01-M004",
+      "reason": "Esports Nations Cup 2026 qualifier match not covered by HLTV"
+    },
+    {
+      "matchId": "Esports_Nations_Cup/2026/South_America:ERjOlIwgV5_R01-M005",
+      "reason": "Esports Nations Cup 2026 qualifier match not covered by HLTV"
+    },
+    {
+      "matchId": "Esports_Nations_Cup/2026/South_America:ERjOlIwgV5_R01-M006",
+      "reason": "Esports Nations Cup 2026 qualifier match not covered by HLTV"
+    },
+    {
+      "matchId": "Esports_Nations_Cup/2026/North_America:YazH0In4sT_R01-M001",
+      "reason": "Esports Nations Cup 2026 qualifier match not covered by HLTV"
+    },
+    {
+      "matchId": "Esports_Nations_Cup/2026/North_America:YazH0In4sT_R01-M002",
+      "reason": "Esports Nations Cup 2026 qualifier match not covered by HLTV"
+    },
+    {
+      "matchId": "Esports_Nations_Cup/2026/Southeast_Asia:1yma2meRmj_R01-M001",
+      "reason": "Esports Nations Cup 2026 qualifier match not covered by HLTV"
+    },
+    {
+      "matchId": "Esports_Nations_Cup/2026/Southeast_Asia:1yma2meRmj_R01-M002",
+      "reason": "Esports Nations Cup 2026 qualifier match not covered by HLTV"
+    },
+    {
+      "matchId": "Esports_Nations_Cup/2026/Southeast_Asia:1yma2meRmj_R01-M003",
+      "reason": "Esports Nations Cup 2026 qualifier match not covered by HLTV"
+    },
+    {
+      "matchId": "Esports_Nations_Cup/2026/Southeast_Asia:1yma2meRmj_R01-M004",
+      "reason": "Esports Nations Cup 2026 qualifier match not covered by HLTV"
+    },
+    {
+      "matchId": "Esports_Nations_Cup/2026/Southeast_Asia:1yma2meRmj_R01-M005",
+      "reason": "Esports Nations Cup 2026 qualifier match not covered by HLTV"
+    },
+    {
+      "matchId": "Esports_Nations_Cup/2026/Southeast_Asia:1yma2meRmj_R01-M006",
+      "reason": "Esports Nations Cup 2026 qualifier match not covered by HLTV"
+    },
+    {
+      "matchId": "Esports_Nations_Cup/2026/Southeast_Asia:1yma2meRmj_R02-M001",
+      "reason": "Esports Nations Cup 2026 qualifier match not covered by HLTV"
+    },
+    {
+      "matchId": "Esports_Nations_Cup/2026/Southeast_Asia:1yma2meRmj_R02-M002",
+      "reason": "Esports Nations Cup 2026 qualifier match not covered by HLTV"
+    },
+    {
+      "matchId": "Esports_Nations_Cup/2026/North_Africa:3VmvJYkl2Y_R01-M001",
+      "reason": "Esports Nations Cup 2026 qualifier match not covered by HLTV"
+    },
+    {
+      "matchId": "Esports_Nations_Cup/2026/North_Africa:3VmvJYkl2Y_R01-M002",
+      "reason": "Esports Nations Cup 2026 qualifier match not covered by HLTV"
+    },
+    {
+      "matchId": "Esports_Nations_Cup/2026/North_Africa:3VmvJYkl2Y_R02-M001",
+      "reason": "Esports Nations Cup 2026 qualifier match not covered by HLTV"
+    },
+    {
+      "matchId": "Esports_Nations_Cup/2026/South_&_East_Asia:Hn11yma2mj_R01-M001",
+      "reason": "Esports Nations Cup 2026 qualifier match not covered by HLTV"
+    },
+    {
+      "matchId": "Esports_Nations_Cup/2026/South_&_East_Asia:Hn11yma2mj_R01-M002",
+      "reason": "Esports Nations Cup 2026 qualifier match not covered by HLTV"
+    },
+    {
+      "matchId": "Esports_Nations_Cup/2026/South_&_East_Asia:Hn11yma2mj_R01-M003",
+      "reason": "Esports Nations Cup 2026 qualifier match not covered by HLTV"
+    },
+    {
+      "matchId": "Esports_Nations_Cup/2026/South_&_East_Asia:Hn11yma2mj_R01-M004",
+      "reason": "Esports Nations Cup 2026 qualifier match not covered by HLTV"
+    },
+    {
+      "matchId": "Esports_Nations_Cup/2026/South_&_East_Asia:Hn11yma2mj_R01-M005",
+      "reason": "Esports Nations Cup 2026 qualifier match not covered by HLTV"
+    },
+    {
+      "matchId": "Esports_Nations_Cup/2026/South_&_East_Asia:Hn11yma2mj_R01-M006",
+      "reason": "Esports Nations Cup 2026 qualifier match not covered by HLTV"
+    },
+    {
+      "matchId": "Esports_Nations_Cup/2026/South_&_East_Asia:Hn11yma2mj_R02-M001",
+      "reason": "Esports Nations Cup 2026 qualifier match not covered by HLTV"
+    },
+    {
+      "matchId": "Esports_Nations_Cup/2026/South_&_East_Asia:Hn11yma2mj_R02-M002",
+      "reason": "Esports Nations Cup 2026 qualifier match not covered by HLTV"
+    },
+    {
+      "matchId": "Esports_Nations_Cup/2026/Middle_East_&_Central_Asia:iNVfZYPt8x_R01-M001",
+      "reason": "Esports Nations Cup 2026 qualifier match not covered by HLTV"
+    },
+    {
+      "matchId": "Esports_Nations_Cup/2026/Middle_East_&_Central_Asia:iNVfZYPt8x_R01-M002",
+      "reason": "Esports Nations Cup 2026 qualifier match not covered by HLTV"
+    },
+    {
+      "matchId": "Esports_Nations_Cup/2026/Middle_East_&_Central_Asia:iNVfZYPt8x_R01-M003",
+      "reason": "Esports Nations Cup 2026 qualifier match not covered by HLTV"
+    },
+    {
+      "matchId": "Esports_Nations_Cup/2026/Middle_East_&_Central_Asia:iNVfZYPt8x_R01-M004",
+      "reason": "Esports Nations Cup 2026 qualifier match not covered by HLTV"
+    },
+    {
+      "matchId": "Esports_Nations_Cup/2026/Middle_East_&_Central_Asia:iNVfZYPt8x_R01-M005",
+      "reason": "Esports Nations Cup 2026 qualifier match not covered by HLTV"
+    },
+    {
+      "matchId": "Esports_Nations_Cup/2026/Middle_East_&_Central_Asia:iNVfZYPt8x_R01-M006",
+      "reason": "Esports Nations Cup 2026 qualifier match not covered by HLTV"
+    },
+    {
+      "matchId": "Esports_Nations_Cup/2026/Middle_East_&_Central_Asia:iNVfZYPt8x_R01-M007",
+      "reason": "Esports Nations Cup 2026 qualifier match not covered by HLTV"
+    },
+    {
+      "matchId": "Esports_Nations_Cup/2026/Middle_East_&_Central_Asia:iNVfZYPt8x_R01-M008",
+      "reason": "Esports Nations Cup 2026 qualifier match not covered by HLTV"
+    },
+    {
+      "matchId": "Esports_Nations_Cup/2026/Middle_East_&_Central_Asia:iNVfZYPt8x_R01-M009",
+      "reason": "Esports Nations Cup 2026 qualifier match not covered by HLTV"
+    },
+    {
+      "matchId": "Esports_Nations_Cup/2026/Middle_East_&_Central_Asia:iNVfZYPt8x_R01-M010",
+      "reason": "Esports Nations Cup 2026 qualifier match not covered by HLTV"
+    },
+    {
+      "matchId": "Esports_Nations_Cup/2026/Middle_East_&_Central_Asia:iNVfZYPt8x_R01-M011",
+      "reason": "Esports Nations Cup 2026 qualifier match not covered by HLTV"
+    },
+    {
+      "matchId": "Esports_Nations_Cup/2026/Middle_East_&_Central_Asia:iNVfZYPt8x_R01-M012",
+      "reason": "Esports Nations Cup 2026 qualifier match not covered by HLTV"
+    },
+    {
+      "matchId": "Esports_Nations_Cup/2026/Middle_East_&_Central_Asia:iNVfZYPt8x_R02-M001",
+      "reason": "Esports Nations Cup 2026 qualifier match not covered by HLTV"
+    },
+    {
+      "matchId": "Esports_Nations_Cup/2026/Middle_East_&_Central_Asia:iNVfZYPt8x_R02-M002",
+      "reason": "Esports Nations Cup 2026 qualifier match not covered by HLTV"
+    },
+    {
+      "matchId": "Esports_Nations_Cup/2026/Middle_East_&_Central_Asia:iNVfZYPt8x_R02-M003",
+      "reason": "Esports Nations Cup 2026 qualifier match not covered by HLTV"
+    },
+    {
+      "matchId": "Esports_Nations_Cup/2026/Middle_East_&_Central_Asia:iNVfZYPt8x_R02-M004",
+      "reason": "Esports Nations Cup 2026 qualifier match not covered by HLTV"
+    },
+    {
+      "matchId": "Esports_Nations_Cup/2026/Middle_East_&_Central_Asia:iNVfZYPt8x_R02-M005",
+      "reason": "Esports Nations Cup 2026 qualifier match not covered by HLTV"
+    },
+    {
+      "matchId": "Esports_Nations_Cup/2026/Middle_East_&_Central_Asia:iNVfZYPt8x_R02-M006",
+      "reason": "Esports Nations Cup 2026 qualifier match not covered by HLTV"
+    },
+    {
+      "matchId": "Esports_Nations_Cup/2026/Middle_East_&_Central_Asia:iNVfZYPt8x_R02-M007",
+      "reason": "Esports Nations Cup 2026 qualifier match not covered by HLTV"
+    },
+    {
+      "matchId": "Esports_Nations_Cup/2026/Middle_East_&_Central_Asia:iNVfZYPt8x_R02-M008",
+      "reason": "Esports Nations Cup 2026 qualifier match not covered by HLTV"
+    },
+    {
+      "matchId": "Esports_Nations_Cup/2026/Western_Europe:kg89tN9ucJ_R01-M001",
+      "reason": "Esports Nations Cup 2026 qualifier match not covered by HLTV"
+    },
+    {
+      "matchId": "Esports_Nations_Cup/2026/Western_Europe:kg89tN9ucJ_R01-M002",
+      "reason": "Esports Nations Cup 2026 qualifier match not covered by HLTV"
+    },
+    {
+      "matchId": "Esports_Nations_Cup/2026/Western_Europe:kg89tN9ucJ_R01-M003",
+      "reason": "Esports Nations Cup 2026 qualifier match not covered by HLTV"
+    },
+    {
+      "matchId": "Esports_Nations_Cup/2026/Western_Europe:kg89tN9ucJ_R01-M004",
+      "reason": "Esports Nations Cup 2026 qualifier match not covered by HLTV"
+    },
+    {
+      "matchId": "Esports_Nations_Cup/2026/Western_Europe:kg89tN9ucJ_R01-M005",
+      "reason": "Esports Nations Cup 2026 qualifier match not covered by HLTV"
+    },
+    {
+      "matchId": "Esports_Nations_Cup/2026/Western_Europe:kg89tN9ucJ_R01-M006",
+      "reason": "Esports Nations Cup 2026 qualifier match not covered by HLTV"
+    },
+    {
+      "matchId": "Esports_Nations_Cup/2026/Western_Europe:kg89tN9ucJ_R01-M007",
+      "reason": "Esports Nations Cup 2026 qualifier match not covered by HLTV"
+    },
+    {
+      "matchId": "Esports_Nations_Cup/2026/Western_Europe:kg89tN9ucJ_R01-M008",
+      "reason": "Esports Nations Cup 2026 qualifier match not covered by HLTV"
+    },
+    {
+      "matchId": "Esports_Nations_Cup/2026/Western_Europe:kg89tN9ucJ_R01-M009",
+      "reason": "Esports Nations Cup 2026 qualifier match not covered by HLTV"
+    },
+    {
+      "matchId": "Esports_Nations_Cup/2026/Western_Europe:kg89tN9ucJ_R01-M010",
+      "reason": "Esports Nations Cup 2026 qualifier match not covered by HLTV"
+    },
+    {
+      "matchId": "Esports_Nations_Cup/2026/Western_Europe:kg89tN9ucJ_R01-M011",
+      "reason": "Esports Nations Cup 2026 qualifier match not covered by HLTV"
+    },
+    {
+      "matchId": "Esports_Nations_Cup/2026/Western_Europe:kg89tN9ucJ_R01-M012",
+      "reason": "Esports Nations Cup 2026 qualifier match not covered by HLTV"
+    },
+    {
+      "matchId": "Esports_Nations_Cup/2026/Western_Europe:kg89tN9ucJ_R02-M001",
+      "reason": "Esports Nations Cup 2026 qualifier match not covered by HLTV"
+    },
+    {
+      "matchId": "Esports_Nations_Cup/2026/Western_Europe:kg89tN9ucJ_R02-M002",
+      "reason": "Esports Nations Cup 2026 qualifier match not covered by HLTV"
+    },
+    {
+      "matchId": "Esports_Nations_Cup/2026/Western_Europe:kg89tN9ucJ_R02-M003",
+      "reason": "Esports Nations Cup 2026 qualifier match not covered by HLTV"
+    },
+    {
+      "matchId": "Esports_Nations_Cup/2026/Western_Europe:kg89tN9ucJ_R02-M004",
+      "reason": "Esports Nations Cup 2026 qualifier match not covered by HLTV"
+    },
+    {
+      "matchId": "Esports_Nations_Cup/2026/Eastern_Europe:5AyWtPSmuc_R01-M001",
+      "reason": "Esports Nations Cup 2026 qualifier match not covered by HLTV"
+    },
+    {
+      "matchId": "Esports_Nations_Cup/2026/Eastern_Europe:5AyWtPSmuc_R01-M002",
+      "reason": "Esports Nations Cup 2026 qualifier match not covered by HLTV"
+    },
+    {
+      "matchId": "Esports_Nations_Cup/2026/Eastern_Europe:5AyWtPSmuc_R01-M003",
+      "reason": "Esports Nations Cup 2026 qualifier match not covered by HLTV"
+    },
+    {
+      "matchId": "Esports_Nations_Cup/2026/Eastern_Europe:5AyWtPSmuc_R01-M004",
+      "reason": "Esports Nations Cup 2026 qualifier match not covered by HLTV"
+    },
+    {
+      "matchId": "Esports_Nations_Cup/2026/Eastern_Europe:5AyWtPSmuc_R01-M005",
+      "reason": "Esports Nations Cup 2026 qualifier match not covered by HLTV"
+    },
+    {
+      "matchId": "Esports_Nations_Cup/2026/Eastern_Europe:5AyWtPSmuc_R01-M006",
+      "reason": "Esports Nations Cup 2026 qualifier match not covered by HLTV"
+    },
+    {
+      "matchId": "Esports_Nations_Cup/2026/Eastern_Europe:5AyWtPSmuc_R01-M007",
+      "reason": "Esports Nations Cup 2026 qualifier match not covered by HLTV"
+    },
+    {
+      "matchId": "Esports_Nations_Cup/2026/Eastern_Europe:5AyWtPSmuc_R01-M008",
+      "reason": "Esports Nations Cup 2026 qualifier match not covered by HLTV"
+    },
+    {
+      "matchId": "Esports_Nations_Cup/2026/Eastern_Europe:5AyWtPSmuc_R01-M009",
+      "reason": "Esports Nations Cup 2026 qualifier match not covered by HLTV"
+    },
+    {
+      "matchId": "Esports_Nations_Cup/2026/Eastern_Europe:5AyWtPSmuc_R01-M010",
+      "reason": "Esports Nations Cup 2026 qualifier match not covered by HLTV"
+    },
+    {
+      "matchId": "Esports_Nations_Cup/2026/Eastern_Europe:5AyWtPSmuc_R01-M011",
+      "reason": "Esports Nations Cup 2026 qualifier match not covered by HLTV"
+    },
+    {
+      "matchId": "Esports_Nations_Cup/2026/Eastern_Europe:5AyWtPSmuc_R01-M012",
+      "reason": "Esports Nations Cup 2026 qualifier match not covered by HLTV"
+    },
+    {
+      "matchId": "Esports_Nations_Cup/2026/Eastern_Europe:5AyWtPSmuc_R02-M001",
+      "reason": "Esports Nations Cup 2026 qualifier match not covered by HLTV"
+    },
+    {
+      "matchId": "Esports_Nations_Cup/2026/Eastern_Europe:5AyWtPSmuc_R02-M002",
+      "reason": "Esports Nations Cup 2026 qualifier match not covered by HLTV"
+    },
+    {
+      "matchId": "Esports_Nations_Cup/2026/Eastern_Europe:5AyWtPSmuc_R02-M003",
+      "reason": "Esports Nations Cup 2026 qualifier match not covered by HLTV"
+    },
+    {
+      "matchId": "Esports_Nations_Cup/2026/Eastern_Europe:5AyWtPSmuc_R02-M004",
+      "reason": "Esports Nations Cup 2026 qualifier match not covered by HLTV"
+    },
+    {
+      "matchId": "Esports_Nations_Cup/2026/Sub-Saharan_Africa:ICEW1bbw98_R01-M001",
+      "reason": "Esports Nations Cup 2026 qualifier match not covered by HLTV"
+    },
+    {
+      "matchId": "Esports_Nations_Cup/2026/Sub-Saharan_Africa:ICEW1bbw98_R02-M001",
+      "reason": "Esports Nations Cup 2026 qualifier match not covered by HLTV"
+    },
+    {
+      "matchId": "Esports_Nations_Cup/2026/South_America:ERjOlIwgV5_R02-M001",
+      "reason": "Esports Nations Cup 2026 qualifier match not covered by HLTV"
+    },
+    {
+      "matchId": "Esports_Nations_Cup/2026/South_America:ERjOlIwgV5_R02-M002",
+      "reason": "Esports Nations Cup 2026 qualifier match not covered by HLTV"
+    },
+    {
+      "matchId": "Esports_Nations_Cup/2026/South_America:ERjOlIwgV5_R02-M003",
+      "reason": "Esports Nations Cup 2026 qualifier match not covered by HLTV"
+    },
+    {
+      "matchId": "Esports_Nations_Cup/2026/South_America:ERjOlIwgV5_R02-M004",
+      "reason": "Esports Nations Cup 2026 qualifier match not covered by HLTV"
+    },
+    {
+      "matchId": "Esports_Nations_Cup/2026/North_America:YazH0In4sT_R01-M003",
+      "reason": "Esports Nations Cup 2026 qualifier match not covered by HLTV"
+    },
+    {
+      "matchId": "Esports_Nations_Cup/2026/North_America:YazH0In4sT_R01-M004",
+      "reason": "Esports Nations Cup 2026 qualifier match not covered by HLTV"
+    },
+    {
+      "matchId": "Esports_Nations_Cup/2026/North_America:YazH0In4sT_R02-M001",
+      "reason": "Esports Nations Cup 2026 qualifier match not covered by HLTV"
+    },
+    {
+      "matchId": "Esports_Nations_Cup/2026/North_America:YazH0In4sT_R02-M002",
+      "reason": "Esports Nations Cup 2026 qualifier match not covered by HLTV"
+    },
+    {
+      "matchId": "Esports_Nations_Cup/2026/Southeast_Asia:1yma2meRmj_R02-M003",
+      "reason": "Esports Nations Cup 2026 qualifier match not covered by HLTV"
+    },
+    {
+      "matchId": "Esports_Nations_Cup/2026/Southeast_Asia:1yma2meRmj_R02-M004",
+      "reason": "Esports Nations Cup 2026 qualifier match not covered by HLTV"
+    },
+    {
+      "matchId": "Esports_Nations_Cup/2026/Southeast_Asia:1yma2meRmj_R03-M001",
+      "reason": "Esports Nations Cup 2026 qualifier match not covered by HLTV"
+    },
+    {
+      "matchId": "Esports_Nations_Cup/2026/North_Africa:3VmvJYkl2Y_R01-M003",
+      "reason": "Esports Nations Cup 2026 qualifier match not covered by HLTV"
+    },
+    {
+      "matchId": "Esports_Nations_Cup/2026/North_Africa:3VmvJYkl2Y_R02-M002",
+      "reason": "Esports Nations Cup 2026 qualifier match not covered by HLTV"
+    },
+    {
+      "matchId": "Esports_Nations_Cup/2026/South_&_East_Asia:Hn11yma2mj_R02-M003",
+      "reason": "Esports Nations Cup 2026 qualifier match not covered by HLTV"
+    },
+    {
+      "matchId": "Esports_Nations_Cup/2026/South_&_East_Asia:Hn11yma2mj_R02-M004",
+      "reason": "Esports Nations Cup 2026 qualifier match not covered by HLTV"
+    },
+    {
+      "matchId": "Esports_Nations_Cup/2026/South_&_East_Asia:Hn11yma2mj_R03-M001",
+      "reason": "Esports Nations Cup 2026 qualifier match not covered by HLTV"
+    },
+    {
+      "matchId": "Esports_Nations_Cup/2026/Middle_East_&_Central_Asia:iNVfZYPt8x_R03-M001",
+      "reason": "Esports Nations Cup 2026 qualifier match not covered by HLTV"
+    },
+    {
+      "matchId": "Esports_Nations_Cup/2026/Middle_East_&_Central_Asia:iNVfZYPt8x_R03-M002",
+      "reason": "Esports Nations Cup 2026 qualifier match not covered by HLTV"
+    },
+    {
+      "matchId": "Esports_Nations_Cup/2026/Middle_East_&_Central_Asia:iNVfZYPt8x_R04-M001",
+      "reason": "Esports Nations Cup 2026 qualifier match not covered by HLTV"
+    },
+    {
+      "matchId": "Esports_Nations_Cup/2026/Middle_East_&_Central_Asia:iNVfZYPt8x_R04-M002",
+      "reason": "Esports Nations Cup 2026 qualifier match not covered by HLTV"
+    },
+    {
+      "matchId": "Esports_Nations_Cup/2026/Western_Europe:kg89tN9ucJ_R02-M005",
+      "reason": "Esports Nations Cup 2026 qualifier match not covered by HLTV"
+    },
+    {
+      "matchId": "Esports_Nations_Cup/2026/Western_Europe:kg89tN9ucJ_R02-M006",
+      "reason": "Esports Nations Cup 2026 qualifier match not covered by HLTV"
+    },
+    {
+      "matchId": "Esports_Nations_Cup/2026/Western_Europe:kg89tN9ucJ_R02-M007",
+      "reason": "Esports Nations Cup 2026 qualifier match not covered by HLTV"
+    },
+    {
+      "matchId": "Esports_Nations_Cup/2026/Western_Europe:kg89tN9ucJ_R02-M008",
+      "reason": "Esports Nations Cup 2026 qualifier match not covered by HLTV"
+    },
+    {
+      "matchId": "Esports_Nations_Cup/2026/Western_Europe:kg89tN9ucJ_R03-M001",
+      "reason": "Esports Nations Cup 2026 qualifier match not covered by HLTV"
+    },
+    {
+      "matchId": "Esports_Nations_Cup/2026/Western_Europe:kg89tN9ucJ_R03-M002",
+      "reason": "Esports Nations Cup 2026 qualifier match not covered by HLTV"
+    },
+    {
+      "matchId": "Esports_Nations_Cup/2026/Eastern_Europe:5AyWtPSmuc_R02-M005",
+      "reason": "Esports Nations Cup 2026 qualifier match not covered by HLTV"
+    },
+    {
+      "matchId": "Esports_Nations_Cup/2026/Eastern_Europe:5AyWtPSmuc_R02-M006",
+      "reason": "Esports Nations Cup 2026 qualifier match not covered by HLTV"
+    },
+    {
+      "matchId": "Esports_Nations_Cup/2026/Eastern_Europe:5AyWtPSmuc_R02-M007",
+      "reason": "Esports Nations Cup 2026 qualifier match not covered by HLTV"
+    },
+    {
+      "matchId": "Esports_Nations_Cup/2026/Eastern_Europe:5AyWtPSmuc_R02-M008",
+      "reason": "Esports Nations Cup 2026 qualifier match not covered by HLTV"
+    },
+    {
+      "matchId": "Esports_Nations_Cup/2026/Eastern_Europe:5AyWtPSmuc_R03-M001",
+      "reason": "Esports Nations Cup 2026 qualifier match not covered by HLTV"
+    },
+    {
+      "matchId": "Esports_Nations_Cup/2026/Eastern_Europe:5AyWtPSmuc_R03-M002",
+      "reason": "Esports Nations Cup 2026 qualifier match not covered by HLTV"
+    },
+    {
+      "matchId": "Esports_Nations_Cup/2026/Sub-Saharan_Africa:ICEW1bbw98_R02-M002",
+      "reason": "Esports Nations Cup 2026 qualifier match not covered by HLTV"
+    },
+    {
+      "matchId": "Esports_Nations_Cup/2026/South_America:ERjOlIwgV5_R03-M001",
+      "reason": "Esports Nations Cup 2026 qualifier match not covered by HLTV"
+    },
+    {
+      "matchId": "Esports_Nations_Cup/2026/North_America:YazH0In4sT_R02-M003",
+      "reason": "Esports Nations Cup 2026 qualifier match not covered by HLTV"
+    },
+    {
+      "matchId": "Esports_Nations_Cup/2026/Oceania:Hb1HMbTxg2_R01-M001",
+      "reason": "Esports Nations Cup 2026 qualifier match not covered by HLTV"
+    },
+    {
+      "matchId": "Esports_Nations_Cup/2026/Southeast_Asia:1yma2meRmj_R04-M001",
+      "reason": "Esports Nations Cup 2026 qualifier match not covered by HLTV"
+    },
+    {
+      "matchId": "Esports_Nations_Cup/2026/Southeast_Asia:1yma2meRmj_R04-M002",
+      "reason": "Esports Nations Cup 2026 qualifier match not covered by HLTV"
+    },
+    {
+      "matchId": "Esports_Nations_Cup/2026/North_Africa:3VmvJYkl2Y_R03-M001",
+      "reason": "Esports Nations Cup 2026 qualifier match not covered by HLTV"
+    },
+    {
+      "matchId": "Esports_Nations_Cup/2026/South_&_East_Asia:Hn11yma2mj_R04-M001",
+      "reason": "Esports Nations Cup 2026 qualifier match not covered by HLTV"
+    },
+    {
+      "matchId": "Esports_Nations_Cup/2026/South_&_East_Asia:Hn11yma2mj_R04-M002",
+      "reason": "Esports Nations Cup 2026 qualifier match not covered by HLTV"
+    },
+    {
+      "matchId": "Esports_Nations_Cup/2026/Middle_East_&_Central_Asia:iNVfZYPt8x_R04-M003",
+      "reason": "Esports Nations Cup 2026 qualifier match not covered by HLTV"
+    },
+    {
+      "matchId": "Esports_Nations_Cup/2026/Middle_East_&_Central_Asia:iNVfZYPt8x_R04-M004",
+      "reason": "Esports Nations Cup 2026 qualifier match not covered by HLTV"
+    },
+    {
+      "matchId": "Esports_Nations_Cup/2026/Middle_East_&_Central_Asia:iNVfZYPt8x_R05-M001",
+      "reason": "Esports Nations Cup 2026 qualifier match not covered by HLTV"
+    },
+    {
+      "matchId": "Esports_Nations_Cup/2026/Western_Europe:kg89tN9ucJ_R04-M001",
+      "reason": "Esports Nations Cup 2026 qualifier match not covered by HLTV"
+    },
+    {
+      "matchId": "Esports_Nations_Cup/2026/Western_Europe:kg89tN9ucJ_R04-M002",
+      "reason": "Esports Nations Cup 2026 qualifier match not covered by HLTV"
+    },
+    {
+      "matchId": "Esports_Nations_Cup/2026/Western_Europe:kg89tN9ucJ_R04-M003",
+      "reason": "Esports Nations Cup 2026 qualifier match not covered by HLTV"
+    },
+    {
+      "matchId": "Esports_Nations_Cup/2026/Eastern_Europe:5AyWtPSmuc_R04-M001",
+      "reason": "Esports Nations Cup 2026 qualifier match not covered by HLTV"
+    },
+    {
+      "matchId": "Esports_Nations_Cup/2026/Sub-Saharan_Africa:ICEW1bbw98_R03-M001",
+      "reason": "Esports Nations Cup 2026 qualifier match not covered by HLTV"
+    },
+    {
+      "matchId": "FRAG.gg/Battle_Cup/6:L8n4Vt5rYx_0001",
+      "reason": "Central Asian Tier-2 matchlist group stage not covered by HLTV"
+    },
+    {
+      "matchId": "FRAG.gg/Battle_Cup/6:L8n4Vt5rYx_0002",
+      "reason": "Central Asian Tier-2 matchlist group stage not covered by HLTV"
+    },
+    {
+      "matchId": "FRAG.gg/Battle_Cup/6:L8n4Vt5rYx_0003",
+      "reason": "Central Asian Tier-2 matchlist group stage not covered by HLTV"
+    },
+    {
+      "matchId": "FRAG.gg/Battle_Cup/6:L8n4Vt5rYx_0004",
+      "reason": "Central Asian Tier-2 matchlist group stage not covered by HLTV"
+    },
+    {
+      "matchId": "FRAG.gg/Battle_Cup/6:L8n4Vt5rYx_0005",
+      "reason": "Central Asian Tier-2 matchlist group stage not covered by HLTV"
+    },
+    {
+      "matchId": "FRAG.gg/Battle_Cup/6:Qw7m2Kp9sL_0001",
+      "reason": "Central Asian Tier-2 matchlist group stage not covered by HLTV"
+    },
+    {
+      "matchId": "FRAG.gg/Battle_Cup/6:Qw7m2Kp9sL_0002",
+      "reason": "Central Asian Tier-2 matchlist group stage not covered by HLTV"
+    },
+    {
+      "matchId": "FRAG.gg/Battle_Cup/6:Qw7m2Kp9sL_0003",
+      "reason": "Central Asian Tier-2 matchlist group stage not covered by HLTV"
+    },
+    {
+      "matchId": "FRAG.gg/Battle_Cup/6:Qw7m2Kp9sL_0004",
+      "reason": "Central Asian Tier-2 matchlist group stage not covered by HLTV"
+    },
+    {
+      "matchId": "FRAG.gg/Battle_Cup/6:Qw7m2Kp9sL_0005",
+      "reason": "Central Asian Tier-2 matchlist group stage not covered by HLTV"
+    },
+    {
+      "matchId": "FRAG.gg/UPGrade_Masters_Cup:NY2TxxBal1_0001",
+      "reason": "Central Asian Tier-2 matchlist group stage not covered by HLTV"
+    },
+    {
+      "matchId": "FRAG.gg/UPGrade_Masters_Cup:NY2TxxBal1_0002",
+      "reason": "Central Asian Tier-2 matchlist group stage not covered by HLTV"
+    },
+    {
+      "matchId": "FRAG.gg/UPGrade_Masters_Cup:NY2TxxBal1_0003",
+      "reason": "Central Asian Tier-2 matchlist group stage not covered by HLTV"
+    },
+    {
+      "matchId": "FRAG.gg/UPGrade_Masters_Cup:NY2TxxBal1_0004",
+      "reason": "Central Asian Tier-2 matchlist group stage not covered by HLTV"
+    },
+    {
+      "matchId": "FRAG.gg/UPGrade_Masters_Cup:NY2TxxBal1_0005",
+      "reason": "Central Asian Tier-2 matchlist group stage not covered by HLTV"
+    },
+    {
+      "matchId": "FRAG.gg/UPGrade_Masters_Cup:PXZy1dRXMe_0001",
+      "reason": "Central Asian Tier-2 matchlist group stage not covered by HLTV"
+    },
+    {
+      "matchId": "FRAG.gg/UPGrade_Masters_Cup:PXZy1dRXMe_0002",
+      "reason": "Central Asian Tier-2 matchlist group stage not covered by HLTV"
+    },
+    {
+      "matchId": "FRAG.gg/UPGrade_Masters_Cup:PXZy1dRXMe_0003",
+      "reason": "Central Asian Tier-2 matchlist group stage not covered by HLTV"
+    },
+    {
+      "matchId": "FRAG.gg/UPGrade_Masters_Cup:PXZy1dRXMe_0004",
+      "reason": "Central Asian Tier-2 matchlist group stage not covered by HLTV"
+    },
+    {
+      "matchId": "FRAG.gg/UPGrade_Masters_Cup:PXZy1dRXMe_0005",
+      "reason": "Central Asian Tier-2 matchlist group stage not covered by HLTV"
+    },
+    {
+      "matchId": "BRO_CYBER_LEAGUE/Season_1/PRO_Division:4rZHkTx6xW_0001",
+      "reason": "Central Asian Tier-2 matchlist group stage not covered by HLTV"
+    },
+    {
+      "matchId": "BRO_CYBER_LEAGUE/Season_1/PRO_Division:4rZHkTx6xW_0002",
+      "reason": "Central Asian Tier-2 matchlist group stage not covered by HLTV"
+    },
+    {
+      "matchId": "BRO_CYBER_LEAGUE/Season_1/PRO_Division:4rZHkTx6xW_0003",
+      "reason": "Central Asian Tier-2 matchlist group stage not covered by HLTV"
+    },
+    {
+      "matchId": "BRO_CYBER_LEAGUE/Season_1/PRO_Division:4rZHkTx6xW_0004",
+      "reason": "Central Asian Tier-2 matchlist group stage not covered by HLTV"
+    },
+    {
+      "matchId": "BRO_CYBER_LEAGUE/Season_1/PRO_Division:4rZHkTx6xW_0005",
+      "reason": "Central Asian Tier-2 matchlist group stage not covered by HLTV"
+    },
+    {
+      "matchId": "BRO_CYBER_LEAGUE/Season_1/PRO_Division:Qv1asEoJOi_0001",
+      "reason": "Central Asian Tier-2 matchlist group stage not covered by HLTV"
+    },
+    {
+      "matchId": "BRO_CYBER_LEAGUE/Season_1/PRO_Division:Qv1asEoJOi_0002",
+      "reason": "Central Asian Tier-2 matchlist group stage not covered by HLTV"
+    },
+    {
+      "matchId": "BRO_CYBER_LEAGUE/Season_1/PRO_Division:Qv1asEoJOi_0003",
+      "reason": "Central Asian Tier-2 matchlist group stage not covered by HLTV"
+    },
+    {
+      "matchId": "BRO_CYBER_LEAGUE/Season_1/PRO_Division:Qv1asEoJOi_0004",
+      "reason": "Central Asian Tier-2 matchlist group stage not covered by HLTV"
+    },
+    {
+      "matchId": "BRO_CYBER_LEAGUE/Season_1/PRO_Division:Qv1asEoJOi_0005",
+      "reason": "Central Asian Tier-2 matchlist group stage not covered by HLTV"
+    },
+    {
+      "matchId": "CYBERLAND_Cup/2026:3U8MKTNAgP_0001",
+      "reason": "Central Asian Tier-2 matchlist group stage not covered by HLTV"
+    },
+    {
+      "matchId": "CYBERLAND_Cup/2026:3U8MKTNAgP_0002",
+      "reason": "Central Asian Tier-2 matchlist group stage not covered by HLTV"
+    },
+    {
+      "matchId": "CYBERLAND_Cup/2026:3U8MKTNAgP_0003",
+      "reason": "Central Asian Tier-2 matchlist group stage not covered by HLTV"
+    },
+    {
+      "matchId": "CYBERLAND_Cup/2026:3U8MKTNAgP_0004",
+      "reason": "Central Asian Tier-2 matchlist group stage not covered by HLTV"
+    },
+    {
+      "matchId": "CYBERLAND_Cup/2026:3U8MKTNAgP_0005",
+      "reason": "Central Asian Tier-2 matchlist group stage not covered by HLTV"
+    },
+    {
+      "matchId": "CYBERLAND_Cup/2026:TaXEe1hT4A_0001",
+      "reason": "Central Asian Tier-2 matchlist group stage not covered by HLTV"
+    },
+    {
+      "matchId": "CYBERLAND_Cup/2026:TaXEe1hT4A_0002",
+      "reason": "Central Asian Tier-2 matchlist group stage not covered by HLTV"
+    },
+    {
+      "matchId": "CYBERLAND_Cup/2026:TaXEe1hT4A_0003",
+      "reason": "Central Asian Tier-2 matchlist group stage not covered by HLTV"
+    },
+    {
+      "matchId": "CYBERLAND_Cup/2026:TaXEe1hT4A_0004",
+      "reason": "Central Asian Tier-2 matchlist group stage not covered by HLTV"
+    },
+    {
+      "matchId": "CYBERLAND_Cup/2026:TaXEe1hT4A_0005",
+      "reason": "Central Asian Tier-2 matchlist group stage not covered by HLTV"
+    },
+    {
+      "matchId": "BRO_SPRING_CUP/2026:D1IbrN6alW_0001",
+      "reason": "Central Asian Tier-2 matchlist group stage not covered by HLTV"
+    },
+    {
+      "matchId": "BRO_SPRING_CUP/2026:D1IbrN6alW_0002",
+      "reason": "Central Asian Tier-2 matchlist group stage not covered by HLTV"
+    },
+    {
+      "matchId": "BRO_SPRING_CUP/2026:D1IbrN6alW_0003",
+      "reason": "Central Asian Tier-2 matchlist group stage not covered by HLTV"
+    },
+    {
+      "matchId": "BRO_SPRING_CUP/2026:D1IbrN6alW_0004",
+      "reason": "Central Asian Tier-2 matchlist group stage not covered by HLTV"
+    },
+    {
+      "matchId": "BRO_SPRING_CUP/2026:D1IbrN6alW_0005",
+      "reason": "Central Asian Tier-2 matchlist group stage not covered by HLTV"
+    },
+    {
+      "matchId": "BRO_SPRING_CUP/2026:nl5Qcz8Whu_0001",
+      "reason": "Central Asian Tier-2 matchlist group stage not covered by HLTV"
+    },
+    {
+      "matchId": "BRO_SPRING_CUP/2026:nl5Qcz8Whu_0002",
+      "reason": "Central Asian Tier-2 matchlist group stage not covered by HLTV"
+    },
+    {
+      "matchId": "BRO_SPRING_CUP/2026:nl5Qcz8Whu_0003",
+      "reason": "Central Asian Tier-2 matchlist group stage not covered by HLTV"
+    },
+    {
+      "matchId": "BRO_SPRING_CUP/2026:nl5Qcz8Whu_0004",
+      "reason": "Central Asian Tier-2 matchlist group stage not covered by HLTV"
+    },
+    {
+      "matchId": "BRO_SPRING_CUP/2026:nl5Qcz8Whu_0005",
+      "reason": "Central Asian Tier-2 matchlist group stage not covered by HLTV"
+    }
+  ],
+  "matchLineupFixes": {
+    "Intel_Extreme_Masters/2026/Cologne/Stage_3:yuu4bGwqB6_0002": {
+      "team1Players": [
+        {
+          "playerId": "BELCHONOKK",
+          "nick": "BELCHONOKK",
+          "countryIso": "ru"
+        },
+        {
+          "playerId": "Jame",
+          "nick": "Jame",
+          "countryIso": "ru"
+        },
+        {
+          "playerId": "Nota",
+          "nick": "nota",
+          "countryIso": "ru"
+        },
+        {
+          "playerId": "XiELO",
+          "nick": "xiELO",
+          "countryIso": "ru"
+        },
+        {
+          "playerId": "Zweih",
+          "nick": "zweih",
+          "countryIso": "ru"
+        }
+      ],
+      "reason": "Liquipedia match2players empty for PARIVISION in IEM Cologne Stage 3; filled from Valve 2026-07-06 details"
+    },
+    "Intel_Extreme_Masters/2026/Cologne/Stage_3:kuUWzSHLXE_0002": {
+      "team1Players": [
+        {
+          "playerId": "BELCHONOKK",
+          "nick": "BELCHONOKK",
+          "countryIso": "ru"
+        },
+        {
+          "playerId": "Jame",
+          "nick": "Jame",
+          "countryIso": "ru"
+        },
+        {
+          "playerId": "Nota",
+          "nick": "nota",
+          "countryIso": "ru"
+        },
+        {
+          "playerId": "XiELO",
+          "nick": "xiELO",
+          "countryIso": "ru"
+        },
+        {
+          "playerId": "Zweih",
+          "nick": "zweih",
+          "countryIso": "ru"
+        }
+      ],
+      "reason": "Liquipedia match2players empty for PARIVISION in IEM Cologne Stage 3; filled from Valve 2026-07-06 details"
+    },
+    "Intel_Extreme_Masters/2026/Cologne/Stage_3:1LUOTFbtdv_0002": {
+      "team1Players": [
+        {
+          "playerId": "BELCHONOKK",
+          "nick": "BELCHONOKK",
+          "countryIso": "ru"
+        },
+        {
+          "playerId": "Jame",
+          "nick": "Jame",
+          "countryIso": "ru"
+        },
+        {
+          "playerId": "Nota",
+          "nick": "nota",
+          "countryIso": "ru"
+        },
+        {
+          "playerId": "XiELO",
+          "nick": "xiELO",
+          "countryIso": "ru"
+        },
+        {
+          "playerId": "Zweih",
+          "nick": "zweih",
+          "countryIso": "ru"
+        }
+      ],
+      "reason": "Liquipedia match2players empty for PARIVISION in IEM Cologne Stage 3; filled from Valve 2026-07-06 details"
+    },
+    "DFRAG/Invitational/2026:x2y15wPFgb_0002": {
+      "team2Players": [
+        {
+          "playerId": "AdeX",
+          "nick": "adeX",
+          "countryIso": "ro"
+        },
+        {
+          "playerId": "Bloody",
+          "nick": "Bloody",
+          "countryIso": "pk"
+        },
+        {
+          "playerId": "Laxiee",
+          "nick": "laxiee",
+          "countryIso": "mn"
+        },
+        {
+          "playerId": "PokemoN",
+          "nick": "PokemoN",
+          "countryIso": "pk"
+        },
+        {
+          "playerId": "Shadiy",
+          "nick": "shadiy",
+          "countryIso": "lv"
+        }
+      ],
+      "reason": "Liquipedia match2players empty for Alter Ego in DFRAG Invitational 2026; filled from Valve 2026-11-02 details"
+    },
+    "DFRAG/Invitational/2026:x2y15wPFgb_0003": {
+      "team2Players": [
+        {
+          "playerId": "AdeX",
+          "nick": "adeX",
+          "countryIso": "ro"
+        },
+        {
+          "playerId": "Bloody",
+          "nick": "Bloody",
+          "countryIso": "pk"
+        },
+        {
+          "playerId": "Laxiee",
+          "nick": "laxiee",
+          "countryIso": "mn"
+        },
+        {
+          "playerId": "PokemoN",
+          "nick": "PokemoN",
+          "countryIso": "pk"
+        },
+        {
+          "playerId": "Shadiy",
+          "nick": "shadiy",
+          "countryIso": "lv"
+        }
+      ],
+      "reason": "Liquipedia match2players empty for Alter Ego in DFRAG Invitational 2026; filled from Valve 2026-11-02 details"
+    },
+    "DFRAG/Invitational/2026:sMamZEkt2x_R01-M001": {
+      "team1Players": [
+        {
+          "playerId": "AdeX",
+          "nick": "adeX",
+          "countryIso": "ro"
+        },
+        {
+          "playerId": "Bloody",
+          "nick": "Bloody",
+          "countryIso": "pk"
+        },
+        {
+          "playerId": "Laxiee",
+          "nick": "laxiee",
+          "countryIso": "mn"
+        },
+        {
+          "playerId": "PokemoN",
+          "nick": "PokemoN",
+          "countryIso": "pk"
+        },
+        {
+          "playerId": "Shadiy",
+          "nick": "shadiy",
+          "countryIso": "lv"
+        }
+      ],
+      "reason": "Liquipedia match2players empty for Alter Ego in DFRAG Invitational 2026; filled from Valve 2026-11-02 details"
+    },
+    "DFRAG/Invitational/2026:sMamZEkt2x_R02-M001": {
+      "team1Players": [
+        {
+          "playerId": "AdeX",
+          "nick": "adeX",
+          "countryIso": "ro"
+        },
+        {
+          "playerId": "Bloody",
+          "nick": "Bloody",
+          "countryIso": "pk"
+        },
+        {
+          "playerId": "Laxiee",
+          "nick": "laxiee",
+          "countryIso": "mn"
+        },
+        {
+          "playerId": "PokemoN",
+          "nick": "PokemoN",
+          "countryIso": "pk"
+        },
+        {
+          "playerId": "Shadiy",
+          "nick": "shadiy",
+          "countryIso": "lv"
+        }
+      ],
+      "reason": "Liquipedia match2players empty for Alter Ego in DFRAG Invitational 2026; filled from Valve 2026-11-02 details"
+    },
+    "DFRAG/Invitational/2026:sMamZEkt2x_R02-M002": {
+      "team1Players": [
+        {
+          "playerId": "AdeX",
+          "nick": "adeX",
+          "countryIso": "ro"
+        },
+        {
+          "playerId": "Bloody",
+          "nick": "Bloody",
+          "countryIso": "pk"
+        },
+        {
+          "playerId": "Laxiee",
+          "nick": "laxiee",
+          "countryIso": "mn"
+        },
+        {
+          "playerId": "PokemoN",
+          "nick": "PokemoN",
+          "countryIso": "pk"
+        },
+        {
+          "playerId": "Shadiy",
+          "nick": "shadiy",
+          "countryIso": "lv"
+        }
+      ],
+      "reason": "Liquipedia match2players empty for Alter Ego in DFRAG Invitational 2026; filled from Valve 2026-11-02 details"
+    },
+    "DFRAG/Invitational/2026:sMamZEkt2x_R03-M001": {
+      "team2Players": [
+        {
+          "playerId": "AdeX",
+          "nick": "adeX",
+          "countryIso": "ro"
+        },
+        {
+          "playerId": "Bloody",
+          "nick": "Bloody",
+          "countryIso": "pk"
+        },
+        {
+          "playerId": "Laxiee",
+          "nick": "laxiee",
+          "countryIso": "mn"
+        },
+        {
+          "playerId": "PokemoN",
+          "nick": "PokemoN",
+          "countryIso": "pk"
+        },
+        {
+          "playerId": "Shadiy",
+          "nick": "shadiy",
+          "countryIso": "lv"
+        }
+      ],
+      "reason": "Liquipedia match2players empty for Alter Ego in DFRAG Invitational 2026; filled from Valve 2026-11-02 details"
+    }
+  },
+  "unrankedBo1Matchlists": [
+    {
+      "eventId": "Parken_Challenger_Championship/6",
+      "reason": "HLTV only covered playoff bracket, not Bo1 matchlist groups"
+    },
+    {
+      "eventId": "Parken_Challenger_Championship/7",
+      "reason": "HLTV only covered playoff bracket, not Bo1 matchlist groups"
+    },
+    {
+      "eventId": "Parken_Challenger_Championship/8",
+      "reason": "HLTV only covered playoff bracket, not Bo1 matchlist groups"
+    },
+    {
+      "eventId": "Roman_Imperium_Cup/8",
+      "reason": "HLTV only covered playoff bracket, not Bo1 matchlist groups"
+    },
+    {
+      "eventId": "Journey/2026/Summer",
+      "reason": "HLTV only covered playoff bracket, not Bo1 matchlist groups"
+    }
+  ]
 }

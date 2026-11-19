@@ -21,6 +21,7 @@
         "build-matchdata": "vite-node scripts/build-matchdata.ts",
         "fetch-logos": "vite-node scripts/fetch-logos.ts",
         "diff-details": "vite-node scripts/diff-details.ts",
+        "propose-prize-overrides": "vite-node scripts/propose-prize-overrides.ts",
         "backfill-liquipedia": "vite-node scripts/backfill-liquipedia.ts",
         "backfill-hltv-links": "vite-node scripts/backfill-hltv-links.ts",
         "export-lan-series": "vite-node scripts/export-lan-series.ts",

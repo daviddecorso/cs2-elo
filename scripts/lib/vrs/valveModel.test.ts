@@ -79,12 +79,12 @@ describe("valveModel", () => {
     });
 
     it("uses the calibrated window end for published snapshots and 07:00 LA otherwise", () => {
-        expect(getSnapshotWindow("2026-10-05")).toEqual({
-            pullTime: 1791208800,
-            versionTimestamp: 1791208800,
-        });
         expect(getSnapshotWindow("2026-11-02")).toEqual({
-            pullTime: Date.UTC(2026, 10, 2, 15) / 1000,
+            pullTime: 1793632320,
+            versionTimestamp: 1793632320,
+        });
+        expect(getSnapshotWindow("2026-12-07")).toEqual({
+            pullTime: Date.UTC(2026, 11, 7, 15) / 1000,
             versionTimestamp: -1,
         });
     });

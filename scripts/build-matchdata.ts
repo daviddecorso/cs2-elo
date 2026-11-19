@@ -1,5 +1,6 @@
 import fs from "node:fs";
 import path from "node:path";
+import { getRowDedupeKey } from "./lib/liquipedia/client.ts";
 import { buildAndValidateMatchdata, type Overrides } from "./lib/vrs/buildMatchdata.ts";
 
 const parseArgs = () => {
@@ -8,6 +9,7 @@ const parseArgs = () => {
     let overridesPath = path.resolve(process.cwd(), "data/overrides.json");
     let outPath = path.resolve(process.cwd(), "data/matchdata.json");
     let snapshotDate: string | undefined = undefined;
+    let includeArchive = false;
 
     for (let i = 0; i < args.length; i++) {
         if (args[i] === "--raw-dir" && args[i + 1]) {
@@ -18,14 +20,28 @@ const parseArgs = () => {
             outPath = path.resolve(process.cwd(), args[++i]);
         } else if ((args[i] === "--date" || args[i] === "--snapshot-date") && args[i + 1]) {
             snapshotDate = args[++i];
+        } else if (args[i] === "--include-archive") {
+            includeArchive = true;
         }
     }
 
-    return { rawDir, overridesPath, outPath, snapshotDate };
+    return { rawDir, overridesPath, outPath, snapshotDate, includeArchive };
+};
+
+const mergeArchived = (rawDir: string, prefix: string, hot: Array<Record<string, unknown>>): Array<Record<string, unknown>> => {
+    const archiveDir = path.join(rawDir, "archive");
+    if (!fs.existsSync(archiveDir)) return hot;
+    const deduped = new Map<string, Record<string, unknown>>();
+    for (const file of fs.readdirSync(archiveDir).filter((f) => f.startsWith(`${prefix}-`) && f.endsWith(".json")).sort()) {
+        const rows = JSON.parse(fs.readFileSync(path.join(archiveDir, file), "utf8")) as Array<Record<string, unknown>>;
+        for (const row of rows) deduped.set(getRowDedupeKey(row), row);
+    }
+    for (const row of hot) deduped.set(getRowDedupeKey(row), row);
+    return [...deduped.values()];
 };
 
 const main = async () => {
-    const { rawDir, overridesPath, outPath, snapshotDate } = parseArgs();
+    const { rawDir, overridesPath, outPath, snapshotDate, includeArchive } = parseArgs();
 
     const matchesFile = path.join(rawDir, "matches.json");
     const tournamentsFile = path.join(rawDir, "tournaments.json");
@@ -37,13 +53,16 @@ const main = async () => {
     }
 
     console.log(`Loading raw data from ${rawDir}...`);
-    const rawMatches = JSON.parse(fs.readFileSync(matchesFile, "utf8"));
-    const rawTournaments = fs.existsSync(tournamentsFile)
+    const hotMatches = JSON.parse(fs.readFileSync(matchesFile, "utf8"));
+    const hotTournaments = fs.existsSync(tournamentsFile)
         ? JSON.parse(fs.readFileSync(tournamentsFile, "utf8"))
         : [];
-    const rawPlacements = fs.existsSync(placementsFile)
+    const rawMatches = includeArchive ? mergeArchived(rawDir, "matches", hotMatches) : hotMatches;
+    const rawTournaments = includeArchive ? mergeArchived(rawDir, "tournaments", hotTournaments) : hotTournaments;
+    const hotPlacements = fs.existsSync(placementsFile)
         ? JSON.parse(fs.readFileSync(placementsFile, "utf8"))
         : [];
+    const rawPlacements = includeArchive ? mergeArchived(rawDir, "placements", hotPlacements) : hotPlacements;
     const rawPlayers = fs.existsSync(playersFile)
         ? JSON.parse(fs.readFileSync(playersFile, "utf8"))
         : [];

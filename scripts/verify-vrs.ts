@@ -1,6 +1,6 @@
 import fs from "node:fs";
 import path from "node:path";
-import { INVITE_CUTOFFS } from "../src/vrs/inviteCutoffs.ts";
+import { cutoffsForSnapshot } from "../src/vrs/inviteCutoffs.ts";
 import { type ComparisonReport, GATE, compareStandings } from "./lib/vrs/compareStandings.ts";
 import { validateMatchdata } from "./lib/vrs/matchdataSchema.ts";
 import { readPublishedSnapshot } from "./lib/vrs/publishedStandings.ts";
@@ -76,7 +76,7 @@ const verify = (snapshotDate: string): ComparisonReport => {
     }
     const model = computeStandings(matchJson.matches, matchJson.events, snapshotDate);
     const published = readPublishedSnapshot(valveRoot, snapshotDate);
-    return compareStandings(model, published, INVITE_CUTOFFS);
+    return compareStandings(model, published, cutoffsForSnapshot(snapshotDate));
 };
 
 const passed = (report: ComparisonReport) => (strict ? report.passed : report.gate.passed);

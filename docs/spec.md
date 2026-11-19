@@ -13,13 +13,14 @@ Real dates: Valve published the PGL Major Singapore invitation snapshot on 2 Nov
 | Phase | Status |
 | --- | --- |
 | 0. Setup and API access | Liquipedia access working; GRID not recorded |
-| 1. Reproduce Valve's standings | Built, **gate not passed** |
+| 1. Reproduce Valve's standings | **Gate passed** on 3 of 5 calibrated snapshots (2026-09-07 to 2026-11-02) |
 | 2. Team Elo | **Gate passed** |
-| 3. Simulator, VRS projections, Major odds | Built and live; Singapore participants pending |
+| 3. Simulator, VRS projections, Major odds | Built and live; Singapore and Buenos Aires projecting |
 | 4. Demo pipeline | **Gate passed**; backfill in progress |
 | 5. Win probability and WPA | **Walk-forward gate passed** (2026-11-12); out-of-sample credit & monthly job built; WPA page not yet live |
-| 6. Player WAR | Items 1–8 built; WAA, usage, conversion, and `vs HLTV` gap live at `/war` on `production`; team factor & APM built (`cs2wp team-factor`, gates not passed at 90% CI); roster-change test open |
-| 7. Team and tactics metrics | Orders 1–2 built. Duel execution and quality (`cs2wp duel-stats`) is published as descriptive. Round stats (`cs2wp team-stats`): time-and-position value, RW over expected (economy) and adjusted T/CT are published; conversion and the player version fail persistence. Orders 3–5 not started |
+| 6. Player WAR | Items 1–8 built; WAA, usage, conversion, and `vs HLTV` gap live at `/players` on `production`; team factor & APM built (`cs2wp team-factor`, gates not passed at 90% CI); roster-change test open |
+| 7. Team and tactics metrics | Orders 1–2 built. Duel execution and quality (`cs2wp duel-stats`) is published as descriptive. Round stats (`cs2wp team-stats`): time-and-position value, RW over expected (economy) and adjusted T/CT are published; conversion and the player version fail persistence. Orders 3–4 built (see Status). Order 5: T-side predictability fails; clutch (`cs2wp clutch`, players and stints) and man-disadvantage conversion pass year-to-year and are published; man advantage fails |
+| 8. VRS simulator and schedule optimizer | Steps 1–7 built: exact rerun and one-team model **gate passed**; invite projection on `rerun`, event impact on `/events/:slug`, season simulation and schedule optimizer in the nightly job, at `/vrs-sim`; focal-team plans for teams on the invite bubble in a weekly job, at `/vrs-sim?view=plan` |
 
 ### Changes from the old plan
 
@@ -54,7 +55,7 @@ Apply to Liquipedia and GRID in week 1, right after the repo goes public. Liquip
 
 - Public MIT repo exists and the site is at esports.daviddecorso.com.
 - Liquipedia free-plan API access is working. Terms in `AGENTS.md`: key only in `scripts/`, never `VITE_`-prefixed, CC-BY-SA credit next to Liquipedia data, API only, repo stays open source. Once a page showing Liquipedia data is live, send Liquipedia the project link.
-- Valve's repo is vendored at `vendor/counter-strike_regional_standings` (model commit `eec4853`).
+- Valve's VRS repo is vendored at `vendor/counter-strike_regional_standings` (model commit `eec4853`), and Valve's rules repo (`major-supplemental-rulebook.md`, `tournament-operation-requirements.md`, `tournament-operation-requirements-exceptions.md`) is vendored at `vendor/counter-strike_rules_and_regs`.
 - History is committed in `data/history/`, so a lapse in access doesn't force a re-backfill.
 - GRID isn't mentioned anywhere in the repo. It was optional and nothing depends on it.
 - Not recorded: the time limit on Liquipedia's free access, and whether the nightly workflow has run end to end with the `LIQUIPEDIA_API_KEY` secret.
@@ -82,21 +83,19 @@ Built: `computeStandings` (`scripts/lib/vrs/valveModel.ts`) runs Valve's unmodif
 
 **The gate was redefined.** Matching to the point isn't reachable from Liquipedia data, because Valve's inputs come from HLTV. The gate is now, on at least three calibrated snapshots: every published top-50 roster within ±2 ranks, mean points error under 5, and exact invite-cutoff membership in each region.
 
-**Result: not passed.** Four snapshots are calibrated (2026-07-06 to 2026-10-05):
+**Result: gate passed (3/5 calibrated snapshots).** Five snapshots are calibrated (`2026-07-06` to `2026-11-02`), passing the gate on `2026-09-07`, `2026-10-05`, and `2026-11-02`:
 
-- Within ±2: 42–47 of 50.
-- Mean points error: 6.8–57.6, against a target under 5.
-- Cutoff membership: exact on 08-03 and 10-05, one Asian roster wrong on 07-06 and 09-07.
+- `2026-09-07` to `2026-11-02`: 50/50 within ±2, mean points error 2.45–3.38 (< 5), exact invite-cutoff membership in every region.
+- `2026-07-06` and `2026-08-03`: 43–48 of 50 within ±2, mean points error 8.92–11.46 (pre-May placements aren't archived separately in `data/raw/archive/`).
 
 Learned along the way:
 
 - The 180-day window ends at the latest match in Valve's pull, not midnight. Each snapshot's window end is calibrated from the age weights in Valve's details files (`calibrate-window`).
 - Valve's per-roster details files are the ground truth. `diff-details` diffs matches, lineups, prizes and weights against them, and match IDs (`umid`) give exact counts of what Valve had.
 - Majors must be split into stages. Valve treats each stage as its own event.
-- Remaining error is systematic: tier-3 Central Asian LAN matches Valve doesn't have inflate the LAN and opponent-network references, Esports Nations Cup 2026 qualifiers are only partly covered by HLTV, and IEM Rio and Atlanta prize splits differ from Liquipedia's.
-- Invite cutoffs in `src/vrs/inviteCutoffs.ts` (16/8/8) don't match what Cologne 2026 or Singapore invited.
-
-Not recorded: whether the 2026-11-02 snapshot has been calibrated and verified, or whether a prediction was published ahead of it.
+- Linking qualifiers via `/placement` `qualifierpage` plus ancestor-page fallback populates `qualifiedEvents`, fixing `$0` qualifier weighting (`0.143` → `0.769`+).
+- Remaining exclusions/overrides in `data/overrides.json` close the systematic gaps: IEM Cologne's Team Germany v Team Poland (Betclic) showmatch (not counted by Valve), `PARIVISION`'s missing Cologne Stage 3 lineups, untracked `Esports_Nations_Cup/2026` early rounds and `Stake_Pulse` / `RLG/RES` qualifiers, Central Asian `matchlist` group stages (`FRAG.gg`, `BRO_*`, `CYBERLAND_Cup`), IEM Rio/Atlanta ESL prize splits, and post-Oct-5 team rebrands (`PVISION`, `GOSH`, `The One`, `BB Team`).
+- Invite cutoffs in `src/vrs/inviteCutoffs.ts` now follow `major-supplemental-rulebook.md` via `cutoffsForSnapshot` (`16/10/6` pre-Cologne 2026, `18/9/5` post-Cologne 2026).
 
 ## Phase 2: Team Elo
 
@@ -172,16 +171,14 @@ Built and running in the nightly job. See [simulator.md](simulator.md). Pages: `
 - **VRS layer:** a round trip on Cologne 2026 matches exactly (150/150 ranks) when given the event's real lineups. That's why current squads override last-played lineups.
 - **Compute:** one model run takes about 0.75 s. Worker threads give about 4 runs per second, so 1,000 runs take about 4 minutes. The plan's ~1,000-run estimate for the VRS layer held.
 - **Blocking:** events with no prize distribution are left out of the projection and listed with the reason.
-- **Stage 1 split is still inferred, not read from the rulebook.** It's derived from Cologne 2026's results, and Singapore's 32 slots split exactly as predicted (Stage 3: EU 6 / Am 2 / Asia 0; Stage 2: EU 6 / Am 1 / Asia 1; Stage 1: EU 6 / Am 6 / Asia 4). The page flags it until `verified` is set. Buenos Aires uses an inferred rule too. The split lives in config (`data/events/invites-*.json`).
+- **Major invite split is verified against Valve's rulebook** (`vendor/counter-strike_rules_and_regs/major-supplemental-rulebook.md`): Stage 1 is fixed at EU 6 / Am 6 / Asia 4 (16 total), Stage 2 follows previous-Major Stage 3 regions (8 total), Stage 3 follows previous-Major Playoff regions (8 total), and `minRetained: 3` matches the Core Lineup rule.
+- **3-month regional lock:** rosters that appeared on another region's VRS list in the preceding 3 calendar months are skipped by `allocateInvites` unless exempted in `regionExceptions` (e.g., `BC.Game` at Singapore 2026 per `tournament-operation-requirements-exceptions.md`).
 - **Buenos Aires snapshot date** is estimated at 2027-04-05 (first Monday of April).
 - **Roster region** is recomputed from the projected roster on each run.
 
 Open:
 
-- **Singapore can't be simulated until its `invited` lists are filled** from the 2 Nov snapshot. It must be live before 25 Nov, and the Buenos Aires projection waits on it.
-- `squads.json` needs a refetch (a query bug kept one player per team), so the intact-roster rule is off until then.
 - Several announced events lack participants or a usable format (list in [roadmap.md](roadmap.md)).
-- Whether Valve counts the IEM Cologne 2026 Germany v Betclic showmatch.
 
 ## Phase 4: Demo pipeline
 
@@ -330,7 +327,7 @@ Candidates, not built:
 - **IGL tags from data.** Check whether Liquipedia's squad data carries a role field. If it does, IGL tagging becomes automated and drops off the manual list.
 - **Sample size.** Splitting by player, map, side and role empties cells fast. Report WAR only above a minimum round count, and let pooling do the rest.
 
-**Status: items 1–8 built; WAA live at `/war` on `production`.** The public page reads `public/data/war/players.json` (`model: "production"`, `provisional: false`, 3,112 maps across 53 events, 267 players with 300+ rounds). See [war.md](war.md).
+**Status: items 1–8 built; WAA live at `/players` (with a page per player) on `production`.** The public page reads `public/data/war/players.json` (`model: "production"`, `provisional: false`, 3,112 maps across 53 events, 267 players with 300+ rounds). See [war.md](war.md).
 
 - **CT positions** (`cs2wp positions`): callouts map to per-map positions through `data/war/ct-positions.json`, each round votes once, and the map takes the most-voted position. Across 3,113 maps the median vote share is 0.55–0.89 per map (Inferno 0.55 and Ancient 0.56 sit below 0.60), and 0.64–0.90 of a player's maps match their usual position. Gated `(x, y)` KMeans clustering across 22 doubled positions passed Gates 1–3 on `de_dust2` `B` (`B Doors` vs `B Tunnels`: pair sep `0.701`, `+0.207` lift, `2.26 SE` / `2.44 SE`, split-half `r = 0.982`, `wpa_opp` `k = 984`), committed in `data/war/ct-subpositions.json` and enabled by default in `baselines`; the other 21 candidates missed Gate 1 and stay unsplit.
 - **T roles** (`cs2wp roles`): per team per map, the top AWP share (AWP in hand during buy time, on 20k+ buys) is the AWPer if it's at least 0.3, the top entry share of the rest is the Entry, and the others are Riflers. AWP share is reliable per map; entry share isn't, so role baselines pool it across maps.
@@ -383,7 +380,7 @@ Every round outcome splits into four layers: economy and map, duel execution (ai
 - **Veto data.** Map Elo for rarely played maps is thin, which is often why a team permabans a map. Shrink those estimates hard, or the model will recommend maps teams never practice. Coaches share veto decisions, so label the stat a team decision, not pure IGL.
 - **Clutch noise.** In most sports clutch is mostly noise. Check stability before publishing.
 
-**Status: orders 1 and 2 built.**
+**Status: orders 1 to 5 built.**
 
 Order 1 is `cs2wp duel-stats` ([war.md](war.md#duel-execution-and-quality)). It scores duel execution (`win − p`) and duel quality (`p − p_base`, split into positioning, flash and HP parts) per player and per team. Player execution passes its gate. Team quality passes stability and independence, but no team stat adds to Elo, so all are descriptive.
 
@@ -395,6 +392,154 @@ Order 2 is `cs2wp team-stats` ([war.md](war.md#team-round-stats)), with stints a
 - **The player version** (team factor) fails both tests.
 
 Conversion and the player version stay off the site until more archive accumulates.
+
+Order 3 ([war.md](war.md#luck-adjusted-elo)):
+
+- **Luck-adjusted Elo** (`cs2wp luck`, `backtest-elo --luck`) fails. 2026 treated series lose 0.0010 log loss at the tuned w = 0.2 (90% CI −0.0037 to +0.0019). The hot-hand check finds no form between series, but duel execution is mostly skill, so discounting it costs Elo real signal. `luckWeight` stays 0.
+- **Veto value lost** (`cs2wp veto`) has its own map model. It beats Elo's series-start map probability on all 2026 maps (+0.0009, CI +0.0005 to +0.0013), but not within the CI on vetoed series alone. Value lost persists: stint split-half r 0.64, quarter r 0.50. The hidden-information slope is −0.98 (CI −2.65 to +0.84), so nothing suggests teams know better. It's unpublished until HLTV's terms are checked.
+
+Order 4 is `cs2wp tactics` ([war.md](war.md#tactics-stats)). Its expectations use economy and men alive only. The execute row asks to control for Elo, but that breaks the Elo-circularity rule, so Elo is left out.
+
+- **Post-plant conversion** passes split-half and season persistence (T r 0.37). It's published as descriptive.
+- **Numbers at contact** passes split-half (0.35), and the defender excess predicts rounds beyond economy. It's published as descriptive.
+- **Map control** is reliable at 30 and 45 s but adds nothing beyond WAR, so it isn't published.
+- **Execute success** is noise on the T side (split-half 0.03). Defending executes is stable (CT split-half 0.50).
+
+Order 5 ([war.md](war.md#t-side-predictability)):
+
+- **T-side predictability** (`cs2wp predictability`) fails.
+  - A scout using a team's own earlier T rounds (site, timing and execute, given map and buy) does no better than the league prior: −0.006 nats per round.
+  - Stint split-half is 0.10 (CI −0.15 to 0.34).
+  - With prepared defined as a rematch within 60 days, the predictability × prepared interaction has the wrong sign and no gain over Elo: −0.0006 (CI −0.0014 to +0.0002).
+  - Bo3+ can't serve as the proxy because 94% of demo maps are multi-map series.
+- **Clutch and man-advantage conversion** (`cs2wp clutch`) uses entries valued with the out-of-sample WP fold at even Elo, centred per X v Y.
+  - Clutch passes year-to-year for players (r 0.15), stints (0.27) and teams (0.25), and barely tracks Elo (0.13–0.21).
+  - Man disadvantage passes (stint r 0.36), but it's mostly strength (r 0.70 with Elo).
+  - Man advantage fails (stint r 0.26, CI from −0.09).
+  - Passing classes are published: stints on the Tactics tab, players on `/players`.
+
+## Phase 8: VRS simulator and schedule optimizer
+
+Three features on top of the Phase 3 simulator:
+
+1. **Event impact.** For an active or confirmed event, how many VRS points each team gains or loses at each placement (if Vitality win, how many points do they likely gain?).
+2. **Season projection.** Upcoming LANs and who attends them, played out with Elo, giving projected standings at each VRS publication date up to the next Major invite snapshot.
+3. **Schedule optimizer.** Teams choose which events to attend. For each team, find the schedule that maximizes expected VRS points, or that maximizes its Major invite odds, at low, average and high volume. A low-Elo team may do best at events with good prize pools and weaker fields; a high-Elo team at the events with the biggest prize pools and best-ranked opponents.
+
+Two things make this hard:
+
+- **Cost.** One full run of Valve's model takes about 0.8 s. Nearly all of it is loading (JSON, filters, roster linking); seeding and the Glicko pass take about 6 ms. Even so, 9M schedule scores can't each be a rerun.
+- **Unknown futures.** Many upcoming events have no field, bracket or prize table yet.
+
+**Decisions**
+
+- Score what-ifs with exact incremental reruns of Valve's model (load a window once, about 25 ms per rerun) for standings and invite projections. Event impact takes one rerun per checkpoint and run, then removes each team's event with the one-team model (the gate's remove case, mean error 0.65 points). The optimizer searches with the one-team model and re-scores its recommended schedules with reruns.
+- Cover all LANs. Events without a hand-written config get a generic format, marked as assumed.
+- Precompute nightly, plus a build-your-own schedule picker on the site.
+
+**Reused from Phase 3:** `runEvent` and `simulateEvents` (`scripts/lib/sim/simulate.ts`), `Predictor` with shared rating drift (`predict.ts`), `simulationDelta`, `applyDelta`, `latestLineups`, `preferSquads` and `prizeTable` (`vrsProjection.ts`), `projectOnce` and the worker pool (`vrsPool.ts`, `vrsWorker.ts`; step 2 moves `projectOnce` onto one `loadWorld` per worker), `allocateInvites`, `makeIntactCheck` and `makeRegionEligibleCheck` (`invites.ts`), `cutoffsForSnapshot` (`src/vrs/inviteCutoffs.ts`). Liquipedia placement rows already list announced teams and each slot's source in `qualifier` (PGL Łódź 2027: `VRS Global (Dec. 2026)` × 14, `Closed Qualifier` × 2), and `participants.ts` already reads them.
+
+### 1. Fast what-if scoring
+
+Built first; everything else depends on it. Details and results are in [vrs-simulator.md](vrs-simulator.md).
+
+- **Exact rerun** (`scripts/lib/vrs/valveWorld.ts`). `loadWorld` loads a window once. `rerun(world, delta)` adds matches, replaces events or excludes matches, then replays Valve's own seeding, Glicko and ranking code. The output is identical to `computeStandings` on the combined input. Each rerun checks every match side against Valve's roster-linking rule, and returns `exact: false` when a delta would relink rosters; callers then fall back to a full run.
+- **One-team model** (`scripts/lib/vrs/oneTeam.ts`, no Node imports). `freeze` a rerun's state, then `scoreTeam(world, ledger)` re-derives one roster's points with Valve's formulas while other rosters stay frozen. It corrects for the moved 5th-highest references, re-derives the top seeds and shifts opponents' ratings with the seed range. It's exact on an unchanged ledger.
+- **Gate** (`npm run backtest-vrs-whatif`). Reruns must match full runs. The one-team model's mean error must be ≤ 5 points and p95 ≤ 15, separately for removing played events and for adding replayed future ones. Mean schedule regret must be ≤ 5.
+
+### 2. Event catalog
+
+- `EventConfig` (`scripts/lib/sim/config.ts`) gains optional fields:
+  - `location: { region, country }` from the tournament row's `locations`;
+  - `invites: { slots: [{ list, month, count, startRank? }], qualifiers: [{ label, count }], verified }`;
+  - `prizeEstimate` (label → USD) for events with no Liquipedia prize table;
+  - `assumed: string[]` naming what was guessed (`format`, `prizes`, `field`).
+- `scripts/lib/sim/catalog.ts`:
+  - `inviteRuleFromPlacements(rows)` parses the `qualifier` strings into `invites`. A hand-keyed `invites` in the config wins.
+  - `genericEvent(tournamentRow, placementRows)` builds a config for each unconfigured offline tournament in `upcoming.tournaments` that isn't a qualifier or showmatch: 4 or 8 teams single elimination, 16 double elimination, Bo3. Team counts with no template are listed on the calendar but not simulated.
+  - A missing prize table uses a standard split by placement, fit once from finished events of the same tier in `data/raw/placements.json`.
+- `fetchUpcoming` also takes the generic LAN parent pages, so their `/placement` and `/match` rows are fetched. About 45 pages today: one more batch of 50, so 5 requests per nightly run instead of 3. Capped at 100 pages.
+- The Major invite projection keeps its "announced only, never guessed" rule. Assumed data is used only by the new season outputs, and is labelled there.
+
+### 3. Season simulation
+
+`scripts/lib/sim/season.ts`. Each checkpoint's base world (real matches only) is loaded once with `loadWorld` and shared by every run, since only the simulated matches differ. Per run, in date order:
+
+1. Draw rating paths once (`Predictor.resample`), with the run's RNG seeded from `(seed, run)` so paths can be regenerated.
+2. Checkpoints are the VRS publication dates (first Monday of each month, or the real `invitation/` list once published) through the next Major invite snapshot (`invites-*.json`, currently 2027-04-05, estimated).
+3. Between checkpoints, play every event whose field is resolved (`runEvent`) and append its matches and prize table (`simulationDelta`).
+4. At each checkpoint, `rerun` that checkpoint's world with the run's simulated matches so far and `freeze` the state once (impact and the optimizer read the frozen world), then resolve the field of each event that invites from that list (`scripts/lib/sim/attendance.ts`):
+   - Announced teams are fixed.
+   - Open direct-invite slots walk the list in rank order under the Tournament Operation Requirements: start rank, sequential, pass down on decline, and Tier 2 invites only below global rank 12.
+   - A team declines when the event conflicts with one it's already in (see travel buffers below) or it's over the average-volume cap.
+   - Qualifier slots take the best-ranked remaining teams from the qualifier's region, marked `assumed: field`.
+   - Seeds follow list rank.
+5. For each candidate (team, event) pair where the team isn't in the field, replay the event once with the team added under the same rating path, and keep only that team's matches and placement.
+
+Cost: 6 world loads (about 0.4 s each) plus 300 runs × about 6 checkpoints × (25 ms rerun + one `freeze`, measured in step 2) is about a minute on one thread; the rare inexact rerun falls back to a full run, and the count is reported. `--season-n` sets the run count.
+
+### 4. Outputs
+
+`npm run simulate-season` (`scripts/simulate-season.ts`) writes `public/data/sim/season/`:
+
+- **`index.json`**: as-of date, target date, run count, checkpoints, volume baselines, the one-team gate numbers, and the calendar: each event's dates, location, tier, prize pool, `assumed` flags and field (team, attendance probability, source: announced, VRS invite or qualifier).
+- **`standings.json`** (feature 2): per checkpoint and roster, points and global and regional rank at p10 / p50 / p90, beside today's points.
+- **`impact/<slug>.json`** (feature 1): per team and placement, the probability and the mean points change at the first checkpoint after the event. The change is the team's points in that checkpoint's rerun minus `scoreTeam(frozen, withoutEvents(ledger, event))` in the same run, split into starting-value and head-to-head parts from `scoreTeam`'s seed value. That's one rerun per checkpoint and run rather than two per team: exact per-team reruns would cost about 50 CPU-minutes a night (~25 LANs × 16 teams × 300 runs). `index.json` carries the remove-case gate numbers beside it. Placements reached in under 20 runs are marked low-confidence.
+- **`teams/<team>.json`** (feature 3), for the top 60 global rosters:
+  - candidate events: announced for the team, or with open direct-invite slots its projected rank reaches in at least 10% of runs. Events it could only reach through a qualifier are listed separately as "requires qualifying";
+  - recommended schedules for low, average and high volume × two goals: maximize expected points at the target date, and maximize Major invite probability (ties broken by points);
+  - a table of every non-overlapping subset of its candidates (bitmask → expected points, p10, p90, invite probability), capped at 12 candidates. The picker reads this, so the browser needs no model.
+- Size budget: under 1 MB for the folder, checked by the script. `public/data` is 2.5 MB and committed nightly.
+
+### 5. Optimizer
+
+`scripts/lib/sim/schedule.ts`.
+
+- **Conflicts.** Two events conflict when the gap from one's end to the next's start is under the travel buffer: 2 days within a region, 4 days across regions (region from `location`).
+- **Volume baselines.** Computed each run from `data/matchdata.json`: LAN events per 180 days at p25 / p50 / p75 among top-40 rosters, with a Major's stages counted as one event, scaled to the horizon length. A first count (2026-11-17) gives 8 / 9 / 10 for ranks 1–20 and 7 / 8 / 9 for 21–40, before merging Major stages. These cap low, average and high schedules, so the optimizer never suggests attending everything.
+- **Search.** Enumerate non-overlapping subsets within the cap and score each over all runs with `scoreTeam` (`rank: false`, about 50 µs each, so about 8 CPU-minutes for 9M scores). Invite probability re-runs `allocateInvites` with the team's points swapped in.
+- **Re-score.** The recommended schedules (up to 6 per team, deduplicated) are re-run with `rerun` on 50 runs, on the worker pool: at most 60 × 6 × 50 × 25 ms ≈ 7.5 CPU-minutes. Their shown expected points and invite probability come from these reruns, which also fixes the one-team model's weak spot (global rank agrees only 85% when adding events). The gap to the one-team estimate goes into `index.json` as nightly regret. The picker's subset table stays one-team and is labelled as an estimate.
+- **Announced commitments** are in the baseline. A recommendation that drops one says so.
+- **Known limit:** candidates come from the baseline world, so a schedule that lifts a team's rank doesn't earn it extra invites to later events.
+
+### 6. Site
+
+- `/vrs-sim` with `?view=` tabs, following `Rankings.tsx`:
+  - **Calendar**: upcoming LANs on a timeline with fields, attendance probabilities and assumed-data badges.
+  - **Projections**: standings at each checkpoint with rank ranges (`DataTable`, `SeriesLineChart`).
+  - **Schedules**: team select, the six recommended schedules, and the picker (toggle events, read the subset table, show buffer violations).
+- `/events/:slug` gets a VRS impact table from `impact/<slug>.json`.
+- `/teams/:team` links to its schedule view.
+- Types in `src/sim/types.ts`, fetchers in `src/data/queries.ts`, `LiquipediaCredit` beside every table, nav entry in `AppShell.tsx`.
+
+### 7. Pipeline and docs
+
+- The nightly workflow runs `npm run simulate-season` after `npm run simulate`.
+- A weekly `Plan schedules` workflow runs `npm run plan-batch`: the focal planner for up to 8 teams whose season-rules invite share is nearest even, round-robin across regions, within a 4-hour budget. It reuses the nightly's Liquipedia cache without fetching, and prunes plans older than 14 days. Plans live on their own cadence because one takes about 10 minutes, against the nightly's 30-minute budget for the whole season run.
+- [vrs-simulator.md](vrs-simulator.md) covers the exact rerun, the one-team model and gate results, and, as they're built, season simulation, attendance rules, optimizer, baselines and every assumption. It's added to [overview.md](overview.md) and the CLAUDE.md doc list.
+
+### Build order
+
+Each step is usable on its own:
+
+1. Exact rerun, one-team model, exactness tests, gate. Done.
+2. Move the invite projection (`projectOnce`) onto `rerun`: one world per invite snapshot per worker, with a full-run fallback when inexact. That turns 1000 × 0.8 s per snapshot into about 25 s, so raise the `--vrs-n` default (1000 → 5000) if CI time allows. Then event impact for already-configured events (feature 1), computed in `npm run simulate` from the same runs, and its table on `/events/:slug`.
+3. Catalog and fetch change.
+4. Season simulation, calendar and projections (feature 2). `backtest-vrs-whatif` gains an add-case section fed by `simulateEvents` output instead of replayed past LANs.
+5. Optimizer with exact re-scoring, team files and the Schedules view (feature 3).
+6. Nightly job and docs.
+
+### Verification
+
+- Unit tests: `valveWorld.test.ts` (reruns identical to the full model after adding, excluding and finishing events; relinks flagged) and `oneTeam.test.ts` (exact on an unchanged ledger), `catalog.test.ts` (`qualifier` strings → invite rule; generic configs for 4, 8 and 16 teams), `attendance.test.ts` (sequential invites, pass-down on decline, the Tier 2 rank-12 rule), `schedule.test.ts` (buffers, caps, subset enumeration).
+- `npm run backtest-vrs-whatif` passes the gate.
+- With a fixed seed, `public/data/sim/invites/*.json` is identical before and after the step 2 port.
+- Impact for a sample of (team, event, run) is checked against two exact reruns and stays within the remove-case gate.
+- `index.json` carries the optimizer's re-score regret.
+- `npm run simulate-season -- --season-n 50`, then check that the checkpoint nearest an existing invite snapshot roughly agrees with `public/data/sim/invites/*.json` for events both include, that an event winner's impact is positive and larger than the runner-up's, and that output stays under the size budget.
+- Walk `/vrs-sim` (three views, picker) and an event's impact table in the browser.
+
+**Status:** step 1 built and its gate passed (2026-11-17). On 50 random deltas, reruns are identical to the full model, at about 25 ms each. One-team error: removing an event, mean 0.65 points and p95 2.3; adding one, mean 3.6 and p95 9.7. Schedule regret has a mean of 0.04 points. Step 3 built (2026-11-17), ahead of step 2: `npm run catalog` lists 43 LANs on the 2026-11-12 store, 6 simulated and 37 listed. Events with no invite rows are listed, not simulated, rather than given a guessed field; attendance rules for open-field LANs are on the roadmap. Step 4 built (2026-11-17): `npm run simulate-season`, `/vrs-sim` Calendar and Projections, and the backtest's simulated add case (n 80, mean 4.10, p95 10.32; gate passed). Per-checkpoint `freeze` and the item 5 candidate replays moved to step 5, which reads them; the nightly job is step 6. Step 5 built (2026-11-17): optimizer (`optimizer.ts`), a worker pool sharding runs, `teams/<team>.json` and the Schedules view. 300 runs plus the re-score take about 2 minutes on 4 workers. Estimate error is a mean of 0.43 points and p95 2.9, and regret is 0. Today the volume caps (6 / 6 / 7) rarely bind against the 7 simulated LANs, so the low, average and high schedules mostly coincide. Step 6 built (2026-11-17): the nightly workflow runs `npm run simulate-season` after `npm run simulate`. Step 2 built (2026-11-17). The invite projection reruns a world loaded once per worker. With a fixed seed its output is byte-identical to full runs, and it takes 3 s instead of 70 s for 200 runs, so `--vrs-n` is now 5000. Event impact is computed in `npm run simulate-season` rather than `npm run simulate`, since the season runs already rerun every checkpoint and include the catalog LANs in between. It writes `season/impact/<slug>.json`, shown on `/events/:slug`. Step 7 built (2026-11-18): the focal planner (`plan-schedule`, `/vrs-sim?view=plan`) runs weekly for teams on the invite bubble through `npm run plan-batch` and the `Plan schedules` workflow ([vrs-simulator.md](vrs-simulator.md#focal-planner)).
 
 ## Site architecture
 
@@ -415,14 +560,18 @@ The biggest risk is Liquipedia access: Phases 2 and 3 depend on it, and free acc
 | CS2 patch breaks the demo parser | Parse failures | Pinned parser; re-parse from the last month of raw demos |
 | Economy or mechanics patch shifts WP base rate | Walk-forward fold drifts | Monthly gate flags misses; 31-day weekly intercept for economy patches, `patch-report` for mechanics |
 | Inferred invite rule is wrong | Wrong Major odds | Flagged on the page until checked against the rulebook |
+| One-team model drifts from Valve's | Wrong schedule scores or impact | Used only for search and the remove case (mean error 0.65); recommended schedules re-scored with `rerun`; gated nightly |
+| Simulated lineups relink rosters | Inexact reruns fall back to full runs, slowing the sim | Count reported per run; 0 of 50 in the backtest |
+| Guessed formats, prizes or fields | Rough season projections | Labelled as assumed on the site; kept out of the Major invite page |
+| More upcoming pages to fetch | Liquipedia requests go from 3 to about 5 a night | Capped at 100 pages |
 
 - [ ] When does Valve publish the FiRe Major Buenos Aires 2027 invitation snapshot date? Still unannounced; estimated 2027-04-05.
 - [ ] Does Valve's repo carry prize data for events still in progress, or only completed ones? Not recorded in the docs.
 - [x] Do Liquipedia's API match records include map vetoes? **No.**
 - [x] Does Liquipedia's squad data include an IGL role field? Only a free-text `role`/`position` field (`Captain` covers 58.4% of team-maps and lags swaps); `data/war/igls.json` stays manual.
 - [x] Does current awpy support CS2 navigation meshes? **Yes**, awpy 3.1.1.
-- [ ] Does Valve count showmatches? IEM Cologne 2026's Germany v Betclic is unresolved.
-- [ ] Which Esports Nations Cup 2026 qualifier matches does Valve have?
+- [x] Does Valve count showmatches? **No** — IEM Cologne 2026's Team Germany v Team Poland (Betclic) is absent from Valve's `2026-07-06` Betclic details and is excluded in `data/overrides.json`.
+- [x] Which Esports Nations Cup 2026 qualifier matches does Valve have? Only the four `2026-07-19` `R04` qualifying deciders (`Belgium v Denmark`, `Serbia v Bulgaria`, `Kosovo v Poland`, `Serbia v Romania`); earlier rounds are excluded in `data/overrides.json`.
 
 Next steps are tracked in [roadmap.md](roadmap.md).
 

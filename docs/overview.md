@@ -20,14 +20,31 @@ Simulator ([simulator.md](simulator.md)):
 
 9. `fetch-liquipedia` also refreshes `data/raw/upcoming.json`: upcoming tournaments, plus unfinished matches and prize tables for events configured in `data/events/`.
 10. `npm run simulate` plays out each configured bracket from Elo and writes `public/data/sim/events/`. For each upcoming invite snapshot (`data/events/invites-*.json`), it then runs Valve's model on the simulated results and writes `public/data/sim/invites/`.
+11. `npm run simulate-season` plays every catalog LAN it can fill up to the next invite snapshot, resolving fields from projected VRS lists, then finds each top-60 team's best LAN schedule. It writes `public/data/sim/season/`, including `teams/<team>.json` ([vrs-simulator.md](vrs-simulator.md#season-simulation), [optimizer](vrs-simulator.md#schedule-optimizer)).
+12. `npm run plan-batch` picks the teams whose Major invite is most in doubt from those team files and runs `plan-schedule` for each, writing `public/data/sim/plan/` ([focal planner](vrs-simulator.md#focal-planner)).
 
 Win probability ([win-probability.md](win-probability.md)), local only:
 
-11. `npm run export-map-elo` writes each played map's pre-map Elo to `data/wp/elo-maps.jsonl`.
-12. In `wp/`, `cs2wp sync`, `states`, `train`, `credit`, `validate` and `publish` take the demo tables in R2 to round win probability, WPA and `public/data/wpa/players.json`.
-13. `cs2wp positions` assigns each player's CT position per map from callouts, `cs2wp roles` their T role from opening duels and AWP buys, `cs2wp validate-roles` checks both against NER0cs's labels, `cs2wp baselines` computes each map, side and role's partially pooled WPA per round, `cs2wp duels` gives every kill an expected win probability for kills above expected, `cs2wp igls` tags per-map IGLs from `data/war/igls.json`, `cs2wp usage` splits each player's credit into team context, resource usage and conversion, `cs2wp war` computes player Wins Above Average (with round-bootstrap intervals) and writes `public/data/war/players.json` for `/war`, and `cs2wp validate-war` checks WAA's split-half reliability, whether prior lineup WAA adds to Elo, and team-context leakage ([war.md](war.md)).
+13. `npm run export-map-elo` writes each played map's pre-map Elo to `data/wp/elo-maps.jsonl`.
+14. In `wp/`, `cs2wp sync`, `states`, `train`, `credit`, `validate` and `publish` take the demo tables in R2 to round win probability, WPA and `public/data/wpa/players.json`.
+15. `cs2wp positions` assigns each player's CT position per map from callouts, `cs2wp roles` their T role from opening duels and AWP buys, `cs2wp validate-roles` checks both against NER0cs's labels, `cs2wp baselines` computes each map, side and role's partially pooled WPA per round, `cs2wp duels` gives every kill an expected win probability for kills above expected, `cs2wp igls` tags per-map IGLs from `data/war/igls.json`, `cs2wp usage` splits each player's credit into team context, resource usage and conversion, `cs2wp war` computes player Wins Above Average (with round-bootstrap intervals) and writes `public/data/war/players.json` for `/war`, and `cs2wp validate-war` checks WAA's split-half reliability, whether prior lineup WAA adds to Elo, and team-context leakage ([war.md](war.md)).
 
-The nightly `Update data` workflow runs steps 1, 2, 5, 7, 8 (without tuning), 9 and 10.
+The nightly `Update data` workflow runs steps 1, 2, 5, 7, 8 (without tuning), 9, 10 and 11. The weekly `Plan schedules` workflow runs step 2 on the nightly's cached store, then step 12.
+
+## Site pages
+
+| Route | Page |
+| --- | --- |
+| `/`, `/vrs` | VRS standings reproduced from Valve's model (`/standings` redirects here) |
+| `/rankings` | Team tables in tabs (`?view=`): Elo, Duels (`team-duels.json`), Rounds (`team-stats.json`), Tactics (`tactics.json`). `/elo` redirects here |
+| `/teams/:team` | Everything on one team, keyed by Liquipedia page name with spaces as underscores: Elo rosters and map offsets, VRS rank, event and Major invite odds, stats per IGL stint, and its WAR players. Invite odds join through the Elo roster's player key, because VRS team names differ from Liquipedia's |
+| `/events`, `/events/:slug`, `/major-invites` | Simulator output |
+| `/vrs-sim` | Season simulation in tabs (`?view=`): Calendar of upcoming LANs with projected fields, Projections of VRS standings at each publication date (`?at=`, `?region=`), Schedules with each team's recommended LAN schedules and a picker (`?team=`), Plan with a team's searched route to the Major invite from `plan-schedule` (`?team=`, `?plan=`) |
+| `/players` | Player tables in views (`?view=`): WAR leaderboards, Clutch (`clutch.json`), Validation. `/war` redirects here |
+| `/players/:player` | Everything on one player, keyed by in-game name: WAA under each credit version with ranks, roles, CT positions, duels, resources, clutch conversion and teammates |
+| `/model`, `/methodology` | Elo calibration and method notes |
+
+Team names in every table link to `/teams/:team`, and player names to `/players/:player`. Fetchers shared across pages live in `src/data/queries.ts`, so the team page reuses the tables' query cache.
 
 ## Docs
 
@@ -40,6 +57,7 @@ The nightly `Update data` workflow runs steps 1, 2, 5, 7, 8 (without tuning), 9 
 | [elo-model.md](elo-model.md) | Elo feed, model, VRS baseline, gate and results |
 | [elo-experiments.md](elo-experiments.md) | Log of every Elo change tried, kept or rejected, with scores |
 | [simulator.md](simulator.md) | Bracket formats, Major Swiss, rating drift, VRS projections, invite rules and event config |
+| [vrs-simulator.md](vrs-simulator.md) | Phase 8 VRS what-ifs: exact incremental reruns of Valve's model, the one-team model, their backtest, the event catalog, the season simulation, the schedule optimizer and the focal-team planner |
 | [demo-pipeline.md](demo-pipeline.md) | HLTV demos → validated Parquet in R2 (`demos/`, Python) |
 | [win-probability.md](win-probability.md) | Round win-probability model, WPA credit rules, gate and validation (`wp/`, Python) |
 | [wp-experiments.md](wp-experiments.md) | Log of every win-probability change tried, kept or rejected |
@@ -62,11 +80,18 @@ npm run calibrate-window -- --date 2026-11-02 [--write]
 npm run diff-details -- --date 2026-10-05 --matchdata data/matchdata.json [--team <name>]
 npm run backfill-liquipedia -- --max-requests 30
 npm run freeze-history
-npm run backtest-elo -- [--tune --write] [--gate] [--set key=value ...]
+npm run backtest-elo -- [--tune --write] [--gate] [--set key=value ...] [--luck]
 npm run build-elo -- [--update-team-map]
 npm run fetch-upcoming
-npm run simulate -- [--events slug,...] [--n 10000] [--vrs-n 1000] [--no-vrs]
+npm run catalog
+npm run simulate -- [--events slug,...] [--n 10000] [--vrs-n 5000] [--no-vrs]
+npm run simulate-season -- [--season-n 300] [--seed 1] [--workers N] [--rescore-n 30]
+npm run plan-schedule -- --team "100 Thieves" [--n 300] [--holdout-n 300] [--workers N] [--check-exhaustive]
+npm run plan-batch -- [--max 8] [--budget-minutes 240] [--dry-run] [plan-schedule options]
 npm run backtest-sim
+npm run backtest-vrs-whatif -- [--seed 1]
+npm run backtest-fields
+npm run hindcast-season -- [--as-of 2026-07-06] [--n 100] [--setup full|projected|listed|lan-only]
 npm run test:run
 npm run lint
 ```

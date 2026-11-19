@@ -21,20 +21,23 @@ See [elo-model.md](elo-model.md).
 - [x] **Stand-in down-weighting.** Tuning settled on `standInK` 1.2, so stand-in series get slightly more weight, not less.
 - [x] **Widen `tierGap`'s search range.** With an 800 ceiling it settled at 475.
 - [x] **Fix Bo3/Bo5 overconfidence** with `seriesMapTemp` (elo-experiments.md).
-- [ ] **Tier 2 calibration.** Slope 0.54 on 377 series; check the tier classification first.
-- [ ] **Veto proxy (v2).** Blocked on missing veto data. Try the map-play-share proxy only after v1 passes.
+- [x] **Tier 2 calibration:** classification sound; Elo-side temperature rejected. The 2026 slope is 0.597 on 401 series, almost all from online tier-1 qualifiers (160 series, slope 0.32; LAN tier 2 is 0.89). A tier-2 `tier2Temp` (τ 0.7375, fit on 2024–25) lifts the tier-2 slope to 0.82 but moves the gate only 0.6132 → 0.6129. The simulator keeps `TIER_TEMP` ([elo-experiments.md](elo-experiments.md)).
+- [x] **Veto-aware series odds (v2):** rejected. On 608 vetoed 2026 series, the actual veto's maps under the map model lose to v1 (−0.0017, CI −0.0047 to +0.0010), and play-share pool weights are flat ([elo-experiments.md](elo-experiments.md)).
+- [x] **Elo over-reaction lead.** Partly fixed 2026-11-18 ([elo-experiments.md](elo-experiments.md)). `backtest-elo --residual-lead` reproduces it (−6.4 ± 0.5 on all 2026 maps) and puts it in results from the last 7 days. Burst-damped K (`burstMaps` 64, `burstDays` 14) is kept: gate 0.6149 → 0.6132, coefficient −5.1. `provisionalK`, `k` and `marginWeight` were rejected: lower `k` or `marginWeight` helps 2026 but not 2024–25.
+- [x] **Walk-forward validation.** Params drift between years, and tuning on the latest full year beats all history on 2025 H2 (gate set 0.6029 vs 0.6083). `--tune` now trains on 2025 only, and the gate moved 0.6132 → 0.6116 ([elo-experiments.md](elo-experiments.md)).
+- [ ] **Declared slower-Elo test.** 2026 keeps preferring a slower Elo than 2024–25 (lower `k`, `marginWeight` or `burstMaps`). Score `k` 10 against 12, on top of burst damping, on 2027 series only.
 - [ ] **Hand-check `data/elo/vrsTeamMap.json`.** It was generated from player overlap on the 2026-10-05 snapshot.
 
 ## VRS to the gate
 
-- [x] **Make the gate the pass/fail.** `compareStandings` reports the gate, `verify-vrs` exits on it, and `--all-calibrated` runs every calibrated date. Every snapshot fails today on points error.
-- [x] **More snapshots.** Four snapshots are calibrated and verified (2026-07-06 to 2026-10-05). Verifying 2026-07-06 needs `data/raw/` to reach back to 2026-01-07 (`fetch-liquipedia --from 2026-01-01`). 2026-11-02 uses `calibrate-window` once it's published.
-- [ ] **Esports Nations Cup 2026 qualifiers.** Work out which of these matches HLTV, and so Valve, has, using the match ID gaps in the details files. Drop the rest. They make Echo and Bulgaria unranked on 2026-08-03.
-- [ ] **Fix only what moves the top 50.** Point `diff-details` at the top-50 rosters and their opponents. Allow a per-event override only when it improves every calibrated snapshot.
+- [x] **Make the gate the pass/fail.** `compareStandings` reports the gate, `verify-vrs` exits on it, and `--all-calibrated` runs every calibrated date. Three of five snapshots (`2026-09-07`, `2026-10-05`, `2026-11-02`) now pass the gate.
+- [x] **More snapshots.** Five snapshots are calibrated and verified (`2026-07-06` to `2026-11-02`).
+- [x] **Esports Nations Cup 2026 qualifiers.** Only the four `2026-07-19` `R04` qualifying deciders are in Valve's details; the rest are excluded in `data/overrides.json`, restoring Echo and Bulgaria on `2026-08-03`.
+- [x] **Fix only what moves the top 50.** Added `qualifiedEvents` linking, `PARIVISION` Cologne Stage 3 lineup fixes, and untracked `Stake_Pulse` / `RLG/RES` / `CS_Asia_Championships` qualifier exclusions.
 - [x] **Split Majors into stages.** Cologne's event weights and Stage 2 prize dates now match Valve.
-- [ ] **Tier-3 LAN coverage.** DEPO, Omega and other Central Asian rosters have LAN matches Valve doesn't, which inflates the LAN and opponent-network references for every team (vrs-verification.md). Find the events with `diff-details` and work out the rule HLTV follows.
-- [ ] **IEM prize distribution.** Valve's IEM Rio and Atlanta 2026 payouts differ from Liquipedia's with the same total (1st 295k vs 285k, 2nd 170k vs 150k, 9th–12th 20k vs 25k). Add overrides, and a rule if future IEMs follow the same split.
-- [ ] **Generated prize overrides.** Build a script that compares the Bounty Offered tables across all calibrated snapshots and proposes `prizeDistributionOverrides` where they agree, for one-offs like NODWIN Clutch Series #12.
+- [x] **Tier-3 LAN coverage.** Excluded Central Asian `matchlist` group stages (`FRAG.gg`, `BRO_*`, `CYBERLAND_Cup`) and untracked `Tier 2 Qualifier` sub-qualifiers in `data/overrides.json`, fixing `referenceLanWins` on `2026-09-07`.
+- [x] **IEM prize distribution.** Added `prizeDistributionOverrides` for IEM Rio and Atlanta 2026.
+- [x] **Generated prize overrides.** `scripts/propose-prize-overrides.ts` (`npm run propose-prize-overrides`) compares Bounty Offered tables across all calibrated snapshots and proposes `prizeDistributionOverrides` where Valve and Liquipedia differ.
 
 ## Simulator and Major invites
 
@@ -44,18 +47,46 @@ See [simulator.md](simulator.md).
 - [x] **Rating noise.** Per-event form rejected; horizon drift kept (elo-experiments.md).
 - [x] **VRS layer.** Round trip on Cologne 2026 is exact with the event's lineups. Runs in parallel on worker threads.
 - [x] **Invite allocation** and the `/events` and `/major-invites` pages.
-- [x] **Live standings and Singapore invite odds.** `update-data` writes daily model standings, and `simulate` projects every upcoming invite snapshot. Singapore's (2026-11-02) uses Cologne's fixed slot split.
-- [ ] **Refetch squads.** `squads.json` kept one player per team, because the query lacked `objectname`. The next `fetch-liquipedia` refetches it; until then the intact rule and squad lineups are off.
-- [ ] **PGL Major Singapore participants.** The config is in place with empty `invited` lists. Fill them once Liquipedia lists the 2026-11-02 VRS invites; it must be live before 25 November 2026.
-- [ ] **Buenos Aires invite rule.** Check the inferred split (Stage 3 and 2 from the previous Major's top 8 and 9th–16th, Stage 1 fixed at 6/6/4) and `minRetained` against the rulebook, then set `verified`.
-- [ ] **Configure the other announced events before the snapshot**, each with a prize table. Live: PGL Masters Bucharest 2026, Stake Ranked Episode 5, IEM Beijing 2026. Waiting on participants or the group draw (empty `invited`): BLAST Rivals Fall 2026, PGL Bucharest, Cluj-Napoca and Łódź 2027, ESL Pro League S25, BLAST Open Spring 2027. Not configured:
+- [x] **Live standings and Singapore/Buenos Aires invite odds.** `update-data` writes daily model standings, and `simulate` projects Buenos Aires (`2027-04-05`) with Singapore (`bracket` playoffs with 3rd-place decider) included.
+- [x] **Refetch squads.** `squads.json` now holds full active squads; `simulate.ts` excludes coaching roles so `preferSquads` and `makeIntactCheck` apply cleanly to coached teams.
+- [x] **PGL Major Singapore participants.** `participants.ts` auto-resolves all 32 teams from the `2026-11-02` snapshot and `previousNames` maps renamed orgs (`PVISION`, `GOSH`, `The One`, `BB Team`).
+- [x] **Buenos Aires invite rule.** Verified Stage 1 (`6/6/4`), Stage 2/3 dynamic slots, `minRetained: 3`, and the 3-month regional eligibility lock against `vendor/counter-strike_rules_and_regs/major-supplemental-rulebook.md` (`verified: true`).
+- [ ] **Configure the other announced events before the snapshot**, each with a prize table. Live: BLAST Rivals Fall 2026 (draw auto-resolved from matchlist IDs), PGL Major Singapore 2026, IEM Beijing 2026, PGL Masters Bucharest 2026, Stake Ranked Episode 5. Waiting on participants or the group draw (empty `invited`): PGL Bucharest, Cluj-Napoca and Łódź 2027, ESL Pro League S25, BLAST Open Spring 2027. Not configured:
   - Stake Ranked Episode 6: no draw yet.
   - IEM Kraków 2027: its play-in feeds the groups, and which play-in results go where isn't on Liquipedia yet.
   - BLAST Bounty Winter 2027: the format isn't clear from the brackets.
   - EXTREMESLAND 2026: Liquipedia shows its groups twice.
   - Tier 3 events.
-- [ ] **Showmatches in matchdata.** IEM Cologne 2026's Team Germany v Betclic showmatch is `valveRanked` in `data/matchdata.json`. Check whether Valve counts it; if not, add it to `excludedMatches`.
-- [ ] **Close the bounty gaps first** (below). Simulated prize money feeds exactly the factors our reproduction is weakest on.
+- [x] **Showmatches in matchdata.** Confirmed Valve does not count IEM Cologne 2026's Team Germany v Team Poland (Betclic) showmatch and added it to `excludedMatches`.
+- [x] **Close the bounty gaps first.** `qualifiedEvents` and Rio/Atlanta prize overrides are live.
+
+## VRS simulator (Phase 8)
+
+See [vrs-simulator.md](vrs-simulator.md) and Phase 8 in [spec.md](spec.md).
+
+- [x] **Fast what-if scoring.** `valveWorld.ts` reruns are identical to the full model at about 25 ms. `oneTeam.ts` passes the `backtest-vrs-whatif` gate.
+- [x] **Invite projection on `rerun`, then event impact** (spec Phase 8, step 2).
+- [x] **Event catalog** (spec Phase 8, step 3). `npm run catalog`; generic 4/8/16-team configs, parsed invite rules, fitted prize splits.
+- [x] **Season simulation** (spec Phase 8, step 4). Also re-runs the add-case backtest on `simulateEvents` output.
+- [x] **Schedule optimizer, team files and the Schedules view** (spec Phase 8, step 5).
+- [x] **Nightly job** (spec Phase 8, step 6): `npm run simulate-season` after `npm run simulate`.
+- [x] **Catalog hygiene.** Cancelled, postponed, national-team (Esports Nations Cup) and Valve-unranked LANs are left out, and the top-12 invite rule follows Valve's `publishertier` ([vrs-simulator.md](vrs-simulator.md#event-catalog)).
+- [ ] **Focal-team schedule planner** (`npm run plan-schedule -- --team "100 Thieves"`). It finds a mid-tier team's best route to a Major invite through tier 2–4 LANs, online series and qualifiers. Phases, in order:
+  - [x] Plumbing and gate: event kind and role, generic formats for any field size, Valve's ranked rule and qualifier prize links in `simulationDelta`, online-aware conflicts, and new `backtest-vrs-whatif` cases (online, tier 3–4, linked qualifier, multi-event schedule). Gate passed; the schedule case is closest at mean 4.6 ([vrs-simulator.md](vrs-simulator.md#backtest)). The nightly and `fetchUpcoming` stay on LANs until phase 2.
+  - [x] Field and activity models learned from past editions: rank-band histograms per series, VRS acceptance by band, learned slot mixes, and per-team habits with paced budgets and caps. The nightly season run now plays online events and qualifiers too (64 of 87 events). `backtest-fields` passes: field log loss 1.44 against 1.56 without the series level and 6.61 for best remaining ([vrs-simulator.md](vrs-simulator.md#field-and-activity-models)). Learned start ranks were folded into acceptance by band.
+  - [x] Projected editions of recurring series (CCT, Stake Pulse, Parken…), labeled on `/vrs-sim` and played in as many runs as past projections came true (precision 0.48 in `backtest-fields`). `npm run hindcast-season` checks against Valve's 2026-11-02 list and fails: past the ~45 days Liquipedia lists ahead, mid-table teams' one-off tier 3–4 LANs are missing ([vrs-simulator.md](vrs-simulator.md#hindcast)).
+  - [x] Unannounced stand-ins at each region and category's last-180-day rate, for rivals' points only; assumed-format and projected LANs as schedule options with assumed invitations; series, organizer and home affinity in field draws (held-out log-likelihood −3.30 → −2.98). The hindcast improves from −328 to −147 points and 29% to 58% coverage, but still fails: ranks 15–50 play about two thirds of their real LAN matches ([vrs-simulator.md](vrs-simulator.md#hindcast)).
+  - [ ] Affinity in VRS-offer acceptance, fit and held out on offers like the draw.
+  - [ ] Stand-in rates that follow growth: every 2026 window under-predicted, tier 2 LANs and qualifiers most (×0.72, ×0.81).
+  - [x] Qualifiers linked to main events: 38 links (`qualifierpage`, ancestor page or a slot of its own), feeders' finishers fill the slots, feeders skip teams that can't attend, and "Build a schedule" shows each team's odds of qualifying. On past events 90.4% of linked slot fillers came from the source's top places. The hindcast moved from −147 / 58% to −160 / 51%. The nightly fits its budget again: 983 KB, about 13 minutes ([vrs-simulator.md](vrs-simulator.md#qualifier-links)).
+  - [x] The focal search: `npm run plan-schedule`, beam search over events and qualifier routes, smoothed invite odds as the objective, a hold-out re-rank and exact re-scores ([vrs-simulator.md](vrs-simulator.md#focal-planner)).
+  - [ ] Invites that respond to the schedule (phase 5b): a schedule that lifts the team's rank should earn it later invites.
+  - [x] Plan view on `/vrs-sim` (`?view=plan`), linked from the Schedules view and the team page ([vrs-simulator.md](vrs-simulator.md#focal-planner)).
+  - [x] Weekly plans for teams on the invite bubble: `npm run plan-batch` in the `Plan schedules` workflow, Mondays ([vrs-simulator.md](vrs-simulator.md#focal-planner)).
+  - [x] Tier temperature: tier 2 series play at τ 0.905. Tiers 1 and 3+ were already calibrated ([elo-experiments.md](elo-experiments.md)).
+- [ ] **Configs for big catalog events on the generic format**, e.g. IEM Kraków 2027 (24 teams), whose real format the groups-then-playoffs default doesn't match.
+- [ ] **Country and sub-region VRS lists** in upcoming invite rules: `parseVrsLabel` reads them for past editions (Oceania as Asia, CIS as Europe, country lists as list-less), but `inviteRuleFromPlacements` still only takes the six main lists with a month. None are in upcoming events today.
+- [ ] **Underway online events** (ESEA leagues, CCT series in progress) aren't simulated: a generic bracket can't continue the real one. Their remaining matches need the real format or a config.
 
 ## Demo pipeline
 
@@ -100,13 +131,26 @@ See [war.md](war.md#duel-execution-and-quality).
 
 - [x] **Duel execution and quality** (`cs2wp duel-stats`): nested `p_base` / `p_pos` / `p_flash` cross-fits in `cs2wp duels`, player and team split-half, independence and beyond-Elo gates.
 - [x] **Team gates and Teams table on `/war`**: quality over all duels passes stability and independence, opening-only fails; no team stat adds to Elo, so all are descriptive ([war.md](war.md#duel-execution-and-quality)).
-- [ ] **Player execution column on `/war`**, using the opponent-adjusted `exec_adj_per100` (kept: +0.038 split-half r, 90% CI +0.025 to +0.052).
+- [ ] **Player execution column on `/players`**, using the opponent-adjusted `exec_adj_per100` (kept: +0.038 split-half r, 90% CI +0.025 to +0.052).
 - [x] **Order 2 round stats** (`cs2wp team-stats`): time-and-position value, RW over expected (economy) and adjusted T/CT are published as descriptive. Conversion fails quarter persistence on stints, and the player version fails both tests ([war.md](war.md#team-round-stats)).
 - [ ] **Re-run `cs2wp team-stats` after the backfill.** Conversion persistence is 0.065 on stints (CI −0.066 to 0.194) and 0.162 by team, so it may pass with more archive.
 - [ ] **Elo-free time-and-position value.** Recompute drift with `elo_diff_ct` held at 0, so the stat stops inheriting Elo (r −0.48).
-- [ ] **Luck-adjusted Elo**, on the duel outputs.
+- [x] **Luck-adjusted Elo** (`cs2wp luck`, `backtest-elo --luck`): the raw variant is rejected (−0.0010 on 2026 treated series). The skill-adjusted variant shows Elo carrying luck forward (carryover coefficient −0.17, CI −0.31 to −0.04) and gains +0.0013 at w = 0.5, but the CI (−0.0047 to +0.0076) fails the gate, and a round-margin score doesn't resolve it either, so `luckWeight` stays 0 ([war.md](war.md#luck-adjusted-elo)). Parked: the run already uses the full tier-1 LAN archive, and the series gate would need about 20 times the series. Reopen only if demo coverage widens to tier 2 or online events. The value-weighted variant (each duel's luck times the round win probability riding on it) is the best form: +0.0036 at w = 0.6, CI −0.0034 to +0.0106, still short of the gate. Adding round-conversion luck (`full`) fits 2025 better but is level on 2026 (+0.0034), and a skill-only control puts about a third to a half of the gain down to player skill entering Elo.
+- [x] **Player-skill term in Elo** (`skillWeight`, `backtest-elo --skill`): alone it gains +0.0008 on 2026 treated series (CI −0.0006 to +0.0022, FAIL). Combined with value-weighted luck at w = 0.6 it fits 2025 better than either alone and gains +0.0060 (CI −0.0022 to +0.0144, FAIL), the best of any variant ([war.md](war.md#player-skill-term)).
+- [ ] **Registered test: skill + value-weighted luck on 2024 treated series**, declared 2026-11-15 before any 2024 demo was downloaded. It replaces the pooled 2026 + 2027 test declared 2026-11-14. No weight, variant or rule was chosen on 2024 ([elo-experiments.md](elo-experiments.md)).
+  - **Data:** tier-1 LAN demos from 2023-10-01 to 2024-12-31 (23 events in the local store less the Match of LeGGends showmatch), run through `cs2demos run` and the `cs2wp` chain to `cs2wp luck` with code as it stood at registration. Q4 2023 maps only count toward the treated rule's 120-day history; Elo is still warming up there, so those series aren't scored. A pipeline bug fix is allowed only if it's logged before the result is read.
+  - **Run, once:** `npm run backtest-elo -- --skill --skill-weight 8458 --luck-weight 0.6 --luck-variant value --test-from 2024-01-01 --test-years 2024 --set burstMaps=0`. `--set burstMaps=0` restores the base params as they stood at registration (params.json as of 0176598), before burst damping was kept on 2026-11-18. Frozen: `skillWeight` 8,458, `luckWeight` 0.6, variant `value`, teammate-mean rule, treated rule 5+ luck maps in 120 days.
+  - **Primary, the decision:** the `Encompassing` line. Pass if the 90% event-bootstrap CI for λ is above 0 and the treated-series gain point estimate is above 0. Simulated on 2025 treated series, this has a 5.3% false-pass rate at λ = 0 and 87% power at λ = 1 (the current gain gate: 43%).
+  - **Secondary, not the decision:** pooled 2024 + 2026 under the old gain gate, `--test-from 2024-01-01 --test-years 2024,2026`, reported with the caveat that the form was the best of seven variants on 2026.
+  - **A fail parks the term for good.** No reruns with other weights, variants or rules.
+  - **If it passes:** set the weights live, add the term to [elo-model.md](elo-model.md), and have the nightly build refresh `luck-maps.jsonl` and `player-skill.json` from `cs2wp luck`.
+- [x] **Veto value lost** (`cs2wp veto`): the map model passes its gate on all maps, and value lost persists (stint r 0.64). No hidden-information signal ([war.md](war.md#veto-value-lost)).
+- [x] **T-side predictability** (`cs2wp predictability`): fails. A team's own T history predicts site, timing and execute no better than the league prior, and predictable teams don't underperform rematch opponents ([war.md](war.md#t-side-predictability)).
+- [x] **Clutch and man-advantage conversion** (`cs2wp clutch`): clutch (player, stint) and man-disadvantage (stint) pass year-to-year and are published. Man advantage fails ([war.md](war.md#clutch-and-man-advantage-conversion)).
+- [ ] **WP calibration in late man-count states.** Before centring, 1v1 wins run 6–10 points above the WP model, and 2v1 and 3v2 advantages convert 4–6 points below it. Check whether that's a model miss or an artifact of valuing the state right after the kill.
+- [ ] **Re-run `cs2wp predictability` and `cs2wp clutch` after the backfill.** Man advantage (year r 0.26, CI from −0.09) may pass with more archive.
+- [ ] **Publish veto value lost** once HLTV's publishing terms are checked: `cs2wp veto --publish`, then a column in the Teams tables on `/rankings`.
 
 ## Open items
 
-- Confirm invite cutoffs against Valve's rulebook. `src/vrs/inviteCutoffs.ts`' 16/8/8 doesn't match what Cologne 2026 invited.
 - Once a page showing Liquipedia data is live, send the project link to Liquipedia for verification.

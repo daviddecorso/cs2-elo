@@ -41,6 +41,27 @@ export interface EloCalibrationBin {
     actual: number;
 }
 
+export interface EloHltvPoints {
+    link: string;
+    beta: number;
+    score: EloScore;
+    gain: { mean: number; lo: number; hi: number };
+    bins: EloCalibrationBin[];
+}
+
+export interface EloHltvComparison {
+    through: string;
+    n: number;
+    rankBeta: number;
+    vrsRankBeta: number;
+    elo: EloScore;
+    hltv: EloScore;
+    vrs: EloScore;
+    vrsRank: EloScore;
+    gain: { mean: number; lo: number; hi: number };
+    points?: EloHltvPoints;
+}
+
 export interface EloCalibration {
     generatedAt: string;
     testFrom: string;
@@ -50,4 +71,5 @@ export interface EloCalibration {
     maps: EloScore;
     crossRegion: { n: number; elo: EloScore; vrs: EloScore };
     bins: { elo: EloCalibrationBin[]; vrs: EloCalibrationBin[] };
+    hltv?: EloHltvComparison;
 }

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { EloEngine, expectedScore, mapMargin, marginMultiplier } from "./engine.ts";
+import { EloEngine, expectedScore, makeSkillLookup, mapMargin, marginMultiplier } from "./engine.ts";
 import { STARTING_PARAMS, type EloParams } from "./params.ts";
 import type { EloMatch, EloPlayers } from "./types.ts";
 
@@ -132,6 +132,84 @@ describe("EloEngine", () => {
         engine.run([match(0, ["Old Org", "B"], [a, b], 0), match(DAY, ["New Org", "B"], [a, b], 0)]);
         expect(engine.teamLineageOf("New Org")).toBe(engine.lineages[0]);
         expect(engine.lineages).toHaveLength(2);
+    });
+
+    it("ignores luck rows at luckWeight 0 and moves updates toward them above it", () => {
+        const a = roster("p");
+        const b = roster("q");
+        const series = [match(0, ["A", "B"], [a, b], 0, [[13, 3]]), match(DAY, ["A", "B"], [a, b], 0, [[13, 3]])];
+        const unlucky = () => ({ xMargin: -4, yHat: 0.3 });
+        const ratingOf = (luckWeight: number, luck?: () => { xMargin: number; yHat: number }) => {
+            const engine = new EloEngine({ ...params, luckWeight }, players, luck);
+            const preds = engine.run(series);
+            return { rating: engine.teamLineageOf("A")!.rating, preds };
+        };
+        const plain = ratingOf(0);
+        const off = ratingOf(0, unlucky);
+        expect(off.rating).toBe(plain.rating);
+        expect(off.preds).toEqual(plain.preds);
+        const half = ratingOf(0.5, unlucky);
+        const full = ratingOf(1, unlucky);
+        expect(half.rating).toBeLessThan(plain.rating);
+        expect(full.rating).toBeLessThan(1500);
+        expect(half.preds[0].maps[0].y).toBe(1);
+        expect(full.preds[0].maps[0].margin).toBe(10);
+    });
+
+    it("ignores skill at skillWeight 0 and shifts the prediction toward the more skilled side above it", () => {
+        const a = roster("t");
+        const b = roster("u");
+        const series = [match(0, ["A", "B"], [a, b], 0), match(DAY, ["A", "B"], [a, b], 1)];
+        const skill = (player: string) => (player.startsWith("t") ? 0.1 : 0);
+        const run = (skillWeight: number, lookup?: (player: string, t: number) => number) =>
+            new EloEngine({ ...params, skillWeight }, players, undefined, lookup).run(series);
+        const plain = run(0);
+        const off = run(0, skill);
+        expect(off.map((p) => p.p)).toEqual(plain.map((p) => p.p));
+        expect(off[0].skillGap).toBeCloseTo(0.1, 10);
+        const on = run(500, skill);
+        expect(on[0].p).toBeGreaterThan(0.5);
+        expect(on[0].maps[0].p).toBeCloseTo(expectedScore(50, params.scale), 10);
+    });
+
+    it("takes θ at a series only from series with an earlier t", () => {
+        const a = roster("v");
+        const b = roster("w");
+        const history: Array<[number, number, number]> = [[DAY, 5, 10], [2 * DAY, 10, 10]];
+        const flat: Array<[number, number, number]> = [[DAY, 0, 10]];
+        const skill = makeSkillLookup({
+            k: 10,
+            players: { v1: history, v2: history, v3: history, w1: flat, w2: flat, w3: flat },
+        });
+        expect(skill("v1", DAY)).toBeUndefined();
+        expect(skill("v1", 2 * DAY)).toBeCloseTo(5 / 20, 10);
+        expect(skill("v1", 3 * DAY)).toBeCloseTo(15 / 30, 10);
+        expect(skill("nobody", 3 * DAY)).toBeUndefined();
+        const preds = new EloEngine(params, players, undefined, skill).run([
+            match(DAY, ["A", "B"], [a, b], 0),
+            match(2 * DAY, ["A", "B"], [a, b], 0),
+        ]);
+        expect(preds[0].skillGap).toBe(0);
+        expect(preds[1].skillGap).toBeCloseTo(0.25, 10);
+    });
+
+    it("gives players without history their teammates' mean θ and needs 3 with history per side", () => {
+        const a = roster("x");
+        const b = roster("y");
+        const series = [match(0, ["A", "B"], [a, b], 0)];
+        const gapWith = (known: Record<string, number>) =>
+            new EloEngine(params, players, undefined, (player) => known[player]).run(series)[0].skillGap;
+        expect(gapWith({ x1: 0.3, x2: 0.1, x3: 0.2, y1: 0, y2: 0, y3: 0 })).toBeCloseTo(0.2, 10);
+        expect(gapWith({ x1: 0.3, x2: 0.1, y1: 0, y2: 0, y3: 0 })).toBe(0);
+    });
+
+    it("records lineage ids and pre-series pool offsets", () => {
+        const engine = new EloEngine({ ...params, kMap: 8 }, players);
+        const a = roster("r");
+        const b = roster("s");
+        const [, second] = engine.run([match(0, ["A", "B"], [a, b], 0), match(DAY, ["A", "B"], [a, b], 0)]);
+        expect(second.lineages).toEqual([engine.teamLineageOf("A")!.id, engine.teamLineageOf("B")!.id]);
+        expect(Object.keys(second.poolOffsets[0])).toEqual(["Mirage"]);
     });
 
     it("skips forfeits", () => {

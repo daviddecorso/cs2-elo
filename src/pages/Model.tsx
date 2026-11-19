@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { CalibrationChart } from "../components/charts/CalibrationChart.tsx";
+import { CalibrationChart, type CalibrationSeries } from "../components/charts/CalibrationChart.tsx";
 import { DataTable, Row, TableBody, TableHead, Td, Th } from "../components/DataTable.tsx";
 import { LiquipediaCredit } from "../components/LiquipediaCredit.tsx";
 import {
@@ -21,6 +21,30 @@ const fetchCalibration = async (): Promise<EloCalibration> => {
     if (!res.ok) throw new Error(`Failed to load calibration: HTTP ${res.status}`);
     return res.json();
 };
+
+const ScoreTableHead = ({ firstCol, countCol }: { firstCol: string; countCol: string }) => (
+    <TableHead>
+        <Th align="left">{firstCol}</Th>
+        <Th>{countCol}</Th>
+        <Th>
+            <Tooltip content="Binary cross-entropy loss. Heavily penalizes confident incorrect forecasts. Lower is better.">
+                Log loss
+            </Tooltip>
+        </Th>
+        <Th>
+            <Tooltip content="Mean squared error of probabilities. 0 is perfect prediction. Lower is better.">
+                Brier
+            </Tooltip>
+        </Th>
+        <Th>
+            <Tooltip content="Raw percentage of favorites that won the match.">
+                Accuracy
+            </Tooltip>
+        </Th>
+    </TableHead>
+);
+
+const signed = (v: number) => `${v >= 0 ? "+" : ""}${v.toFixed(4)}`;
 
 const ScoreRow = ({
     label,
@@ -56,6 +80,14 @@ export const Model = () => {
     }
 
     const gateDiff = (data.gate.vrs.logLoss - data.gate.elo.logLoss).toFixed(4);
+    const hltvPoints = data.hltv?.points;
+    const chartSeries: CalibrationSeries[] = [
+        { label: "Elo (all series)", color: "var(--color-accent)", shape: "circle", bins: data.bins.elo },
+        { label: "VRS (ranked pairs)", color: "var(--color-series-2)", shape: "square", bins: data.bins.vrs },
+        ...(hltvPoints
+            ? [{ label: "HLTV points (tier-1 LAN)", color: "var(--color-series-3)", bins: hltvPoints.bins }]
+            : []),
+    ];
 
     return (
         <div className="space-y-10">
@@ -111,25 +143,7 @@ export const Model = () => {
                 }
             >
                 <DataTable>
-                    <TableHead>
-                        <Th align="left">Evaluation slice</Th>
-                        <Th>Series / Maps</Th>
-                        <Th>
-                            <Tooltip content="Binary cross-entropy loss. Heavily penalizes confident incorrect forecasts. Lower is better.">
-                                Log loss
-                            </Tooltip>
-                        </Th>
-                        <Th>
-                            <Tooltip content="Mean squared error of probabilities. 0 is perfect prediction. Lower is better.">
-                                Brier
-                            </Tooltip>
-                        </Th>
-                        <Th>
-                            <Tooltip content="Raw percentage of favorites that won the match.">
-                                Accuracy
-                            </Tooltip>
-                        </Th>
-                    </TableHead>
+                    <ScoreTableHead firstCol="Evaluation slice" countCol="Series / Maps" />
                     <TableBody>
                         <ScoreRow label="Elo: both rosters VRS-ranked (gate test)" s={data.gate.elo} highlight />
                         <ScoreRow label="VRS baseline: both rosters VRS-ranked" s={data.gate.vrs} />
@@ -141,18 +155,47 @@ export const Model = () => {
                 </DataTable>
             </Section>
 
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 items-start">
+            {data.hltv && (
+                <Section
+                    title="Elo vs. HLTV world ranking"
+                    subtitle={
+                        hltvPoints
+                            ? `Tier-1 LAN series only where both teams are ranked in HLTV's weekly table and VRS (${data.hltv.n.toLocaleString()} series through ${data.hltv.through}). HLTV points uses ${hltvPoints.link} (β=${hltvPoints.beta.toFixed(2)}); Elo − HLTV points gain: ${signed(hltvPoints.gain.mean)} (90% CI ${signed(hltvPoints.gain.lo)} to ${signed(hltvPoints.gain.hi)}). HLTV rank only β=${data.hltv.rankBeta.toFixed(2)} (Elo gain ${signed(data.hltv.gain.mean)}), VRS rank β=${data.hltv.vrsRankBeta.toFixed(2)}.`
+                            : `Tier-1 LAN series only where both teams are ranked in HLTV's weekly table and VRS (${data.hltv.n.toLocaleString()} series through ${data.hltv.through}). HLTV is rank only (β=${data.hltv.rankBeta.toFixed(2)}); VRS rank is shown alongside (β=${data.hltv.vrsRankBeta.toFixed(2)}). Elo − HLTV log-loss gain: ${signed(data.hltv.gain.mean)} (90% CI ${signed(data.hltv.gain.lo)} to ${signed(data.hltv.gain.hi)}).`
+                    }
+                >
+                    <DataTable>
+                        <ScoreTableHead firstCol="Model" countCol="Series" />
+                        <TableBody>
+                            <ScoreRow label="Elo" s={data.hltv.elo} highlight />
+                            {hltvPoints && <ScoreRow label="HLTV world ranking (points)" s={hltvPoints.score} />}
+                            <ScoreRow label="HLTV world ranking (rank only)" s={data.hltv.hltv} />
+                            <ScoreRow label="VRS baseline (points)" s={data.hltv.vrs} />
+                            <ScoreRow label="VRS baseline (rank only)" s={data.hltv.vrsRank} />
+                        </TableBody>
+                    </DataTable>
+                    <div className="text-xs text-muted">
+                        World rankings sourced from{" "}
+                        <a
+                            href="https://www.hltv.org/ranking/teams"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="underline hover:text-fg transition-colors"
+                        >
+                            HLTV.org
+                        </a>
+                        .
+                    </div>
+                </Section>
+            )}
+
+            <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,5fr)_minmax(0,7fr)] gap-8 items-start">
                 <Section
                     title="Calibration Curves"
                     subtitle="Forecasts folded onto the favorite and binned by predicted win rate. Points on the diagonal represent perfect probabilistic calibration."
                 >
                     <Card className="p-4">
-                        <CalibrationChart
-                            series={[
-                                { label: "Elo (all series)", color: "var(--color-accent)", shape: "circle", bins: data.bins.elo },
-                                { label: "VRS (ranked pairs)", color: "var(--color-series-2)", shape: "square", bins: data.bins.vrs },
-                            ]}
-                        />
+                        <CalibrationChart series={chartSeries} />
                     </Card>
                 </Section>
 
@@ -160,7 +203,7 @@ export const Model = () => {
                     title="Calibration Bins Breakdown"
                     subtitle="Favorite win rates by predicted probability band. Bins with sample size under 20 are omitted."
                 >
-                    <DataTable>
+                    <DataTable className="[&_th]:px-2 [&_td]:px-2">
                         <TableHead>
                             <Th align="left">Favorite Band</Th>
                             <Th>Elo Pred.</Th>
@@ -168,10 +211,17 @@ export const Model = () => {
                             <Th>Elo N</Th>
                             <Th>VRS Won</Th>
                             <Th>VRS N</Th>
+                            {hltvPoints && (
+                                <>
+                                    <Th>HLTV Won</Th>
+                                    <Th>HLTV N</Th>
+                                </>
+                            )}
                         </TableHead>
                         <TableBody>
                             {data.bins.elo.map((eb, i) => {
                                 const vb = data.bins.vrs[i];
+                                const hb = hltvPoints?.bins[i];
                                 return (
                                     <Row key={eb.lo}>
                                         <Td className="font-mono text-muted">
@@ -188,6 +238,16 @@ export const Model = () => {
                                         <Td align="right" className="text-muted">
                                             {vb && vb.n > 0 ? vb.n.toLocaleString() : "–"}
                                         </Td>
+                                        {hltvPoints && (
+                                            <>
+                                                <Td align="right">
+                                                    {hb && hb.n >= 20 ? `${(hb.actual * 100).toFixed(1)}%` : "–"}
+                                                </Td>
+                                                <Td align="right" className="text-muted">
+                                                    {hb && hb.n >= 20 ? hb.n.toLocaleString() : "–"}
+                                                </Td>
+                                            </>
+                                        )}
                                     </Row>
                                 );
                             })}
@@ -198,7 +258,7 @@ export const Model = () => {
 
             <Section
                 title="Model Parameters & Architecture"
-                subtitle="Parameters tuned via coordinate descent on 2024–2025 series (42,074 series) and validated out-of-sample on 2026 matches."
+                subtitle="Parameters tuned via coordinate descent on 2025 series (20,921 series) and validated out-of-sample on 2026 matches."
             >
                 <Inset className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 text-xs font-mono">
                     <div className="space-y-1">

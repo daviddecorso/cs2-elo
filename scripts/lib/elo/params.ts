@@ -21,6 +21,9 @@ export interface EloParams {
     /** Extra K fraction for a new lineage, fading to 0 over `provisionalMaps`. */
     provisionalK: number;
     provisionalMaps: number;
+    /** K divides by 1 + (maps in the last ~`burstDays`, decayed) / `burstMaps`, so a run of maps at one event counts less than spread-out maps; 0 is off. */
+    burstMaps: number;
+    burstDays: number;
     /** Fraction of the gap to the tier mean closed when all 5 core players change; partial changes scale by replaced/5. */
     regress: number;
     /** Fraction of the gap to the tier mean closed when seeding a new lineage from its players' old ratings. */
@@ -37,6 +40,12 @@ export interface EloParams {
     standInK: number;
     /** Map logit multiplier before converting to Bo3/Bo5 odds; below 1 softens the independent-maps binomial. */
     seriesMapTemp: number;
+    /** `seriesMapTemp` for online series; LAN series use `seriesMapTemp`. Defaults to `seriesMapTemp` when unset. */
+    seriesMapTempOnline: number;
+    /** Weight on the duel-expected result in rating updates, 0–1; only maps with a luck row are affected. */
+    luckWeight: number;
+    /** Rating points added to the gap per unit of the sides' mean prior duel-skill (θ) difference; needs a SkillLookup. */
+    skillWeight: number;
 }
 
 /** Values before tuning; `npm run backtest-elo -- --tune --write` saves the tuned set to `params.json`, which overrides these. */
@@ -58,9 +67,16 @@ export const STARTING_PARAMS: EloParams = {
     tierGap: 100,
     standInK: 1,
     seriesMapTemp: 1,
+    seriesMapTempOnline: 1,
+    luckWeight: 0,
+    skillWeight: 0,
+    burstMaps: 0,
+    burstDays: 7,
 };
 
+const tuned = JSON.parse(fs.readFileSync(TUNED_PARAMS_PATH, "utf8")) as Partial<EloParams>;
 export const DEFAULT_PARAMS: EloParams = {
     ...STARTING_PARAMS,
-    ...(JSON.parse(fs.readFileSync(TUNED_PARAMS_PATH, "utf8")) as Partial<EloParams>),
+    ...tuned,
+    seriesMapTempOnline: tuned.seriesMapTempOnline ?? tuned.seriesMapTemp ?? STARTING_PARAMS.seriesMapTempOnline,
 };

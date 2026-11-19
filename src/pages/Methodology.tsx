@@ -337,6 +337,12 @@ export const Methodology = () => {
                             hold VRS rankings.
                         </p>
                         <p>
+                            We also score Elo alongside HLTV&apos;s weekly world ranking on the subset of tier-1 LAN
+                            series where both teams are ranked, pairing it with a VRS rank-only fit for a like-for-like
+                            comparison. HLTV stays informational rather than a gate because that sample is much smaller,
+                            restricted to tier-1 LANs, and publishes ranks without underlying points.
+                        </p>
+                        <p>
                             Inspect full empirical results, calibration curves, and score comparisons on the{" "}
                             <Link to="/model" className="underline underline-offset-2 hover:text-accent font-semibold">
                                 Model performance page

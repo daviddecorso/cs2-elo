@@ -17,6 +17,9 @@ export interface Lineage {
     recent: string[][];
     firstT: number;
     lastT: number;
+    /** Maps played, decayed with time constant `burstDays`, as of `loadT`. */
+    load?: number;
+    loadT?: number;
 }
 
 export interface SeriesPrediction {
@@ -29,21 +32,74 @@ export interface SeriesPrediction {
     p: number;
     /** 1 if teams[0] won. */
     y: 0 | 1;
-    /** `ratings` are each side's rating plus its offset for that map, before the map is played. */
-    maps: Array<{ map: string; p: number; y: 0 | 1; ratings: [number, number] }>;
+    /** `ratings` are each side's rating plus its offset for that map, before the map is played. `margin` is the real signed round margin for teams[0]. */
+    maps: Array<{ map: string; p: number; y: 0 | 1; margin: number; ratings: [number, number] }>;
     crossRegion: boolean;
     standIn: boolean;
     tier: number;
     lan: boolean;
+    lineages: [number, number];
     ratings: [number, number];
+    /** Each side's map offsets over the pool active at the series start, before it is played. */
+    poolOffsets: [Record<string, number>, Record<string, number>];
     /** Maps rated before this series by the less experienced side. */
     minMaps: number;
     /** Days since the less recently active side last played. */
     idleDays: number;
+    /** Mean prior duel skill θ of teams[0]'s lineup minus teams[1]'s; 0 without a SkillLookup or unless both sides have 3+ players with history. */
+    skillGap: number;
 }
+
+/** A map's luck-adjusted result from duel expectations, from teams[0]'s view. */
+export interface LuckRow {
+    /** Signed round margin had every duel gone at its expected rate. */
+    xMargin: number;
+    /** P(teams[0] wins the map | xMargin). */
+    yHat: number;
+}
+
+/** Looks up a series' map by its position among the scored maps. */
+export type LuckLookup = (seriesId: string, index: number) => LuckRow | undefined;
+
+/** A player's duel skill θ from demo series strictly before `t`; undefined with none. */
+export type SkillLookup = (player: string, t: number) => number | undefined;
+
+/** `data/elo/player-skill.json` from `cs2wp luck`: per player page, `[t, exec, duels]` per demo series sorted by `t`. */
+export interface PlayerSkill {
+    /** Shrinkage in duels. */
+    k: number;
+    players: Record<string, Array<[number, number, number]>>;
+}
+
+/** θ = execution summed over earlier series / (their duels + k). The maps of one series share `t`, so a series never sees itself. */
+export const makeSkillLookup = ({ k, players }: PlayerSkill): SkillLookup => {
+    const cumulative = new Map<string, { t: number[]; exec: number[]; duels: number[] }>();
+    for (const [player, rows] of Object.entries(players)) {
+        let e = 0;
+        let d = 0;
+        cumulative.set(player, {
+            t: rows.map((r) => r[0]),
+            exec: rows.map((r) => (e += r[1])),
+            duels: rows.map((r) => (d += r[2])),
+        });
+    }
+    return (player, t) => {
+        const c = cumulative.get(player);
+        if (!c) return undefined;
+        let lo = 0;
+        let hi = c.t.length;
+        while (lo < hi) {
+            const mid = (lo + hi) >> 1;
+            if (c.t[mid] < t) lo = mid + 1;
+            else hi = mid;
+        }
+        return lo === 0 ? undefined : c.exec[lo - 1] / (c.duels[lo - 1] + k);
+    };
+};
 
 const TIER_ACTIVE_SECONDS = 120 * 24 * 3600;
 const DEFAULT_TIER = 4;
+const MIN_SKILL_PLAYERS = 3;
 const BASE_RATING = 1500;
 
 export const expectedScore = (diff: number, scale: number): number => 1 / (1 + 10 ** (-diff / scale));
@@ -73,10 +129,14 @@ export class EloEngine {
     private tierMeanCache = { day: -1, means: [] as Array<number | null> };
     private params: EloParams;
     private players: EloPlayers;
+    private luck: LuckLookup | undefined;
+    private skill: SkillLookup | undefined;
 
-    constructor(params: EloParams, players: EloPlayers) {
+    constructor(params: EloParams, players: EloPlayers, luck?: LuckLookup, skill?: SkillLookup) {
         this.params = params;
         this.players = players;
+        this.luck = luck;
+        this.skill = skill;
     }
 
     /** Runs every series in order and returns one prediction per non-forfeit series, made before its result. */
@@ -105,10 +165,10 @@ export class EloEngine {
         return this.teamLineage.get(team);
     }
 
-    /** Map win probability for `a` over `b`; with no map, averaged over the pool active at `t`. */
-    mapProbability(a: Lineage, b: Lineage, map: string | null, t: number): number {
+    /** Map win probability for `a` over `b`, with `extraGap` added to their rating gap; with no map, averaged over the pool active at `t`. */
+    mapProbability(a: Lineage, b: Lineage, map: string | null, t: number, extraGap = 0): number {
         const { scale } = this.params;
-        const diff = a.rating - b.rating;
+        const diff = a.rating - b.rating + extraGap;
         if (map) return expectedScore(diff + (a.mapOffsets.get(map) ?? 0) - (b.mapOffsets.get(map) ?? 0), scale);
         const pool = this.pool.at(t);
         if (pool.length === 0) return expectedScore(diff, scale);
@@ -126,52 +186,77 @@ export class EloEngine {
         const B = b.lineage;
 
         const bestOf = seriesLength(m.bestOf);
-        const pMap = this.mapProbability(A, B, null, m.t);
+        const sideLineups: [string[], string[]] = [lineups[0] ?? A.core, lineups[1] ?? B.core];
+        const skillGap = this.skillGap(sideLineups, m.t);
+        // The shifted expectation feeds the update too, so the rating learns only what the skill term leaves over.
+        const shift = this.params.skillWeight * skillGap;
+        const pMap = this.mapProbability(A, B, null, m.t, shift);
         const crossRegion = A.region !== null && B.region !== null && A.region !== B.region;
         const standIn = a.standIn || b.standIn;
+        const pool = this.pool.at(m.t);
+        const offsetsOf = (l: Lineage) => Object.fromEntries(pool.map((name) => [name, l.mapOffsets.get(name) ?? 0]));
         const prediction: SeriesPrediction = {
             id: m.id,
             t: m.t,
             bestOf,
             teams: m.teams,
-            lineups: [lineups[0] ?? A.core, lineups[1] ?? B.core],
-            p: seriesWinProbability(pMap, bestOf, this.params.seriesMapTemp),
+            lineups: sideLineups,
+            p: seriesWinProbability(pMap, bestOf, m.lan ? this.params.seriesMapTemp : this.params.seriesMapTempOnline),
             y: m.winner === 0 ? 1 : 0,
             maps: [],
             crossRegion,
             standIn,
             tier,
             lan: m.lan,
+            lineages: [A.id, B.id],
             ratings: [A.rating, B.rating],
+            poolOffsets: [offsetsOf(A), offsetsOf(B)],
             minMaps: Math.min(A.maps, B.maps),
             idleDays: (m.t - Math.min(A.lastT, B.lastT)) / 86400,
+            skillGap,
         };
 
         const p = this.params;
         const kBase =
             p.k * (m.lan ? 1 : p.onlineK) * p.tierK ** (tier - 1) * (crossRegion ? p.crossRegionK : 1) * (standIn ? p.standInK : 1);
-        for (const map of m.maps) {
-            const expected = this.mapProbability(A, B, map.map, m.t);
+        m.maps.forEach((map, index) => {
+            const expected = this.mapProbability(A, B, map.map, m.t, shift);
             const y = map.rounds[0] > map.rounds[1] ? 1 : 0;
             const ratings: [number, number] = [
                 A.rating + (A.mapOffsets.get(map.map) ?? 0),
                 B.rating + (B.mapOffsets.get(map.map) ?? 0),
             ];
-            prediction.maps.push({ map: map.map, p: expected, y, ratings });
+            let margin = mapMargin(map.rounds, p.otMargin) * (y ? 1 : -1);
+            prediction.maps.push({ map: map.map, p: expected, y, margin, ratings });
 
-            const edge = (A.rating - B.rating) * (y ? 1 : -1);
-            const mult = marginMultiplier(mapMargin(map.rounds, p.otMargin), edge, p.marginWeight);
+            // Updates use a blend of the real result and the luck-adjusted one; predictions above always use the real y and margin.
+            let target: number = y;
+            const luck = p.luckWeight > 0 ? this.luck?.(m.id, index) : undefined;
+            if (luck) {
+                margin = (1 - p.luckWeight) * margin + p.luckWeight * luck.xMargin;
+                target = (1 - p.luckWeight) * y + p.luckWeight * luck.yHat;
+            }
+            const winnerSign = margin > 0 || (margin === 0 && y) ? 1 : -1;
+            const edge = (A.rating - B.rating) * winnerSign;
+            const mult = marginMultiplier(Math.abs(margin), edge, p.marginWeight);
             const provisional = (l: Lineage) => 1 + p.provisionalK * Math.max(0, 1 - l.maps / p.provisionalMaps);
-            const surprise = y - expected;
-            A.rating += kBase * mult * provisional(A) * surprise;
-            B.rating -= kBase * mult * provisional(B) * surprise;
+            const burst = (l: Lineage) => {
+                if (p.burstMaps <= 0) return 1;
+                const load = (l.load ?? 0) * Math.exp(-(m.t - (l.loadT ?? m.t)) / (p.burstDays * 86400));
+                l.load = load + 1;
+                l.loadT = m.t;
+                return 1 / (1 + load / p.burstMaps);
+            };
+            const surprise = target - expected;
+            A.rating += kBase * mult * provisional(A) * burst(A) * surprise;
+            B.rating -= kBase * mult * provisional(B) * burst(B) * surprise;
             A.maps++;
             B.maps++;
 
             this.updateMapOffset(A, map.map, p.kMap * surprise, m.t);
             this.updateMapOffset(B, map.map, -p.kMap * surprise, m.t);
             this.pool.record(m.t, map.map);
-        }
+        });
 
         for (const l of [A, B]) {
             l.lastT = m.t;
@@ -179,6 +264,15 @@ export class EloEngine {
             if (l.tiers.length > 10) l.tiers.shift();
         }
         return prediction;
+    }
+
+    /** Players without history take their teammates' mean θ, so a side's θ̄ is the mean over those with history. */
+    private skillGap(lineups: [string[], string[]], t: number): number {
+        if (!this.skill) return 0;
+        const known = lineups.map((l) => l.map((player) => this.skill!(player, t)).filter((θ) => θ !== undefined));
+        if (known.some((θs) => θs.length < MIN_SKILL_PLAYERS)) return 0;
+        const [a, b] = known.map((θs) => θs.reduce((s, θ) => s + θ, 0) / θs.length);
+        return a - b;
     }
 
     /** Offsets stay centred on the active pool so they only express map preference, never overall strength. */

@@ -1,0 +1,3850 @@
+{
+ "generated_at": "2026-11-15T21:19:51+00:00",
+ "min_entries": {
+  "stint": 120,
+  "player": 60
+ },
+ "team_stats": {
+  "clutch": {
+   "label": "Clutch (1vN)",
+   "year_r": 0.26875154989660066,
+   "year_r_ci": [
+    0.020797777526370336,
+    0.48340535986775046
+   ],
+   "split_half_r": 0.21903333379629855,
+   "split_half_r_ci": [
+    0.03813157739664072,
+    0.4058101988767237
+   ],
+   "r_elo": 0.12752255924118755,
+   "entries": 67801
+  },
+  "disadv": {
+   "label": "Man disadvantage",
+   "year_r": 0.35512178391241095,
+   "year_r_ci": [
+    0.0986000371577594,
+    0.5664217151483244
+   ],
+   "split_half_r": 0.34341060060069944,
+   "split_half_r_ci": [
+    0.12830520240337503,
+    0.5349540271575718
+   ],
+   "r_elo": 0.6979120927805917,
+   "entries": 90740
+  }
+ },
+ "player_stats": {
+  "clutch": {
+   "label": "Clutch (1vN)",
+   "year_r": 0.1524104298500632,
+   "year_r_ci": [
+    0.0335020252490402,
+    0.27381170112003145
+   ],
+   "split_half_r": 0.008689559381666247,
+   "split_half_r_ci": [
+    -0.09657331997549441,
+    0.11752128486498692
+   ],
+   "r_elo": null,
+   "entries": 67801
+  }
+ },
+ "source": {
+  "demos": "HLTV.org match demos, parsed with awpy",
+  "attribution": "Events, rosters and player pages from Liquipedia (CC-BY-SA 3.0)",
+  "liquipedia": "https://liquipedia.net/counterstrike/"
+ },
+ "teams": [
+  {
+   "stint_id": "FURIA#0:FalleN",
+   "label": "FURIA (FalleN)",
+   "lp_team": "FURIA",
+   "igl_player": "FalleN",
+   "maps": 363,
+   "clutch": {
+    "per100": -0.05,
+    "p5": -0.75,
+    "p95": 0.68,
+    "entries": 3646
+   },
+   "disadv": {
+    "per100": 0.38,
+    "p5": -0.65,
+    "p95": 1.38,
+    "entries": 5038
+   }
+  },
+  {
+   "stint_id": "Team Vitality#0:ApEX",
+   "label": "Team Vitality (ApEX)",
+   "lp_team": "Team Vitality",
+   "igl_player": "ApEX",
+   "maps": 341,
+   "clutch": {
+    "per100": 1.06,
+    "p5": 0.28,
+    "p95": 1.85,
+    "entries": 3272
+   },
+   "disadv": {
+    "per100": 3.53,
+    "p5": 2.37,
+    "p95": 4.76,
+    "entries": 4507
+   }
+  },
+  {
+   "stint_id": "The MongolZ#0:BLitz",
+   "label": "The MongolZ (BLitz)",
+   "lp_team": "The MongolZ",
+   "igl_player": "BLitz",
+   "maps": 281,
+   "clutch": {
+    "per100": -0.23,
+    "p5": -0.94,
+    "p95": 0.49,
+    "entries": 3261
+   },
+   "disadv": {
+    "per100": 1.12,
+    "p5": 0.01,
+    "p95": 2.21,
+    "entries": 4247
+   }
+  },
+  {
+   "stint_id": "Natus Vincere#0:Aleksib",
+   "label": "Natus Vincere (Aleksib)",
+   "lp_team": "Natus Vincere",
+   "igl_player": "Aleksib",
+   "maps": 263,
+   "clutch": {
+    "per100": -0.29,
+    "p5": -1.17,
+    "p95": 0.6,
+    "entries": 2797
+   },
+   "disadv": {
+    "per100": 1.13,
+    "p5": -0.05,
+    "p95": 2.31,
+    "entries": 3747
+   }
+  },
+  {
+   "stint_id": "Team Falcons#0:Kyxsan",
+   "label": "Team Falcons (Kyxsan)",
+   "lp_team": "Team Falcons",
+   "igl_player": "Kyxsan",
+   "maps": 228,
+   "clutch": {
+    "per100": 0.93,
+    "p5": 0.0,
+    "p95": 1.91,
+    "entries": 2444
+   },
+   "disadv": {
+    "per100": 0.58,
+    "p5": -0.68,
+    "p95": 1.87,
+    "entries": 3231
+   }
+  },
+  {
+   "stint_id": "MOUZ#0:Brollan",
+   "label": "MOUZ (Brollan, ....2026-04-30)",
+   "lp_team": "MOUZ",
+   "igl_player": "Brollan",
+   "maps": 210,
+   "clutch": {
+    "per100": -0.12,
+    "p5": -0.82,
+    "p95": 0.62,
+    "entries": 2189
+   },
+   "disadv": {
+    "per100": 0.56,
+    "p5": -0.8,
+    "p95": 1.89,
+    "entries": 3096
+   }
+  },
+  {
+   "stint_id": "G2 Esports#1:HuNter-",
+   "label": "G2 Esports (HuNter-)",
+   "lp_team": "G2 Esports",
+   "igl_player": "HuNter-",
+   "maps": 208,
+   "clutch": {
+    "per100": -0.33,
+    "p5": -1.28,
+    "p95": 0.66,
+    "entries": 2203
+   },
+   "disadv": {
+    "per100": 1.05,
+    "p5": -0.28,
+    "p95": 2.42,
+    "entries": 3010
+   }
+  },
+  {
+   "stint_id": "paiN Gaming#0:Biguzera",
+   "label": "paiN Gaming (Biguzera)",
+   "lp_team": "paiN Gaming",
+   "igl_player": "Biguzera",
+   "maps": 185,
+   "clutch": {
+    "per100": -0.5,
+    "p5": -1.22,
+    "p95": 0.26,
+    "entries": 2047
+   },
+   "disadv": {
+    "per100": -1.51,
+    "p5": -2.78,
+    "p95": -0.36,
+    "entries": 2771
+   }
+  },
+  {
+   "stint_id": "3DMAX#0:Maka",
+   "label": "3DMAX (Maka)",
+   "lp_team": "3DMAX",
+   "igl_player": "Maka",
+   "maps": 185,
+   "clutch": {
+    "per100": 0.57,
+    "p5": -0.32,
+    "p95": 1.47,
+    "entries": 2062
+   },
+   "disadv": {
+    "per100": -0.66,
+    "p5": -1.98,
+    "p95": 0.73,
+    "entries": 2760
+   }
+  },
+  {
+   "stint_id": "FaZe Clan#0:Karrigan",
+   "label": "FaZe Clan (Karrigan)",
+   "lp_team": "FaZe Clan",
+   "igl_player": "Karrigan",
+   "maps": 183,
+   "clutch": {
+    "per100": 0.24,
+    "p5": -0.76,
+    "p95": 1.27,
+    "entries": 1948
+   },
+   "disadv": {
+    "per100": 0.5,
+    "p5": -0.8,
+    "p95": 1.78,
+    "entries": 2649
+   }
+  },
+  {
+   "stint_id": "Aurora Gaming#0:MAJ3R",
+   "label": "Aurora Gaming (MAJ3R)",
+   "lp_team": "Aurora Gaming",
+   "igl_player": "MAJ3R",
+   "maps": 171,
+   "clutch": {
+    "per100": 0.62,
+    "p5": -0.38,
+    "p95": 1.64,
+    "entries": 1845
+   },
+   "disadv": {
+    "per100": 1.26,
+    "p5": -0.2,
+    "p95": 2.67,
+    "entries": 2507
+   }
+  },
+  {
+   "stint_id": "Astralis#1:HooXi",
+   "label": "Astralis (HooXi)",
+   "lp_team": "Astralis",
+   "igl_player": "HooXi",
+   "maps": 166,
+   "clutch": {
+    "per100": -0.33,
+    "p5": -1.24,
+    "p95": 0.65,
+    "entries": 1860
+   },
+   "disadv": {
+    "per100": -0.66,
+    "p5": -2.02,
+    "p95": 0.83,
+    "entries": 2417
+   }
+  },
+  {
+   "stint_id": "Team Spirit#1:Magixx",
+   "label": "Team Spirit (Magixx)",
+   "lp_team": "Team Spirit",
+   "igl_player": "Magixx",
+   "maps": 143,
+   "clutch": {
+    "per100": 0.13,
+    "p5": -1.07,
+    "p95": 1.43,
+    "entries": 1400
+   },
+   "disadv": {
+    "per100": 2.51,
+    "p5": 0.87,
+    "p95": 4.25,
+    "entries": 1951
+   }
+  },
+  {
+   "stint_id": "Team Spirit#0:Chopper",
+   "label": "Team Spirit (Chopper)",
+   "lp_team": "Team Spirit",
+   "igl_player": "Chopper",
+   "maps": 140,
+   "clutch": {
+    "per100": 0.62,
+    "p5": -0.7,
+    "p95": 1.96,
+    "entries": 1422
+   },
+   "disadv": {
+    "per100": 4.41,
+    "p5": 2.84,
+    "p95": 5.97,
+    "entries": 2014
+   }
+  },
+  {
+   "stint_id": "PARIVISION#0:Jame",
+   "label": "PARIVISION (Jame)",
+   "lp_team": "PARIVISION",
+   "igl_player": "Jame",
+   "maps": 129,
+   "clutch": {
+    "per100": 0.98,
+    "p5": 0.07,
+    "p95": 2.03,
+    "entries": 1460
+   },
+   "disadv": {
+    "per100": 0.91,
+    "p5": -0.56,
+    "p95": 2.47,
+    "entries": 1993
+   }
+  },
+  {
+   "stint_id": "TYLOO#0:Mercury",
+   "label": "TYLOO (Mercury)",
+   "lp_team": "TYLOO",
+   "igl_player": "Mercury",
+   "maps": 125,
+   "clutch": {
+    "per100": -0.73,
+    "p5": -1.91,
+    "p95": 0.33,
+    "entries": 1435
+   },
+   "disadv": {
+    "per100": -1.94,
+    "p5": -3.64,
+    "p95": -0.23,
+    "entries": 1873
+   }
+  },
+  {
+   "stint_id": "B8#0:Alex666",
+   "label": "B8 (Alex666)",
+   "lp_team": "B8",
+   "igl_player": "Alex666",
+   "maps": 121,
+   "clutch": {
+    "per100": 0.78,
+    "p5": -0.38,
+    "p95": 1.97,
+    "entries": 1406
+   },
+   "disadv": {
+    "per100": 0.02,
+    "p5": -1.73,
+    "p95": 1.77,
+    "entries": 1808
+   }
+  },
+  {
+   "stint_id": "GamerLegion#0:Ztr",
+   "label": "GamerLegion (Ztr)",
+   "lp_team": "GamerLegion",
+   "igl_player": "Ztr",
+   "maps": 119,
+   "clutch": {
+    "per100": 1.34,
+    "p5": 0.25,
+    "p95": 2.48,
+    "entries": 1333
+   },
+   "disadv": {
+    "per100": 0.61,
+    "p5": -0.97,
+    "p95": 2.4,
+    "entries": 1784
+   }
+  },
+  {
+   "stint_id": "Team Liquid#1:Siuhy",
+   "label": "Team Liquid (Siuhy)",
+   "lp_team": "Team Liquid",
+   "igl_player": "Siuhy",
+   "maps": 112,
+   "clutch": {
+    "per100": -1.74,
+    "p5": -3.07,
+    "p95": -0.48,
+    "entries": 1304
+   },
+   "disadv": {
+    "per100": -2.55,
+    "p5": -4.23,
+    "p95": -0.76,
+    "entries": 1685
+   }
+  },
+  {
+   "stint_id": "Legacy#1:ArT",
+   "label": "Legacy (ArT)",
+   "lp_team": "Legacy",
+   "igl_player": "ArT",
+   "maps": 107,
+   "clutch": {
+    "per100": -0.95,
+    "p5": -2.0,
+    "p95": 0.21,
+    "entries": 1099
+   },
+   "disadv": {
+    "per100": -1.19,
+    "p5": -2.99,
+    "p95": 0.78,
+    "entries": 1535
+   }
+  },
+  {
+   "stint_id": "FUT Esports#0:Krabeni",
+   "label": "FUT Esports (Krabeni)",
+   "lp_team": "FUT Esports",
+   "igl_player": "Krabeni",
+   "maps": 101,
+   "clutch": {
+    "per100": -1.89,
+    "p5": -3.05,
+    "p95": -0.77,
+    "entries": 1151
+   },
+   "disadv": {
+    "per100": -0.02,
+    "p5": -1.7,
+    "p95": 1.7,
+    "entries": 1494
+   }
+  },
+  {
+   "stint_id": "Virtus.pro#0:ElectroNic",
+   "label": "Virtus.pro (ElectroNic)",
+   "lp_team": "Virtus.pro",
+   "igl_player": "ElectroNic",
+   "maps": 92,
+   "clutch": {
+    "per100": 0.15,
+    "p5": -1.22,
+    "p95": 1.43,
+    "entries": 968
+   },
+   "disadv": {
+    "per100": 1.37,
+    "p5": -0.59,
+    "p95": 3.23,
+    "entries": 1412
+   }
+  },
+  {
+   "stint_id": "M80#0:S1n",
+   "label": "M80 (S1n)",
+   "lp_team": "M80",
+   "igl_player": "S1n",
+   "maps": 92,
+   "clutch": {
+    "per100": -1.52,
+    "p5": -2.7,
+    "p95": -0.36,
+    "entries": 1038
+   },
+   "disadv": {
+    "per100": -2.04,
+    "p5": -3.73,
+    "p95": -0.19,
+    "entries": 1350
+   }
+  },
+  {
+   "stint_id": "Team Falcons#1:Karrigan",
+   "label": "Team Falcons (Karrigan)",
+   "lp_team": "Team Falcons",
+   "igl_player": "Karrigan",
+   "maps": 91,
+   "clutch": {
+    "per100": 0.92,
+    "p5": -0.25,
+    "p95": 1.99,
+    "entries": 998
+   },
+   "disadv": {
+    "per100": 2.54,
+    "p5": 0.47,
+    "p95": 4.58,
+    "entries": 1367
+   }
+  },
+  {
+   "stint_id": "BetBoom Team#1:Boombl4",
+   "label": "BetBoom Team (Boombl4)",
+   "lp_team": "BetBoom Team",
+   "igl_player": "Boombl4",
+   "maps": 90,
+   "clutch": {
+    "per100": -0.43,
+    "p5": -1.84,
+    "p95": 0.97,
+    "entries": 1016
+   },
+   "disadv": {
+    "per100": -1.45,
+    "p5": -3.43,
+    "p95": 0.38,
+    "entries": 1310
+   }
+  },
+  {
+   "stint_id": "G2 Esports#0:Snax",
+   "label": "G2 Esports (Snax)",
+   "lp_team": "G2 Esports",
+   "igl_player": "Snax",
+   "maps": 82,
+   "clutch": {
+    "per100": 1.74,
+    "p5": 0.06,
+    "p95": 3.37,
+    "entries": 874
+   },
+   "disadv": {
+    "per100": 1.95,
+    "p5": -0.37,
+    "p95": 4.66,
+    "entries": 1207
+   }
+  },
+  {
+   "stint_id": "9z Team#0:Max",
+   "label": "9z Team (Max)",
+   "lp_team": "9z Team",
+   "igl_player": "Max",
+   "maps": 82,
+   "clutch": {
+    "per100": -0.76,
+    "p5": -2.04,
+    "p95": 0.73,
+    "entries": 854
+   },
+   "disadv": {
+    "per100": -1.59,
+    "p5": -4.26,
+    "p95": 0.88,
+    "entries": 1140
+   }
+  },
+  {
+   "stint_id": "HEROIC#0:LNZ",
+   "label": "HEROIC (LNZ)",
+   "lp_team": "HEROIC",
+   "igl_player": "LNZ",
+   "maps": 76,
+   "clutch": {
+    "per100": 1.25,
+    "p5": -0.03,
+    "p95": 2.59,
+    "entries": 907
+   },
+   "disadv": {
+    "per100": 1.05,
+    "p5": -0.94,
+    "p95": 3.18,
+    "entries": 1179
+   }
+  },
+  {
+   "stint_id": "Lynn Vision Gaming#0:Westmelon",
+   "label": "Lynn Vision Gaming (Westmelon)",
+   "lp_team": "Lynn Vision Gaming",
+   "igl_player": "Westmelon",
+   "maps": 76,
+   "clutch": {
+    "per100": -0.88,
+    "p5": -2.22,
+    "p95": 0.51,
+    "entries": 858
+   },
+   "disadv": {
+    "per100": -3.35,
+    "p5": -5.45,
+    "p95": -1.21,
+    "entries": 1098
+   }
+  },
+  {
+   "stint_id": "MOUZ#3:XertioN",
+   "label": "MOUZ (XertioN, 2026-06-15....)",
+   "lp_team": "MOUZ",
+   "igl_player": "XertioN",
+   "maps": 74,
+   "clutch": {
+    "per100": -1.18,
+    "p5": -2.61,
+    "p95": 0.23,
+    "entries": 740
+   },
+   "disadv": {
+    "per100": 2.35,
+    "p5": 0.65,
+    "p95": 4.3,
+    "entries": 1052
+   }
+  },
+  {
+   "stint_id": "FlyQuest#0:INS",
+   "label": "FlyQuest (INS)",
+   "lp_team": "FlyQuest",
+   "igl_player": "INS",
+   "maps": 74,
+   "clutch": {
+    "per100": -0.6,
+    "p5": -1.99,
+    "p95": 0.76,
+    "entries": 842
+   },
+   "disadv": {
+    "per100": -1.73,
+    "p5": -4.03,
+    "p95": 0.77,
+    "entries": 1094
+   }
+  },
+  {
+   "stint_id": "Legacy#0:Lux",
+   "label": "Legacy (Lux)",
+   "lp_team": "Legacy",
+   "igl_player": "Lux",
+   "maps": 70,
+   "clutch": {
+    "per100": -0.18,
+    "p5": -1.78,
+    "p95": 1.44,
+    "entries": 747
+   },
+   "disadv": {
+    "per100": -2.61,
+    "p5": -4.68,
+    "p95": -0.77,
+    "entries": 977
+   }
+  },
+  {
+   "stint_id": "MIBR#0:Exit",
+   "label": "MIBR (Exit)",
+   "lp_team": "MIBR",
+   "igl_player": "Exit",
+   "maps": 70,
+   "clutch": {
+    "per100": 0.57,
+    "p5": -0.9,
+    "p95": 2.27,
+    "entries": 811
+   },
+   "disadv": {
+    "per100": -3.1,
+    "p5": -4.97,
+    "p95": -1.35,
+    "entries": 1092
+   }
+  },
+  {
+   "stint_id": "Eternal Fire#0:MAJ3R",
+   "label": "Eternal Fire (MAJ3R)",
+   "lp_team": "Eternal Fire",
+   "igl_player": "MAJ3R",
+   "maps": 68,
+   "clutch": {
+    "per100": -0.35,
+    "p5": -1.94,
+    "p95": 1.6,
+    "entries": 719
+   },
+   "disadv": {
+    "per100": 0.58,
+    "p5": -1.54,
+    "p95": 2.92,
+    "entries": 996
+   }
+  },
+  {
+   "stint_id": "Aurora Gaming#1:Kyxsan",
+   "label": "Aurora Gaming (Kyxsan)",
+   "lp_team": "Aurora Gaming",
+   "igl_player": "Kyxsan",
+   "maps": 67,
+   "clutch": {
+    "per100": 0.68,
+    "p5": -0.97,
+    "p95": 2.31,
+    "entries": 710
+   },
+   "disadv": {
+    "per100": 0.74,
+    "p5": -1.67,
+    "p95": 3.3,
+    "entries": 965
+   }
+  },
+  {
+   "stint_id": "Ninjas in Pyjamas#0:Snappi",
+   "label": "Ninjas in Pyjamas (Snappi)",
+   "lp_team": "Ninjas in Pyjamas",
+   "igl_player": "Snappi",
+   "maps": 66,
+   "clutch": {
+    "per100": -0.01,
+    "p5": -1.23,
+    "p95": 1.28,
+    "entries": 762
+   },
+   "disadv": {
+    "per100": -2.44,
+    "p5": -5.0,
+    "p95": 0.25,
+    "entries": 962
+   }
+  },
+  {
+   "stint_id": "GamerLegion#1:Snax",
+   "label": "GamerLegion (Snax)",
+   "lp_team": "GamerLegion",
+   "igl_player": "Snax",
+   "maps": 58,
+   "clutch": {
+    "per100": 3.31,
+    "p5": 1.56,
+    "p95": 5.25,
+    "entries": 624
+   },
+   "disadv": {
+    "per100": -1.33,
+    "p5": -4.15,
+    "p95": 1.24,
+    "entries": 842
+   }
+  },
+  {
+   "stint_id": "Astralis#0:CadiaN",
+   "label": "Astralis (CadiaN)",
+   "lp_team": "Astralis",
+   "igl_player": "CadiaN",
+   "maps": 50,
+   "clutch": {
+    "per100": 1.26,
+    "p5": -0.51,
+    "p95": 2.84,
+    "entries": 574
+   },
+   "disadv": {
+    "per100": -0.73,
+    "p5": -2.6,
+    "p95": 0.93,
+    "entries": 768
+   }
+  },
+  {
+   "stint_id": "MIBR#1:LNZ",
+   "label": "MIBR (LNZ)",
+   "lp_team": "MIBR",
+   "igl_player": "LNZ",
+   "maps": 47,
+   "clutch": {
+    "per100": 0.38,
+    "p5": -2.01,
+    "p95": 2.39,
+    "entries": 507
+   },
+   "disadv": {
+    "per100": 1.88,
+    "p5": -1.81,
+    "p95": 5.23,
+    "entries": 639
+   }
+  },
+  {
+   "stint_id": "Complexity#0:JT",
+   "label": "Complexity (JT)",
+   "lp_team": "Complexity",
+   "igl_player": "JT",
+   "maps": 47,
+   "clutch": {
+    "per100": -0.03,
+    "p5": -1.87,
+    "p95": 1.86,
+    "entries": 529
+   },
+   "disadv": {
+    "per100": -1.02,
+    "p5": -3.78,
+    "p95": 1.94,
+    "entries": 700
+   }
+  },
+  {
+   "stint_id": "BIG#0:TabseN",
+   "label": "BIG (TabseN)",
+   "lp_team": "BIG",
+   "igl_player": "TabseN",
+   "maps": 42,
+   "clutch": {
+    "per100": 0.5,
+    "p5": -1.08,
+    "p95": 2.14,
+    "entries": 455
+   },
+   "disadv": {
+    "per100": -2.48,
+    "p5": -5.26,
+    "p95": 0.64,
+    "entries": 603
+   }
+  },
+  {
+   "stint_id": "magic#0:SFade8",
+   "label": "magic (SFade8)",
+   "lp_team": "magic",
+   "igl_player": "SFade8",
+   "maps": 42,
+   "clutch": {
+    "per100": 1.02,
+    "p5": -0.65,
+    "p95": 2.81,
+    "entries": 540
+   },
+   "disadv": {
+    "per100": 1.0,
+    "p5": -0.72,
+    "p95": 2.79,
+    "entries": 716
+   }
+  },
+  {
+   "stint_id": "NRG#2:Nitr0",
+   "label": "NRG (Nitr0, 2026-01-01....)",
+   "lp_team": "NRG",
+   "igl_player": "Nitr0",
+   "maps": 41,
+   "clutch": {
+    "per100": 0.04,
+    "p5": -1.62,
+    "p95": 1.89,
+    "entries": 513
+   },
+   "disadv": {
+    "per100": -0.91,
+    "p5": -3.28,
+    "p95": 1.7,
+    "entries": 636
+   }
+  },
+  {
+   "stint_id": "SAW#0:MUTiRiS",
+   "label": "SAW (MUTiRiS)",
+   "lp_team": "SAW",
+   "igl_player": "MUTiRiS",
+   "maps": 41,
+   "clutch": {
+    "per100": -4.47,
+    "p5": -6.6,
+    "p95": -2.26,
+    "entries": 434
+   },
+   "disadv": {
+    "per100": -4.08,
+    "p5": -6.84,
+    "p95": -1.77,
+    "entries": 588
+   }
+  },
+  {
+   "stint_id": "Passion UA#0:JT",
+   "label": "Passion UA (JT)",
+   "lp_team": "Passion UA",
+   "igl_player": "JT",
+   "maps": 38,
+   "clutch": {
+    "per100": -0.48,
+    "p5": -2.23,
+    "p95": 1.25,
+    "entries": 455
+   },
+   "disadv": {
+    "per100": -2.8,
+    "p5": -5.02,
+    "p95": -0.54,
+    "entries": 576
+   }
+  },
+  {
+   "stint_id": "Gentle Mates#0:Alex_(Spanish_player)",
+   "label": "Gentle Mates (Alex_(Spanish_player))",
+   "lp_team": "Gentle Mates",
+   "igl_player": "Alex_(Spanish_player)",
+   "maps": 37,
+   "clutch": {
+    "per100": -0.53,
+    "p5": -2.45,
+    "p95": 1.89,
+    "entries": 421
+   },
+   "disadv": {
+    "per100": -1.5,
+    "p5": -4.08,
+    "p95": 1.08,
+    "entries": 526
+   }
+  },
+  {
+   "stint_id": "Team Liquid#0:Twistzz",
+   "label": "Team Liquid (Twistzz)",
+   "lp_team": "Team Liquid",
+   "igl_player": "Twistzz",
+   "maps": 35,
+   "clutch": {
+    "per100": -3.06,
+    "p5": -4.74,
+    "p95": -1.42,
+    "entries": 357
+   },
+   "disadv": {
+    "per100": -0.25,
+    "p5": -3.99,
+    "p95": 3.93,
+    "entries": 499
+   }
+  },
+  {
+   "stint_id": "MOUZ#1:XertioN",
+   "label": "MOUZ (XertioN, 2026-05-01..2026-05-31)",
+   "lp_team": "MOUZ",
+   "igl_player": "XertioN",
+   "maps": 32,
+   "clutch": {
+    "per100": 0.86,
+    "p5": -1.32,
+    "p95": 3.79,
+    "entries": 301
+   },
+   "disadv": {
+    "per100": 4.32,
+    "p5": 0.74,
+    "p95": 8.49,
+    "entries": 436
+   }
+  },
+  {
+   "stint_id": "FaZe Clan#1:Twistzz",
+   "label": "FaZe Clan (Twistzz)",
+   "lp_team": "FaZe Clan",
+   "igl_player": "Twistzz",
+   "maps": 32,
+   "clutch": {
+    "per100": 1.68,
+    "p5": -0.8,
+    "p95": 3.94,
+    "entries": 356
+   },
+   "disadv": {
+    "per100": 0.72,
+    "p5": -2.12,
+    "p95": 3.65,
+    "entries": 488
+   }
+  },
+  {
+   "stint_id": "HOTU#0:Dukefissura",
+   "label": "HOTU (Dukefissura)",
+   "lp_team": "HOTU",
+   "igl_player": "Dukefissura",
+   "maps": 31,
+   "clutch": {
+    "per100": -2.28,
+    "p5": -4.18,
+    "p95": -0.4,
+    "entries": 365
+   },
+   "disadv": {
+    "per100": 0.53,
+    "p5": -2.22,
+    "p95": 3.38,
+    "entries": 462
+   }
+  },
+  {
+   "stint_id": "HEROIC#1:Chr1zN",
+   "label": "HEROIC (Chr1zN)",
+   "lp_team": "HEROIC",
+   "igl_player": "Chr1zN",
+   "maps": 31,
+   "clutch": {
+    "per100": -1.93,
+    "p5": -4.02,
+    "p95": 0.16,
+    "entries": 339
+   },
+   "disadv": {
+    "per100": -1.19,
+    "p5": -4.5,
+    "p95": 2.12,
+    "entries": 449
+   }
+  },
+  {
+   "stint_id": "Wildcard#0:Stanislaw",
+   "label": "Wildcard (Stanislaw)",
+   "lp_team": "Wildcard",
+   "igl_player": "Stanislaw",
+   "maps": 31,
+   "clutch": {
+    "per100": -1.59,
+    "p5": -2.85,
+    "p95": 0.11,
+    "entries": 393
+   },
+   "disadv": {
+    "per100": -3.16,
+    "p5": -5.7,
+    "p95": 0.22,
+    "entries": 486
+   }
+  },
+  {
+   "stint_id": "Imperial Esports#0:VINI",
+   "label": "Imperial Esports (VINI)",
+   "lp_team": "Imperial Esports",
+   "igl_player": "VINI",
+   "maps": 30,
+   "clutch": {
+    "per100": -1.55,
+    "p5": -3.7,
+    "p95": 0.44,
+    "entries": 322
+   },
+   "disadv": {
+    "per100": -1.6,
+    "p5": -4.89,
+    "p95": 2.03,
+    "entries": 439
+   }
+  },
+  {
+   "stint_id": "Nemiga Gaming#0:1eeR",
+   "label": "Nemiga Gaming (1eeR)",
+   "lp_team": "Nemiga Gaming",
+   "igl_player": "1eeR",
+   "maps": 30,
+   "clutch": {
+    "per100": 0.93,
+    "p5": -1.2,
+    "p95": 3.41,
+    "entries": 330
+   },
+   "disadv": {
+    "per100": 1.01,
+    "p5": -1.29,
+    "p95": 3.2,
+    "entries": 454
+   }
+  },
+  {
+   "stint_id": "Monte#0:Gizmy",
+   "label": "Monte (Gizmy)",
+   "lp_team": "Monte",
+   "igl_player": "Gizmy",
+   "maps": 30,
+   "clutch": {
+    "per100": 0.76,
+    "p5": -0.56,
+    "p95": 2.09,
+    "entries": 332
+   },
+   "disadv": {
+    "per100": -2.46,
+    "p5": -6.21,
+    "p95": 0.91,
+    "entries": 435
+   }
+  },
+  {
+   "stint_id": "BIG#1:BlameF",
+   "label": "BIG (BlameF)",
+   "lp_team": "BIG",
+   "igl_player": "BlameF",
+   "maps": 28,
+   "clutch": {
+    "per100": 0.16,
+    "p5": -1.65,
+    "p95": 1.74,
+    "entries": 322
+   },
+   "disadv": {
+    "per100": -2.98,
+    "p5": -5.49,
+    "p95": -0.55,
+    "entries": 399
+   }
+  },
+  {
+   "stint_id": "Fluxo#0:ArT",
+   "label": "Fluxo (ArT)",
+   "lp_team": "Fluxo",
+   "igl_player": "ArT",
+   "maps": 24,
+   "clutch": {
+    "per100": -1.1,
+    "p5": -2.98,
+    "p95": 0.57,
+    "entries": 276
+   },
+   "disadv": {
+    "per100": -8.0,
+    "p5": -11.67,
+    "p95": -3.77,
+    "entries": 337
+   }
+  },
+  {
+   "stint_id": "NRG#0:Nitr0",
+   "label": "NRG (Nitr0, ....2025-10-31)",
+   "lp_team": "NRG",
+   "igl_player": "Nitr0",
+   "maps": 23,
+   "clutch": {
+    "per100": 0.7,
+    "p5": -1.54,
+    "p95": 2.93,
+    "entries": 277
+   },
+   "disadv": {
+    "per100": 2.73,
+    "p5": -0.11,
+    "p95": 5.76,
+    "entries": 369
+   }
+  },
+  {
+   "stint_id": "Virtus.pro#1:Perfecto",
+   "label": "Virtus.pro (Perfecto)",
+   "lp_team": "Virtus.pro",
+   "igl_player": "Perfecto",
+   "maps": 21,
+   "clutch": {
+    "per100": 0.46,
+    "p5": -1.42,
+    "p95": 2.03,
+    "entries": 236
+   },
+   "disadv": {
+    "per100": -2.28,
+    "p5": -6.14,
+    "p95": 0.55,
+    "entries": 319
+   }
+  },
+  {
+   "stint_id": "Nemiga Gaming#1:Robo",
+   "label": "Nemiga Gaming (Robo)",
+   "lp_team": "Nemiga Gaming",
+   "igl_player": "Robo",
+   "maps": 19,
+   "clutch": {
+    "per100": 0.87,
+    "p5": -2.48,
+    "p95": 5.16,
+    "entries": 221
+   },
+   "disadv": {
+    "per100": 2.97,
+    "p5": -0.83,
+    "p95": 7.9,
+    "entries": 290
+   }
+  },
+  {
+   "stint_id": "Inner Circle Esports#0:Onic",
+   "label": "Inner Circle Esports (Onic)",
+   "lp_team": "Inner Circle Esports",
+   "igl_player": "Onic",
+   "maps": 17,
+   "clutch": {
+    "per100": -1.48,
+    "p5": -3.79,
+    "p95": 0.85,
+    "entries": 181
+   },
+   "disadv": {
+    "per100": -1.33,
+    "p5": -8.28,
+    "p95": 3.89,
+    "entries": 245
+   }
+  },
+  {
+   "stint_id": "Team Liquid#2:JT",
+   "label": "Team Liquid (JT)",
+   "lp_team": "Team Liquid",
+   "igl_player": "JT",
+   "maps": 14,
+   "clutch": {
+    "per100": -1.01,
+    "p5": -4.34,
+    "p95": 2.19,
+    "entries": 166
+   },
+   "disadv": {
+    "per100": -2.36,
+    "p5": -7.03,
+    "p95": 1.68,
+    "entries": 227
+   }
+  },
+  {
+   "stint_id": "RED Canids#0:Drop",
+   "label": "RED Canids (Drop)",
+   "lp_team": "RED Canids",
+   "igl_player": "Drop",
+   "maps": 14,
+   "clutch": {
+    "per100": 2.04,
+    "p5": 0.07,
+    "p95": 5.1,
+    "entries": 158
+   },
+   "disadv": {
+    "per100": -2.29,
+    "p5": -7.21,
+    "p95": 2.83,
+    "entries": 220
+   }
+  },
+  {
+   "stint_id": "ENCE#0:Sdy",
+   "label": "ENCE (Sdy)",
+   "lp_team": "ENCE",
+   "igl_player": "Sdy",
+   "maps": 13,
+   "clutch": {
+    "per100": 5.36,
+    "p5": 3.33,
+    "p95": 7.9,
+    "entries": 151
+   },
+   "disadv": {
+    "per100": 1.64,
+    "p5": -5.33,
+    "p95": 7.48,
+    "entries": 200
+   }
+  },
+  {
+   "stint_id": "DENDELE CS#0:Gafolo",
+   "label": "DENDELE CS (Gafolo)",
+   "lp_team": "DENDELE CS",
+   "igl_player": "Gafolo",
+   "maps": 13,
+   "clutch": {
+    "per100": -2.11,
+    "p5": -5.8,
+    "p95": 1.17,
+    "entries": 166
+   },
+   "disadv": {
+    "per100": -4.67,
+    "p5": -10.31,
+    "p95": 0.02,
+    "entries": 205
+   }
+  },
+  {
+   "stint_id": "SINNERS Esports#0:Beastik",
+   "label": "SINNERS Esports (Beastik)",
+   "lp_team": "SINNERS Esports",
+   "igl_player": "Beastik",
+   "maps": 12,
+   "clutch": {
+    "per100": 0.2,
+    "p5": -5.24,
+    "p95": 5.81,
+    "entries": 149
+   },
+   "disadv": {
+    "per100": -3.14,
+    "p5": -9.06,
+    "p95": 2.74,
+    "entries": 188
+   }
+  },
+  {
+   "stint_id": "ODDIK#0:WOOD7",
+   "label": "ODDIK (WOOD7)",
+   "lp_team": "ODDIK",
+   "igl_player": "WOOD7",
+   "maps": 12,
+   "clutch": {
+    "per100": -2.62,
+    "p5": -3.89,
+    "p95": -1.38,
+    "entries": 123
+   },
+   "disadv": {
+    "per100": -0.14,
+    "p5": -5.64,
+    "p95": 4.63,
+    "entries": 174
+   }
+  },
+  {
+   "stint_id": "Rare Atom#0:Summer",
+   "label": "Rare Atom (Summer)",
+   "lp_team": "Rare Atom",
+   "igl_player": "Summer",
+   "maps": 12,
+   "clutch": {
+    "per100": 1.61,
+    "p5": -3.48,
+    "p95": 9.02,
+    "entries": 133
+   },
+   "disadv": {
+    "per100": -4.44,
+    "p5": -10.0,
+    "p95": 4.37,
+    "entries": 178
+   }
+  },
+  {
+   "stint_id": "Fnatic#0:Fear",
+   "label": "Fnatic (Fear)",
+   "lp_team": "Fnatic",
+   "igl_player": "Fear",
+   "maps": 11,
+   "clutch": {
+    "per100": 0.91,
+    "p5": -1.59,
+    "p95": 5.54,
+    "entries": 120
+   },
+   "disadv": {
+    "per100": -5.0,
+    "p5": -9.6,
+    "p95": 1.23,
+    "entries": 157
+   }
+  },
+  {
+   "stint_id": "BC.Game Esports#0:MUTiRiS",
+   "label": "BC.Game Esports (MUTiRiS)",
+   "lp_team": "BC.Game Esports",
+   "igl_player": "MUTiRiS",
+   "maps": 11,
+   "disadv": {
+    "per100": -3.47,
+    "p5": -10.75,
+    "p95": 5.75,
+    "entries": 148
+   }
+  },
+  {
+   "stint_id": "1w Team#0:Nafany",
+   "label": "1w Team (Nafany)",
+   "lp_team": "1w Team",
+   "igl_player": "Nafany",
+   "maps": 11,
+   "disadv": {
+    "per100": 0.14,
+    "p5": -7.1,
+    "p95": 7.9,
+    "entries": 152
+   }
+  },
+  {
+   "stint_id": "MOUZ#2:Brollan",
+   "label": "MOUZ (Brollan, 2026-06-01..2026-06-14)",
+   "lp_team": "MOUZ",
+   "igl_player": "Brollan",
+   "maps": 11,
+   "disadv": {
+    "per100": 1.7,
+    "p5": -3.48,
+    "p95": 8.77,
+    "entries": 150
+   }
+  },
+  {
+   "stint_id": "Imperial Female#0:Tory",
+   "label": "Imperial Female (Tory)",
+   "lp_team": "Imperial Female",
+   "igl_player": "Tory",
+   "maps": 10,
+   "clutch": {
+    "per100": -2.54,
+    "p5": -5.1,
+    "p95": 0.74,
+    "entries": 136
+   },
+   "disadv": {
+    "per100": -10.81,
+    "p5": -13.97,
+    "p95": -7.79,
+    "entries": 147
+   }
+  },
+  {
+   "stint_id": "The Huns Esports#0:Nin9",
+   "label": "The Huns Esports (Nin9)",
+   "lp_team": "The Huns Esports",
+   "igl_player": "Nin9",
+   "maps": 10,
+   "clutch": {
+    "per100": 3.02,
+    "p5": 1.54,
+    "p95": 4.21,
+    "entries": 138
+   },
+   "disadv": {
+    "per100": 1.23,
+    "p5": -4.42,
+    "p95": 6.61,
+    "entries": 171
+   }
+  },
+  {
+   "stint_id": "K27#0:X5G7V",
+   "label": "K27 (X5G7V)",
+   "lp_team": "K27",
+   "igl_player": "X5G7V",
+   "maps": 10,
+   "clutch": {
+    "per100": -1.58,
+    "p5": -6.21,
+    "p95": 2.67,
+    "entries": 137
+   },
+   "disadv": {
+    "per100": -5.87,
+    "p5": -9.13,
+    "p95": -3.05,
+    "entries": 167
+   }
+  },
+  {
+   "stint_id": "Alliance#0:Twist",
+   "label": "Alliance (Twist)",
+   "lp_team": "Alliance",
+   "igl_player": "Twist",
+   "maps": 10,
+   "disadv": {
+    "per100": -0.36,
+    "p5": -4.11,
+    "p95": 3.37,
+    "entries": 156
+   }
+  },
+  {
+   "stint_id": "The Huns Esports#1:Controlez",
+   "label": "The Huns Esports (Controlez)",
+   "lp_team": "The Huns Esports",
+   "igl_player": "Controlez",
+   "maps": 9,
+   "disadv": {
+    "per100": -7.02,
+    "p5": -14.02,
+    "p95": 2.43,
+    "entries": 126
+   }
+  },
+  {
+   "stint_id": "OG#0:Chr1zN",
+   "label": "OG (Chr1zN)",
+   "lp_team": "OG",
+   "igl_player": "Chr1zN",
+   "maps": 9,
+   "disadv": {
+    "per100": -0.24,
+    "p5": -10.53,
+    "p95": 8.37,
+    "entries": 123
+   }
+  },
+  {
+   "stint_id": "5star eSports#0:NEUZ",
+   "label": "5star eSports (NEUZ)",
+   "lp_team": "5star eSports",
+   "igl_player": "NEUZ",
+   "maps": 9,
+   "disadv": {
+    "per100": -3.7,
+    "p5": -9.28,
+    "p95": 0.8,
+    "entries": 132
+   }
+  },
+  {
+   "stint_id": "Betclic Apogee Esports#0:Prism",
+   "label": "Betclic Apogee Esports (Prism)",
+   "lp_team": "Betclic Apogee Esports",
+   "igl_player": "Prism",
+   "maps": 9,
+   "disadv": {
+    "per100": -6.12,
+    "p5": -11.32,
+    "p95": 0.61,
+    "entries": 135
+   }
+  },
+  {
+   "stint_id": "Chinggis Warriors#0:Cool4st",
+   "label": "Chinggis Warriors (Cool4st)",
+   "lp_team": "Chinggis Warriors",
+   "igl_player": "Cool4st",
+   "maps": 8,
+   "disadv": {
+    "per100": -2.43,
+    "p5": -11.46,
+    "p95": 7.39,
+    "entries": 123
+   }
+  }
+ ],
+ "players": [
+  {
+   "steamid": "76561198218265253",
+   "name": "venomzera",
+   "entries": 73,
+   "clutch": {
+    "per100": 8.05,
+    "p5": 0.69,
+    "p95": 16.01
+   }
+  },
+  {
+   "steamid": "76561198839305865",
+   "name": "Xant3r",
+   "entries": 110,
+   "clutch": {
+    "per100": 5.03,
+    "p5": -0.25,
+    "p95": 9.46
+   }
+  },
+  {
+   "steamid": "76561198316706174",
+   "name": "Tauson",
+   "entries": 423,
+   "clutch": {
+    "per100": 4.88,
+    "p5": 2.63,
+    "p95": 7.19
+   }
+  },
+  {
+   "steamid": "76561198128463598",
+   "name": "nin9",
+   "entries": 85,
+   "clutch": {
+    "per100": 4.56,
+    "p5": -0.67,
+    "p95": 9.94
+   }
+  },
+  {
+   "steamid": "76561198853612047",
+   "name": "tenzy",
+   "entries": 80,
+   "clutch": {
+    "per100": 4.52,
+    "p5": -0.58,
+    "p95": 10.67
+   }
+  },
+  {
+   "steamid": "76561198975070027",
+   "name": "nota",
+   "entries": 162,
+   "clutch": {
+    "per100": 4.48,
+    "p5": 0.55,
+    "p95": 8.73
+   }
+  },
+  {
+   "steamid": "76561198362964332",
+   "name": "xKacpersky",
+   "entries": 96,
+   "clutch": {
+    "per100": 4.38,
+    "p5": -0.03,
+    "p95": 9.14
+   }
+  },
+  {
+   "steamid": "76561198362438171",
+   "name": "controlez",
+   "entries": 77,
+   "clutch": {
+    "per100": 4.08,
+    "p5": 0.15,
+    "p95": 8.3
+   }
+  },
+  {
+   "steamid": "76561198168198200",
+   "name": "Ex3rcice",
+   "entries": 387,
+   "clutch": {
+    "per100": 3.95,
+    "p5": 1.57,
+    "p95": 6.56
+   }
+  },
+  {
+   "steamid": "76561198160709585",
+   "name": "sjuush",
+   "entries": 139,
+   "clutch": {
+    "per100": 3.79,
+    "p5": -0.9,
+    "p95": 8.75
+   }
+  },
+  {
+   "steamid": "76561198153097618",
+   "name": "mizu",
+   "entries": 73,
+   "clutch": {
+    "per100": 3.65,
+    "p5": -0.86,
+    "p95": 8.04
+   }
+  },
+  {
+   "steamid": "76561198113666193",
+   "name": "ZywOo",
+   "entries": 767,
+   "clutch": {
+    "per100": 3.58,
+    "p5": 1.89,
+    "p95": 5.28
+   }
+  },
+  {
+   "steamid": "76561198816731401",
+   "name": "EmiliaQAQ",
+   "entries": 156,
+   "clutch": {
+    "per100": 3.51,
+    "p5": -1.06,
+    "p95": 7.88
+   }
+  },
+  {
+   "steamid": "76561198386265483",
+   "name": "donk",
+   "entries": 367,
+   "clutch": {
+    "per100": 3.37,
+    "p5": 0.77,
+    "p95": 6.02
+   }
+  },
+  {
+   "steamid": "76561198060367310",
+   "name": "hallzerk",
+   "entries": 232,
+   "clutch": {
+    "per100": 3.1,
+    "p5": 0.63,
+    "p95": 5.89
+   }
+  },
+  {
+   "steamid": "76561198838822582",
+   "name": "Mzinho",
+   "entries": 455,
+   "clutch": {
+    "per100": 3.08,
+    "p5": 0.97,
+    "p95": 5.28
+   }
+  },
+  {
+   "steamid": "76561198872013168",
+   "name": "tN1R",
+   "entries": 413,
+   "clutch": {
+    "per100": 3.08,
+    "p5": 0.53,
+    "p95": 5.63
+   }
+  },
+  {
+   "steamid": "76561198168401372",
+   "name": "ryu",
+   "entries": 170,
+   "clutch": {
+    "per100": 3.03,
+    "p5": -0.16,
+    "p95": 6.19
+   }
+  },
+  {
+   "steamid": "76561198350606449",
+   "name": "Kursy",
+   "entries": 69,
+   "clutch": {
+    "per100": 3.03,
+    "p5": -1.65,
+    "p95": 6.51
+   }
+  },
+  {
+   "steamid": "76561198005107817",
+   "name": "Staehr",
+   "entries": 396,
+   "clutch": {
+    "per100": 2.82,
+    "p5": 0.51,
+    "p95": 5.25
+   }
+  },
+  {
+   "steamid": "76561198138828475",
+   "name": "Brollan",
+   "entries": 311,
+   "clutch": {
+    "per100": 2.76,
+    "p5": 0.27,
+    "p95": 5.3
+   }
+  },
+  {
+   "steamid": "76561198118196092",
+   "name": "faveN",
+   "entries": 65,
+   "clutch": {
+    "per100": 2.68,
+    "p5": -2.84,
+    "p95": 10.42
+   }
+  },
+  {
+   "steamid": "76561198120491311",
+   "name": "davideuS",
+   "entries": 206,
+   "clutch": {
+    "per100": 2.55,
+    "p5": -1.23,
+    "p95": 6.36
+   }
+  },
+  {
+   "steamid": "76561198141272052",
+   "name": "xiELO",
+   "entries": 202,
+   "clutch": {
+    "per100": 2.53,
+    "p5": -0.22,
+    "p95": 5.44
+   }
+  },
+  {
+   "steamid": "76561198066693739",
+   "name": "EliGE",
+   "entries": 263,
+   "clutch": {
+    "per100": 2.49,
+    "p5": -0.43,
+    "p95": 5.49
+   }
+  },
+  {
+   "steamid": "76561198372023214",
+   "name": "Magnojez",
+   "entries": 163,
+   "clutch": {
+    "per100": 2.38,
+    "p5": -0.77,
+    "p95": 5.8
+   }
+  },
+  {
+   "steamid": "76561197998197366",
+   "name": "mopoz",
+   "entries": 62,
+   "clutch": {
+    "per100": 2.38,
+    "p5": -3.9,
+    "p95": 9.88
+   }
+  },
+  {
+   "steamid": "76561197995889730",
+   "name": "nitr0",
+   "entries": 170,
+   "clutch": {
+    "per100": 2.37,
+    "p5": -0.87,
+    "p95": 5.96
+   }
+  },
+  {
+   "steamid": "76561198254686734",
+   "name": "Hypex",
+   "entries": 283,
+   "clutch": {
+    "per100": 2.32,
+    "p5": -0.71,
+    "p95": 5.23
+   }
+  },
+  {
+   "steamid": "76561198074762801",
+   "name": "m0NESY",
+   "entries": 858,
+   "clutch": {
+    "per100": 2.25,
+    "p5": 0.77,
+    "p95": 3.69
+   }
+  },
+  {
+   "steamid": "76561198134401925",
+   "name": "YEKINDAR",
+   "entries": 438,
+   "clutch": {
+    "per100": 2.25,
+    "p5": 0.37,
+    "p95": 4.12
+   }
+  },
+  {
+   "steamid": "76561198344226986",
+   "name": "Gizmy",
+   "entries": 63,
+   "clutch": {
+    "per100": 2.24,
+    "p5": -1.66,
+    "p95": 5.79
+   }
+  },
+  {
+   "steamid": "76561198812513923",
+   "name": "Wicadia",
+   "entries": 560,
+   "clutch": {
+    "per100": 2.19,
+    "p5": 0.31,
+    "p95": 4.08
+   }
+  },
+  {
+   "steamid": "76561198974494129",
+   "name": "AZUWU",
+   "entries": 83,
+   "clutch": {
+    "per100": 2.18,
+    "p5": -1.89,
+    "p95": 7.15
+   }
+  },
+  {
+   "steamid": "76561198055109028",
+   "name": "ICY",
+   "entries": 342,
+   "clutch": {
+    "per100": 2.18,
+    "p5": -0.28,
+    "p95": 4.46
+   }
+  },
+  {
+   "steamid": "76561199430871803",
+   "name": "cobrazera",
+   "entries": 209,
+   "clutch": {
+    "per100": 2.14,
+    "p5": -0.64,
+    "p95": 5.19
+   }
+  },
+  {
+   "steamid": "76561198951467648",
+   "name": "khaN",
+   "entries": 150,
+   "clutch": {
+    "per100": 2.13,
+    "p5": -1.44,
+    "p95": 6.03
+   }
+  },
+  {
+   "steamid": "76561198243227934",
+   "name": "mo0N",
+   "entries": 156,
+   "clutch": {
+    "per100": 2.08,
+    "p5": -0.42,
+    "p95": 4.29
+   }
+  },
+  {
+   "steamid": "76561198850020186",
+   "name": "latto",
+   "entries": 398,
+   "clutch": {
+    "per100": 1.89,
+    "p5": -0.02,
+    "p95": 3.81
+   }
+  },
+  {
+   "steamid": "76561199149812353",
+   "name": "esenthial",
+   "entries": 307,
+   "clutch": {
+    "per100": 1.88,
+    "p5": -0.32,
+    "p95": 4.29
+   }
+  },
+  {
+   "steamid": "76561198080114546",
+   "name": "fame",
+   "entries": 219,
+   "clutch": {
+    "per100": 1.81,
+    "p5": -1.53,
+    "p95": 5.14
+   }
+  },
+  {
+   "steamid": "76561199001538362",
+   "name": "s1zzi",
+   "entries": 180,
+   "clutch": {
+    "per100": 1.8,
+    "p5": -2.34,
+    "p95": 5.6
+   }
+  },
+  {
+   "steamid": "76561198809462276",
+   "name": "koala",
+   "entries": 63,
+   "clutch": {
+    "per100": 1.78,
+    "p5": -2.63,
+    "p95": 7.04
+   }
+  },
+  {
+   "steamid": "76561198269361539",
+   "name": "AW",
+   "entries": 127,
+   "clutch": {
+    "per100": 1.78,
+    "p5": -2.59,
+    "p95": 5.96
+   }
+  },
+  {
+   "steamid": "76561198342718168",
+   "name": "susp",
+   "entries": 98,
+   "clutch": {
+    "per100": 1.71,
+    "p5": -3.67,
+    "p95": 6.88
+   }
+  },
+  {
+   "steamid": "76561198305036904",
+   "name": "npl",
+   "entries": 230,
+   "clutch": {
+    "per100": 1.62,
+    "p5": -1.21,
+    "p95": 4.62
+   }
+  },
+  {
+   "steamid": "76561198193174134",
+   "name": "xertioN",
+   "entries": 487,
+   "clutch": {
+    "per100": 1.61,
+    "p5": -0.16,
+    "p95": 3.48
+   }
+  },
+  {
+   "steamid": "76561197996678278",
+   "name": "TeSeS",
+   "entries": 647,
+   "clutch": {
+    "per100": 1.61,
+    "p5": -0.17,
+    "p95": 3.41
+   }
+  },
+  {
+   "steamid": "76561198041683378",
+   "name": "NiKo",
+   "entries": 720,
+   "clutch": {
+    "per100": 1.61,
+    "p5": 0.19,
+    "p95": 3.07
+   }
+  },
+  {
+   "steamid": "76561198971718392",
+   "name": "Neityu",
+   "entries": 102,
+   "clutch": {
+    "per100": 1.59,
+    "p5": -3.65,
+    "p95": 7.35
+   }
+  },
+  {
+   "steamid": "76561198385657675",
+   "name": "Kauez",
+   "entries": 118,
+   "clutch": {
+    "per100": 1.58,
+    "p5": -1.25,
+    "p95": 4.68
+   }
+  },
+  {
+   "steamid": "76561198184153575",
+   "name": "JBa",
+   "entries": 178,
+   "clutch": {
+    "per100": 1.51,
+    "p5": -2.36,
+    "p95": 5.28
+   }
+  },
+  {
+   "steamid": "76561198859428279",
+   "name": "d1Ledez",
+   "entries": 146,
+   "clutch": {
+    "per100": 1.51,
+    "p5": -1.31,
+    "p95": 4.53
+   }
+  },
+  {
+   "steamid": "76561197961491680",
+   "name": "tabseN",
+   "entries": 121,
+   "clutch": {
+    "per100": 1.49,
+    "p5": -1.3,
+    "p95": 4.2
+   }
+  },
+  {
+   "steamid": "76561198837117408",
+   "name": "1eeR",
+   "entries": 61,
+   "clutch": {
+    "per100": 1.45,
+    "p5": -4.86,
+    "p95": 7.58
+   }
+  },
+  {
+   "steamid": "76561198370086461",
+   "name": "MartinezSa",
+   "entries": 105,
+   "clutch": {
+    "per100": 1.45,
+    "p5": -3.33,
+    "p95": 6.51
+   }
+  },
+  {
+   "steamid": "76561198956909643",
+   "name": "Zero",
+   "entries": 97,
+   "clutch": {
+    "per100": 1.41,
+    "p5": -2.23,
+    "p95": 4.98
+   }
+  },
+  {
+   "steamid": "76561198319723208",
+   "name": "HUASOPEEK",
+   "entries": 136,
+   "clutch": {
+    "per100": 1.37,
+    "p5": -3.17,
+    "p95": 6.65
+   }
+  },
+  {
+   "steamid": "76561198047472534",
+   "name": "oSee",
+   "entries": 170,
+   "clutch": {
+    "per100": 1.35,
+    "p5": -2.35,
+    "p95": 5.21
+   }
+  },
+  {
+   "steamid": "76561198068002993",
+   "name": "HeavyGod",
+   "entries": 775,
+   "clutch": {
+    "per100": 1.34,
+    "p5": -0.15,
+    "p95": 2.91
+   }
+  },
+  {
+   "steamid": "76561198161056567",
+   "name": "nilo",
+   "entries": 165,
+   "clutch": {
+    "per100": 1.25,
+    "p5": -1.55,
+    "p95": 3.84
+   }
+  },
+  {
+   "steamid": "76561198067722198",
+   "name": "luchov",
+   "entries": 109,
+   "clutch": {
+    "per100": 1.23,
+    "p5": -2.5,
+    "p95": 4.81
+   }
+  },
+  {
+   "steamid": "76561198016255205",
+   "name": "Twistzz",
+   "entries": 406,
+   "clutch": {
+    "per100": 1.22,
+    "p5": -0.64,
+    "p95": 3.04
+   }
+  },
+  {
+   "steamid": "76561198034172415",
+   "name": "REZ",
+   "entries": 302,
+   "clutch": {
+    "per100": 1.2,
+    "p5": -0.94,
+    "p95": 3.49
+   }
+  },
+  {
+   "steamid": "76561198022365638",
+   "name": "stavn",
+   "entries": 253,
+   "clutch": {
+    "per100": 1.17,
+    "p5": -1.52,
+    "p95": 4.1
+   }
+  },
+  {
+   "steamid": "76561198210626739",
+   "name": "zweih",
+   "entries": 398,
+   "clutch": {
+    "per100": 1.09,
+    "p5": -0.75,
+    "p95": 3.16
+   }
+  },
+  {
+   "steamid": "76561198327068178",
+   "name": "Soulfly",
+   "entries": 141,
+   "clutch": {
+    "per100": 1.06,
+    "p5": -2.85,
+    "p95": 4.91
+   }
+  },
+  {
+   "steamid": "76561198061423730",
+   "name": "insani",
+   "entries": 204,
+   "clutch": {
+    "per100": 1.06,
+    "p5": -1.84,
+    "p95": 3.9
+   }
+  },
+  {
+   "steamid": "76561198057282432",
+   "name": "kyxsan",
+   "entries": 572,
+   "clutch": {
+    "per100": 1.05,
+    "p5": -0.93,
+    "p95": 2.88
+   }
+  },
+  {
+   "steamid": "76561197975129851",
+   "name": "Sonic",
+   "entries": 191,
+   "clutch": {
+    "per100": 1.04,
+    "p5": -1.15,
+    "p95": 3.44
+   }
+  },
+  {
+   "steamid": "76561198044118796",
+   "name": "XANTARES",
+   "entries": 518,
+   "clutch": {
+    "per100": 0.97,
+    "p5": -0.54,
+    "p95": 2.6
+   }
+  },
+  {
+   "steamid": "76561199009468655",
+   "name": "ztr",
+   "entries": 235,
+   "clutch": {
+    "per100": 0.97,
+    "p5": -2.02,
+    "p95": 4.26
+   }
+  },
+  {
+   "steamid": "76561198004115516",
+   "name": "cadiaN",
+   "entries": 112,
+   "clutch": {
+    "per100": 0.89,
+    "p5": -3.81,
+    "p95": 6.17
+   }
+  },
+  {
+   "steamid": "76561198068422762",
+   "name": "frozen",
+   "entries": 564,
+   "clutch": {
+    "per100": 0.85,
+    "p5": -0.85,
+    "p95": 2.63
+   }
+  },
+  {
+   "steamid": "76561198107240040",
+   "name": "westmelon",
+   "entries": 106,
+   "clutch": {
+    "per100": 0.83,
+    "p5": -2.62,
+    "p95": 4.67
+   }
+  },
+  {
+   "steamid": "76561198377335846",
+   "name": "snow",
+   "entries": 396,
+   "clutch": {
+    "per100": 0.79,
+    "p5": -1.08,
+    "p95": 2.65
+   }
+  },
+  {
+   "steamid": "76561198370176682",
+   "name": "gr1ks",
+   "entries": 110,
+   "clutch": {
+    "per100": 0.77,
+    "p5": -2.29,
+    "p95": 3.91
+   }
+  },
+  {
+   "steamid": "76561198074017668",
+   "name": "Lux",
+   "entries": 98,
+   "clutch": {
+    "per100": 0.74,
+    "p5": -3.27,
+    "p95": 4.8
+   }
+  },
+  {
+   "steamid": "76561198078771373",
+   "name": "JDC",
+   "entries": 122,
+   "clutch": {
+    "per100": 0.7,
+    "p5": -2.45,
+    "p95": 4.14
+   }
+  },
+  {
+   "steamid": "76561198058500492",
+   "name": "KSCERATO",
+   "entries": 825,
+   "clutch": {
+    "per100": 0.67,
+    "p5": -0.73,
+    "p95": 2.34
+   }
+  },
+  {
+   "steamid": "76561198010496342",
+   "name": "exit",
+   "entries": 211,
+   "clutch": {
+    "per100": 0.66,
+    "p5": -2.14,
+    "p95": 3.68
+   }
+  },
+  {
+   "steamid": "76561197978835160",
+   "name": "flameZ",
+   "entries": 425,
+   "clutch": {
+    "per100": 0.63,
+    "p5": -1.47,
+    "p95": 2.77
+   }
+  },
+  {
+   "steamid": "76561198304115519",
+   "name": "alex666",
+   "entries": 315,
+   "clutch": {
+    "per100": 0.62,
+    "p5": -1.98,
+    "p95": 3.3
+   }
+  },
+  {
+   "steamid": "76561198201620490",
+   "name": "broky",
+   "entries": 578,
+   "clutch": {
+    "per100": 0.58,
+    "p5": -1.35,
+    "p95": 2.43
+   }
+  },
+  {
+   "steamid": "76561198995880877",
+   "name": "zont1x",
+   "entries": 480,
+   "clutch": {
+    "per100": 0.55,
+    "p5": -1.52,
+    "p95": 2.7
+   }
+  },
+  {
+   "steamid": "76561198031890115",
+   "name": "Lucky",
+   "entries": 427,
+   "clutch": {
+    "per100": 0.47,
+    "p5": -1.38,
+    "p95": 2.41
+   }
+  },
+  {
+   "steamid": "76561197973140692",
+   "name": "mezii",
+   "entries": 667,
+   "clutch": {
+    "per100": 0.46,
+    "p5": -1.25,
+    "p95": 2.21
+   }
+  },
+  {
+   "steamid": "76561198408199043",
+   "name": "phzy",
+   "entries": 335,
+   "clutch": {
+    "per100": 0.43,
+    "p5": -1.99,
+    "p95": 3.17
+   }
+  },
+  {
+   "steamid": "76561199063238565",
+   "name": "magixx",
+   "entries": 464,
+   "clutch": {
+    "per100": 0.41,
+    "p5": -1.64,
+    "p95": 2.62
+   }
+  },
+  {
+   "steamid": "76561197960690195",
+   "name": "FalleN",
+   "entries": 593,
+   "clutch": {
+    "per100": 0.41,
+    "p5": -1.24,
+    "p95": 2.15
+   }
+  },
+  {
+   "steamid": "76561198855876580",
+   "name": "brnz4n",
+   "entries": 173,
+   "clutch": {
+    "per100": 0.41,
+    "p5": -4.13,
+    "p95": 4.76
+   }
+  },
+  {
+   "steamid": "76561198972795853",
+   "name": "lauNX",
+   "entries": 96,
+   "clutch": {
+    "per100": 0.33,
+    "p5": -3.96,
+    "p95": 4.89
+   }
+  },
+  {
+   "steamid": "76561198176878303",
+   "name": "jL",
+   "entries": 233,
+   "clutch": {
+    "per100": 0.32,
+    "p5": -2.74,
+    "p95": 3.37
+   }
+  },
+  {
+   "steamid": "76561197991272318",
+   "name": "ropz",
+   "entries": 861,
+   "clutch": {
+    "per100": 0.29,
+    "p5": -0.96,
+    "p95": 1.62
+   }
+  },
+  {
+   "steamid": "76561198118646644",
+   "name": "Skullz",
+   "entries": 135,
+   "clutch": {
+    "per100": 0.25,
+    "p5": -3.2,
+    "p95": 3.29
+   }
+  },
+  {
+   "steamid": "76561198093386355",
+   "name": "Bymas",
+   "entries": 70,
+   "clutch": {
+    "per100": 0.24,
+    "p5": -3.55,
+    "p95": 4.69
+   }
+  },
+  {
+   "steamid": "76561199079856901",
+   "name": "Alkaren",
+   "entries": 115,
+   "clutch": {
+    "per100": 0.23,
+    "p5": -1.76,
+    "p95": 2.08
+   }
+  },
+  {
+   "steamid": "76561197982141573",
+   "name": "Snax",
+   "entries": 269,
+   "clutch": {
+    "per100": 0.18,
+    "p5": -2.04,
+    "p95": 2.41
+   }
+  },
+  {
+   "steamid": "76561197987212623",
+   "name": "INS",
+   "entries": 145,
+   "clutch": {
+    "per100": 0.17,
+    "p5": -3.29,
+    "p95": 3.76
+   }
+  },
+  {
+   "steamid": "76561198139604328",
+   "name": "hyped",
+   "entries": 103,
+   "clutch": {
+    "per100": 0.17,
+    "p5": -3.53,
+    "p95": 4.62
+   }
+  },
+  {
+   "steamid": "76561198410085211",
+   "name": "nicx",
+   "entries": 186,
+   "clutch": {
+    "per100": 0.12,
+    "p5": -3.2,
+    "p95": 3.51
+   }
+  },
+  {
+   "steamid": "76561198253670517",
+   "name": "BELCHONOKK",
+   "entries": 204,
+   "clutch": {
+    "per100": 0.1,
+    "p5": -3.49,
+    "p95": 3.47
+   }
+  },
+  {
+   "steamid": "76561198012872053",
+   "name": "huNter",
+   "entries": 525,
+   "clutch": {
+    "per100": 0.09,
+    "p5": -1.74,
+    "p95": 2.04
+   }
+  },
+  {
+   "steamid": "76561199046478501",
+   "name": "MATYS",
+   "entries": 320,
+   "clutch": {
+    "per100": 0.09,
+    "p5": -2.31,
+    "p95": 2.46
+   }
+  },
+  {
+   "steamid": "76561198098071693",
+   "name": "sl3nd",
+   "entries": 161,
+   "clutch": {
+    "per100": 0.08,
+    "p5": -2.86,
+    "p95": 3.18
+   }
+  },
+  {
+   "steamid": "76561198210934463",
+   "name": "HexT",
+   "entries": 88,
+   "clutch": {
+    "per100": 0.07,
+    "p5": -3.56,
+    "p95": 3.78
+   }
+  },
+  {
+   "steamid": "76561197998926770",
+   "name": "HooXi",
+   "entries": 343,
+   "clutch": {
+    "per100": 0.04,
+    "p5": -1.8,
+    "p95": 1.94
+   }
+  },
+  {
+   "steamid": "76561198964621199",
+   "name": "sFade8",
+   "entries": 85,
+   "clutch": {
+    "per100": 0.03,
+    "p5": -4.62,
+    "p95": 4.13
+   }
+  },
+  {
+   "steamid": "76561199032006224",
+   "name": "kyousuke",
+   "entries": 258,
+   "clutch": {
+    "per100": 0.02,
+    "p5": -2.55,
+    "p95": 2.69
+   }
+  },
+  {
+   "steamid": "76561198246607476",
+   "name": "b1t",
+   "entries": 561,
+   "clutch": {
+    "per100": 0.02,
+    "p5": -1.8,
+    "p95": 1.76
+   }
+  },
+  {
+   "steamid": "76561198170631091",
+   "name": "Krimbo",
+   "entries": 162,
+   "clutch": {
+    "per100": 0.01,
+    "p5": -2.97,
+    "p95": 3.01
+   }
+  },
+  {
+   "steamid": "76561198083485506",
+   "name": "woxic",
+   "entries": 969,
+   "clutch": {
+    "per100": -0.0,
+    "p5": -1.56,
+    "p95": 1.48
+   }
+  },
+  {
+   "steamid": "76561198013295375",
+   "name": "bodyy",
+   "entries": 329,
+   "clutch": {
+    "per100": -0.0,
+    "p5": -2.2,
+    "p95": 2.11
+   }
+  },
+  {
+   "steamid": "76561198045739761",
+   "name": "Maka",
+   "entries": 526,
+   "clutch": {
+    "per100": -0.03,
+    "p5": -1.75,
+    "p95": 1.64
+   }
+  },
+  {
+   "steamid": "76561198360407641",
+   "name": "Jee",
+   "entries": 427,
+   "clutch": {
+    "per100": -0.08,
+    "p5": -1.74,
+    "p95": 1.61
+   }
+  },
+  {
+   "steamid": "76561199063068840",
+   "name": "w0nderful",
+   "entries": 797,
+   "clutch": {
+    "per100": -0.08,
+    "p5": -1.83,
+    "p95": 1.75
+   }
+  },
+  {
+   "steamid": "76561198178737429",
+   "name": "Jcobbb",
+   "entries": 171,
+   "clutch": {
+    "per100": -0.1,
+    "p5": -2.66,
+    "p95": 2.78
+   }
+  },
+  {
+   "steamid": "76561198359519930",
+   "name": "headtr1ck",
+   "entries": 154,
+   "clutch": {
+    "per100": -0.11,
+    "p5": -3.19,
+    "p95": 2.96
+   }
+  },
+  {
+   "steamid": "76561198036125584",
+   "name": "Jame",
+   "entries": 480,
+   "clutch": {
+    "per100": -0.12,
+    "p5": -1.71,
+    "p95": 1.73
+   }
+  },
+  {
+   "steamid": "76561198063336407",
+   "name": "Spinx",
+   "entries": 684,
+   "clutch": {
+    "per100": -0.12,
+    "p5": -1.38,
+    "p95": 1.44
+   }
+  },
+  {
+   "steamid": "76561198294381090",
+   "name": "r1nkle",
+   "entries": 329,
+   "clutch": {
+    "per100": -0.16,
+    "p5": -2.2,
+    "p95": 2.09
+   }
+  },
+  {
+   "steamid": "76561198416388144",
+   "name": "C4LLM3SU3",
+   "entries": 198,
+   "clutch": {
+    "per100": -0.21,
+    "p5": -2.75,
+    "p95": 2.3
+   }
+  },
+  {
+   "steamid": "76561198050250233",
+   "name": "iM",
+   "entries": 430,
+   "clutch": {
+    "per100": -0.22,
+    "p5": -2.31,
+    "p95": 1.92
+   }
+  },
+  {
+   "steamid": "76561198217410319",
+   "name": "MaSvAl",
+   "entries": 112,
+   "clutch": {
+    "per100": -0.27,
+    "p5": -3.68,
+    "p95": 2.85
+   }
+  },
+  {
+   "steamid": "76561198283989223",
+   "name": "ultimate",
+   "entries": 365,
+   "clutch": {
+    "per100": -0.3,
+    "p5": -2.61,
+    "p95": 2.26
+   }
+  },
+  {
+   "steamid": "76561198920720017",
+   "name": "Senzu",
+   "entries": 424,
+   "clutch": {
+    "per100": -0.31,
+    "p5": -1.97,
+    "p95": 1.38
+   }
+  },
+  {
+   "steamid": "76561197985565685",
+   "name": "saffee",
+   "entries": 286,
+   "clutch": {
+    "per100": -0.31,
+    "p5": -2.14,
+    "p95": 1.57
+   }
+  },
+  {
+   "steamid": "76561198050922008",
+   "name": "hades",
+   "entries": 90,
+   "clutch": {
+    "per100": -0.32,
+    "p5": -5.82,
+    "p95": 6.85
+   }
+  },
+  {
+   "steamid": "76561198889240025",
+   "name": "riskyb0b",
+   "entries": 60,
+   "clutch": {
+    "per100": -0.34,
+    "p5": -4.55,
+    "p95": 4.43
+   }
+  },
+  {
+   "steamid": "76561199076189612",
+   "name": "makazze",
+   "entries": 263,
+   "clutch": {
+    "per100": -0.35,
+    "p5": -3.04,
+    "p95": 2.37
+   }
+  },
+  {
+   "steamid": "76561198845436666",
+   "name": "Kvem",
+   "entries": 72,
+   "clutch": {
+    "per100": -0.36,
+    "p5": -5.08,
+    "p95": 3.67
+   }
+  },
+  {
+   "steamid": "76561198125068631",
+   "name": "kl1m",
+   "entries": 62,
+   "clutch": {
+    "per100": -0.38,
+    "p5": -5.32,
+    "p95": 4.62
+   }
+  },
+  {
+   "steamid": "76561198053126645",
+   "name": "NertZ",
+   "entries": 410,
+   "clutch": {
+    "per100": -0.38,
+    "p5": -2.5,
+    "p95": 1.89
+   }
+  },
+  {
+   "steamid": "76561197989744167",
+   "name": "apEX",
+   "entries": 502,
+   "clutch": {
+    "per100": -0.4,
+    "p5": -2.36,
+    "p95": 1.4
+   }
+  },
+  {
+   "steamid": "76561198100494962",
+   "name": "saadzin",
+   "entries": 351,
+   "clutch": {
+    "per100": -0.43,
+    "p5": -2.97,
+    "p95": 2.33
+   }
+  },
+  {
+   "steamid": "76561198292598811",
+   "name": "Chr1zN",
+   "entries": 88,
+   "clutch": {
+    "per100": -0.43,
+    "p5": -3.37,
+    "p95": 3.01
+   }
+  },
+  {
+   "steamid": "76561197996370184",
+   "name": "VINI",
+   "entries": 68,
+   "clutch": {
+    "per100": -0.47,
+    "p5": -4.95,
+    "p95": 3.49
+   }
+  },
+  {
+   "steamid": "76561198014259134",
+   "name": "FL4MUS",
+   "entries": 201,
+   "clutch": {
+    "per100": -0.5,
+    "p5": -2.93,
+    "p95": 2.13
+   }
+  },
+  {
+   "steamid": "76561198098463229",
+   "name": "regali",
+   "entries": 228,
+   "clutch": {
+    "per100": -0.52,
+    "p5": -2.45,
+    "p95": 1.56
+   }
+  },
+  {
+   "steamid": "76561198015308884",
+   "name": "biguzera",
+   "entries": 359,
+   "clutch": {
+    "per100": -0.54,
+    "p5": -2.5,
+    "p95": 1.41
+   }
+  },
+  {
+   "steamid": "76561198355739212",
+   "name": "torzsi",
+   "entries": 942,
+   "clutch": {
+    "per100": -0.66,
+    "p5": -1.82,
+    "p95": 0.51
+   }
+  },
+  {
+   "steamid": "76561198309839541",
+   "name": "SunPayus",
+   "entries": 595,
+   "clutch": {
+    "per100": -0.68,
+    "p5": -2.32,
+    "p95": 1.17
+   }
+  },
+  {
+   "steamid": "76561198179538505",
+   "name": "Graviti",
+   "entries": 339,
+   "clutch": {
+    "per100": -0.69,
+    "p5": -2.7,
+    "p95": 1.31
+   }
+  },
+  {
+   "steamid": "76561198043769572",
+   "name": "arT",
+   "entries": 167,
+   "clutch": {
+    "per100": -0.69,
+    "p5": -2.96,
+    "p95": 1.72
+   }
+  },
+  {
+   "steamid": "76561198178209109",
+   "name": "xfl0ud",
+   "entries": 210,
+   "clutch": {
+    "per100": -0.69,
+    "p5": -4.21,
+    "p95": 3.0
+   }
+  },
+  {
+   "steamid": "76561197983956651",
+   "name": "Magisk",
+   "entries": 360,
+   "clutch": {
+    "per100": -0.72,
+    "p5": -2.81,
+    "p95": 1.24
+   }
+  },
+  {
+   "steamid": "76561197977105184",
+   "name": "jks",
+   "entries": 154,
+   "clutch": {
+    "per100": -0.72,
+    "p5": -4.38,
+    "p95": 3.35
+   }
+  },
+  {
+   "steamid": "76561198146207066",
+   "name": "Boombl4",
+   "entries": 175,
+   "clutch": {
+    "per100": -0.74,
+    "p5": -4.07,
+    "p95": 2.74
+   }
+  },
+  {
+   "steamid": "76561198855375325",
+   "name": "Jimpphat",
+   "entries": 702,
+   "clutch": {
+    "per100": -0.75,
+    "p5": -2.38,
+    "p95": 0.87
+   }
+  },
+  {
+   "steamid": "76561199203563345",
+   "name": "910-",
+   "entries": 829,
+   "clutch": {
+    "per100": -0.75,
+    "p5": -2.06,
+    "p95": 0.5
+   }
+  },
+  {
+   "steamid": "76561198080703143",
+   "name": "malbsMd",
+   "entries": 305,
+   "clutch": {
+    "per100": -0.84,
+    "p5": -3.52,
+    "p95": 1.85
+   }
+  },
+  {
+   "steamid": "76561198072321716",
+   "name": "Liazz",
+   "entries": 120,
+   "clutch": {
+    "per100": -0.87,
+    "p5": -4.69,
+    "p95": 3.07
+   }
+  },
+  {
+   "steamid": "76561198200982290",
+   "name": "molodoy",
+   "entries": 826,
+   "clutch": {
+    "per100": -0.92,
+    "p5": -2.16,
+    "p95": 0.49
+   }
+  },
+  {
+   "steamid": "76561198013243326",
+   "name": "Aleksib",
+   "entries": 611,
+   "clutch": {
+    "per100": -0.97,
+    "p5": -2.53,
+    "p95": 0.52
+   }
+  },
+  {
+   "steamid": "76561197967432889",
+   "name": "MAJ3R",
+   "entries": 547,
+   "clutch": {
+    "per100": -0.99,
+    "p5": -2.87,
+    "p95": 0.99
+   }
+  },
+  {
+   "steamid": "76561198875633179",
+   "name": "dem0n",
+   "entries": 220,
+   "clutch": {
+    "per100": -0.99,
+    "p5": -3.21,
+    "p95": 1.43
+   }
+  },
+  {
+   "steamid": "76561198310561479",
+   "name": "PR",
+   "entries": 549,
+   "clutch": {
+    "per100": -0.99,
+    "p5": -2.77,
+    "p95": 0.88
+   }
+  },
+  {
+   "steamid": "76561198081484775",
+   "name": "sh1ro",
+   "entries": 920,
+   "clutch": {
+    "per100": -1.0,
+    "p5": -2.2,
+    "p95": 0.34
+   }
+  },
+  {
+   "steamid": "76561198045898864",
+   "name": "chopper",
+   "entries": 229,
+   "clutch": {
+    "per100": -1.02,
+    "p5": -4.25,
+    "p95": 1.78
+   }
+  },
+  {
+   "steamid": "76561198194325317",
+   "name": "dumau",
+   "entries": 301,
+   "clutch": {
+    "per100": -1.03,
+    "p5": -3.09,
+    "p95": 1.0
+   }
+  },
+  {
+   "steamid": "76561198052888143",
+   "name": "Vexite",
+   "entries": 138,
+   "clutch": {
+    "per100": -1.03,
+    "p5": -5.82,
+    "p95": 3.27
+   }
+  },
+  {
+   "steamid": "76561198350342505",
+   "name": "nqz",
+   "entries": 575,
+   "clutch": {
+    "per100": -1.09,
+    "p5": -2.48,
+    "p95": 0.44
+   }
+  },
+  {
+   "steamid": "76561198355197522",
+   "name": "Moseyuh",
+   "entries": 256,
+   "clutch": {
+    "per100": -1.09,
+    "p5": -3.72,
+    "p95": 1.64
+   }
+  },
+  {
+   "steamid": "76561198307171910",
+   "name": "decenty",
+   "entries": 88,
+   "clutch": {
+    "per100": -1.09,
+    "p5": -3.21,
+    "p95": 1.17
+   }
+  },
+  {
+   "steamid": "76561198417348056",
+   "name": "dav1g",
+   "entries": 80,
+   "clutch": {
+    "per100": -1.12,
+    "p5": -4.71,
+    "p95": 3.17
+   }
+  },
+  {
+   "steamid": "76561198171719689",
+   "name": "Cxzi",
+   "entries": 76,
+   "clutch": {
+    "per100": -1.12,
+    "p5": -6.0,
+    "p95": 3.99
+   }
+  },
+  {
+   "steamid": "76561198044045107",
+   "name": "electronic",
+   "entries": 181,
+   "clutch": {
+    "per100": -1.14,
+    "p5": -4.52,
+    "p95": 1.96
+   }
+  },
+  {
+   "steamid": "76561198334814829",
+   "name": "reck",
+   "entries": 93,
+   "clutch": {
+    "per100": -1.21,
+    "p5": -4.56,
+    "p95": 1.78
+   }
+  },
+  {
+   "steamid": "76561198364937038",
+   "name": "JamYoung",
+   "entries": 292,
+   "clutch": {
+    "per100": -1.22,
+    "p5": -3.73,
+    "p95": 1.61
+   }
+  },
+  {
+   "steamid": "76561198048266764",
+   "name": "Attacker",
+   "entries": 111,
+   "clutch": {
+    "per100": -1.25,
+    "p5": -5.64,
+    "p95": 2.95
+   }
+  },
+  {
+   "steamid": "76561198799340122",
+   "name": "degster",
+   "entries": 197,
+   "clutch": {
+    "per100": -1.31,
+    "p5": -4.32,
+    "p95": 1.6
+   }
+  },
+  {
+   "steamid": "76561198108796479",
+   "name": "Mercury",
+   "entries": 241,
+   "clutch": {
+    "per100": -1.32,
+    "p5": -3.7,
+    "p95": 1.09
+   }
+  },
+  {
+   "steamid": "76561198382173659",
+   "name": "kensizor",
+   "entries": 217,
+   "clutch": {
+    "per100": -1.34,
+    "p5": -3.9,
+    "p95": 1.24
+   }
+  },
+  {
+   "steamid": "76561198216891576",
+   "name": "dgt",
+   "entries": 395,
+   "clutch": {
+    "per100": -1.38,
+    "p5": -3.38,
+    "p95": 0.73
+   }
+  },
+  {
+   "steamid": "76561197989430253",
+   "name": "karrigan",
+   "entries": 396,
+   "clutch": {
+    "per100": -1.38,
+    "p5": -3.41,
+    "p95": 0.65
+   }
+  },
+  {
+   "steamid": "76561198157388473",
+   "name": "Lucaozy",
+   "entries": 155,
+   "clutch": {
+    "per100": -1.38,
+    "p5": -3.78,
+    "p95": 1.4
+   }
+  },
+  {
+   "steamid": "76561198164970560",
+   "name": "yuurih",
+   "entries": 797,
+   "clutch": {
+    "per100": -1.42,
+    "p5": -2.85,
+    "p95": -0.05
+   }
+  },
+  {
+   "steamid": "76561198183003671",
+   "name": "Swisher",
+   "entries": 207,
+   "clutch": {
+    "per100": -1.44,
+    "p5": -3.54,
+    "p95": 1.08
+   }
+  },
+  {
+   "steamid": "76561198120557348",
+   "name": "jabbi",
+   "entries": 445,
+   "clutch": {
+    "per100": -1.51,
+    "p5": -3.28,
+    "p95": 0.34
+   }
+  },
+  {
+   "steamid": "76561198191236195",
+   "name": "Grim",
+   "entries": 216,
+   "clutch": {
+    "per100": -1.51,
+    "p5": -3.53,
+    "p95": 0.88
+   }
+  },
+  {
+   "steamid": "76561198410750263",
+   "name": "jottAAA",
+   "entries": 269,
+   "clutch": {
+    "per100": -1.52,
+    "p5": -4.11,
+    "p95": 1.14
+   }
+  },
+  {
+   "steamid": "76561198959824088",
+   "name": "bLitz",
+   "entries": 623,
+   "clutch": {
+    "per100": -1.53,
+    "p5": -3.07,
+    "p95": 0.17
+   }
+  },
+  {
+   "steamid": "76561198966340160",
+   "name": "Techno4K",
+   "entries": 632,
+   "clutch": {
+    "per100": -1.56,
+    "p5": -3.09,
+    "p95": -0.05
+   }
+  },
+  {
+   "steamid": "76561198138113790",
+   "name": "Rainwaker",
+   "entries": 82,
+   "clutch": {
+    "per100": -1.6,
+    "p5": -5.83,
+    "p95": 3.2
+   }
+  },
+  {
+   "steamid": "76561198195642865",
+   "name": "meyern",
+   "entries": 252,
+   "clutch": {
+    "per100": -1.61,
+    "p5": -3.5,
+    "p95": 0.28
+   }
+  },
+  {
+   "steamid": "76561198242950384",
+   "name": "max",
+   "entries": 156,
+   "clutch": {
+    "per100": -1.61,
+    "p5": -4.88,
+    "p95": 2.22
+   }
+  },
+  {
+   "steamid": "76561198035581101",
+   "name": "afro",
+   "entries": 122,
+   "clutch": {
+    "per100": -1.67,
+    "p5": -3.93,
+    "p95": 0.76
+   }
+  },
+  {
+   "steamid": "76561199137143905",
+   "name": "yxngstxr",
+   "entries": 240,
+   "clutch": {
+    "per100": -1.7,
+    "p5": -4.83,
+    "p95": 1.34
+   }
+  },
+  {
+   "steamid": "76561199422519262",
+   "name": "zevy",
+   "entries": 64,
+   "clutch": {
+    "per100": -1.74,
+    "p5": -5.58,
+    "p95": 1.88
+   }
+  },
+  {
+   "steamid": "76561198121220486",
+   "name": "Perfecto",
+   "entries": 95,
+   "clutch": {
+    "per100": -1.78,
+    "p5": -4.21,
+    "p95": 0.71
+   }
+  },
+  {
+   "steamid": "76561198104626893",
+   "name": "LNZ",
+   "entries": 306,
+   "clutch": {
+    "per100": -1.79,
+    "p5": -4.2,
+    "p95": 0.82
+   }
+  },
+  {
+   "steamid": "76561198064353169",
+   "name": "slaxz-",
+   "entries": 287,
+   "clutch": {
+    "per100": -1.87,
+    "p5": -5.02,
+    "p95": 1.25
+   }
+  },
+  {
+   "steamid": "76561197995817501",
+   "name": "FL1T",
+   "entries": 325,
+   "clutch": {
+    "per100": -1.95,
+    "p5": -4.16,
+    "p95": 0.24
+   }
+  },
+  {
+   "steamid": "76561198059614402",
+   "name": "zorte",
+   "entries": 282,
+   "clutch": {
+    "per100": -1.95,
+    "p5": -4.4,
+    "p95": 0.34
+   }
+  },
+  {
+   "steamid": "76561198028458803",
+   "name": "blameF",
+   "entries": 108,
+   "clutch": {
+    "per100": -1.96,
+    "p5": -5.32,
+    "p95": 1.01
+   }
+  },
+  {
+   "steamid": "76561198060483793",
+   "name": "br0",
+   "entries": 136,
+   "clutch": {
+    "per100": -1.98,
+    "p5": -3.36,
+    "p95": -0.54
+   }
+  },
+  {
+   "steamid": "76561198190463461",
+   "name": "s1n",
+   "entries": 221,
+   "clutch": {
+    "per100": -1.99,
+    "p5": -4.83,
+    "p95": 0.72
+   }
+  },
+  {
+   "steamid": "76561198365118288",
+   "name": "try",
+   "entries": 284,
+   "clutch": {
+    "per100": -2.22,
+    "p5": -4.58,
+    "p95": 0.26
+   }
+  },
+  {
+   "steamid": "76561197997351207",
+   "name": "rain",
+   "entries": 230,
+   "clutch": {
+    "per100": -2.23,
+    "p5": -5.23,
+    "p95": 1.19
+   }
+  },
+  {
+   "steamid": "76561198167785069",
+   "name": "s1ren",
+   "entries": 178,
+   "clutch": {
+    "per100": -2.26,
+    "p5": -6.2,
+    "p95": 1.5
+   }
+  },
+  {
+   "steamid": "76561198021715100",
+   "name": "JT",
+   "entries": 245,
+   "clutch": {
+    "per100": -2.28,
+    "p5": -4.63,
+    "p95": 0.15
+   }
+  },
+  {
+   "steamid": "76561197991593267",
+   "name": "sausoL",
+   "entries": 95,
+   "clutch": {
+    "per100": -2.43,
+    "p5": -5.23,
+    "p95": 1.27
+   }
+  },
+  {
+   "steamid": "76561198802031225",
+   "name": "frontales",
+   "entries": 76,
+   "clutch": {
+    "per100": -2.45,
+    "p5": -4.7,
+    "p95": -0.17
+   }
+  },
+  {
+   "steamid": "76561198396338183",
+   "name": "piriajr",
+   "entries": 131,
+   "clutch": {
+    "per100": -2.48,
+    "p5": -6.37,
+    "p95": 1.07
+   }
+  },
+  {
+   "steamid": "76561198000984547",
+   "name": "alex ",
+   "entries": 79,
+   "clutch": {
+    "per100": -2.54,
+    "p5": -6.83,
+    "p95": 1.8
+   }
+  },
+  {
+   "steamid": "76561198061763596",
+   "name": "n1ssim",
+   "entries": 389,
+   "clutch": {
+    "per100": -2.6,
+    "p5": -4.82,
+    "p95": -0.27
+   }
+  },
+  {
+   "steamid": "76561198150673360",
+   "name": "siuhy",
+   "entries": 190,
+   "clutch": {
+    "per100": -2.62,
+    "p5": -5.15,
+    "p95": 0.02
+   }
+  },
+  {
+   "steamid": "76561197989423065",
+   "name": "Snappi",
+   "entries": 165,
+   "clutch": {
+    "per100": -2.76,
+    "p5": -5.12,
+    "p95": -0.17
+   }
+  },
+  {
+   "steamid": "76561199100725838",
+   "name": "dziugss",
+   "entries": 271,
+   "clutch": {
+    "per100": -2.82,
+    "p5": -5.17,
+    "p95": -0.55
+   }
+  },
+  {
+   "steamid": "76561198034202275",
+   "name": "s1mple",
+   "entries": 91,
+   "clutch": {
+    "per100": -2.85,
+    "p5": -7.29,
+    "p95": 1.52
+   }
+  },
+  {
+   "steamid": "76561198137783463",
+   "name": "z4KR",
+   "entries": 224,
+   "clutch": {
+    "per100": -2.86,
+    "p5": -4.93,
+    "p95": -0.66
+   }
+  },
+  {
+   "steamid": "76561198144926364",
+   "name": "kyuubii",
+   "entries": 81,
+   "clutch": {
+    "per100": -2.88,
+    "p5": -8.75,
+    "p95": 2.4
+   }
+  },
+  {
+   "steamid": "76561197987713664",
+   "name": "dev1ce",
+   "entries": 446,
+   "clutch": {
+    "per100": -2.91,
+    "p5": -4.47,
+    "p95": -1.33
+   }
+  },
+  {
+   "steamid": "76561198067763828",
+   "name": "chelo",
+   "entries": 88,
+   "clutch": {
+    "per100": -2.95,
+    "p5": -6.42,
+    "p95": 0.85
+   }
+  },
+  {
+   "steamid": "76561198001151695",
+   "name": "NAF",
+   "entries": 463,
+   "clutch": {
+    "per100": -3.17,
+    "p5": -4.89,
+    "p95": -1.28
+   }
+  },
+  {
+   "steamid": "76561199313968259",
+   "name": "cmtry",
+   "entries": 255,
+   "clutch": {
+    "per100": -3.23,
+    "p5": -5.86,
+    "p95": -0.78
+   }
+  },
+  {
+   "steamid": "76561198353869335",
+   "name": "Jeorge",
+   "entries": 88,
+   "clutch": {
+    "per100": -3.37,
+    "p5": -6.92,
+    "p95": 0.17
+   }
+  },
+  {
+   "steamid": "76561198991278425",
+   "name": "Krabeni",
+   "entries": 214,
+   "clutch": {
+    "per100": -3.47,
+    "p5": -5.46,
+    "p95": -1.42
+   }
+  },
+  {
+   "steamid": "76561198186878873",
+   "name": "ag1l",
+   "entries": 101,
+   "clutch": {
+    "per100": -3.5,
+    "p5": -7.89,
+    "p95": 0.98
+   }
+  },
+  {
+   "steamid": "76561198332845251",
+   "name": "nettik",
+   "entries": 95,
+   "clutch": {
+    "per100": -3.79,
+    "p5": -6.68,
+    "p95": -0.8
+   }
+  },
+  {
+   "steamid": "76561198300474132",
+   "name": "onic",
+   "entries": 65,
+   "clutch": {
+    "per100": -3.88,
+    "p5": -8.32,
+    "p95": -0.32
+   }
+  },
+  {
+   "steamid": "76561198011732823",
+   "name": "v$m",
+   "entries": 69,
+   "clutch": {
+    "per100": -3.94,
+    "p5": -7.67,
+    "p95": -0.17
+   }
+  },
+  {
+   "steamid": "76561198998266210",
+   "name": "xelex",
+   "entries": 170,
+   "clutch": {
+    "per100": -4.04,
+    "p5": -6.95,
+    "p95": -1.63
+   }
+  },
+  {
+   "steamid": "76561198880299543",
+   "name": "Starry",
+   "entries": 174,
+   "clutch": {
+    "per100": -4.07,
+    "p5": -6.7,
+    "p95": -1.56
+   }
+  },
+  {
+   "steamid": "76561198065448360",
+   "name": "story",
+   "entries": 141,
+   "clutch": {
+    "per100": -4.43,
+    "p5": -6.75,
+    "p95": -2.21
+   }
+  },
+  {
+   "steamid": "76561199030972198",
+   "name": "maxxkor",
+   "entries": 72,
+   "clutch": {
+    "per100": -4.45,
+    "p5": -7.62,
+    "p95": -0.66
+   }
+  },
+  {
+   "steamid": "76561198262460262",
+   "name": "ewjerkz",
+   "entries": 60,
+   "clutch": {
+    "per100": -4.48,
+    "p5": -8.82,
+    "p95": -0.0
+   }
+  },
+  {
+   "steamid": "76561198337484196",
+   "name": "Lake",
+   "entries": 123,
+   "clutch": {
+    "per100": -5.35,
+    "p5": -8.08,
+    "p95": -2.26
+   }
+  },
+  {
+   "steamid": "76561197981849043",
+   "name": "stanislaw",
+   "entries": 71,
+   "clutch": {
+    "per100": -6.62,
+    "p5": -11.27,
+    "p95": -1.8
+   }
+  },
+  {
+   "steamid": "76561197997981170",
+   "name": "MUTiRiS",
+   "entries": 108,
+   "clutch": {
+    "per100": -7.94,
+    "p5": -12.66,
+    "p95": -3.4
+   }
+  }
+ ]
+}

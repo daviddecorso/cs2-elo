@@ -565,8 +565,9 @@ def window_persistence(
     seed: int = 0,
     half_alpha: float = 1.0,
     weight_col: str = "rounds",
+    window=_quarter,
 ) -> dict:
-    """Does a unit's residual carry from one calendar quarter to the next?
+    """Does a unit's residual carry from one calendar quarter (or other `window(date)`) to the next?
 
     Fits `tau` per unit per quarter (alpha `half_alpha`, as the split-half does) and correlates `tau` in quarter q
     with q + 1, pooling every consecutive pair where the unit has `min_window` of `weight_col` in both. The 90%
@@ -575,7 +576,7 @@ def window_persistence(
     empty = {"r": None, "r_ci": (None, None), "pairs": 0, "units": 0, "windows": 0}
     col_a, col_b = _unit_cols(unit)
     sub = (maps_df.filter(pl.col("all_covered")) if "all_covered" in maps_df.columns else maps_df)
-    sub = sub.filter(pl.col(weight_col) > 0).with_columns(pl.col("date").map_elements(_quarter, return_dtype=pl.String)
+    sub = sub.filter(pl.col(weight_col) > 0).with_columns(pl.col("date").map_elements(window, return_dtype=pl.String)
                                                           .alias("_window"))
     windows = sorted(sub["_window"].unique().to_list())
     if len(windows) < 2:

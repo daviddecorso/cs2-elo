@@ -78,8 +78,8 @@ def _elo_for(rows: list[dict], demo_map: str, occurrence: int) -> dict | None:
     return same[occurrence] if occurrence < len(same) else None
 
 
-def catalog(elo_path: Path = ELO_MAPS) -> list[MapRef]:
-    """Every mirrored map with an Elo row. Maps are joined to Elo by match and map name."""
+def elo_rows(elo_path: Path = ELO_MAPS) -> list[tuple[str, dict, dict]]:
+    """(manifest key, manifest entry, Elo row) for every parsed map with an Elo row, joined by match and map name."""
     if not elo_path.exists():
         raise SystemExit(f"{elo_path} is missing; run `npm run export-map-elo` first")
     manifest = Manifest(None)
@@ -89,16 +89,25 @@ def catalog(elo_path: Path = ELO_MAPS) -> list[MapRef]:
         if e["status"] == "parsed" and e["parser_version"] == PARSER_VERSION:
             by_series.setdefault(int(key.split("/")[0]), []).append((key, e))
 
-    refs = []
-    for hltv_id, maps in by_series.items():
+    out = []
+    for maps in by_series.values():
         maps.sort(key=lambda m: int(m[0].split("/m")[1]))
         seen: dict[str, int] = {}
         for key, e in maps:
             occurrence = seen.get(e["map"], 0)
             seen[e["map"]] = occurrence + 1
             row = _elo_for(elo.get(e["lp_match2id"], []), e["map"], occurrence)
-            if row is None or not (MIRROR / e["prefix"] / "rounds.parquet").exists():
-                continue
+            if row is not None:
+                out.append((key, e, row))
+    return out
+
+
+def catalog(elo_path: Path = ELO_MAPS) -> list[MapRef]:
+    """Every mirrored map with an Elo row."""
+    refs = []
+    for key, e, row in elo_rows(elo_path):
+        if (MIRROR / e["prefix"] / "rounds.parquet").exists():
+            hltv_id = int(key.split("/")[0])
             refs.append(
                 MapRef(
                     key=key,

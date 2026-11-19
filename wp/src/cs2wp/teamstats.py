@@ -93,14 +93,15 @@ def _design(df: pl.DataFrame, cols: list[str], maps: list[str]):
     return x
 
 
-def cross_fit(df: pl.DataFrame, cols: list[str], device: str = "cpu") -> tuple[np.ndarray, int]:
-    """Out-of-fold P(CT wins the round), whole events per fold. The tree count is early-stopped once on fold 0."""
+def cross_fit(df: pl.DataFrame, cols: list[str], device: str = "cpu", target: str = "ct_win",
+              monotone: dict[str, int] = MONOTONE) -> tuple[np.ndarray, int]:
+    """Out-of-fold P(`target`), whole events per fold. The tree count is early-stopped once on fold 0."""
     from .pipeline import _fit_xgb
 
     maps = sorted(df["map"].unique().to_list())
     folds = event_folds(df)
-    y = df["ct_win"].cast(pl.Int8).to_numpy()
-    mono = tuple(MONOTONE.get(c, 0) for c in cols)
+    y = df[target].cast(pl.Int8).to_numpy()
+    mono = tuple(monotone.get(c, 0) for c in cols)
 
     def fit(mask, n, val=None):
         kw = dict(eval_set=[(_design(df.filter(pl.Series(val)), cols, maps), y[val])], early_stopping_rounds=50) if val is not None else {}

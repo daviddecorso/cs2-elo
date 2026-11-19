@@ -22,6 +22,8 @@ GUN_RANK = ["Pistol", "Deagle", "Heavy", "SMG", "Cheap rifle", "Scout", "Auto", 
 ECONOMY = ["equip", "team_equip", "opp_equip", "equip_share", "gun", "awp", "armor", "helmet", "has_defuser",
            *UTILITY, "team_buy", "opp_buy", "pistol"]
 GRENADE_COLUMNS = ["tick", "round_num", "type", "entity_id", "entity_serial", "x", "y"]
+# Grenade type in the grenades table → its inventory count column in ticks.
+GRENADE_COUNT = {"smoke": "smoke_grenades", "flashbang": "flashbangs", "he": "he_grenades", "molotov": "fire_grenades"}
 
 
 def economy(rounds: pl.DataFrame, ticks: pl.DataFrame) -> pl.DataFrame:
@@ -83,34 +85,55 @@ def drops(econ: pl.DataFrame) -> pl.DataFrame:
 
 
 def thrower_smokes(grenades: pl.DataFrame, ticks: pl.DataFrame) -> pl.DataFrame:
-    """One row per smoke: round_num, thrower, side, pop_tick, x, y (where it popped).
+    """One row per smoke: round_num, thrower, side, pop_tick, x, y (where it popped)."""
+    return (thrower_grenades(grenades, ticks, ("smoke",))
+            .select("round_num", "thrower", "side", "pop_tick", "x", "y"))
 
-    The parser leaves `thrower_steamid` empty, so the thrower is the player whose smoke count drops across the
-    trajectory's first tick and who stood within THROWER_RADIUS of its first point. Unmatched smokes have a null
-    thrower.
+
+def thrower_grenades(grenades: pl.DataFrame, ticks: pl.DataFrame,
+                     types: tuple[str, ...] = tuple(GRENADE_COUNT)) -> pl.DataFrame:
+    """One row per grenade of `types`: round_num, type, thrower, side, pop_tick and where it ended (x, y, and z when
+    the grenades table has it).
+
+    The parser leaves `thrower_steamid` empty, so the thrower is the player whose count of that grenade drops across
+    the trajectory's first tick and who stood within THROWER_RADIUS of its first point. Unmatched grenades have a
+    null thrower. `ticks` needs the count column of every requested type.
     """
-    traj = (grenades.filter(pl.col("type") == "smoke").sort("tick")
+    has_z = "z" in grenades.columns
+    traj = (grenades.filter(pl.col("type").is_in(list(types))).sort("tick")
             .group_by("round_num", "entity_id", "entity_serial")
-            .agg(pl.col("tick").first().alias("t0"), pl.col("x").first().alias("x0"), pl.col("y").first().alias("y0"),
-                 pl.col("tick").last().alias("pop_tick"), pl.col("x").last().alias("x"), pl.col("y").last().alias("y"))
-            .with_row_index("smoke")
+            .agg(pl.col("type").first(), pl.col("tick").first().alias("t0"), pl.col("x").first().alias("x0"),
+                 pl.col("y").first().alias("y0"), pl.col("tick").last().alias("pop_tick"), pl.col("x").last().alias("x"),
+                 pl.col("y").last().alias("y"), *([pl.col("z").last().alias("z")] if has_z else []))
+            .sort("round_num", "pop_tick", "entity_id", "entity_serial")
+            .with_row_index("grenade")
             .with_columns(pl.col("round_num").cast(pl.Int64)))
+    counts = {t: GRENADE_COUNT[t] for t in types}
     snaps = (ticks.filter((pl.col("steamid") > 0) & pl.col("side").is_in([CT, T]))
              .select("tick", "steamid", "side", pl.col("round_num").cast(pl.Int64), pl.col("x").alias("px"),
-                     pl.col("y").alias("py"), pl.col("smoke_grenades").alias("n")).sort("tick"))
+                     pl.col("y").alias("py"), *(pl.col(c) for c in counts.values())).sort("tick"))
+
+    def count(suffix: str = "") -> pl.Expr:
+        expr = pl.lit(None, pl.Int64)
+        for t, c in counts.items():
+            expr = pl.when(pl.col("type") == t).then(pl.col(f"{c}{suffix}").cast(pl.Int64)).otherwise(expr)
+        return expr
+
     pairs = (traj.join(snaps.select("round_num", "steamid", "side").unique(), on="round_num")
              .with_columns((pl.col("t0") - 1).alias("_before")).sort("_before"))
     pairs = pairs.join_asof(snaps.drop("round_num", "side"), left_on="_before", right_on="tick", by="steamid",
                             strategy="backward", tolerance=TICK_RATE)
     pairs = (pairs.with_columns((pl.col("t0") + COUNT_LAG).alias("_after")).sort("_after")
-             .join_asof(snaps.select("tick", "steamid", pl.col("n").alias("n_after")), left_on="_after", right_on="tick",
-                        by="steamid", strategy="forward", tolerance=TICK_RATE, suffix="_after"))
+             .join_asof(snaps.select("tick", "steamid", *(pl.col(c).alias(f"{c}_after") for c in counts.values())),
+                        left_on="_after", right_on="tick", by="steamid", strategy="forward", tolerance=TICK_RATE,
+                        suffix="_after"))
     dist = ((pl.col("px") - pl.col("x0")) ** 2 + (pl.col("py") - pl.col("y0")) ** 2).sqrt()
-    found = (pairs.filter((pl.col("n") > pl.col("n_after")) & (dist <= THROWER_RADIUS))
+    found = (pairs.filter((count() > count("_after")) & (dist <= THROWER_RADIUS))
              .with_columns(dist.alias("_d")).sort("_d")
-             .group_by("smoke").agg(pl.col("steamid").first().alias("thrower"), pl.col("side").first()))
-    return (traj.join(found, on="smoke", how="left")
-            .select("round_num", "thrower", "side", "pop_tick", "x", "y").sort("pop_tick"))
+             .group_by("grenade").agg(pl.col("steamid").first().alias("thrower"), pl.col("side").first()))
+    return (traj.join(found, on="grenade", how="left")
+            .select("round_num", "type", "thrower", "side", "pop_tick", "x", "y", *(["z"] if has_z else []))
+            .sort("pop_tick"))
 
 
 def thrown_smokes(ref: MapRef, ticks: pl.DataFrame) -> pl.DataFrame | None:

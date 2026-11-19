@@ -542,6 +542,20 @@ def _frozen(path: Path) -> bool:
 NEUTRAL = ("coarse", "fine", "base")
 
 
+def map_predictor(book, ref: MapRef, refs: list[MapRef]):
+    """(entry, shift, p) for the map's own out-of-sample model, where `p(events, prefix)` predicts the `prefix`
+    state of each event row (after `with_derived` on that prefix); None if no model covers the map's month."""
+    e = book.entry(ref.date[:7])
+    if e is None:
+        return None
+    shift = book.shift(ref.date, refs)
+
+    def p(ev: pl.DataFrame, prefix: str) -> np.ndarray:
+        return book.predict(e, _unprefixed(ev, e["features"], prefix), shift)
+
+    return e, shift, p
+
+
 def credit(model_dir: str, recredit: bool = False) -> int:
     """Values every map with its own month's out-of-sample model (book.py). Maps already credited are frozen unless
     `recredit`; the neutral tables are refit, from maps before test_from, only on a full re-credit."""
@@ -568,14 +582,12 @@ def credit(model_dir: str, recredit: bool = False) -> int:
         events = pl.read_parquet(epath) if epath.exists() else None
         if events is None or events.is_empty():
             continue
-        e = book.entry(ref.date[:7])
-        if e is None:
+        predictor = map_predictor(book, ref, refs)
+        if predictor is None:
             skipped.append(ref.key)
             continue
+        e, shift, p = predictor
         events = with_derived(with_derived(events, "pre_"), "post_")
-        shift = book.shift(ref.date, refs)
-        def p(ev: pl.DataFrame, prefix: str, e=e, shift=shift) -> np.ndarray:
-            return book.predict(e, _unprefixed(ev, e["features"], prefix), shift)
 
         own_average = {}
         teams = _round_team_elo(ref)

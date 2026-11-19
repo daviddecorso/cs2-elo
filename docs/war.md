@@ -2,7 +2,7 @@
 
 ## Overview
 
-Phase 6 of [spec.md](spec.md): wins above replacement, comparing each player with a replacement in the same role. Built so far: **CT positions** (item 1), **T roles** (item 2), **role validation** (item 3), **role baselines** (item 4), **expected duels** (item 5), **IGL tags** (item 6), **Wins Above Average & replacement hook** (item 7), **bootstrap uncertainty & web publishing** (item 8), **team factor & APM** (`cs2wp team-factor`, gated off-site), and the Phase 7 team stats: **duel execution and quality** (`cs2wp duel-stats`) and **team round stats** (`cs2wp team-stats`). The code lives in `wp/` (`cs2wp positions`, `cs2wp roles`, `cs2wp validate-roles`, `cs2wp baselines`, `cs2wp duels`, `cs2wp duel-stats`, `cs2wp igls`, `cs2wp usage`, `cs2wp war`, `cs2wp validate-war`, `cs2wp team-factor`, `cs2wp team-stats`). The public site publishes provisional WAA rankings at `/war` (`public/data/war/players.json`).
+Phase 6 of [spec.md](spec.md): wins above replacement, comparing each player with a replacement in the same role. Built so far: **CT positions** (item 1), **T roles** (item 2), **role validation** (item 3), **role baselines** (item 4), **expected duels** (item 5), **IGL tags** (item 6), **Wins Above Average & replacement hook** (item 7), **bootstrap uncertainty & web publishing** (item 8), **team factor & APM** (`cs2wp team-factor`, gated off-site), and the Phase 7 team stats: **duel execution and quality** (`cs2wp duel-stats`), **team round stats** (`cs2wp team-stats`), **tactics stats** (`cs2wp tactics`), **T-side predictability** (`cs2wp predictability`) and **clutch and man-advantage conversion** (`cs2wp clutch`). The code lives in `wp/` (`cs2wp positions`, `cs2wp roles`, `cs2wp validate-roles`, `cs2wp baselines`, `cs2wp duels`, `cs2wp duel-stats`, `cs2wp igls`, `cs2wp usage`, `cs2wp war`, `cs2wp validate-war`, `cs2wp team-factor`, `cs2wp team-stats`, `cs2wp tactics`, `cs2wp predictability`, `cs2wp clutch`). The public site publishes provisional WAA rankings at `/players`, with a page per player at `/players/:player` (`public/data/war/players.json`).
 
 ## CT positions
 
@@ -324,7 +324,7 @@ Independence of quality from execution (stints, all duels): same-half r 0.504, c
 - **Opening-duel quality fails both**: one duel per round is too little sample at the stint level (`k` 331 maps).
 - **No team stat adds to Elo**, so every published stat is descriptive. Execution is mostly Elo (r 0.86), and positioning and flashes slightly worsen Elo's log loss. Quality and its parts describe how a team plays, not how much it wins beyond its rating.
 
-`team-duels.json` publishes execution, quality, positioning, flashes and HP for the 62 stints, shown as the Teams table on `/war`.
+`team-duels.json` publishes execution, quality, positioning, flashes and HP for the 62 stints, shown on the Duels tab of `/rankings` and on each team page.
 
 **Player execution passes.** It is less reliable than raw win rate because raw win rate also carries the player's situations (role, weapon, peeking), which are stable. Execution is the skill left after those come out.
 
@@ -403,7 +403,342 @@ Findings:
 - **Conversion is reliable inside a window but doesn't carry across quarters for stints.** By `lp_team` it does: r 0.162 (0.031, 0.278). Rosters and callers change between quarters, so a whole team carries it better than an IGL stint. It isn't published until the stint test passes.
 - **The player-WAR version** reproduces Stage 1 and fails for the same reason: too little archive.
 
-`team-stats.json` publishes `tpv`, `rwoe_econ`, `ct_def` and `t_off` for 62 stints. They appear as the "Teams / round-level stats" table on `/war` (`src/pages/TeamRounds.tsx`).
+`team-stats.json` publishes `tpv`, `rwoe_econ`, `ct_def` and `t_off` for 62 stints. They appear on the Rounds tab of `/rankings` (`src/pages/TeamRounds.tsx`) and on each team page.
+
+## Tactics stats
+
+`wp/src/cs2wp/tactics.py`. Phase 7, order 4 ([spec.md](spec.md)): execute success, post-plant conversion, map control and numbers at contact.
+
+```
+cd wp
+uv run cs2wp tactics [--min-rounds 300] [--resamples 1000] [--rebuild] [--publish]
+```
+
+It needs `team-map-residuals.parquet` (`cs2wp team-factor`) and `team-rounds.parquet` (`cs2wp team-stats`, for teams, buys and `p_econ`). It runs on CPU. The per-map geometry takes about 3 minutes on 6 workers and is cached in `data/war/tactics-raw.parquet`; new maps are added incrementally, and `--rebuild` recomputes every map after a code change. It writes:
+
+- `tactics-rounds.parquet`: per round, with hit site, execute flags, `p_take`, `p_post`, territory and defenders
+- `tactics-maps.parquet`: per team-map
+- `tactics.parquet`: ridge estimates for the zero-sum stats
+- `tactics-side-ratings.parquet`: T and CT ratings for executes and post-plants
+- `reports/tactics.md`
+
+No expectation includes team Elo. The spec asked for execute success to control for Elo, but that contradicts its own Elo-circularity rule, so Elo only enters the beyond-Elo label test.
+
+**Geometry.** Sites come from the nav mesh and the plant positions (`nav.SiteDistance`): a position is in a site within 500 nav-path units of its plant areas, and within its holds inside 1,000. Thrower sides come from `resources.thrower_grenades`, which generalises the smoke-thrower inference to every grenade type. It attributes about 70% of flashes and 92–100% of smokes, HEs and molotovs.
+
+- **Site hit**: the plant site, otherwise the site where a second T entered first, otherwise none (about 80% of rounds).
+- **Execute**: 3+ Ts enter the hit site within 5 s, and 2+ T grenades land in its holds between 8 s before the first entry and the third entry. That's 10% of T rounds on Dust2 and up to 28% on Inferno.
+- **Map control** at 30, 45 and 60 s after freeze end, on rounds still live with no plant yet: multi-source Dijkstra over the nav graph from each side's alive players. Each area goes to the side that reaches it first (ties split), and CT share is the area-weighted share of reachable nav area. It's centred per map and men alive on each side, so territory taken by kills cancels.
+- **Numbers at contact**: first damage between opponents with the T inside the hit site's holds, or the plant if that comes first. Defenders are the alive CTs inside the holds at that moment, centred per map, site and CTs alive (mean 1.3 on Dust2 to 2.1 on Nuke).
+
+**Stats.**
+
+- Map control and numbers at contact are zero-sum (CT view as is, T view negated). They run through the `duel-stats` battery (`duelstats.team_results`) plus quarter persistence.
+- Execute success and post-plant conversion are rated per side, like the adjusted T and CT ratings: `logit P(CT stops it) = logit(1 − p) + d[CT unit] − o[T unit]`, with `p` from XGBoost cross-fit by event.
+  - `p_take` (execute → plant) uses map, site, both buys and men alive at the third entry.
+  - `p_post` (plant → T win) uses map, site, both buys, men alive and CT kits at the plant.
+
+**Gates** (stints):
+
+| Stat | Test from the spec | Implementation |
+| --- | --- | --- |
+| Execute success, post-plant conversion | Noise check by season | T offense `o`: split-half and half-year season persistence (split at 1 July), both with lower CI above 0 |
+| Map control | Adds beyond WAR? | Split-half, and leave-one-event-out map-result log loss of the summed-prior-WAR expectation (`expected_win_prob` from `cs2wp team-factor`) with and without the walk-forward stat, on WAR-covered maps |
+| Numbers at contact | Signal in modern CT play? | Split-half, and leave-one-event-out round log loss of `logit(p_econ)` with and without the defender excess |
+
+**Results (2026-11-15).** 67,409 rounds on 3,111 maps (2,671 WAR-covered). Expectations: `p_take` 0.4616 log loss against 0.5753 base, on 13,189 executes (take rate 0.738). `p_post` 0.3080 against 0.5396, on 36,618 plants (T win 0.770).
+
+| Stat (stints) | Split-half r (90% CI) | Own test | Verdict |
+| --- | --- | --- | --- |
+| Map control at 30 s | 0.412 (0.173, 0.595) | WAR + stat −0.0000 (−0.0008, +0.0008) | **Fails**: adds nothing beyond WAR |
+| Map control at 45 s | 0.387 (0.187, 0.558) | +0.0001 (−0.0010, +0.0011) | **Fails** |
+| Map control at 60 s | 0.231 (0.004, 0.458) | +0.0000 (−0.0012, +0.0012) | **Fails** |
+| Numbers at contact | 0.352 (0.162, 0.522) | Round gain +0.00124 (+0.00082, +0.00166) | Published, descriptive |
+| Execute success (T) | 0.029 (−0.205, 0.259) | Season r 0.002 (−0.202, 0.187) | **Fails** both |
+| Post-plant conversion (T) | 0.280 (0.130, 0.457) | Season r 0.367 (0.221, 0.498) | Published, descriptive |
+
+Findings:
+
+- **Map control is a stable team trait, but it isn't skill WAR misses.** It persists across quarters (r 0.29–0.32) and correlates only 0.14–0.27 with Elo, but adding it to the WAR expectation doesn't change map-result log loss. Adding it to Elo slightly worsens log loss at 30 s. The spec's worry holds: in modern CT play, territory is style, not an edge.
+- **Execute success on the T side is noise.** The CT side carries signal: defending executes has split-half r 0.50 and season r 0.24 (0.06, 0.41). Stopping executes is a team trait; landing them isn't.
+- **Post-plant conversion persists across seasons on both sides** (T 0.37, CT 0.33). It correlates 0.49 with Elo, so it's partly strength.
+- **Numbers at contact** has split-half r 0.35 and quarter r 0.23. The round test confirms the extra defenders matter beyond economy. It doesn't add to Elo (−0.0001), so it's descriptive.
+
+`tactics.json` publishes `contact`, `post_t_off` and `post_ct_def` for 75 stints. They appear on the Tactics tab of `/rankings` (`src/pages/TeamTactics.tsx`) and on each team page, as Post-plant T, Retake CT and Numbers at contact.
+
+`tactics-raw.parquet` also records `freeze_end_tick` and `hit_tick`, which is the first T entry into the hit site, or the plant if no T entered. T-side predictability uses them. A cache without `hit_tick` rebuilds on the next run.
+
+## T-side predictability
+
+`wp/src/cs2wp/predictability.py`. Phase 7, order 5 ([spec.md](spec.md)).
+
+```
+cd wp
+uv run cs2wp predictability [--resamples 1000] [--publish]
+```
+
+It needs `tactics-rounds.parquet` (`cs2wp tactics`) and `team-map-residuals.parquet` (`cs2wp team-factor`). It runs on CPU in about 2 minutes and writes:
+
+- `predictability-rounds.parquet`
+- `predictability-maps.parquet`
+- `predictability.parquet`
+- `reports/predictability.md`
+
+**The stat.** It asks how much better a scout who studied the team's earlier T rounds predicts the next one than a league prior does.
+
+- **Outcome per T round:**
+  - site hit: A, B or none
+  - timing bin: seconds from freeze end to the first T entry, in <20, 20–40, 40–60 or 60+
+  - whether it was an execute
+- **Given economy:** each distribution is conditioned on map and T buy (eco, force, full or pistol).
+- **League prior:** add-one smoothed over every earlier date.
+- **Scout:** the unit's own rounds on that map and buy from earlier dates, Dirichlet-smoothed toward the league prior with strength m = 20.
+- **Per round:** `pred` = league surprise − scout surprise, in nats, summed over site, timing given site and execute given site. Positive means predictable.
+- **Eligibility:** a round counts once the unit has 30 earlier T rounds on the map.
+
+**Gates.**
+
+- Stint split-half of `pred` (alternating series, 75+ rounds a half).
+- **Prepared opponents** (the spec's test):
+  - Team predictability at map time is the team's earlier `pred`, shrunk by 100 rounds.
+  - The test is leave-one-event-out map log loss of `elo_logit + Δpred`, against that plus `Δpred × prepared`, on maps where both teams have 50+ earlier eligible rounds.
+  - It passes if the gain's 90% CI (resampling series) is above 0 and the interaction is negative.
+- **Prepared** means the two teams met in an earlier series within 60 days (25% of maps).
+- Bo3+ is a diagnostic only. Residual `series` ids are HLTV match ids, which don't join to Liquipedia's `bestOf`, so Bo3+ is "the series ran past one map". That's 94% of demo maps, so it barely varies.
+
+**Results (2026-11-15): fails. Not published.**
+
+| Test | Result |
+| --- | --- |
+| Mean gain per eligible round (49,687) | −0.0062 nats at m 20, −0.0201 at m 10, +0.0012 at m 40 |
+| Stint split-half | 0.103 (−0.152, 0.340), 46 stints: **fails** |
+| Team (`lp_team`) split-half | 0.327 (0.043, 0.559); quarter r 0.143 (0.032, 0.267) |
+| Rematch: gain over Elo + Δpred | −0.00057 (−0.00138, +0.00024); interaction coefficient +0.048: **fails** |
+| Bo3+ (diagnostic) | +0.00045 (−0.00114, +0.00196); interaction +0.318 |
+
+Findings:
+
+- **A team's own history barely beats the league prior.** At m 20 the scout is slightly worse on average. Site choice given map and buy is about as predictable for every team as for the league.
+- **What predictability exists is a weak team trait** (team split-half 0.33). It doesn't survive IGL stints.
+- **Predictable teams don't lose to prepared opponents.** The interaction points the other way and isn't significant.
+
+## Clutch and man-advantage conversion
+
+`wp/src/cs2wp/clutch.py`. Phase 7, order 5 ([spec.md](spec.md)).
+
+```
+cd wp
+uv run cs2wp clutch [--model production] [--resamples 1000] [--publish]
+```
+
+It needs `team-rounds.parquet` (`cs2wp team-stats`), `team-map-residuals.parquet` (`cs2wp team-factor`), each map's `data/wp/states/<slug>/events.parquet` and the WP model book. It runs on CPU in about 5 minutes and writes:
+
+- `clutch-entries.parquet`
+- `clutch.parquet`
+- `reports/clutch.md`
+
+**Entries.** For each side in each round, the first post-event state in each class, skipping events that end the round:
+
+- `clutch`: 1 alive against 1 or more. It belongs to the survivor.
+- `adv`: more alive than the opponent.
+- `disadv`: fewer alive than the opponent.
+
+**Expectation.** Each entry state is valued with the map's own out-of-sample WP fold (`pipeline.map_predictor`, which `cs2wp credit` also uses), with `elo_diff_ct` set to 0 so team strength stays out.
+
+- Conversion = win − p, centred per class, X v Y and side, so leftover model bias in rare states cancels.
+- The uncentred bias is large in late states. 1v1 wins run 6–10 points above the model (CT 0.548 actual against 0.450 predicted), and 2v1 and 3v2 advantages convert 4–6 points below it. That's worth a look in [win-probability.md](win-probability.md) calibration by man count.
+
+**Gate.** The spec's test is year-to-year: each unit's mean conversion in 2025 against 2026, over units with 30 entries (players) or 60 (stints, teams) in both years. The 90% CI resamples series. A class that fails stays off the site. Half-year persistence, split-half and r with mean Elo are reported as diagnostics (`unitstats.py`, which also serves predictability).
+
+**Results (2026-11-15).** 249,281 entries on 3,111 maps.
+
+| Class | Unit | Year r (90% CI, units) | Split-half r (90% CI) | r with Elo | Verdict |
+| --- | --- | --- | --- | --- | --- |
+| Clutch | Player | 0.152 (0.034, 0.274), 142 | 0.009 (−0.097, 0.118) | — | Published |
+| Clutch | Stint | 0.269 (0.021, 0.483), 25 | 0.219 (0.038, 0.406) | 0.13 | Published |
+| Clutch | Team | 0.249 (0.032, 0.449), 34 | 0.326 (0.090, 0.544) | 0.21 | Passes |
+| Man advantage | Stint | 0.260 (−0.091, 0.560), 25 | 0.003 (−0.206, 0.218) | 0.63 | **Fails** |
+| Man advantage | Team | 0.215 (−0.123, 0.525), 34 | −0.058 (−0.310, 0.225) | 0.63 | **Fails** |
+| Man disadvantage | Stint | 0.355 (0.099, 0.566), 26 | 0.343 (0.128, 0.535) | 0.70 | Published |
+| Man disadvantage | Team | 0.323 (0.074, 0.536), 35 | 0.403 (0.143, 0.621) | 0.71 | Passes |
+
+Findings:
+
+- **Team clutching is a stable trait that isn't strength** (r with Elo 0.13–0.21).
+- **Player clutching barely carries:** year r 0.15 and split-half 0.01. It's published as a tendency, not a skill.
+- **Coming back from behind is mostly strength** (r 0.70 with Elo), because the expectation is deliberately Elo-free.
+- **Closing out an advantage isn't stable.**
+
+`clutch.json` publishes stint `clutch` and `disadv` (81 stints with 120+ entries) on the Tactics tab of `/rankings` (`src/pages/TeamClutch.tsx`), and player clutches (230 players with 60+) on the Clutch view of `/players` and each player page (`src/pages/PlayerClutch.tsx`). Rates are round wins per 100 entries. Hopeless 1v4 and 1v5 entries are in the denominator, which keeps team rates small.
+
+## Luck-adjusted Elo
+
+`wp/src/cs2wp/luck.py`, plus `luckWeight` in the Elo engine. Phase 7, order 3 ([spec.md](spec.md)). The question: would Elo predict better if each map's update used the margin the teams "should" have had, with every duel at its expected rate?
+
+```
+npm run export-map-elo
+cd wp && uv run cs2wp luck [--resamples 1000]
+cd .. && npm run backtest-elo -- --luck
+```
+
+`cs2wp luck` needs `duel-team-maps.parquet` and `duel-players.parquet` (`cs2wp duel-stats`), `team-map-residuals.parquet` (`cs2wp team-factor`) and `team-stat-maps.parquet` (`cs2wp team-stats`). It writes `data/war/luck-maps.parquet`, `data/elo/luck-maps.jsonl` (read by the backtest, keyed by `match2id` and scored-map index), `data/elo/player-skill.json` (read by `backtest-elo --skill`, see [Player-skill term](#player-skill-term)) and `reports/luck.md`. `backtest-elo --luck` takes `--luck-variant raw|skill|value|full|skillonly` (default `skill`).
+
+**Expected margin.** No round simulation. `exec` is the teams[0] view of duels won minus expected (`duel-team-maps`). β, the rounds of margin per duel won above expectation, is a no-intercept OLS of signed round margin on `exec`, cross-fit over 5 event folds. Then `x_margin = margin − β · exec`, and `y_hat = P(win | x_margin)` is a one-feature logistic, also cross-fit.
+
+**Engine.** With weight w on a map that has a luck row, the update uses `(1 − w)·y + w·y_hat` as the result and `(1 − w)·margin + w·x_margin` as the margin. The damping term takes the winner's sign from the blended margin. Predictions and scoring always use the real result. At w = 0, or on maps without a row, ratings are identical to before (`engine.test.ts`). `export-map-elo` pins w to 0 so WP credits don't move.
+
+**Treated set.** Series where both lineages have 5+ luck maps in the prior 120 days. w is tuned on 2025 treated series over 0–1 in steps of 0.1, with every other parameter frozen, and scored on 2026 treated series. The 90% interval on the log-loss gain resamples events.
+
+**Hot-hand check.** Execution per duel on each map, minus the unit's rate on every *other* event. Demeaning within the event would make neighbouring maps correlate negatively. Each map is paired with the unit's next map in the same event. Same-series pairs share an opponent, whose strength the duel model doesn't see, so only next-series pairs test form.
+
+**Results (2026-11-14).** 3,111 maps on 53 events.
+
+- β = 0.825 rounds per duel above expectation; `exec` explains 69% of margin variance. `x_margin` points the other way from the real result on 29% of maps.
+- Hot hand, next-series pairs: player r −0.009 (−0.022, +0.005) on 9,808 pairs; team r −0.017 (−0.052, +0.023). Same-series pairs are positive (player +0.051, team +0.152), which fits the shared opponent. Duel residuals don't carry over between series, so they behave like luck.
+- 844 treated series in 2025 and 822 in 2026. 2025 log loss is lowest at w = 0.2 (0.62358 against 0.62512 at w = 0).
+- 2026 treated series: 0.6287 at w = 0.2 against 0.6277 at w = 0. **Gain −0.0010, 90% CI −0.0037 to +0.0019: FAIL.** Treated maps: 0.6562 against 0.6566. The full gate set doesn't move (0.6150 against 0.6151).
+
+**Reading (raw variant).** Even though the residuals look like luck, discounting them doesn't help Elo out of sample. `exec` is mostly skill across events (the player split-half passes in [Duel execution and quality](#duel-execution-and-quality)), so `x_margin` strips out real strength along with the noise. That matches order 1, where team execution added nothing beyond Elo.
+
+### Skill-adjusted luck
+
+The duel model has no player identity, so `exec` is measured against a league-average player and holds duel skill as well as luck. The skill variant removes only what a player's own record doesn't predict.
+
+- **θ.** Each player's execution per duel from duels dated before the event's first day, shrunk by k = 1,207 duels (the player split-half `k`, read back from `duel-players.parquet`). It is prior-only, so no future result reaches a rating. Players with no earlier duels get 0.
+- **Split.** `exec_skill` sums `θ_self − θ_opponent` over a team's duels, and `exec_luck = exec − exec_skill`. Both are zero-sum between the two teams.
+- **Margin.** `x_margin_skill = margin − β · exec_luck`, with β and `y_hat_skill` cross-fit as before. `luck-maps.jsonl` carries both variants.
+
+**Carryover test.** This asks the question directly, without the engine: once Elo is in the model, does a team's recent luck predict its next map? If Elo has absorbed luck, it must, with a negative sign.
+
+- Maps where both teams have 5+ demo maps in the 120 days before the series (the backtest's treated rule). Maps of the same series are never in the window.
+- Each feature is a trailing per-map mean in rounds of margin (duel stats × β), team minus opponent.
+- Primary: the feature's coefficient in a no-intercept OLS of the map's round margin on the Elo logit and the feature. The round margin is continuous, so it has more power than win/loss. Secondary: leave-one-event-out log-loss gain over Elo alone (`warcheck.cv_losses`). Intervals are 90%, resampling events.
+- Pre-registered reading: the idea is alive only if the luck part's coefficient is negative with its interval below 0.
+
+**Results (2026-11-14).**
+
+- θ is calibrated: the slope of `exec` on `exec_skill` per map is 1.03. `exec_skill` has SD 1.26 duels per map against 6.07 for `exec`, and explains 4.6% of its variance. So per map almost all of `exec` is luck, but the skill part is the part that repeats.
+- `x_margin_skill` predicts the map result better than `x_margin` (log loss 0.5608 against 0.5861) and flips 27.8% of maps against 29.3%.
+
+Carryover, 2,677 maps on 51 events (Elo alone: 0.6451):
+
+| Trailing feature | SD (rounds) | Margin coefficient (90% CI) | Log-loss gain (90% CI) |
+| --- | --- | --- | --- |
+| Execution (skill + luck) | 1.71 | +0.00 (−0.12, +0.14) | −0.0004 (−0.0006, −0.0002) |
+| Skill part | 0.99 | +0.38 (+0.16, +0.62) | +0.0009 (−0.0012, +0.0028) |
+| Luck part | 1.44 | **−0.17 (−0.31, −0.04)** | +0.0006 (−0.0008, +0.0018) |
+| Round conversion over duels | 0.23 | −0.86 (−1.63, −0.05) | −0.0000 (−0.0010, +0.0009) |
+
+Engine, skill variant: 2025 treated log loss is lowest at w = 0.5 (0.62067 against 0.62512 at w = 0). On 2026 treated series it scores 0.6263 against 0.6277: **gain +0.0013, 90% CI −0.0047 to +0.0076, FAIL.** Treated maps 0.6545 against 0.6566; gate set 0.6147 against 0.6151.
+
+**Reading.**
+
+- **Elo does carry duel luck forward.** Raw execution predicts nothing beyond Elo because its two parts cancel: the skill part is positive and the luck part is negative. That is why the raw variant and order 1's "execution adds nothing to Elo" both came out flat.
+- **The engine gain points the right way but doesn't pass, and it is parked.** Every 2026 row improves, and the interval is too wide for 822 series to settle a gain of this size. Scoring the same ratings on next-map round margin doesn't settle it either (+0.16% MSE at w = 0.6, CI −0.20 to +0.31 on 1,931 maps). The run already uses the whole tier-1 LAN archive, so `luckWeight` stays 0 unless demo coverage widens.
+- **Not all of the gain need be luck removal.** `x_margin_skill` adds θ, which Elo doesn't have, and trailing skill is positive beyond Elo. A player-skill term in Elo would be a separate experiment.
+- **Round conversion over duels** has the same sign, which fits it failing quarter persistence, but it is one of four features and wasn't the pre-registered one.
+
+### Value-weighted luck
+
+The two variants above count every duel the same. This one weights each duel's luck by its **stake**, the round win probability riding on it: the man-count value of the attacker's kill plus the value of the victim's kill had it gone the other way. Both come from `data/wp/credits/neutral-fine.parquet` (side, bomb planted, own and opposing players alive), with the credit pipeline's fallback to the coarse table for buckets under 200 events. The full win-probability model isn't used because the stake needs the counterfactual kill, which only the table gives by lookup.
+
+- `exec_luck_value = Σ (win − p − (θ_self − θ_opponent)) · stake`, in rounds, and `x_margin_value = margin − β · exec_luck_value`.
+- Stakes are found for 98.9% of duels (joined to the state events by round, tick and victim); the rest get the mean. Mean stake 0.287, quartiles 0.178 / 0.306 / 0.390, top 1% above 0.745.
+- β is 2.61 rounds of margin per round of luck. A round is worth 2 of margin, and the rest is probably luck that travels with duel luck but isn't in it (damage, trades).
+
+Two checks were declared before running, and both pass:
+
+| Check | Unweighted luck | Value-weighted luck |
+| --- | --- | --- |
+| Same-map margin variance explained (out of fold) | 64.9% | 68.6% |
+| Carryover margin coefficient (90% CI) | −0.17 (−0.31, −0.04) | −0.19 (−0.32, −0.06) |
+| Carryover log-loss gain over Elo (90% CI) | +0.0006 (−0.0008, +0.0018) | +0.0009 (−0.0007, +0.0024) |
+
+Engine, `--luck-variant value` (exploratory, since 2026 had been seen): the 2025 tune picks w = 0.6 on both scores. On 2026 treated series it scores 0.6241 against 0.6277: **gain +0.0036, 90% CI −0.0034 to +0.0106, FAIL.** Treated maps 0.6527 against 0.6566; gate set 0.6144 against 0.6151; round-margin MSE 31.857 against 32.045 (+0.59%, CI −0.08 to +0.44 in MSE).
+
+**Reading.** Weighting by stake is the better form: it wins on every comparison with the unweighted variant and about triples the engine gain. Neither score's interval excludes 0, so `luckWeight` stays 0.
+
+### Non-duel luck and the skill control
+
+Two follow-ups to the value variant, both exploratory.
+
+**`full`: duel luck plus round conversion.** `conv` is rounds won minus the rounds expected from each round's buys, gun kills and opening duel (`cs2wp team-stats`), so it is luck in how duels turned into rounds. `x_margin_full = margin − β_v · exec_luck_value − β_c · conv`, with both βs fit jointly out of fold.
+
+- `conv` is present on every map and is uncorrelated with value-weighted duel luck (r = 0.01). Joint β: 2.61 on duel luck, 1.76 on `conv`.
+- Checks declared beforehand, the carryover one on 2025 maps only (1,441 maps): same-map margin variance 72.9% against 68.6% (pass); 2025 tuned log loss 0.61714 against 0.61994 (pass); trailing combined luck's carryover gain +0.0013 against +0.0006 (pass), but its coefficient is −0.16 (−0.34, +0.00), so the interval isn't below 0 (miss).
+- Engine: w = 0.6, 2026 treated series 0.6243 against 0.6277, **gain +0.0034, 90% CI −0.0039 to +0.0106, FAIL.** That is level with the value variant's 0.6241, so the better 2025 fit didn't carry over.
+
+**`skillonly`: the control.** The value-adjusted margin is `margin − β·exec_value + β·exec_skill_value`, so it gives Elo each player's prior duel skill as well as removing luck. `x_margin_skillonly = margin + β · exec_skill_value` keeps the first and drops the second.
+
+- Engine: tuned w = 1 (the grid's edge), 2026 treated series 0.6256 against 0.6277, gain +0.0020, CI −0.0040 to +0.0080.
+- It reproduces 31% of the value variant's 2025 gain and 56% of its 2026 gain.
+
+**Reading.** Round-conversion luck is real on the same map but adds nothing to Elo out of sample, so the value variant stays the best form. Luck removal is the larger share of its gain on the tuning year, and player skill is a real second part: the control improves at every weight up to 1, which points at a player-skill term in Elo as its own experiment. `backtest-elo --luck` takes `--luck-variant raw|skill|value|full|skillonly`.
+
+### Player-skill term
+
+`skillWeight` in the Elo engine feeds prior duel skill into the prediction itself instead of through the update target. `cs2wp luck` also writes `data/elo/player-skill.json`: per Liquipedia player page (`lp_player` from `role-rounds.parquet`), `[t, exec, duels]` for each demo series, where `t` is the Elo feed's series time. 0.5% of duel views have no player page and are dropped.
+
+- **θ at a series** is execution summed over the player's series with an earlier `t`, divided by their duels plus k = 1,207. Unlike the luck variants' θ, which stops at the event's first day, this one includes earlier series of the same event.
+- **Engine.** `skillGap` is the mean θ of teams[0]'s lineup minus teams[1]'s. A player with no history takes the mean θ of teammates who have it, and the gap is 0 unless both sides have at least 3 players with history. Every map's expected score and the series probability use the rating gap plus `skillWeight · skillGap`, and the update uses that shifted expectation. The margin multiplier's damping still uses the unshifted rating gap. At 0, ratings and predictions are unchanged (`engine.test.ts`).
+- `backtest-elo --skill` tunes `skillWeight` on the luck runs' treated set, on a grid of 0–100 Elo points per SD of the 2025 treated `skillGap`. `--luck-weight w --luck-variant v` holds the luck adjustment fixed while it tunes, and `--skill-weight w` scores one weight with no grid; the baseline is always no adjustment.
+
+**Results (2026-11-14).** Skill alone tunes to 20 pts/SD and gains +0.0008 on 2026 treated series (CI −0.0006 to +0.0022): **FAIL**, and a third of what the skill-only control gave. With `value` luck at w = 0.6, the 2025 tune moves to 60 pts/SD and the 2025 loss (0.61618) is below both single runs; 2026 treated-series gain +0.0060, CI −0.0022 to +0.0144: **FAIL**. Tables in [elo-experiments.md](elo-experiments.md).
+
+**Reading.** Prior skill on its own adds little to Elo, which already tracks team strength from results. It helps once luck is taken out of the updates: the two are separate effects, and the combined form is the best scored so far. Neither passes the gate, so both weights stay 0. Unknown players first counted as θ = 0 (the tier-1 LAN average), which cost a little outside the treated set; the teammate-mean rule removed that on 2025. Wider demo coverage in 2025–26 wouldn't add enough treated series, so the combined form gets one registered test on backfilled 2023-10 to 2024 demos, judged by an encompassing λ gate ([roadmap.md](roadmap.md), [elo-experiments.md](elo-experiments.md)).
+
+Nothing in the nightly build reads `luck-maps.jsonl` or `player-skill.json`. All seven runs are logged in [elo-experiments.md](elo-experiments.md).
+
+## Veto value lost
+
+`wp/src/cs2wp/veto.py`. Phase 7, order 3. How much series win probability each veto step gave up against the best option, judged by a map-strength model on information from before the series.
+
+```
+npm run export-map-elo   # writes data/wp/elo-series.jsonl too
+cd wp && uv run cs2wp veto [--resamples 1000] [--publish]
+```
+
+It needs the HLTV veto tables (`data/demos/hltv/veto/`, from `cs2demos match-pages`) and `elo-series.jsonl`, which has each series' lineage ids, pre-series base ratings, and map offsets over the active pool. It runs on CPU in a few minutes, and writes `data/war/veto-steps.parquet` (one row per step: options, chosen, best, both values, `lost`, `model_version`), `veto-teams.parquet` (per stint and `lp_team`) and `reports/veto.md`.
+
+**Map model.** Elo's map offsets are too weak to judge vetoes (`kMap` 4, `mapShrink` 0.02), so the veto model has its own. Walk-forward over all 126,732 maps in the Elo feed:
+
+`logit P(A wins map) = base Elo logit + c_u·(u[A,map] − u[B,map]) + γ·pick + δ_ban·Δban rate + δ_pick·Δpick rate`
+
+- `u` is the lineage's decayed sum of residuals against base Elo on that map, over `decayed maps + k`, centred on the lineage's unweighted mean `u` over the series' pool (the veto's maps, else the active pool). Uncentred, `u` also carries "this team beats its Elo overall", which predicts its next maps with the wrong sign (coefficient −8.4 ± 1.0 when split out), and the single fitted `c_u` compromised between the two. Every other map feature was already centred.
+- The ban and pick rates are the lineage's own, from earlier vetoes, centred on its pool mean and shrunk by 2 vetoes. The ban rate keeps permabans from looking like mistakes: a never-played map has no residuals, but it does have a ban history.
+- `pick` is +1 when A picked the map, −1 when B did, and 0 for a decider or a series without a veto.
+
+k and the decay are tuned on a grid, with the coefficients fit by logistic regression with base Elo as a fixed offset, all on 2025. Tuned values (`veto-v2`, centred `u`): k = 40 maps, decay 365 days, c_u = 3.09, γ = −0.036, δ_ban = −0.49, δ_pick = +0.18. k sits at the top of the grid, but 2025 loss is nearly flat there (0.63575 at k 40 vs 0.63585 at k 20). Picking a map carries no extra edge once map strength is known.
+
+**Model gate.** Log loss on played 2026 maps, against Elo's map probability at the series start, with events resampled. Elo's in-series probability, after earlier maps in the same series, is reported for reference only, since the veto can't see those results.
+
+| Maps | n | Elo map (series start) | Elo map (in series) | Model | Gain (90% CI) |
+| --- | --- | --- | --- | --- | --- |
+| All | 38,206 | 0.6329 | 0.6284 | 0.6313 | +0.0015 (+0.0011, +0.0020): **PASS** |
+| Vetoed series only | 1,347 | 0.6486 | 0.6451 | 0.6471 | +0.0015 (−0.0023, +0.0048) |
+
+Before centring (`veto-v1`) the gain was +0.0009 on all maps and +0.0004 on vetoed series.
+
+The gate passes on all maps, but on the tier-1 series that have vetoes the gain is within noise. Treat the values below as the model's view, not as settled map strength.
+
+**Value lost per step.** Series probability from per-map probabilities is exact for Bo1, Bo3 and Bo5, with every map played (order doesn't matter when maps are independent). Bo3 and Bo5 logits are scaled by `seriesMapTemp` (0.8). Each step is solved by backward induction: the step order and the acting team come from the veto table, and both teams play the model's best option afterwards. `lost = V_best − V_chosen`, from the acting team's view, so it's never negative. Side choice isn't in HLTV's veto box, so it's ignored.
+
+**Results (2026-11-15, `veto-v2`).** 1,370 series (Bo1 187, Bo3 1,148, Bo5 35), 8,220 steps, none skipped.
+
+- Mean lost per step: bans 1 to 4 about 0.005, picks 1 and 2 about 0.0055, Bo1's fifth and sixth bans 0.015 and 0.023. About 40–50% of steps lose anything at all. First bans aren't the main source, so the permaban check holds.
+- **Persistence** (mean lost per series, 90% CI resampling series): stint split-half r 0.613 (0.465, 0.738) on 35 stints, quarter-to-quarter r 0.443 (0.353, 0.529). By `lp_team`: 0.686 and 0.390. **PASS.**
+- **Hidden information:** on 2,420 played picks, slope −0.76 (−2.57, +1.00). No signal.
+
+The rest of this section is from `veto-v1` (2026-11-14) and hasn't been rerun:
+
+- Robustness: the persistence isn't format mix (Bo3 only: r 0.72) or series-probability compression. Heavy favourites lose less in probability because their options are close, but in log-odds r is 0.65, and after regressing out `p(1 − p)` it's 0.62. Lowest lost: Spirit (0.006 per series), Vitality (0.010). Highest: HEROIC (0.033), Liquid (0.026), M80 (0.026).
+- Hidden information (`veto-v1`): on 2,402 played picks, the picker's `y − p_model` against the pick's `lost` has slope −0.98 (−2.65, +0.84). There's no sign that picks the model calls costly keep winning, but the interval is wide.
+
+**Not published.** Persistence passes, but vetoes come from HLTV, so publishing waits on the same HLTV terms check as the WPA page. When it clears, `cs2wp veto --publish` writes `public/data/war/team-veto.json`: stints, labelled descriptive and a team decision (coaches share vetoes), with the Liquipedia credit. The Teams column on `/rankings` isn't built yet. Since the model gate is within noise on vetoed series, describe the stat as disagreement with the model.
+
+**Series gate.** The report ends with series log loss on vetoed series against Elo's v1 series probability. It compares the actual veto's maps under Elo and under the map model, and the map model averaged over the pool. On 2026 the map model on the veto's maps loses (−0.0017, CI −0.0047 to +0.0010), so Elo's series odds stay pool-averaged ([elo-experiments.md](elo-experiments.md)).
+
+The same map model drives the simulator's veto experiment (`cs2wp sim-veto`). It predicts real bans and picks well, but with centred `u` it only ties the current simulator on series log loss; see "Veto simulation" in [simulator.md](simulator.md).
 
 ## IGL tags
 
@@ -647,17 +982,19 @@ The AWP is worth little here because g already includes the role: an AWPer is ex
 
 **Duel support check (GPU run, 2026-11-13).** `cs2wp duels` added the support columns to `duels.parquet`, `flash_gift` to `duel-sides.parquet` (worth 4,504 kills over all duels, 0.67 per 100 player-rounds), and ran the smoke-support experiment, which was **rejected** (+0.00003 log-loss gain, 90% CI −0.00001 to +0.00008; see [Expected duels](#expected-duels)). `cs2wp war --model production --publish` published `flashGift` to `/war` (`public/data/war/players.json`).
 
-## Public interface (`/war`)
+## Public interface (`/players`)
 
-The React application renders the live WAA leaderboards at route `/war`:
+`/players` (`src/pages/Players.tsx`) is laid out like `/rankings`: a search box and a view switch (`?view=`) for WAR (the default), Clutch (`clutch.json`) and Validation (the stability diagnostics for the selected credit version). `/war` redirects here, keeping the query string. Every player name links to `/players/:player` (`src/pages/PlayerPage.tsx`), keyed by the in-game name, which is unique across published players; lookup falls back to a case-insensitive match. The player page shows WAA under all four credit versions with context, usage, conversion, `vs HLTV` and rank among IGLs or non-IGLs, then the profile (roles, CT positions by map, duels and box score, resources), clutch conversion when published, and teammates on the same Liquipedia team.
+
+The WAR view:
 - Reads `public/data/war/players.json` with TanStack Query.
 - Displays 90% bootstrap intervals next to every map win and rate value, accompanied by a visual interval bar (`aria-hidden="true"`).
 - Role filters (`All`, `AWP`, `Entry`, `Rifle`, `IGL`) and credit toggles: `WPA (team-neutral)` (`wpa_opp`, the default since 2026-11-06 because it's the most reliable version and has no team-strength bias in either direction; see [WAR validation](#war-validation)), `WPA (raw)` (`?credit=wpa`), `Neutral man-count` and `Neutral event`.
-- `vs HLTV` gap column (`z(WAA/100) − z(HLTV 3.0)` in SD units, sortable, follows the credit toggle, `"–"` when HLTV 3.0 is missing), plus the 90% interval in expandable details.
+- `vs HLTV` gap column (`z(WAA/100) − z(HLTV 3.0)` in SD units, sortable, follows the credit toggle, `"–"` when HLTV 3.0 is missing), with the 90% interval in its tooltip.
 - Usage and Conversion columns (per 100 rounds, 90% intervals) that follow the credit toggle.
-- Expandable player details showing CT map callouts, duel counts, kills above expected, context / usage / conversion with their sum, the resource detail (equipment share by buy type, AWP rounds, drops received and given, duels with team flash or smoke, deaths traded), and backlinks to Liquipedia player/team pages.
 - Provisional banner noting the 2026 dry-run credit source pending Phase 5 demo backfill completion.
 - Full CC-BY-SA Liquipedia and HLTV demo attribution.
+- Team names link to the team page (`/teams/:team`). Team stat tables live on `/rankings`, not here.
 
 ## Team factor
 

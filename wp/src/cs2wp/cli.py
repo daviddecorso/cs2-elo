@@ -186,6 +186,42 @@ def cmd_team_stats(args) -> int:
     return build(min_rounds=args.min_rounds, resamples=args.resamples, publish=args.publish)
 
 
+def cmd_tactics(args) -> int:
+    from .tactics import build
+
+    return build(min_rounds=args.min_rounds, resamples=args.resamples, publish=args.publish, rebuild=args.rebuild)
+
+
+def cmd_predictability(args) -> int:
+    from .predictability import build
+
+    return build(resamples=args.resamples, publish=args.publish)
+
+
+def cmd_clutch(args) -> int:
+    from .clutch import build
+
+    return build(model=args.model, resamples=args.resamples, publish=args.publish)
+
+
+def cmd_luck(args) -> int:
+    from .luck import build
+
+    return build(resamples=args.resamples)
+
+
+def cmd_veto(args) -> int:
+    from .veto import build
+
+    return build(resamples=args.resamples, publish=args.publish)
+
+
+def cmd_sim_veto(args) -> int:
+    from .simveto import build
+
+    return build(write=args.write)
+
+
 def main() -> None:
     ap = argparse.ArgumentParser(prog="cs2wp")
     sub = ap.add_subparsers(dest="cmd", required=True)
@@ -281,6 +317,29 @@ def main() -> None:
     p.add_argument("--min-rounds", type=int, default=300, help="Rounds a team or stint needs for the split-half")
     p.add_argument("--resamples", type=int, default=1000)
     p.add_argument("--publish", action="store_true", help="Write public/data/war/team-stats.json for the stats that pass")
+    p = sub.add_parser("tactics", help="Execute success, post-plant conversion, map control and numbers at contact "
+                                       "per team, with their gates")
+    p.add_argument("--min-rounds", type=int, default=300, help="Rounds a team or stint needs for the split-half")
+    p.add_argument("--resamples", type=int, default=1000)
+    p.add_argument("--rebuild", action="store_true", help="Recompute every map's geometry instead of reusing tactics-raw.parquet")
+    p.add_argument("--publish", action="store_true", help="Write public/data/war/tactics.json for the stats that pass")
+    p = sub.add_parser("predictability", help="T-side predictability (site, timing, execute given economy) per team, "
+                                              "and whether predictable teams underperform prepared opponents")
+    p.add_argument("--resamples", type=int, default=1000)
+    p.add_argument("--publish", action="store_true", help="Write public/data/war/predictability.json if the gates pass")
+    p = sub.add_parser("clutch", help="Clutch and man-advantage conversion over the Elo-neutral WP expectation, "
+                                      "with the year-to-year gate")
+    p.add_argument("--model", default=PRODUCTION, help="Directory name under data/wp/models holding the folds")
+    p.add_argument("--resamples", type=int, default=1000)
+    p.add_argument("--publish", action="store_true", help="Write public/data/war/clutch.json for the classes that pass")
+    p = sub.add_parser("luck", help="Luck-adjusted map margins from duel expectations, for the Elo experiment, and the "
+                                    "hot-hand check")
+    p.add_argument("--resamples", type=int, default=1000)
+    p = sub.add_parser("veto", help="Map-strength model, its gate, and veto value lost per step and team")
+    p.add_argument("--resamples", type=int, default=1000)
+    p.add_argument("--publish", action="store_true", help="Write public/data/war/team-veto.json if persistence passes")
+    p = sub.add_parser("sim-veto", help="Veto choice model for the bracket simulator, and its series gate")
+    p.add_argument("--write", action="store_true", help="Write data/sim/veto-model.json for npm run simulate")
 
     args = ap.parse_args()
     handlers = {"sync": cmd_sync, "states": cmd_states, "train": cmd_train, "credit": cmd_credit,
@@ -289,7 +348,8 @@ def main() -> None:
                 "validate": cmd_validate, "publish": cmd_publish, "positions": cmd_positions, "roles": cmd_roles,
                 "validate-roles": cmd_validate_roles, "baselines": cmd_baselines, "duels": cmd_duels,
                 "usage": cmd_usage, "igls": cmd_igls, "war": cmd_war, "validate-war": cmd_validate_war,
-                "team-factor": cmd_team_factor, "duel-stats": cmd_duel_stats, "team-stats": cmd_team_stats}
+                "team-factor": cmd_team_factor, "duel-stats": cmd_duel_stats, "team-stats": cmd_team_stats, "tactics": cmd_tactics,
+                "predictability": cmd_predictability, "clutch": cmd_clutch, "luck": cmd_luck, "veto": cmd_veto, "sim-veto": cmd_sim_veto}
     sys.exit(handlers[args.cmd](args))
 
 

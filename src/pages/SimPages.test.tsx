@@ -5,7 +5,7 @@ import { renderToString } from "react-dom/server";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { EventOdds } from "./EventOdds.tsx";
-import { MajorInvites } from "./MajorInvites.tsx";
+import { Major } from "./Major.tsx";
 import { VrsSim } from "./VrsSim.tsx";
 import { testPlan } from "../sim/testPlan.ts";
 import type { EventOdds as EventOddsData, InviteOdds, PlanIndex, SeasonImpact, SeasonIndex, SeasonStandings, SeasonTeamSchedule } from "../sim/types.ts";
@@ -323,9 +323,10 @@ describe("simulator pages", () => {
             { slug: "ba", name: invites.name, snapshotDate: invites.snapshotDate },
         ];
         const html = render(
-            "/major-invites?major=ba",
-            "/major-invites",
-            <MajorInvites />,
+            "/major/ba",
+            "/major/:slug",
+            <Major />,
+            [["sim", "events"], []],
             [["sim", "invites"], index],
             [["sim", "invites", "ba"], invites]
         );
@@ -366,6 +367,39 @@ describe("simulator pages", () => {
         const emptyHtml = render("/events/test?q=nonexistent", "/events/:slug", <EventOdds />, [["sim", "event", "test"], event]);
         expect(emptyHtml).toContain("No teams match “nonexistent”");
         expect(emptyHtml).toContain("0 of 2 teams");
+    });
+
+    it("renders the Major simulator once the field is set", () => {
+        const event = JSON.parse(
+            fs.readFileSync(path.resolve(process.cwd(), "public/data/sim/events/pgl-major-singapore-2026.json"), "utf8")
+        ) as EventOddsData;
+        if (!event.pickem) return;
+        const entry = { slug: event.slug, name: event.name, startDate: event.startDate, endDate: "2999-01-01", major: true };
+        const html = render(
+            "/major",
+            "/major",
+            <Major />,
+            [["sim", "events"], [entry]],
+            [["sim", "invites"], []],
+            [["sim", "event", event.slug], event]
+        );
+        expect(html).toContain("Major simulator");
+        expect(html).toContain("Round 5");
+        expect(html).toContain("Final results");
+        expect(html).toContain("Your Pick&#x27;em");
+        expect(html).toContain("Model Pick&#x27;em");
+        expect(html).toContain(event.pickem.stages[0].seeds[0]);
+
+        const playoffs = render(
+            "/major?stage=playoffs",
+            "/major",
+            <Major />,
+            [["sim", "events"], [entry]],
+            [["sim", "invites"], []],
+            [["sim", "event", event.slug], event]
+        );
+        expect(playoffs).toContain("Quarterfinals");
+        expect(playoffs).toContain("Champion");
     });
 
     it("filters major invite rosters by search query", () => {
@@ -416,9 +450,10 @@ describe("simulator pages", () => {
         const index = [{ slug: "ba", name: invites.name, snapshotDate: invites.snapshotDate }];
 
         const vitHtml = render(
-            "/major-invites?major=ba&q=ZywOo",
-            "/major-invites",
-            <MajorInvites />,
+            "/major/ba?q=ZywOo",
+            "/major/:slug",
+            <Major />,
+            [["sim", "events"], []],
             [["sim", "invites"], index],
             [["sim", "invites", "ba"], invites]
         );
@@ -427,9 +462,10 @@ describe("simulator pages", () => {
         expect(vitHtml).toContain("1 of 2 rosters");
 
         const emptyHtml = render(
-            "/major-invites?major=ba&q=nonexistent",
-            "/major-invites",
-            <MajorInvites />,
+            "/major/ba?q=nonexistent",
+            "/major/:slug",
+            <Major />,
+            [["sim", "events"], []],
             [["sim", "invites"], index],
             [["sim", "invites", "ba"], invites]
         );

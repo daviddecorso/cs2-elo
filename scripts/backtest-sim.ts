@@ -7,7 +7,8 @@ import { DEFAULT_PARAMS } from "./lib/elo/params.ts";
 import type { EventConfig } from "./lib/sim/config.ts";
 import { knownMatches } from "./lib/sim/locks.ts";
 import { Predictor, type SeriesModel } from "./lib/sim/predict.ts";
-import { runEvent, simulateEvents, type EventInput } from "./lib/sim/simulate.ts";
+import { scoreEvent, tallyEvent } from "./lib/sim/backtest.ts";
+import { eventTeams as teamsOf, runEvent, type EventInput } from "./lib/sim/simulate.ts";
 import { makeRng } from "./lib/sim/rng.ts";
 import { projectFull } from "./lib/sim/vrsPool.ts";
 import { canonicalEventId, canonicalTeamId, latestLineups, prizeTable, simulationDelta } from "./lib/sim/vrsProjection.ts";
@@ -41,25 +42,16 @@ const actual = runEvent(replayInput, coinFlip, makeRng(1));
 const unlocked = actual.matches.filter((m) => !m.locked).length;
 console.log(`Replay: ${actual.matches.length} matches, ${unlocked} not on Liquipedia, ${actual.diverged.length} Liquipedia matches unreached.`);
 
-const blind: EventInput = { config, known: new Map(), horizon: 0 };
 const score = (model: SeriesModel, label: string) => {
-    const { summaries } = simulateEvents([blind], model, { n, seed: 1 });
-    const s = summaries[0];
-    let logLoss = 0;
-    let brierWin = 0;
-    let brierPlayoffs = 0;
+    const tally = tallyEvent(config, new Map(), model, { n, seed: 1 });
+    const { placementLogLoss, championBrier } = scoreEvent(config, actual, tally);
     const last = config.stages.at(-1)!.id;
-    for (const team of s.teams) {
-        const p = (s.placements.get(team)?.get(actual.placements.get(team)!) ?? 0) / n;
-        logLoss -= Math.log(Math.max(p, 0.5 / n));
-        const won = actual.placements.get(team) === "1" ? 1 : 0;
-        brierWin += ((s.placements.get(team)?.get("1") ?? 0) / n - won) ** 2;
-        const reached = actual.reached.get(team)!.includes(last) ? 1 : 0;
-        brierPlayoffs += ((s.reached.get(team)?.get(last) ?? 0) / n - reached) ** 2;
-    }
-    const k = s.teams.length;
+    const teams = teamsOf(config);
+    const brierPlayoffs =
+        teams.reduce((s, team) => s + ((tally.reached.get(team)?.get(last) ?? 0) / n - (actual.reached.get(team)!.includes(last) ? 1 : 0)) ** 2, 0) /
+        teams.length;
     console.log(
-        `${label}: placement log loss ${(logLoss / k).toFixed(4)}, champion Brier ${(brierWin / k).toFixed(4)}, playoffs Brier ${(brierPlayoffs / k).toFixed(4)}`
+        `${label}: placement log loss ${placementLogLoss.toFixed(4)}, champion Brier ${championBrier.toFixed(4)}, playoffs Brier ${brierPlayoffs.toFixed(4)}`
     );
 };
 score(predictor, "Elo     ");

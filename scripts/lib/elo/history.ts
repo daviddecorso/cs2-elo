@@ -50,8 +50,8 @@ interface RawSource {
     tournaments: RawRow[];
 }
 
-const readArchive = (rawDir: string): RawSource => {
-    const archiveDir = path.join(rawDir, "archive");
+const readArchive = (rawDir: string, name = "archive"): RawSource => {
+    const archiveDir = path.join(rawDir, name);
     const done = readJson<{ done: string[] }>(path.join(archiveDir, "meta.json"), { done: [] }).done;
     const source: RawSource = { completeMonths: new Set(done), matches: [], tournaments: [] };
     for (const month of done) {
@@ -81,12 +81,31 @@ export interface Feed {
     players: EloPlayers;
 }
 
-/** Each month comes from exactly one source (history, archive or hot store), so overlapping fetches never double-count a series. */
-export const loadFeed = (paths: FeedPaths = defaultFeedPaths()): Feed => {
+const csgoHistoryDir = (paths: FeedPaths) => path.join(paths.historyDir, "csgo");
+
+/** CS:GO series from `history/csgo/`, plus archived months not yet frozen there. */
+const loadCsgo = (paths: FeedPaths): Feed => {
+    const history = readHistory(csgoHistoryDir(paths));
+    const frozen = new Set(history.map((h) => h.month));
+    const archive = readArchive(paths.rawDir, "archive-csgo");
+    const fromArchive = normalizeMatches(archive.matches, archive.tournaments, "csgo");
+    return {
+        matches: [...history.flatMap((h) => h.matches), ...fromArchive.matches.filter((m) => !frozen.has(monthOf(m.t)))],
+        players: Object.assign({}, fromArchive.players, ...history.map((h) => h.players)),
+    };
+};
+
+/** Each month comes from exactly one source (history, archive or hot store), so overlapping fetches never double-count a series. `csgo` prepends the CS:GO warmup (2022-01 → 2023-09). */
+export const loadFeed = (paths: FeedPaths = defaultFeedPaths(), { csgo = true } = {}): Feed => {
     const history = readHistory(paths.historyDir);
     const frozen = new Set(history.map((h) => h.month));
     const players: EloPlayers = {};
     const matches: EloMatch[] = [];
+    if (csgo) {
+        const warmup = loadCsgo(paths);
+        Object.assign(players, warmup.players);
+        matches.push(...warmup.matches);
+    }
     for (const h of history) {
         Object.assign(players, h.players);
         matches.push(...h.matches);
@@ -153,4 +172,23 @@ export const freezeHistory = (today: string, paths: FeedPaths = defaultFeedPaths
         }
     }
     return written.sort();
+};
+
+/** Writes every archived CS:GO month not yet in `data/history/csgo/`; CS:GO results are settled, so there's no cutoff. */
+export const freezeCsgoHistory = (paths: FeedPaths = defaultFeedPaths()): string[] => {
+    const dir = csgoHistoryDir(paths);
+    const frozen = new Set(readHistory(dir).map((h) => h.month));
+    const archive = readArchive(paths.rawDir, "archive-csgo");
+    const months = [...archive.completeMonths].filter((m) => !frozen.has(m)).sort();
+    if (months.length === 0) return [];
+    fs.mkdirSync(dir, { recursive: true });
+    const feed = normalizeMatches(archive.matches, archive.tournaments, "csgo");
+    for (const month of months) {
+        const monthMatches = feed.matches.filter((m) => monthOf(m.t) === month);
+        const monthPlayers: EloPlayers = {};
+        for (const m of monthMatches) for (const p of m.lineups.flat()) if (feed.players[p]) monthPlayers[p] = feed.players[p];
+        fs.writeFileSync(path.join(dir, `${month}.json`), JSON.stringify({ month, matches: monthMatches, players: monthPlayers }));
+        console.log(`Froze CS:GO ${month}: ${monthMatches.length} series.`);
+    }
+    return months;
 };

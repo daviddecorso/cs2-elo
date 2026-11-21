@@ -26,6 +26,8 @@ export interface EloParams {
     burstDays: number;
     /** Fraction of the gap to the tier mean closed when all 5 core players change; partial changes scale by replaced/5. */
     regress: number;
+    /** Fraction of the gap to its tier mean every lineage closes at the CS:GO → CS2 switch; no effect without CS:GO series. */
+    gameRegress: number;
     /** Fraction of the gap to the tier mean closed when seeding a new lineage from its players' old ratings. */
     newRosterRegress: number;
     /** Rating points per map moved into the per-map offsets. */
@@ -46,6 +48,18 @@ export interface EloParams {
     luckWeight: number;
     /** Rating points added to the gap per unit of the sides' mean prior duel-skill (θ) difference; needs a SkillLookup. */
     skillWeight: number;
+    /** Fixed rating offsets against Europe, added to the gap whenever two rosters' regions differ (Oceania split out of Asia). */
+    regionPriorAmericas: number;
+    regionPriorAsia: number;
+    regionPriorOceania: number;
+    /** 1 puts the region priors in the update's expected score too; 0 applies them to predictions only. */
+    regionPriorInUpdate: number;
+    /** 1 counts Oceania v the rest of Asia as cross-region for `crossRegionK`; 0 follows Valve's regions. */
+    oceaniaCross: number;
+    /** K multiplier for Oceania v Oceania maps. */
+    oceaniaK: number;
+    /** Map logit multiplier for Oceania v Oceania series odds; above 1 sharpens. Predictions only. */
+    oceaniaTemp: number;
 }
 
 /** Values before tuning; `npm run backtest-elo -- --tune --write` saves the tuned set to `params.json`, which overrides these. */
@@ -60,6 +74,7 @@ export const STARTING_PARAMS: EloParams = {
     provisionalK: 1,
     provisionalMaps: 20,
     regress: 0.5,
+    gameRegress: 0.3,
     newRosterRegress: 0.3,
     kMap: 6,
     mapShrink: 0.01,
@@ -72,6 +87,13 @@ export const STARTING_PARAMS: EloParams = {
     skillWeight: 0,
     burstMaps: 0,
     burstDays: 7,
+    regionPriorAmericas: 0,
+    regionPriorAsia: 0,
+    regionPriorOceania: 0,
+    regionPriorInUpdate: 1,
+    oceaniaCross: 0,
+    oceaniaK: 1,
+    oceaniaTemp: 1,
 };
 
 const tuned = JSON.parse(fs.readFileSync(TUNED_PARAMS_PATH, "utf8")) as Partial<EloParams>;

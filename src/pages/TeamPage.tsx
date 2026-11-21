@@ -11,7 +11,7 @@ import { liquipediaUrl } from "../utils/liquipedia.ts";
 import { teamFromParam } from "../utils/teams.ts";
 import { percent } from "../utils/format.ts";
 import { fetchSimJson } from "../sim/fetch.ts";
-import { eloRankingsQuery, planIndexQuery, playerWarQuery, tacticsQuery, teamDuelsQuery, teamStatsQuery } from "../data/queries.ts";
+import { eloGamesQuery, eloRankingsQuery, planIndexQuery, playerWarQuery, tacticsQuery, teamDuelsQuery, teamStatsQuery } from "../data/queries.ts";
 import {
     duelColumns,
     duelCount,
@@ -23,7 +23,8 @@ import {
     type StintCount,
 } from "../war/teamColumns.ts";
 import { getRosterKey } from "../vrs/types.ts";
-import type { EloRoster } from "../elo/types.ts";
+import type { EloGameLog, EloRoster } from "../elo/types.ts";
+import { TeamLink } from "../components/TeamLink.tsx";
 import type { EventIndexEntry, EventOdds, InviteIndexEntry, InviteOdds, InviteOddsRoster, SeasonIndex } from "../sim/types.ts";
 import type { CreditVersion, WarPlayer } from "../war/types.ts";
 
@@ -76,6 +77,73 @@ const RosterCard = ({ roster }: { roster: EloRoster }) => {
                 ))}
             </dl>
         </Inset>
+    );
+};
+
+const eventName = (page: string) => page.replace(/_/g, " ").split("/").join(" ");
+
+const shortDate = (date: string) => `${Number(date.slice(5, 7))}/${Number(date.slice(8, 10))}`;
+
+const GameLogSection = ({ log }: { log: EloGameLog }) => {
+    const { games } = log;
+    const wins = games.filter((g) => g.won).length;
+    const avgOpp = games.reduce((sum, g) => sum + g.oppElo, 0) / games.length;
+    return (
+        <Section
+            title="Game log"
+            subtitle={`Since ${log.from} / ${games.length} series / ${wins}-${games.length - wins} / avg opp Elo ${Math.round(avgOpp)}`}
+        >
+            <DataTable>
+                <TableHead>
+                    <Th>Date</Th>
+                    <Th align="left">Opponent</Th>
+                    <Th align="left" className="hidden md:table-cell">
+                        Event
+                    </Th>
+                    <Th align="left">Result</Th>
+                    <Th>Elo</Th>
+                    <Th>Opp Elo</Th>
+                    <Th>Win %</Th>
+                    <Th>Elo Δ</Th>
+                </TableHead>
+                <TableBody>
+                    {games.map((g, i) => (
+                        <Row key={i}>
+                            <Td className="text-muted">{shortDate(g.date)}</Td>
+                            <Td align="left" className="font-sans">
+                                <span className="inline-block w-8 font-mono text-[10px] uppercase text-muted">{g.lan ? "LAN" : "Onl"}</span>
+                                <TeamLink team={g.opponent} logoSize={16} />
+                            </Td>
+                            <Td align="left" className="hidden md:table-cell text-muted">
+                                <a href={liquipediaUrl(g.event)} target="_blank" rel="noopener noreferrer" className="hover:text-accent hover:underline">
+                                    {eventName(g.event)}
+                                </a>
+                                <span className="text-muted/60"> T{g.tier}</span>
+                            </Td>
+                            <Td align="left">
+                                <Tooltip content={g.maps.map((m) => `${m.map} ${m.rounds[0]}-${m.rounds[1]}`).join(", ")}>
+                                    <span className={g.won ? "text-up" : "text-down"}>{g.won ? "W" : "L"}</span>{" "}
+                                    <span className="text-fg">
+                                        {g.score[0]}-{g.score[1]}
+                                    </span>
+                                    <span className="text-muted"> Bo{g.bestOf}</span>
+                                </Tooltip>
+                            </Td>
+                            <Td className="text-fg">{Math.round(g.elo)}</Td>
+                            <Td className="text-muted">{Math.round(g.oppElo)}</Td>
+                            <Td className="text-fg">{Math.round(g.p * 100)}%</Td>
+                            <Td className={g.delta > 0 ? "text-up" : g.delta < 0 ? "text-down" : "text-muted"}>{signed(g.delta, 1)}</Td>
+                        </Row>
+                    ))}
+                </TableBody>
+            </DataTable>
+            <div className="space-y-1">
+                <div className="text-xs text-muted">
+                    Elo and Opp Elo are before the series; Win % is the pre-series forecast. Hover a result for map scores.
+                </div>
+                <LiquipediaCredit what="Match and map results" />
+            </div>
+        </Section>
     );
 };
 
@@ -157,7 +225,7 @@ const InviteSection = ({ team, rosterKeys, invites }: { team: string; rosterKeys
                     {rows.map(({ invite, roster }: { invite: InviteOdds; roster: InviteOddsRoster }) => (
                         <Row key={`${invite.slug}-${roster.rosterKey}`}>
                             <Td className="font-sans">
-                                <Link to={`/major-invites?major=${invite.slug}&region=${roster.region}`} className="font-medium text-fg hover:text-accent">
+                                <Link to={`/major/${invite.slug}?region=${roster.region}`} className="font-medium text-fg hover:text-accent">
                                     {invite.name}
                                 </Link>
                             </Td>
@@ -278,6 +346,7 @@ export const TeamPage = () => {
     const team = teamFromParam(param);
 
     const elo = useQuery(eloRankingsQuery);
+    const games = useQuery(eloGamesQuery(team));
     const duels = useQuery(teamDuelsQuery);
     const stats = useQuery(teamStatsQuery);
     const tactics = useQuery(tacticsQuery);
@@ -392,6 +461,8 @@ export const TeamPage = () => {
                     <LiquipediaCredit what="Match, roster, map and team logo data" />
                 </Section>
             )}
+
+            {games.data && games.data.games.length > 0 && <GameLogSection log={games.data} />}
 
             <EventOddsSection team={team} events={eventData} />
             <InviteSection team={team} rosterKeys={rosterKeys} invites={inviteData} />

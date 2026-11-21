@@ -1,7 +1,16 @@
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import type { EventIndexEntry, EventOdds, InviteIndexEntry, InviteOdds, InviteOddsRoster } from "../src/sim/types.ts";
+import type {
+    EventIndexEntry,
+    EventOdds,
+    InviteIndexEntry,
+    InviteOdds,
+    InviteOddsRoster,
+    PickemData,
+    PickemStage,
+} from "../src/sim/types.ts";
+import { seriesWinProbability } from "./lib/elo/series.ts";
 import { getRosterKey, type Region } from "../src/vrs/types.ts";
 import { EloEngine } from "./lib/elo/engine.ts";
 import { loadFeed } from "./lib/elo/history.ts";
@@ -9,6 +18,8 @@ import type { RawRow } from "./lib/elo/normalize.ts";
 import { DEFAULT_PARAMS } from "./lib/elo/params.ts";
 import { readUpcoming } from "./lib/liquipedia/upcoming.ts";
 import { stageBrackets } from "./lib/sim/bracketView.ts";
+import { buildPickemModel, pickemModels } from "./lib/sim/pickemModel.ts";
+import { subSeed } from "./lib/sim/rng.ts";
 import { tierOf } from "./lib/sim/catalog.ts";
 import { EVENTS_DIR, loadEventConfigs, type EventConfig } from "./lib/sim/config.ts";
 import {
@@ -159,6 +170,37 @@ if (predictor.unrated.size) console.warn(`No Elo lineage, using the tier 2 mean:
 
 const prizesByEvent = new Map(configs.map((c) => [c.slug, prizeTable(placementRows, c.liquipedia)]));
 
+const isMajor = (config: EventConfig) => config.stages.some((s) => s.vrsStage !== undefined);
+
+const round4 = (p: number) => Math.round(p * 1e4) / 1e4;
+
+/** Seeds, played results and pairwise series odds for the site's click-through Major simulator. */
+const pickemData = (config: EventConfig, summary: EventSummary, input: EventInput): PickemData => {
+    const seriesOdds = new Map<string, number>();
+    const p = (a: string, b: string, bestOf: number) => {
+        const key = `${a}|${b}|${bestOf}`;
+        if (!seriesOdds.has(key)) seriesOdds.set(key, seriesWinProbability(predictor.mapProbability(a, b), bestOf, DEFAULT_PARAMS.seriesMapTemp));
+        return seriesOdds.get(key)!;
+    };
+    const teams = [...summary.teams].sort();
+    const matrix = (bestOf: number) => teams.map((a) => teams.map((b) => (a === b ? 0.5 : round4(p(a, b, bestOf)))));
+    const stages = config.stages.map((s): PickemStage => {
+        const played = (input.known.get(s.id) ?? [])
+            .filter((k) => k.winner !== null)
+            .sort((a, b) => a.t - b.t)
+            .map((k) => ({ round: k.round, teams: k.teams, winner: k.winner! }));
+        const from = Array.isArray(s.from) ? s.from[0] : s.from;
+        const base = { id: s.id, name: s.name, seeds: s.invited ?? [], from, played };
+        if (s.format === "swiss") return { ...base, format: "swiss", bestOf: { default: s.bestOf.default, decider: s.bestOf.decider } };
+        if (s.format === "bracket") return { ...base, format: "bracket", matches: s.matches ?? [], bestOf: { default: s.bestOf.default, final: s.bestOf.final } };
+        throw new Error(`${config.slug} ${s.id}: the Major simulator handles swiss and bracket stages, not ${s.format}`);
+    });
+    const data: PickemData = { stages, odds: { teams, bo1: matrix(1), bo3: matrix(3), bo5: matrix(5) } };
+    const previous = readJson<EventOdds | null>(path.join(OUT_DIR, "events", `${config.slug}.json`), null)?.pickem?.model;
+    const model = pickemModels(data, previous, (stage, seeds) => buildPickemModel(stage, seeds, p, asOf, subSeed(seed, config.slug)));
+    return Object.keys(model).length ? { ...data, model } : data;
+};
+
 const eventOdds = (config: EventConfig, summary: EventSummary, input: EventInput): EventOdds => {
     const labels = [...new Set(config.stages.flatMap((s) => Object.values(s.exits)))].sort(placementOrder);
     const advancedInto = config.stages.filter((s) => s.from);
@@ -183,7 +225,7 @@ const eventOdds = (config: EventConfig, summary: EventSummary, input: EventInput
                 const lineage = predictor.lineageOf(team);
                 return {
                     team,
-                    rating: lineage ? Math.round(lineage.rating * 10) / 10 : null,
+                    rating: lineage ? Math.round((lineage.rating + engine.regionPrior(lineage)) * 10) / 10 : null,
                     reach: share(summary.reached.get(team), advancedInto.map((s) => s.id)),
                     placements: share(summary.placements.get(team), labels),
                 };
@@ -193,6 +235,7 @@ const eventOdds = (config: EventConfig, summary: EventSummary, input: EventInput
                 return 0;
             }),
         bracket: stageBrackets(config, summary),
+        pickem: isMajor(config) ? pickemData(config, summary, input) : undefined,
     };
 };
 
@@ -204,7 +247,7 @@ configs.forEach((config, i) => {
 });
 const index: EventIndexEntry[] = loadEventConfigs(CONFIG_DIR)
     .filter((c) => fs.existsSync(path.join(OUT_DIR, "events", `${c.slug}.json`)))
-    .map(({ slug, name, startDate, endDate }) => ({ slug, name, startDate, endDate }))
+    .map((c) => ({ slug: c.slug, name: c.name, startDate: c.startDate, endDate: c.endDate, ...(isMajor(c) ? { major: true } : {}) }))
     .sort((a, b) => a.startDate.localeCompare(b.startDate));
 saveJson(path.join(OUT_DIR, "events", "index.json"), JSON.stringify(index), `${index.length} events`);
 

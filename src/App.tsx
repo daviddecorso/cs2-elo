@@ -7,7 +7,7 @@ import { TeamPage } from "./pages/TeamPage.tsx";
 import { Model } from "./pages/Model.tsx";
 import { Methodology } from "./pages/Methodology.tsx";
 import { EventList, EventOdds } from "./pages/EventOdds.tsx";
-import { MajorInvites } from "./pages/MajorInvites.tsx";
+import { Major } from "./pages/Major.tsx";
 import { VrsSim } from "./pages/VrsSim.tsx";
 import { Players } from "./pages/Players.tsx";
 import { PlayerPage } from "./pages/PlayerPage.tsx";
@@ -28,6 +28,16 @@ const RedirectKeepingQuery = ({ to }: { to: string }) => {
     return <Navigate to={`${to}${search}`} replace />;
 };
 
+/** `/major-invites?major=<slug>&…` → `/major/<slug>?…`. */
+const MajorInvitesRedirect = () => {
+    const { search } = useLocation();
+    const params = new URLSearchParams(search);
+    const major = params.get("major");
+    params.delete("major");
+    const query = params.toString();
+    return <Navigate to={`/major${major ? `/${major}` : ""}${query ? `?${query}` : ""}`} replace />;
+};
+
 export const App = () => {
     return (
         <QueryClientProvider client={queryClient}>
@@ -42,7 +52,9 @@ export const App = () => {
                         <Route path="/teams/:team" element={<TeamPage />} />
                         <Route path="/events" element={<EventList />} />
                         <Route path="/events/:slug" element={<EventOdds />} />
-                        <Route path="/major-invites" element={<MajorInvites />} />
+                        <Route path="/major" element={<Major />} />
+                        <Route path="/major/:slug" element={<Major />} />
+                        <Route path="/major-invites" element={<MajorInvitesRedirect />} />
                         <Route path="/vrs-sim" element={<VrsSim />} />
                         <Route path="/players" element={<Players />} />
                         <Route path="/players/:player" element={<PlayerPage />} />

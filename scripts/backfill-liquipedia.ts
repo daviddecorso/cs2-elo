@@ -42,22 +42,27 @@ const parseArgs = () => {
         const i = args.indexOf(`--${name}`);
         return i >= 0 ? args[i + 1] : undefined;
     };
+    const game = option("game") ?? "cs2";
+    if (game !== "cs2" && game !== "csgo") throw new Error(`--game must be cs2 or csgo, not ${game}`);
     return {
-        fromMonth: option("from") ?? "2023-10",
-        toMonth: option("to"),
+        game,
+        fromMonth: option("from") ?? (game === "csgo" ? "2022-01" : "2023-10"),
+        toMonth: option("to") ?? (game === "csgo" ? "2023-09" : undefined),
         maxRequests: Number(option("max-requests") ?? 30),
     };
 };
 
 const main = async () => {
-    const { fromMonth, toMonth: toArg, maxRequests } = parseArgs();
+    const { game, fromMonth, toMonth: toArg, maxRequests } = parseArgs();
     const rawDir = path.resolve(process.cwd(), "data/raw");
-    const archiveDir = path.join(rawDir, "archive");
+    // CS:GO rows live apart so the VRS projection, buildMatchdata and the hot store never see them; only the Elo warmup reads them.
+    const archiveDir = path.join(rawDir, game === "csgo" ? "archive-csgo" : "archive");
     fs.mkdirSync(archiveDir, { recursive: true });
 
     // The hot store covers its window; the archive runs up to the end of the month it starts in.
     const hotMeta = JSON.parse(fs.readFileSync(path.join(rawDir, "meta.json"), "utf8")) as { from: string };
     const toMonth = toArg ?? hotMeta.from.slice(0, 7);
+    const wantPlacements = game === "cs2";
 
     const metaPath = path.join(archiveDir, "meta.json");
     const meta: ArchiveMeta = fs.existsSync(metaPath) ? JSON.parse(fs.readFileSync(metaPath, "utf8")) : { done: [] };
@@ -68,7 +73,7 @@ const main = async () => {
     const pendingPlacements: string[] = [];
     for (let month = fromMonth; month <= toMonth; month = addMonths(month, 1)) {
         if (!done.has(month)) pendingMatches.push(month);
-        if (!placementsDone.has(month) && !fs.existsSync(path.join(archiveDir, `placements-${month}.json`))) {
+        if (wantPlacements && !placementsDone.has(month) && !fs.existsSync(path.join(archiveDir, `placements-${month}.json`))) {
             pendingPlacements.push(month);
         }
     }
@@ -98,13 +103,13 @@ const main = async () => {
         try {
             if (needMatches) {
                 const matches = await fetchLiquipediaAll("match", {
-                    conditions: `[[game::cs2]] AND [[finished::1]] AND [[date::>${addDays(from, -1)} 23:59:59]] AND [[date::<${addDays(to, 1)} 00:00:00]]`,
+                    conditions: `[[game::${game}]] AND [[finished::1]] AND [[date::>${addDays(from, -1)} 23:59:59]] AND [[date::<${addDays(to, 1)} 00:00:00]]`,
                     query: MATCH_FIELDS,
                     order: "objectname ASC",
                     limit: 500,
                 });
                 const tournaments = await fetchLiquipediaAll("tournament", {
-                    conditions: `[[game::cs2]] AND [[startdate::>${addDays(from, -1)}]] AND [[startdate::<${addDays(to, 1)}]]`,
+                    conditions: `[[game::${game}]] AND [[startdate::>${addDays(from, -1)}]] AND [[startdate::<${addDays(to, 1)}]]`,
                     order: "objectname ASC",
                     limit: 500,
                 });

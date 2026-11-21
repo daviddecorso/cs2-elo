@@ -2,7 +2,7 @@
 
 ## Overview
 
-Elo predicts each match, the simulator plays out each announced bracket, and Valve's model turns each simulated season into projected regional standings and Major invites. Code is in `scripts/lib/sim/`. `npm run simulate` writes `public/data/sim/`, and the site renders it at `/events`, `/events/:slug` and `/major-invites`. The nightly job runs it after `build-elo`.
+Elo predicts each match, the simulator plays out each announced bracket, and Valve's model turns each simulated season into projected regional standings and Major invites. Code is in `scripts/lib/sim/`. `npm run simulate` writes `public/data/sim/`, and the site renders it at `/events`, `/events/:slug` and `/major` (see [Major page](#major-page)). The nightly job runs it after `build-elo`.
 
 Invite projections run for PGL Major Singapore (25 Nov – 13 Dec 2026, snapshot 2026-11-02) and, once Singapore can be simulated, the FiRe Major Buenos Aires (31 May – 20 June 2027, snapshot expected in early April 2027).
 
@@ -54,6 +54,23 @@ Per Valve's rulebook:
 
 This reproduces every pairing of IEM Cologne 2026 Stages 1–3 from seeds and results alone (`fixtures/cologne-2026-swiss.json`, tested in `formats/swiss.test.ts`). Seeds were the invited teams in VRS global order at the 2026-05-04 snapshot. Stage 3's advancing order also gives Cologne's real quarterfinal bracket.
 
+The Swiss pairing rules live in `src/sim/swissPairing.ts`, shared by `formats/swiss.ts` and the site's Major simulator, so the Cologne fixture covers both.
+
+## Major page
+
+`/major` (and `/major/:slug`) shows the current or upcoming Major. That's the earliest event in `events/index.json` with `major: true` (any stage with `vrsStage`) that hasn't ended; with none, it's the soonest invite projection. When there are several (Singapore plus Buenos Aires' invites), a switch picks one.
+
+- **Field not set:** the invite odds (`MajorInvites`).
+- **Field set:** the event file carries a `pickem` block, and the page becomes a click-through simulator:
+  - The `pickem` block holds each stage's seeds (`invited` in seed order), its played Liquipedia results, the playoff `matches`, and pairwise Bo1/Bo3/Bo5 series odds from today's Elo without drift.
+  - `src/sim/pickem.ts` replays the stages with Valve's pairing. Played results lock, and a changed pick re-pairs every later round.
+  - It starts with every open match filled by the favourite. "Clear" turns that off, and picks are kept in `localStorage` per Major.
+- **Pick'em row:** under each Swiss stage, your bracket's 2× 3-0, 6× 3-X and 2× 0-3 picks are shown next to the model's set, each with its coin chance (5+ correct, Valve's per-stage coin upgrade) and expected correct picks.
+  - "3-X" means advancing 3-1 or 3-2. A 3-0 team picked at 3-X scores nothing.
+  - `scripts/lib/sim/pickemModel.ts` simulates the stage alone from round 1 with Valve's pairing and the `pickem` odds, ignoring its played results. Picks are correlated (round-1 opponents can't both go 3-0), so it scores whole pick sets per simulation rather than per-team odds.
+  - The model set maximizes P(5+ correct), ties broken by expected correct: hill climbing over replace and swap moves, from the expected-correct optimum and 20 random starts, on 20,000 simulations.
+  - A separate 5,000-simulation sample ships as `pickem.model[stage].sample` (2 bits per seed per simulation), and the site scores both rows on it, so the model's numbers aren't in-sample.
+  - Valve locks picks at stage start, so once a stage has a played result its model is copied from the previous event file unchanged (as long as the seeds match). Before that it's recomputed every run. A stage needs known seeds, so later stages get a model only once the stage feeding them is fully played.
 ## Bracket view
 
 Every simulated match carries a slot, its position in the stage's bracket, which stays the same across simulations. `simulateEvents` tallies each slot: who played there, who won there, which pairings occurred, and whether every run had the same played result. `bracketView.ts` writes these as each event file's `bracket`, and the event page draws them.
@@ -140,7 +157,7 @@ Tier 2 events (Liquipedia tier, `EventConfig.tier`, set by the catalog and by `n
 Each `data/events/invites-*.json` is one invite snapshot:
 - `simulate` projects every snapshot that hasn't passed yet, soonest first.
 - It writes `public/data/sim/invites/<slug>.json` and an `index.json`.
-- `/major-invites` shows the soonest, with a switch when there are several.
+- `/major` shows them as described in [Major page](#major-page).
 - `--invites <file>` projects a single config instead.
 
 For each config:
@@ -167,6 +184,53 @@ For each config:
 Swiss and round-robin draws outside Majors aren't resolved; key those by hand. The Buenos Aires projection waits until Singapore can be simulated.
 
 **Renamed teams.** A sim team id is the current Liquipedia page, so played results lock correctly. Liquipedia's `opponentaliases` on participant rows give each team's earlier pages, and the predictor falls back to those for Elo (PVISION → PARIVISION, GOSH → BC.Game Esports).
+
+## Major backtest
+
+`npm run backtest-majors` scores the simulator on every past CS2 Major in `fixtures/events/` (Copenhagen 2024, Shanghai 2024, Austin 2025, Budapest 2025, Cologne 2026), from local data only. Scoring lives in `scripts/lib/sim/backtest.ts`; `backtest-sim` uses the same tally for Cologne.
+
+- **Fixtures.** Each Swiss stage's `invited` is in real seed order. A fixture is checked twice:
+  - Replaying Liquipedia's results must reach every played match.
+  - Rebuilding every round's pairings from seeds and results alone, with Liquipedia's pairings removed, must reach every played match too. That checks the seeds and our pairing rules together, and all five Majors pass, playoffs included.
+  - Austin, Budapest and Cologne seeds are Valve's global order at the seeding snapshot. Budapest's Liquipedia match order isn't seed order, so it was keyed from the 2025-11-03 snapshot.
+  - Copenhagen's Elimination Stage Legends (pre-VRS) were found by searching orders until the rebuild matched.
+  - Austin and Budapest played Stage 3 as Bo1 with Bo3 deciders; Cologne's Stage 3 was all Bo3.
+- **Forecasts.** At each stage's start, earlier stages are locked to their real results and the rest is simulated (10,000 runs). Elo is rebuilt from matches before that day, with no drift. The stage at index 0 is the pre-event forecast. `--lead <days>` adds a pre-event Elo forecast made that many days earlier, with drift.
+- **Baselines.** A coin flip, and VRS points: a series-level logistic on Valve's points from the last snapshot before the stage. Its scale is fit on the year of series before the event, and it ignores best-of. Snapshots start 2024-08-06, so Copenhagen has no VRS row.
+- **Scores.**
+  - Stage outcome log loss: each entrant's Pick'em bucket (3-0, 3-1/3-2, 0-3, other) in a Swiss stage, or its placement in the playoffs.
+  - P(advance) log loss and Brier, with a calibration table.
+  - Before the event: placement log loss, champion Brier, and the actual champion's odds and rank.
+  - Pick'em: both model sets (`coinPickem` and the expected-correct set) from the stage's real seeds, scored against what happened.
+- **Elo in-sample.** Elo parameters were tuned on 2025, so Austin and Budapest are in-sample.
+
+**Result (2026-11-21, `--n 10000`, after the CS:GO warmup and its 2025 retune):**
+
+| Model | Stage blocks | Stage outcome log loss | P(advance) log loss | P(advance) Brier |
+| --- | --- | --- | --- | --- |
+| Elo | 18 | **1.1307** | 0.5309 | 0.1787 |
+| VRS points | 15 | 1.1447 | 0.5568 | 0.1883 |
+| Supercomputer | 7 (8 for advance) | 1.1577 | **0.5272** | **0.1764** |
+| Coin | 18 | 1.2448 | 0.6433 | 0.2279 |
+
+- Differences, over (Major, stage) blocks, resampled:
+  - Elo − coin: −0.114 (90% CI −0.176, −0.051).
+  - Elo − VRS: −0.008 (−0.038, +0.022).
+  - Elo − Supercomputer on the 7 shared blocks: −0.003 (−0.035, +0.026). On advance log loss: −0.003 (−0.028, +0.026).
+- **Before the CS:GO warmup (2026-11-20)**, Elo scored 1.2066 / 0.5843 / 0.1895, and VRS beat it by 0.041 (−0.007, +0.088). Almost all of the change is at Copenhagen and Shanghai: Copenhagen's Opening Stage went from 1.81 to 1.17, and its played-series log loss from 0.965 to 0.663.
+- **Before the event:** placement log loss is 1.907 for Elo, 1.959 for VRS (4 Majors) and 2.114 for a coin.
+- **Pick'em:** Elo's coin set averaged 4.2 of 10 correct and would have earned the coin in 7 of 13 Swiss stages. VRS's coin set got 4.4 correct and 6 of 11.
+- **How far to trust this:** 5 events and 18 blocks, with outcomes correlated within each event, so none of the differences between Elo, VRS and the Supercomputer is significant. Austin and Budapest are in-sample for Elo.
+- **Played Major series** (464, priced at their stage's start):
+  - Log loss is 0.640, with slope 0.80 (CI 0.62–1.01). By Major: Copenhagen 0.663 (slope 0.57), Shanghai 0.600 (0.98), Austin 0.689 (0.50), Budapest 0.638 (0.98), Cologne 0.603 (1.42).
+  - VRS gets 0.605, 0.682, 0.663 and 0.633 on the last four.
+  - Elo still leans overconfident at Majors, but the slope swings from 0.5 to 1.4 by Major, and the 2026 tier-1 series slope is 0.98. That's too noisy to justify a Major-only temperature.
+- **External comparison.** With `data/external/supercomputer.json` present (another model's published stage marginals and picks, kept local), the backtest adds it as a model.
+  - Budapest Stage 3's source column isn't 0-3 (it sums to 300%), so that block is scored on P(advance) only.
+  - Its published picks averaged 5.0 correct and earned the coin in 5 of 6 stages.
+  - The two models rank teams similarly (P(advance) rank correlation 0.86–0.95 per stage, mean gap 3–11 points), and Elo is no more spread out than it.
+  - Elo's biggest loss is still the Budapest playoffs, where it gave the champion Vitality 18.9% against the Supercomputer's 34.4%.
+- **Region at Majors.** On cross-region Major series, Americas teams beat Elo's expectation by 4.2 wins in 32 series at Copenhagen (9.7 before the warmup) and by 6.9 in 185 overall. Asia is level (−1.8 in 82).
 
 ## Config
 
@@ -211,5 +275,6 @@ npm run catalog                                                  # every upcomin
 npm run simulate-season -- [--season-n 300] [--seed 1] [--out <dir>]   # season to the next invite snapshot (vrs-simulator.md)
 npm run simulate -- [--events slug,...] [--n 10000] [--vrs-n 5000] [--seed 1] [--workers 4] [--no-vrs] [--invites <file>] [--out <dir>] [--vetoes off|liquipedia|hltv]
 npm run backtest-sim -- [--config fixtures/events/cologne-2026.json] [--snapshot 2026-07-06]
+npm run backtest-majors -- [--majors slug,...] [--n 10000] [--pickem-n 20000] [--seed 1] [--lead <days>]   # about 4 minutes
 npm run fit-sim-noise
 ```

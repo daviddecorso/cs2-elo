@@ -11,6 +11,8 @@ export interface Lineage {
     rating: number;
     mapOffsets: Map<string, number>;
     region: number | null;
+    /** `region` with Oceania split out of Asia as 3. */
+    fineRegion?: number | null;
     maps: number;
     /** Liquipedia tiers of its last 10 series. */
     tiers: number[];
@@ -20,6 +22,14 @@ export interface Lineage {
     /** Maps played, decayed with time constant `burstDays`, as of `loadT`. */
     load?: number;
     loadT?: number;
+    /** Time of its last cross-region series. */
+    lastCrossT?: number;
+    /** Starting rating and how many of the 5 seeds came from the tier mean (unrated players). */
+    seed?: number;
+    seedsFromMean?: number;
+    seedTier?: number;
+    /** Rating after its 30th map. */
+    rating30?: number;
 }
 
 export interface SeriesPrediction {
@@ -35,11 +45,18 @@ export interface SeriesPrediction {
     /** `ratings` are each side's rating plus its offset for that map, before the map is played. `margin` is the real signed round margin for teams[0]. */
     maps: Array<{ map: string; p: number; y: 0 | 1; margin: number; ratings: [number, number] }>;
     crossRegion: boolean;
+    regions: [number | null, number | null];
+    /** Days since each side's last cross-region series, or null if it has none. */
+    crossGapDays: [number | null, number | null];
     standIn: boolean;
     tier: number;
     lan: boolean;
     lineages: [number, number];
     ratings: [number, number];
+    /** Each side's region prior; add it to `ratings` and `after` for a rating comparable across regions. */
+    regionPriors: [number, number];
+    /** Each side's rating once the series is played. */
+    after: [number, number];
     /** Each side's map offsets over the pool active at the series start, before it is played. */
     poolOffsets: [Record<string, number>, Record<string, number>];
     /** Maps rated before this series by the less experienced side. */
@@ -101,13 +118,16 @@ const TIER_ACTIVE_SECONDS = 120 * 24 * 3600;
 const DEFAULT_TIER = 4;
 const MIN_SKILL_PLAYERS = 3;
 const BASE_RATING = 1500;
+const OCEANIA = new Set(["au", "nz"]);
+const FINE_OCEANIA = 3;
 
 export const expectedScore = (diff: number, scale: number): number => 1 / (1 + 10 ** (-diff / scale));
 
-/** Round margin of a map, crediting overtime wins with `otMargin`; MR12 regulation ends 13–x with x ≤ 11. */
-export const mapMargin = (rounds: [number, number], otMargin: number): number => {
+/** Round margin of a map, crediting overtime wins with `otMargin`; MR12 regulation ends 13–x with x ≤ 11, MR15 ends 16–x with x ≤ 14 and is scaled to MR12. */
+export const mapMargin = (rounds: [number, number], otMargin: number, mr15 = false): number => {
     const loser = Math.min(rounds[0], rounds[1]);
-    return loser >= 12 ? otMargin : Math.abs(rounds[0] - rounds[1]);
+    if (loser >= (mr15 ? 15 : 12)) return otMargin;
+    return Math.abs(rounds[0] - rounds[1]) * (mr15 ? 12 / 15 : 1);
 };
 
 /** K multiplier for margin of victory, damped when the favourite wins (538's autocorrelation correction). */
@@ -119,6 +139,8 @@ const median = (values: number[]): number => {
     return sorted[Math.floor(sorted.length / 2)];
 };
 
+const crossGapDays = (l: Lineage, t: number): number | null => (l.lastCrossT === undefined ? null : (t - l.lastCrossT) / 86400);
+
 const clampTier = (tier: number | null): number => Math.min(5, Math.max(1, tier ?? DEFAULT_TIER));
 
 export class EloEngine {
@@ -126,8 +148,7 @@ export class EloEngine {
     private teamLineage = new Map<string, Lineage>();
     private playerLineage = new Map<string, Lineage>();
     private pool = new ActivePool();
-    private tierMeanCache = { day: -1, means: [] as Array<number | null> };
-    private params: EloParams;
+    private tierMeanCache = { day: -1, means: [] as Array<number | null> };    private params: EloParams;
     private players: EloPlayers;
     private luck: LuckLookup | undefined;
     private skill: SkillLookup | undefined;
@@ -146,7 +167,13 @@ export class EloEngine {
             (p) => p
         );
         const predictions: SeriesPrediction[] = [];
+        let pendingSwitch = false;
         for (const m of matches) {
+            if (m.game === "csgo") pendingSwitch = true;
+            else if (pendingSwitch) {
+                this.switchGame(m.t);
+                pendingSwitch = false;
+            }
             if (m.forfeit) continue;
             const prediction = this.playSeries(m, [
                 resolve(m.teams[0], m.t, m.lineups[0]),
@@ -168,7 +195,7 @@ export class EloEngine {
     /** Map win probability for `a` over `b`, with `extraGap` added to their rating gap; with no map, averaged over the pool active at `t`. */
     mapProbability(a: Lineage, b: Lineage, map: string | null, t: number, extraGap = 0): number {
         const { scale } = this.params;
-        const diff = a.rating - b.rating + extraGap;
+        const diff = a.rating - b.rating + extraGap + this.regionGap(a, b);
         if (map) return expectedScore(diff + (a.mapOffsets.get(map) ?? 0) - (b.mapOffsets.get(map) ?? 0), scale);
         const pool = this.pool.at(t);
         if (pool.length === 0) return expectedScore(diff, scale);
@@ -190,8 +217,12 @@ export class EloEngine {
         const skillGap = this.skillGap(sideLineups, m.t);
         // The shifted expectation feeds the update too, so the rating learns only what the skill term leaves over.
         const shift = this.params.skillWeight * skillGap;
-        const pMap = this.mapProbability(A, B, null, m.t, shift);
-        const crossRegion = A.region !== null && B.region !== null && A.region !== B.region;
+        const bothOceania = A.fineRegion === FINE_OCEANIA && B.fineRegion === FINE_OCEANIA;
+        const rawMap = this.mapProbability(A, B, null, m.t, shift);
+        const mapTemp = this.mapTemp(A, B);
+        const pMap = mapTemp !== 1 ? 1 / (1 + (rawMap / (1 - rawMap)) ** -mapTemp) : rawMap;
+        const [ra, rb] = this.params.oceaniaCross ? [A.fineRegion ?? null, B.fineRegion ?? null] : [A.region, B.region];
+        const crossRegion = ra !== null && rb !== null && ra !== rb;
         const standIn = a.standIn || b.standIn;
         const pool = this.pool.at(m.t);
         const offsetsOf = (l: Lineage) => Object.fromEntries(pool.map((name) => [name, l.mapOffsets.get(name) ?? 0]));
@@ -205,11 +236,15 @@ export class EloEngine {
             y: m.winner === 0 ? 1 : 0,
             maps: [],
             crossRegion,
+            regions: [A.region, B.region],
+            crossGapDays: [crossGapDays(A, m.t), crossGapDays(B, m.t)],
             standIn,
             tier,
             lan: m.lan,
             lineages: [A.id, B.id],
             ratings: [A.rating, B.rating],
+            regionPriors: [this.regionPrior(A), this.regionPrior(B)],
+            after: [A.rating, B.rating],
             poolOffsets: [offsetsOf(A), offsetsOf(B)],
             minMaps: Math.min(A.maps, B.maps),
             idleDays: (m.t - Math.min(A.lastT, B.lastT)) / 86400,
@@ -218,7 +253,7 @@ export class EloEngine {
 
         const p = this.params;
         const kBase =
-            p.k * (m.lan ? 1 : p.onlineK) * p.tierK ** (tier - 1) * (crossRegion ? p.crossRegionK : 1) * (standIn ? p.standInK : 1);
+            p.k * (m.lan ? 1 : p.onlineK) * p.tierK ** (tier - 1) * (crossRegion ? p.crossRegionK : 1) * (standIn ? p.standInK : 1) * (bothOceania ? p.oceaniaK : 1);
         m.maps.forEach((map, index) => {
             const expected = this.mapProbability(A, B, map.map, m.t, shift);
             const y = map.rounds[0] > map.rounds[1] ? 1 : 0;
@@ -226,7 +261,7 @@ export class EloEngine {
                 A.rating + (A.mapOffsets.get(map.map) ?? 0),
                 B.rating + (B.mapOffsets.get(map.map) ?? 0),
             ];
-            let margin = mapMargin(map.rounds, p.otMargin) * (y ? 1 : -1);
+            let margin = mapMargin(map.rounds, p.otMargin, m.game === "csgo") * (y ? 1 : -1);
             prediction.maps.push({ map: map.map, p: expected, y, margin, ratings });
 
             // Updates use a blend of the real result and the luck-adjusted one; predictions above always use the real y and margin.
@@ -247,23 +282,35 @@ export class EloEngine {
                 l.loadT = m.t;
                 return 1 / (1 + load / p.burstMaps);
             };
-            const surprise = target - expected;
+            const updateExpected = p.regionPriorInUpdate
+                ? expected
+                : this.mapProbability(A, B, map.map, m.t, shift - this.regionGap(A, B));
+            const surprise = target - updateExpected;
             A.rating += kBase * mult * provisional(A) * burst(A) * surprise;
             B.rating -= kBase * mult * provisional(B) * burst(B) * surprise;
             A.maps++;
             B.maps++;
+            for (const l of [A, B]) if (l.maps === 30) l.rating30 = l.rating;
 
             this.updateMapOffset(A, map.map, p.kMap * surprise, m.t);
             this.updateMapOffset(B, map.map, -p.kMap * surprise, m.t);
             this.pool.record(m.t, map.map);
         });
 
+        prediction.after = [A.rating, B.rating];
         for (const l of [A, B]) {
             l.lastT = m.t;
+            if (crossRegion) l.lastCrossT = m.t;
             l.tiers.push(tier);
             if (l.tiers.length > 10) l.tiers.shift();
         }
         return prediction;
+    }
+
+    /** At the first CS2 series after CS:GO ones, every lineage closes `gameRegress` of its gap to its tier's mean. */
+    private switchGame(t: number): void {
+        const targets = this.lineages.map((l) => (l.tiers.length ? this.tierMean(median(l.tiers), t) : l.rating));
+        this.lineages.forEach((l, i) => (l.rating += this.params.gameRegress * (targets[i] - l.rating)));
     }
 
     /** Players without history take their teammates' mean θ, so a side's θ̄ is the mean over those with history. */
@@ -306,6 +353,29 @@ export class EloEngine {
         return lineupRegion(core.map((p) => this.players[p]?.country ?? ""));
     }
 
+    /** Valve region, with Oceania (3+ AU/NZ players) split out of Asia as 3. */
+    private fineRegionOf(core: string[]): number | null {
+        const oceania = core.filter((p) => OCEANIA.has((this.players[p]?.country ?? "").toLowerCase())).length;
+        return oceania >= 3 ? FINE_OCEANIA : this.regionOf(core);
+    }
+
+    /** Fixed rating offset of a lineage's region against Europe; 0 when unknown. */
+    regionPrior(l: Lineage): number {
+        const p = this.params;
+        return l.fineRegion == null ? 0 : [0, p.regionPriorAmericas, p.regionPriorAsia, p.regionPriorOceania][l.fineRegion];
+    }
+
+    /** Fixed rating offset between two regions; 0 within a region or when either is unknown. */
+    regionGap(a: Lineage, b: Lineage): number {
+        if (a.fineRegion == null || b.fineRegion == null || a.fineRegion === b.fineRegion) return 0;
+        return this.regionPrior(a) - this.regionPrior(b);
+    }
+
+    /** Multiplier on the map logit for series odds; `oceaniaTemp` for Oceania v Oceania, else 1. */
+    mapTemp(a: Lineage, b: Lineage): number {
+        return a.fineRegion === FINE_OCEANIA && b.fineRegion === FINE_OCEANIA ? this.params.oceaniaTemp : 1;
+    }
+
     /** Valve's continuity rule: a lineup belongs to the lineage whose core it shares at least 3 players with. */
     private lineageFor(
         team: string,
@@ -345,6 +415,7 @@ export class EloEngine {
                 lineage.rating += p.regress * (replaced / 5) * (mean - lineage.rating);
                 lineage.core = newCore;
                 lineage.region = this.regionOf(newCore);
+                lineage.fineRegion = this.fineRegionOf(newCore);
             }
             lineage.team = team;
         } else {
@@ -356,8 +427,12 @@ export class EloEngine {
                 team,
                 core: [...lineup],
                 rating: seed + p.newRosterRegress * (mean - seed),
+                seed: seed + p.newRosterRegress * (mean - seed),
+                seedsFromMean: lineup.filter((player) => !this.playerLineage.has(player)).length,
+                seedTier: tier,
                 mapOffsets: new Map(),
                 region: this.regionOf(lineup),
+                fineRegion: this.fineRegionOf(lineup),
                 maps: 0,
                 tiers: [],
                 recent: [lineup],

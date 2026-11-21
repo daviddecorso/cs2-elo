@@ -1,0 +1,41 @@
+{
+    "slug": "perfect-world-shanghai-2024",
+    "name": "Perfect World Shanghai Major 2024",
+    "liquipedia": "Perfect_World/Major/2024/Shanghai",
+    "startDate": "2024-11-30",
+    "endDate": "2024-12-15",
+    "lan": true,
+    "stages": [
+        {
+            "id": "opening",
+            "name": "Opening Stage",
+            "page": "Perfect_World/Major/2024/Shanghai/Opening_Stage",
+            "format": "swiss",
+            "bestOf": { "default": 1, "decider": 3 },
+            "invited": ["FURIA Esports", "Virtus.pro", "Team Liquid", "Complexity Gaming", "BIG", "Fnatic", "The MongolZ", "paiN Gaming", "GamerLegion", "MIBR", "Cloud9", "FlyQuest", "Passion UA", "Wildcard", "Rare Atom", "Imperial Esports"],
+            "advance": 8,
+            "exits": { "2-3": "17-19", "1-3": "20-22", "0-3": "23-24" }
+        },
+        {
+            "id": "elimination",
+            "name": "Elimination Stage",
+            "page": "Perfect_World/Major/2024/Shanghai/Elimination_Stage",
+            "format": "swiss",
+            "bestOf": { "default": 1, "decider": 3 },
+            "invited": ["G2 Esports", "Natus Vincere", "Team Vitality", "Team Spirit", "MOUZ", "FaZe Clan", "HEROIC", "3DMAX"],
+            "from": "opening",
+            "advance": 8,
+            "exits": { "2-3": "9-11", "1-3": "12-14", "0-3": "15-16" }
+        },
+        {
+            "id": "playoffs",
+            "name": "Playoffs",
+            "page": "Perfect_World/Major/2024/Shanghai/Playoff_Stage",
+            "format": "single_elim",
+            "bestOf": { "default": 3, "final": 3 },
+            "from": "elimination",
+            "advance": 0,
+            "exits": { "r1": "5-8", "r2": "3-4", "r3": "2", "champion": "1" }
+        }
+    ]
+}

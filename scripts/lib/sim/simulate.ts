@@ -32,6 +32,8 @@ export interface EventOutcome {
     placements: Map<TeamId, string>;
     /** Team → stages it played in. */
     reached: Map<TeamId, string[]>;
+    /** Stage id → its teams in seed order. */
+    entrants: Map<string, TeamId[]>;
     matches: SimMatch[];
     /** Played matches this run's pairings never reached. */
     diverged: KnownMatch[];
@@ -45,6 +47,7 @@ export const runEvent = (input: EventInput, predictor: SeriesModel, rng: Rng): E
     const results = new Map<string, StageResult>();
     const placements = new Map<TeamId, string>();
     const reached = new Map<TeamId, string[]>();
+    const entrants = new Map<string, TeamId[]>();
     const matches: SimMatch[] = [];
     const diverged: KnownMatch[] = [];
 
@@ -55,6 +58,7 @@ export const runEvent = (input: EventInput, predictor: SeriesModel, rng: Rng): E
             return from.advancing;
         });
         const teams = [...(stage.invited ?? []), ...advancers];
+        entrants.set(stage.id, teams);
         for (const t of teams) reached.set(t, [...(reached.get(t) ?? []), stage.id]);
 
         const seed = new Map(teams.map((t, i) => [t, i]));
@@ -98,7 +102,7 @@ export const runEvent = (input: EventInput, predictor: SeriesModel, rng: Rng): E
         matches.push(...result.matches);
         diverged.push(...locks.unused());
     }
-    return { placements, reached, matches, diverged };
+    return { placements, reached, entrants, matches, diverged };
 };
 
 export interface EventSummary {

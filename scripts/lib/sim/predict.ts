@@ -77,8 +77,11 @@ export class Predictor implements SeriesModel {
             const lb = this.lineageOf(b);
             if (!la) this.unrated.add(a);
             if (!lb) this.unrated.add(b);
-            if (la && lb) p = this.engine.mapProbability(la, lb, null, this.t);
-            else {
+            if (la && lb) {
+                p = this.engine.mapProbability(la, lb, null, this.t);
+                const temp = this.engine.mapTemp(la, lb);
+                if (temp !== 1) p = 1 / (1 + (p / (1 - p)) ** -temp);
+            } else {
                 const ra = la?.rating ?? this.options.fallbackRating;
                 const rb = lb?.rating ?? this.options.fallbackRating;
                 p = expectedScore(ra - rb, this.params.scale);
@@ -126,14 +129,24 @@ export class Predictor implements SeriesModel {
         return (this.paths.get(a)?.[this.horizonIndex] ?? 0) - (this.paths.get(b)?.[this.horizonIndex] ?? 0);
     }
 
-    /** Natural-log map logit from overall ratings and drift alone, as `veto.py`'s base. */
+    /** Natural-log map logit from overall ratings, region priors and drift, as `veto.py`'s base. */
     baseLogit(a: TeamId, b: TeamId): number {
-        const rating = (team: TeamId) => {
-            const lineage = this.lineageOf(team);
-            if (!lineage) this.unrated.add(team);
-            return lineage?.rating ?? this.options.fallbackRating;
+        const lineage = (team: TeamId) => {
+            const l = this.lineageOf(team);
+            if (!l) this.unrated.add(team);
+            return l;
         };
-        return ((rating(a) - rating(b) + this.shift(a, b)) * Math.LN10) / this.params.scale;
+        const la = lineage(a);
+        const lb = lineage(b);
+        const gap = (la?.rating ?? this.options.fallbackRating) - (lb?.rating ?? this.options.fallbackRating);
+        const region = la && lb ? this.engine.regionGap(la, lb) : 0;
+        return ((gap + region + this.shift(a, b)) * Math.LN10) / this.params.scale;
+    }
+
+    private pairTemp(a: TeamId, b: TeamId): number {
+        const la = this.lineageOf(a);
+        const lb = this.lineageOf(b);
+        return la && lb ? this.engine.mapTemp(la, lb) : 1;
     }
 
     /** The veto model's key for a team: its page, an earlier name, or its lineage's current name. */
@@ -149,7 +162,7 @@ export class Predictor implements SeriesModel {
         const veto = this.options.veto;
         if (!veto || ![1, 3, 5].includes(bestOf)) return rng() < this.seriesProbability(a, b, bestOf) ? 0 : 1;
         const sampled = veto.sample(this.vetoKey(a), this.vetoKey(b), bestOf, rng, vetoOrder);
-        const temp = (bestOf > 1 ? this.params.seriesMapTemp : 1) * this.tierTemp;
+        const temp = (bestOf > 1 ? this.params.seriesMapTemp : 1) * this.tierTemp * this.pairTemp(a, b);
         const need = Math.floor(bestOf / 2) + 1;
         const wins = [0, 0];
         for (const l of veto.logits(sampled, this.baseLogit(a, b))) {

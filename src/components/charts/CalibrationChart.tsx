@@ -158,19 +158,23 @@ export const CalibrationChart = ({ series }: CalibrationChartProps) => {
                             ifOverflow="extendDomain"
                         />
                         <Tooltip content={<TooltipContent series={series} />} cursor={{ stroke: "var(--color-line)" }} />
-                        {series.map((s, idx) => (
-                            <Line
-                                key={s.label}
-                                type="linear"
-                                dataKey={`actual_${idx}`}
-                                name={s.label}
-                                stroke={s.color}
-                                strokeWidth={2}
-                                dot={{ fill: s.color, r: s.shape === "square" ? 3.5 : 3 }}
-                                activeDot={{ r: 5 }}
-                                connectNulls
-                            />
-                        ))}
+                        {/* Recharts paints later children on top; reverse so the first series (Elo) is drawn last. */}
+                        {series
+                            .map((s, idx) => ({ s, idx }))
+                            .reverse()
+                            .map(({ s, idx }) => (
+                                <Line
+                                    key={s.label}
+                                    type="linear"
+                                    dataKey={`actual_${idx}`}
+                                    name={s.label}
+                                    stroke={s.color}
+                                    strokeWidth={2}
+                                    dot={{ fill: s.color, r: s.shape === "square" ? 3.5 : 3 }}
+                                    activeDot={{ r: 5 }}
+                                    connectNulls
+                                />
+                            ))}
                     </LineChart>
                 </ResponsiveContainer>
             </div>

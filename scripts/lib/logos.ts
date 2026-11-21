@@ -15,11 +15,7 @@ export interface RawTemplate {
     imagedarkurl?: string;
 }
 
-export const teamSlug = (name: string): string =>
-    name
-        .toLowerCase()
-        .replace(/[^a-z0-9]+/g, "-")
-        .replace(/^-+|-+$/g, "");
+export { teamSlug } from "../../src/utils/teams.ts";
 
 export const isDefaultLogo = (tmpl: RawTemplate): boolean => {
     const img = (tmpl.image ?? "").toLowerCase();

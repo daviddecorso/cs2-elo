@@ -6,11 +6,221 @@ A log of every change tried on the Elo model ([elo-model.md](elo-model.md)), inc
 
 Calibration columns come from the backtest's calibration block. **Slope** is a logistic fit of outcome on logit(p), where 1 is calibrated and below 1 is overconfident. **ECE** is the size-weighted gap between predicted and actual favourite win rates across ten bins.
 
-An entry is kept only if it lowers gate log loss. Tuning moves of under 0.0005 count as noise. To try one value without retuning, use `npm run backtest-elo -- --set key=value` (repeatable).
+An entry is kept only if it lowers gate log loss. Tuning moves of under 0.0005 count as noise. **Region-only changes** (declared 2026-11-19, since cross-region is 8% of the gate and caps any gain there near 0.0002) are judged by `npm run backtest-elo -- --region-walk` instead. That command fits on 2024 and scores 2025, then fits on 2024–25 and scores 2026, and pools the two test years. To pass, the cross-region series gain must have a 90% event CI above 0, and the 2026 gate must be no more than 0.0002 worse. To try one value without retuning, use `npm run backtest-elo -- --set key=value` (repeatable).
 
 ## Untried ideas
 
 - A temperature scoped to online tier-1 qualifiers (tournament `publishertier` "Tier 1 Qualifier" / `liquipediatiertype` Qualifier or Online Stage) rather than all of tier 2. It's where the 2026 tier-2 overconfidence sits (see the tier-2 entry below), but it can't clear the gate on its own either. It only matters for the simulator's qualifier odds.
+
+## 2026-11-21: CS:GO warmup (2022-01 → 2023-09) — kept with a 2025 retune, 2026 gate 0.6106 → 0.6090
+
+**Change:** Ratings warm up on 38,016 CS:GO series before the first CS2 month, instead of starting cold in 2023-10. The motivation was the Major backtest: Copenhagen 2024's Opening Stage was Elo's worst block (1.81, against 1.25 for a coin), and Americas teams beat Elo's expectation there by 9.7 wins in 32 cross-region series.
+- CS:GO margins are MR15, so they're scaled by 12/15, and overtime starts when the loser has 15.
+- New `gameRegress` closes part of every lineage's gap to its tier mean at the first CS2 series.
+
+**Declared test:** with `gameRegress` fixed at 0.3 and the other params unchanged, keep the warmup if 2024-01 → 2024-06 series log loss improves by more than 0.0005, and the 2026 gate is no more than 0.0005 worse.
+
+| Set | Cold start | CS:GO, old params | CS:GO, retuned on 2025 | Cold start, retuned on 2025 (control) |
+| --- | --- | --- | --- | --- |
+| 2024 H1, all series (10,598) | 0.6408 | 0.6049 | 0.6054 | – |
+| 2024 H1, tier 1 (349) | 0.9480 | 0.6406 | 0.6659 | – |
+| 2025 train series | 0.6040 | 0.6024 | 0.5994 | 0.6039 |
+| 2026 gate (9,375) | 0.6106 | 0.6115 | **0.6090** | 0.6103 |
+| 2026, all series (18,424) | 0.5959 | 0.5948 | 0.5926 | 0.5959 |
+| 2026, tier 1 (727) | 0.6106 | 0.6101 | 0.6057 | 0.6101 |
+| 2026, cross-region (719) | 0.6253 | – | 0.6274 | – |
+| 2026 test slope | 0.995 | 1.028 | 0.964 | 0.965 |
+
+- **The declared test failed.** Early 2024 gained 0.036, but the 2026 gate got 0.0009 worse. The params had been tuned on a feed that started cold, and the 2026 slope above 1 shows the warm ratings were now too spread out for them.
+- **A retune on 2025 with CS:GO, the same protocol as every other tune, passes:** the gate gains 0.0016. The control, which retunes the cold-start feed from the same starting point, only reaches 0.6103. So 0.0013 of the gain is the warmup, and 0.0003 is retuning noise.
+- **The retune moved:** `crossRegionK` 1.25 → 0.75, `kMap` 6 → 8, `tierGap` 750 → 800 (the upper bound), `seriesMapTemp` 0.8 → 0.9 (with the online temperature also at 0.9), `burstMaps` 24 → 16, `burstDays` 12 → 16, `oceaniaTemp` 1.5 → 1.4 and `gameRegress` 0.3 → 0. With longer histories, single international results matter less. Cross-region series score 0.0021 worse.
+- **`gameRegress` goes to 0 because 2025 can't see the switch.** Early-2024 tier 1 is better at 0.3 (0.641) than at 0 (0.666, slope 0.51). It's left at the tuned 0, because picking it on 2024 would make that window a tuning set. A walk-forward fit on 2024 H1 could revisit it.
+- **HLTV encompassing** λ falls to 0.01 (points) and 0.01 (rank), from 0.12 and 0.14 in the control: with CS:GO history, Elo leaves nothing for HLTV to add.
+- **Majors** (`backtest-majors`, 18 stage blocks): stage outcome log loss went 1.2066 → 1.1307. Elo − VRS went +0.041 → −0.008, and Elo − Supercomputer went +0.042 → −0.003. See [simulator.md](simulator.md).
+- `loadFeed` now includes CS:GO by default, and `--no-csgo` turns it off in `backtest-elo` and `backtest-majors`.
+
+## 2026-11-20: Oceania prior and temperature tuned on 2025 — kept, 2026 gate 0.6122 → 0.6106
+
+**Change:** `regionPriorOceania` (in the update) and `oceaniaTemp` are now in `--tune`'s steps, and were tuned on 2025 series log loss with every other param fixed. The search started from 0 and 1.
+
+| Prior | Temp | 2025 log loss |
+| --- | --- | --- |
+| 0 | 1 | 0.60476 |
+| −175 | 1 | 0.60440 |
+| −200 | 1.5 | 0.60404 |
+| **−175** | **1.5** | **0.60404** |
+| −150 | 1.5 | 0.60404 |
+
+The surface is flat from −150 to −200, and the search stopped at −175 / 1.5.
+
+**2026 (same feed, 9,375 gate series):**
+
+| Set | Before | After |
+| --- | --- | --- |
+| Gate | 0.6122 | **0.6106** |
+| All series (18,424) | 0.5965 | 0.5959 |
+| Cross-region, Valve regions (719) | 0.6271 | 0.6253 |
+| Oceania v Oceania (421) | slope 1.61 | +0.0350 (CI +0.0192 to +0.0514), slope 1.04 |
+| Oceania v other regions (146) | – | −0.0059 |
+
+- **Kept** under the standard gate (+0.0016 against the 0.0005 bar). All of the gate gain is in series involving Oceania.
+- The region-only rule doesn't apply, because the gain is inside Oceania, not across regions. On it, the pooled cross-region gain is +0.0010 (CI −0.0023 to +0.0041).
+- **Caveat:** 2026 isn't a clean test. Both terms came out of the entry below, which looked at 2026. The tuned values sit close to the ones picked there by eye, and 2024 Oceania wasn't underconfident. Recheck on 2027.
+- **Published ratings:** with the prior in the update, Oceania's raw ratings drift up by about the prior, on their own internal scale. FlyQuest's raw rating is 157.5. `build-elo` (rankings and game log) and `simulate` now publish rating plus region prior, so FlyQuest shows −17.5 (rank 40, was 38.5 at rank 26).
+- **Simulator:** the `Predictor` gets the prior through the engine's `mapProbability` and the veto base logit, and gets `oceaniaTemp` on Oceania v Oceania map logits. FlyQuest's PGL Major Singapore odds: Stage 2 advance 55% → 38%, playoffs 3.2% → 0.7%.
+
+## 2026-11-20: Oceania's internal gaps are compressed — K, temperature and prior compared, nothing kept yet
+
+**Question:** This follows the entry below. Why does an Oceania prior in the update help Oceania v Oceania series, and is there a more direct fix?
+
+**Travellers are underrated at home.** `--region-residual` compares same-region series where one side played a cross-region series in the last 90 days and the other hasn't in 180 days or ever. Points are for the travelled side, on maps:
+
+| Region | 2024 | 2025 | 2024–25 | 2026 |
+| --- | --- | --- | --- | --- |
+| Europe | −22.3 ± 5.5 | −4.9 ± 5.3 | −13.4 ± 3.8 | +6.7 ± 4.9 |
+| Americas | +34.7 ± 11.2 | +14.3 ± 10.4 | +23.8 ± 7.6 | +21.8 ± 11.9 |
+| Asia (excl. Oceania) | +43.9 ± 15.2 | +65.9 ± 15.6 | +54.7 ± 10.9 | +11.0 ± 16.5 |
+| Oceania | +77.8 ± 39.4 | +137.3 ± 37.3 | **+110.5 ± 27.0** | **+150.1 ± 59.6** |
+
+The smaller the pool, the more its travellers are underrated against home rivals: they pay the pool's inflated level when they lose abroad. That squeezes the pool's internal gaps.
+
+**Same-region calibration slope (series, > 1 is underconfident):**
+
+| Region | 2024 | 2025 | 2026 |
+| --- | --- | --- | --- |
+| Europe | 0.70 | 0.97 | 0.96 |
+| Americas | 0.92 | 1.01 | 1.15 |
+| Asia (excl. Oceania) | 0.93 | 1.22 | 1.07 |
+| Oceania | 0.87 (intercept 0.56) | **1.60** | **1.61** |
+
+Tier doesn't explain it. Europe's tier 4 is calibrated (1.00 in 2025, 0.97 in 2026) while Oceania's tier 4 is 1.58 and 1.57. 2024 Oceania was *not* underconfident, so a fit on 2024 would point the wrong way.
+
+**Fixes tried (fixed values, `--region-walk --region-walk-fixed`, Oceania v Oceania series 423 in 2025 and 421 in 2026):**
+
+| Change | O v O gain 2025 | O v O gain 2026 | O v O slope 2025 / 2026 | All series 2025 / 2026 | 2026 gate |
+| --- | --- | --- | --- | --- | --- |
+| baseline | – | – | 1.60 / 1.61 | – | 0.6122 |
+| `oceaniaK` 1.5 | +0.0060 | +0.0036 | 1.42 / 1.41 | −0.0001 / −0.0001 | 0.6126 |
+| `oceaniaK` 2 | +0.0070 | +0.0026 | 1.27 / 1.25 | −0.0002 / −0.0004 | 0.6131 |
+| `oceaniaK` 3 | +0.0003 | −0.0060 | 1.04 / 1.03 | −0.0008 / −0.0012 | 0.6141 |
+| `oceaniaTemp` 1.3 | +0.0160 | +0.0171 | 1.22 / 1.23 | +0.0003 / +0.0004 | 0.6116 |
+| `oceaniaTemp` 1.5 | +0.0201 | +0.0210 | 1.06 / 1.06 | +0.0004 / +0.0005 | 0.6114 |
+| `regionPriorOceania` −150 (in update) | +0.0137 | +0.0139 | 1.54 / 1.59 | +0.0003 / +0.0002 | 0.6114 |
+| prior −150 + temp 1.3 | **+0.0289** | **+0.0302** | 1.18 / 1.21 | +0.0007 / +0.0006 | **0.6109** |
+
+- A bigger K straightens the slope but adds noise, so log loss doesn't improve. Oceania's ordering is right and only its spread is squeezed.
+- The temperature and the prior stack, because they fix different things: the spread of the odds, and the travellers' ratings. Together they are the best result here: the 2026 gate is +0.0013 and the pooled cross-region gain is +0.0013 (CI −0.0014 to +0.0040).
+- **Not kept here** (superseded by the 2025-tuned entry above). All of these values were chosen after seeing 2025 and 2026, so this is exploration, not a test. A clean test would tune `oceaniaTemp` and `regionPriorOceania` on 2025 only (the standard protocol) and score 2026. But 2026 has already been seen, so the honest out-of-sample check is 2027. A walk-forward fit from 2024 would fail, because 2024 Oceania wasn't underconfident.
+- The engine params (`oceaniaK`, `oceaniaTemp`) stay, off by default. `oceaniaTemp` touches only the engine's series odds; the simulator's `Predictor` would need it separately.
+
+## 2026-11-19: Region priors and Oceania split out — cross-region rule fails, Oceania-internal gain found
+
+**Question:** Can a model-level term fix region calibration where `kRegion` and the simulator offset couldn't? It's judged by the region rule in the Overview, which was declared before any run.
+
+**Mechanism (`--region-residual`, Asia side's points against the rest, maps).**
+
+| Split | 2024–25 | 2026 |
+| --- | --- | --- |
+| Oceania (3+ AU/NZ players) | **−129.0 ± 27.3** (260) | **−126.4 ± 49.2** (67) |
+| Rest of Asia | −13.1 ± 8.1 (2,229) | −15.4 ± 13.3 (776) |
+| LAN in Asia / LAN abroad / online | −43.9 / −43.9 / −10.7 | −33.5 / −35.0 / −2.6 |
+| Own-region share < 50% / 50–80% / ≥ 80% | −5.5 / −35.0 / −36.9 | −1.4 / −49.8 / −59.1 |
+| Oceania v Europe | −142.2 ± 30.7 (213) | −146.7 ± 54.0 (56) |
+| Oceania v rest of Asia (same Valve region) | −44.3 ± 20.8 (340) | −14.5 ± 26.7 (214) |
+
+- Valve's "Asia" bias is mostly Oceania. Without it, the rest of Asia is about −13.
+- It isn't travel: LANs in Asia and abroad are equally off. Online is milder.
+- It grows with how insular a roster's schedule is.
+- By year, Oceania's residual is −180 (2024), −79 (2025) and −126 (2026).
+
+**Change (trial).** The engine (`regionGap` in `mapProbability`) adds fixed offsets against Europe whenever two rosters' regions differ:
+- `regionPriorAmericas`, `regionPriorAsia` and `regionPriorOceania`, with Oceania split out of Asia as region 3 by core players' countries;
+- `regionPriorInUpdate` (1 puts the prior in the update's expected score as well, 0 is predictions only);
+- `oceaniaCross` (Oceania v Asia counts for `crossRegionK`; not run).
+
+All default to off. `--region-walk` fits the priors walk-forward (3 refit passes on training-year cross-region maps), and `--region-walk-fixed` scores the given values instead.
+
+| Variant | Priors fit on 2024–25 (Am / As / Oc) | Cross-region 2025 | Cross-region 2026 | Pooled (90% CI) | 2026 gate |
+| --- | --- | --- | --- | --- | --- |
+| All regions, in update | +46 / −26 / −161 | +0.0001 | −0.0018 | −0.0008 (−0.0047 to +0.0028) | +0.0003 |
+| All regions, prediction only | +23 / −13 / −84 | −0.0057 | −0.0027 | −0.0043 (−0.0089 to −0.0002) | −0.0001 |
+| Oceania only, in update | – / – / −148 | +0.0020 | −0.0003 | +0.0009 (−0.0022 to +0.0040) | **+0.0008** |
+| Oceania only, prediction only | – / – / −78 | −0.0013 | +0.0010 | −0.0002 (−0.0037 to +0.0032) | +0.0003 |
+
+**The declared rule fails for every variant.** The Americas residual flips sign between years, so fitting it hurts. Oceania's is too unstable year to year for a fixed cross-region price to transfer.
+
+**Found after the fact: the Oceania prior in the update fixes Oceania's internal ratings.** Its 2026 gate gain comes almost entirely from series with an Oceanian roster (0.0007 of 0.0008), and mostly from Oceania v Oceania, not from cross-region series. With the prior fixed (`--region-walk-fixed`), it scales with size and doesn't plateau:
+
+| `regionPriorOceania` (in update) | −50 | −100 | −150 | −200 |
+| --- | --- | --- | --- | --- |
+| Oceania v Oceania, 2025 (423) | +0.0050 | +0.0095 | +0.0137 (+0.0111 to +0.0168) | +0.0174 |
+| Oceania v Oceania, 2026 (421) | +0.0050 | +0.0096 | +0.0139 (+0.0098 to +0.0183) | +0.0178 |
+| All series 2025 / 2026 | +0.0002 / +0.0001 | +0.0003 / +0.0002 | +0.0003 / +0.0002 | +0.0004 / +0.0002 |
+| 2026 gate | 0.6119 | 0.6117 | 0.6114 | 0.6112 |
+| Pooled cross-region (90% CI) | +0.0010 (+0.0001 to +0.0019) | +0.0014 (−0.0004 to +0.0032) | +0.0012 (−0.0016 to +0.0039) | +0.0004 |
+
+Likely mechanism: Oceania's travelling rosters lose rating abroad at a rate that doesn't reflect their strength *within* Oceania. That compresses Oceania's internal gaps. Pricing their trips with a prior stops the loss, and the internal gaps spread out again.
+
+- This is a post-hoc finding from a slice, with several variants seen on 2026, so it isn't a pass. The 2025 fold is a clean out-of-sample check (fit on 2024, never tuned on), and it agrees.
+- The lack of a plateau is unexplained. The next test, before adopting anything, is a direct one: Oceania v Oceania calibration slope and the residual by "has travelled in the last 180 days".
+- **Not kept yet.** Params are unchanged and the engine code stays, off by default. If it's adopted, `latest.json` should publish rating + prior, or the rankings will disagree with predictions.
+
+## 2026-11-19: Region-aware seeding and a fixed Asia offset — seeding rejected, simulator offset added then reverted
+
+**Question:** These follow up the `kRegion` entry below. Is Asia's 23-point overrating caused by seeding? If not, does a fixed offset (rather than a learned one) price cross-region series better?
+
+**Seeding diagnostic.** In a closed pool, newcomers seeded too high lose their excess to the pool's incumbents. Unrated players are seeded at the global `tierMean`, so Asia newcomers could be the source. `--region-residual` now reports each new lineage's rating after 30 maps minus its seed, by region:
+
+| Born | Europe | Americas | Asia |
+| --- | --- | --- | --- |
+| 2024–25 | +60.9 ± 5.5 (424) | +48.0 ± 9.9 (123) | +88.9 ± 11.9 (94) |
+| 2026 | +43.7 ± 8.3 (147) | −1.5 ± 19.5 (29) | +79.4 ± 21.0 (20) |
+
+Every region's survivors climb from their seed, which is partly survivor bias. Asia's climb most, so Asia newcomers are seeded too *low* and take points from the pool rather than feed it. **Rejected:** a per-region tier mean (step 1b) wasn't built, because seeding isn't the source.
+
+**Fixed offset.** Each cross-region series with an Asia side gets a fixed shift (series odds recomputed from the shifted map probability). The offset was fit on 2024–25, which gives −23. Gains are in series log loss, with 90% event-resampled CIs:
+
+| Slice | Series | −10 | −23 | −35 |
+| --- | --- | --- | --- | --- |
+| 2024–25 cross-region (fit) | 2,396 | +0.0007 | +0.0010 | +0.0005 |
+| 2026 cross-region | 1,002 | +0.0011 (+0.0001 to +0.0021) | +0.0019 (−0.0003 to +0.0042) | +0.0020 |
+| 2026 gate cross-region | 719 | +0.0010 (+0.0001 to +0.0019) | +0.0018 (−0.0002 to +0.0039) | +0.0021 |
+| 2026 tier-1 cross-region | 345 | +0.0005 | +0.0008 (−0.0021 to +0.0033) | +0.0006 |
+| 2026 gate | 9,375 | +0.0001 | +0.0001 | +0.0002 |
+
+Calibration slopes don't move. Unlike the learned `kRegion`, the fixed value transfers out of sample. It's still far below the 0.0005 gate threshold, so the Elo model is unchanged.
+
+**Reverted.** It was briefly added to the simulator as `REGION_OFFSET`. It was removed because −23's 2026 CI includes 0, and the only clean value (−10) was picked after seeing results. The model-level follow-up is the entry above. While it was in: −23 for Asia when the regions differ. On the PGL Major Singapore 2026 sim (ratings as of 2026-11-19), FlyQuest's Stage 1 advance odds drop from 0.550 to 0.492. That puts them level with 9z (0.488) and M80 (0.482) and below Eternal Fire (0.559). The Lynn Vision and The MongolZ odds also drop.
+
+## 2026-11-19: Region offsets (`kRegion`) and cross-region staleness — rejected
+
+**Question:** Does Elo misprice teams from isolated regional pools? Two mechanisms were tried. The first is a regional level error, where a whole region's pool is mis-anchored. The second is stale anchoring, where a team whose last cross-region series is months old gets an overconfident price. The prompt was FlyQuest: it hadn't played Europe or Americas since IEM Cologne in June.
+
+**Diagnostic.** `npm run backtest-elo -- --region-residual` (kept) fits, on cross-region maps, a residual in Elo points with logit(p) as offset (± 1 SE). It reports the residual by Valve region pair, calibration by the staler side's days since its last cross-region series, and a stale side (> 90 days or never) against a fresh one (≤ 30 days). Predictions now carry `regions` and `crossGapDays`.
+
+| Region v rest | 2024 | 2025 | 2024–25 | 2026 |
+| --- | --- | --- | --- | --- |
+| Europe | −7.5 ± 8.9 | +4.6 ± 8.6 | −1.3 ± 6.2 | +21.9 ± 8.5 |
+| Americas | +50.8 ± 12.1 | +8.4 ± 10.5 | +26.5 ± 7.9 | −15.6 ± 9.9 |
+| **Asia** | **−28.8 ± 10.8** | **−17.2 ± 11.2** | **−23.2 ± 7.8** | **−23.3 ± 12.8** |
+
+- Asia (Valve's region, which includes Oceania) is overrated against the rest by about 23 points in every year. It's the only stable bias. Europe v Americas flips sign (−56, −10, +19).
+- Staleness has no signal. The stale side's residual is −1.5 ± 12.4 on 2024–25 and −9.9 ± 18.6 on 2026. Stale buckets aren't more overconfident than fresh ones (2024–25 series slope: ≤ 30 days 0.62, > 180 days or never 0.83). The anchor-staleness temperature wasn't built.
+
+**Change (trial).** `kRegion` gave each Valve region a shared, mean-zero offset added to the rating gap. Only cross-region maps moved it: `kRegion · margin multiplier · (y − p)`.
+
+| `kRegion` | 0 | 0.1 | 0.25 | 0.5 | 1 | 2 | 4 | 8 |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| Train (2025) | 0.6048 | 0.6048 | 0.6048 | 0.6048 | 0.6049 | 0.6051 | 0.6053 | 0.6059 |
+| Gate (9,375) | 0.6122 | 0.6122 | 0.6121 | 0.6121 | 0.6122 | 0.6124 | 0.6128 | 0.6140 |
+| Cross-region gate (719) | 0.6271 | 0.6269 | 0.6271 | 0.6277 | 0.6294 | 0.6328 | 0.6394 | 0.6530 |
+| Asia v rest, 2024–25 | −23.2 | −19.7 | −15.2 | −9.8 | −3.4 | +2.0 | +5.7 | +8.1 |
+| Asia v rest, 2026 | −23.3 | −13.5 | −3.4 | +5.8 | +12.3 | +14.3 | +13.3 | +11.0 |
+
+**Rejected.** The offsets remove the bias (Asia's residual reaches 0 near `kRegion` 0.5–1), but log loss doesn't move. The best gate gain is 0.0001 and the best cross-region gain is 0.0002. Above 0.5 every score gets worse, because the offset chases noise and overshoots on 2026. That's expected: 23 points is about 0.066 logit, worth roughly 0.0003 of log loss per cross-region map even when fixed exactly, and cross-region is 8% of the gate. The engine code and param were reverted. The diagnostic flag stays.
+
+- For reading the rankings by hand, Asia/Oceania rosters measured against other regions are worth about 20–25 points less than their rating.
+- Not tried: splitting Oceania from Asia. With no log-loss value at the 3-region level, a finer split has even less data per region.
 
 ## 2026-11-19: Tune on the latest full year (2025) instead of 2024–2025 — kept
 

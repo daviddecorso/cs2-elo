@@ -1,4 +1,5 @@
-import type { EloRankings } from "../elo/types.ts";
+import type { EloGameLog, EloRankings } from "../elo/types.ts";
+import { teamSlug } from "../utils/teams.ts";
 import { fetchSimJson } from "../sim/fetch.ts";
 import type { PlanIndex, PlanTeamFile } from "../sim/types.ts";
 import type { ClutchData, PlayerWarData, TacticsData, TeamDuelsData, TeamStatsData } from "../war/types.ts";
@@ -21,6 +22,12 @@ export const eloRankingsQuery = {
     queryKey: ["elo", "latest"],
     queryFn: () => fetchJson<EloRankings>("elo/latest.json", "Elo rankings"),
 };
+
+/** Null for teams with no rated series in the log window. */
+export const eloGamesQuery = (team: string) => ({
+    queryKey: ["elo", "games", team],
+    queryFn: () => fetchOptionalJson<EloGameLog>(`elo/games/${teamSlug(team)}.json`, "game log"),
+});
 
 export const playerWarQuery = {
     queryKey: ["war", "players"],

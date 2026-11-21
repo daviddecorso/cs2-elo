@@ -407,7 +407,7 @@ export const EventList = () => {
                 subtitle={
                     <>
                         Simulated brackets for announced events /{" "}
-                        <Link to="/major-invites" className="text-accent hover:underline">
+                        <Link to="/major" className="text-accent hover:underline">
                             Major invite odds
                         </Link>
                     </>

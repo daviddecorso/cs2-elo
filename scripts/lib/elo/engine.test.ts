@@ -43,6 +43,12 @@ describe("map math", () => {
         expect(mapMargin([16, 12], 3)).toBe(3);
     });
 
+    it("scales MR15 margins to MR12 and starts CS:GO overtime at 15", () => {
+        expect(mapMargin([16, 1], 2, true)).toBeCloseTo(12, 10);
+        expect(mapMargin([14, 16], 2, true)).toBeCloseTo(1.6, 10);
+        expect(mapMargin([19, 15], 2, true)).toBe(2);
+    });
+
     it("damps the margin multiplier when the favourite wins", () => {
         expect(marginMultiplier(5, 200, 0.5)).toBeLessThan(marginMultiplier(5, -200, 0.5));
         expect(marginMultiplier(0, 0, 0.5)).toBe(1);
@@ -72,6 +78,18 @@ describe("EloEngine", () => {
         expect(second.ratings[0]).toBeGreaterThan(1500);
         expect(second.ratings[0] + second.ratings[1]).toBeCloseTo(3000, 6);
         expect(second.p).toBeCloseTo(expectedScore(second.ratings[0] - second.ratings[1], params.scale), 10);
+    });
+
+    it("regresses every lineage by gameRegress at the first CS2 series after CS:GO", () => {
+        const a = roster("g");
+        const b = roster("h");
+        const series = [
+            ...Array.from({ length: 4 }, (_, i) => ({ ...match(i * DAY, ["A", "B"], [a, b], 0, [[16, 8]]), game: "csgo" as const })),
+            match(5 * DAY, ["A", "B"], [a, b], 0),
+        ];
+        const firstCs2 = (gameRegress: number) => new EloEngine({ ...params, gameRegress }, players).run(series).at(-1)!;
+        expect(firstCs2(0).p).toBeGreaterThan(0.5);
+        expect(firstCs2(1).p).toBeCloseTo(0.5, 10);
     });
 
     it("keeps the lineage through a one-series stand-in and flags it", () => {

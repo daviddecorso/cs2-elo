@@ -13,7 +13,7 @@ cs2-elo reproduces Valve's CS2 Regional Standings (VRS) from public match data, 
 Elo ([elo-model.md](elo-model.md)):
 
 6. `npm run backfill-liquipedia` fills `data/raw/archive/` with months older than the hot store, a few months per hourly run.
-7. `npm run freeze-history` writes settled months to the committed `data/history/`.
+7. `npm run freeze-history` writes settled months to the committed `data/history/`. The CS:GO warmup (2022-01 → 2023-09) is already frozen in `data/history/csgo/`.
 8. `npm run backtest-elo` scores the model against the VRS baseline and writes `public/data/elo/calibration.json`. `npm run build-elo` writes `public/data/elo/latest.json`.
 
 Simulator ([simulator.md](simulator.md)):
@@ -38,7 +38,7 @@ The nightly `Update data` workflow runs steps 1, 2, 5, 7, 8 (without tuning), 9,
 | `/`, `/vrs` | VRS standings reproduced from Valve's model (`/standings` redirects here) |
 | `/rankings` | Team tables in tabs (`?view=`): Elo, Duels (`team-duels.json`), Rounds (`team-stats.json`), Tactics (`tactics.json`). `/elo` redirects here |
 | `/teams/:team` | Everything on one team, keyed by Liquipedia page name with spaces as underscores: Elo rosters and map offsets, VRS rank, event and Major invite odds, stats per IGL stint, and its WAR players. Invite odds join through the Elo roster's player key, because VRS team names differ from Liquipedia's |
-| `/events`, `/events/:slug`, `/major-invites` | Simulator output |
+| `/events`, `/events/:slug`, `/major`, `/major/:slug` | Simulator output (`/major-invites` redirects to `/major`) |
 | `/vrs-sim` | Season simulation in tabs (`?view=`): Calendar of upcoming LANs with projected fields, Projections of VRS standings at each publication date (`?at=`, `?region=`), Schedules with each team's recommended LAN schedules and a picker (`?team=`), Plan with a team's searched route to the Major invite from `plan-schedule` (`?team=`, `?plan=`) |
 | `/players` | Player tables in views (`?view=`): WAR leaderboards, Clutch (`clutch.json`), Validation. `/war` redirects here |
 | `/players/:player` | Everything on one player, keyed by in-game name: WAA under each credit version with ranks, roles, CT positions, duels, resources, clutch conversion and teammates |
@@ -78,9 +78,9 @@ npm run verify-vrs -- --date 2026-10-05 --matchdata data/matchdata.json
 npm run verify-vrs -- --all-calibrated [--strict]
 npm run calibrate-window -- --date 2026-11-02 [--write]
 npm run diff-details -- --date 2026-10-05 --matchdata data/matchdata.json [--team <name>]
-npm run backfill-liquipedia -- --max-requests 30
-npm run freeze-history
-npm run backtest-elo -- [--tune --write] [--gate] [--set key=value ...] [--luck]
+npm run backfill-liquipedia -- --max-requests 30 [--game csgo]
+npm run freeze-history -- [--game csgo]
+npm run backtest-elo -- [--tune --write] [--gate] [--set key=value ...] [--luck] [--no-csgo]
 npm run build-elo -- [--update-team-map]
 npm run fetch-upcoming
 npm run catalog

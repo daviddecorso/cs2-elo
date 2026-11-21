@@ -36,6 +36,7 @@
         "hindcast-season": "vite-node scripts/hindcast-season.ts",
         "catalog": "vite-node scripts/catalog.ts",
         "backtest-sim": "vite-node scripts/backtest-sim.ts",
+        "backtest-majors": "vite-node scripts/backtest-majors.ts",
         "backtest-vrs-whatif": "vite-node scripts/backtest-vrs-whatif.ts",
         "backtest-fields": "vite-node scripts/backtest-fields.ts",
         "fit-sim-noise": "vite-node scripts/fit-sim-noise.ts",

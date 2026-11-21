@@ -17,14 +17,14 @@ export const teamPage = (opp: RawRow): string => {
     return String((template?.page as string) || opp.name || opp.template || "");
 };
 
-/** Scored maps only: CS2 regulation ends at 13, so a map whose winner has fewer rounds was abandoned or defaulted. */
-const parseMaps = (games: RawRow[]): EloMap[] => {
+/** Scored maps only: regulation ends at 13 in CS2 and 16 in CS:GO, so a map whose winner has fewer rounds was abandoned or defaulted. */
+const parseMaps = (games: RawRow[], winRounds: number): EloMap[] => {
     const maps: EloMap[] = [];
     for (const g of games) {
         if (g.resulttype === "np" || g.resulttype === "default" || g.walkover) continue;
         const scores = Array.isArray(g.scores) ? g.scores.map(Number) : [];
         if (scores.length !== 2 || scores.some((s) => !Number.isFinite(s))) continue;
-        if (Math.max(scores[0], scores[1]) < 13 || scores[0] === scores[1]) continue;
+        if (Math.max(scores[0], scores[1]) < winRounds || scores[0] === scores[1]) continue;
         maps.push({ map: String(g.map ?? "Unknown"), rounds: [scores[0], scores[1]] });
     }
     return maps;
@@ -38,7 +38,8 @@ const parseTier = (v: unknown): number | null => {
 /** Liquipedia rows → the clean series feed Elo reads; no VRS coverage rules, aliases or overrides. */
 export const normalizeMatches = (
     rawMatches: RawRow[],
-    rawTournaments: RawRow[]
+    rawTournaments: RawRow[],
+    game: "cs2" | "csgo" = "cs2"
 ): { matches: EloMatch[]; players: EloPlayers } => {
     const tournaments = new Map<string, RawRow>();
     for (const t of rawTournaments) if (typeof t.pagename === "string") tournaments.set(t.pagename, t);
@@ -48,7 +49,7 @@ export const normalizeMatches = (
     const matches: EloMatch[] = [];
 
     for (const m of rawMatches) {
-        if (m.game !== undefined && m.game !== "cs2") continue;
+        if (m.game !== undefined && m.game !== game) continue;
         const id = `${String(m.pagename)}:${String(m.match2id ?? m.objectname ?? "")}`;
         if (seen.has(id)) continue;
         seen.add(id);
@@ -91,7 +92,8 @@ export const normalizeMatches = (
             lineups,
             winner: m.winner === "1" ? 0 : 1,
             forfeit: m.walkover === "ff" || m.resulttype === "default",
-            maps: parseMaps(asArray(m.match2games)),
+            maps: parseMaps(asArray(m.match2games), game === "csgo" ? 16 : 13),
+            ...(game === "csgo" ? { game } : {}),
         });
     }
 

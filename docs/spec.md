@@ -164,7 +164,7 @@ This phase joins the first two: Elo predicts each match, the simulator plays out
 
 **Status**
 
-Built and running in the nightly job. See [simulator.md](simulator.md). Pages: `/events`, `/events/:slug`, `/major-invites`.
+Built and running in the nightly job. See [simulator.md](simulator.md). Pages: `/events`, `/events/:slug`, `/major`.
 
 - All five formats are implemented. Major Swiss reproduces every Cologne 2026 pairing.
 - **Rating noise:** per-event form was rejected. Ratings drift as a random walk (58 Elo² per day) from the as-of date to each event's start.

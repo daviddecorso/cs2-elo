@@ -3,6 +3,8 @@ import path from "node:path";
 import { EloEngine, makeSkillLookup, type LuckLookup, type LuckRow, type PlayerSkill, type SeriesPrediction } from "./lib/elo/engine.ts";
 import { clusterCi, clusterWeights, lambdaCi, lcg } from "./lib/elo/encompassing.ts";
 import { loadFeed } from "./lib/elo/history.ts";
+import { countryRegion } from "./lib/elo/region.ts";
+import { seriesWinProbability } from "./lib/elo/series.ts";
 import {
     fitBeta,
     fitRankBeta,
@@ -44,7 +46,7 @@ const isTrain = (p: SeriesPrediction) => dayOf(p.t) >= trainFrom && dayOf(p.t) <
 const isTest = (p: SeriesPrediction) =>
     dayOf(p.t) >= testFrom && dayOf(p.t) <= testTo && (!testYears.length || testYears.includes(dayOf(p.t).slice(0, 4)));
 
-const feed = loadFeed();
+const feed = loadFeed(undefined, { csgo: !flag("no-csgo") });
 console.log(`Feed: ${feed.matches.length} series, ${dayOf(feed.matches[0]?.t ?? 0)} to ${dayOf(feed.matches.at(-1)?.t ?? 0)}.`);
 
 const run = (params: EloParams) => new EloEngine(params, feed.players).run(feed.matches);
@@ -69,6 +71,7 @@ const STEPS: Step[] = [
     { key: "provisionalK", step: 0.5, min: 0, max: 5 },
     { key: "provisionalMaps", step: 10, min: 5, max: 100, integer: true },
     { key: "regress", step: 0.1, min: 0, max: 1 },
+    { key: "gameRegress", step: 0.1, min: 0, max: 1 },
     { key: "newRosterRegress", step: 0.1, min: 0, max: 1 },
     { key: "kMap", step: 2, min: 0, max: 30 },
     { key: "mapShrink", step: 0.01, min: 0, max: 0.2 },
@@ -79,6 +82,8 @@ const STEPS: Step[] = [
     { key: "seriesMapTempOnline", step: 0.05, min: 0.5, max: 1.2 },
     { key: "burstMaps", step: 8, min: 0, max: 128 },
     { key: "burstDays", step: 2, min: 1, max: 30 },
+    { key: "regionPriorOceania", step: 25, min: -500, max: 0 },
+    { key: "oceaniaTemp", step: 0.1, min: 0.5, max: 3 },
 ];
 
 const tune = (start: EloParams): EloParams => {
@@ -233,6 +238,14 @@ console.log(`\nGate: Elo ${eloGate.logLoss.toFixed(4)} vs VRS ${vrsGate.logLoss.
 
 if (flag("residual-lead")) {
     residualLead();
+    process.exit(0);
+}
+if (flag("region-residual")) {
+    regionResidual();
+    process.exit(0);
+}
+if (flag("region-walk")) {
+    regionWalk();
     process.exit(0);
 }
 
@@ -466,32 +479,9 @@ function residualLead(): void {
             if (h) h.series++;
         }
     }
-    // Logistic regression with offset logit(p), no intercept; Newton steps on the 1- or 2-feature design.
     const fitN = (rs: Array<{ offset: number; y: 0 | 1 }>, xs: number[][]) => {
-        const kf = xs[0]?.length ?? 0;
-        const beta = new Array<number>(kf).fill(0);
-        let H: number[][] = [];
-        for (let iter = 0; iter < 25; iter++) {
-            const g = new Array<number>(kf).fill(0);
-            H = Array.from({ length: kf }, () => new Array<number>(kf).fill(0));
-            rs.forEach((r, i) => {
-                const x = xs[i];
-                const q = 1 / (1 + Math.exp(-(r.offset + x.reduce((s, v, j) => s + v * beta[j], 0))));
-                for (let j = 0; j < kf; j++) {
-                    g[j] += (r.y - q) * x[j];
-                    for (let l = 0; l < kf; l++) H[j][l] += q * (1 - q) * x[j] * x[l];
-                }
-            });
-            const inv = invert(H);
-            for (let j = 0; j < kf; j++) beta[j] += inv[j].reduce((s, v, l) => s + v * g[l], 0);
-        }
-        const inv = invert(H);
-        return beta.map((b, j) => `${b.toFixed(2)} ± ${Math.sqrt(inv[j][j]).toFixed(2)}`);
-    };
-    const invert = (m: number[][]) => {
-        if (m.length === 1) return [[1 / m[0][0]]];
-        const det = m[0][0] * m[1][1] - m[0][1] * m[1][0];
-        return [[m[1][1] / det, -m[0][1] / det], [-m[1][0] / det, m[0][0] / det]];
+        const { beta, se } = fitOffsetLogit(rs, xs);
+        return beta.map((b, j) => `${b.toFixed(2)} ± ${se[j].toFixed(2)}`);
     };
     const fit = (rs: Row[]) => `${fitN(rs, rs.map((r) => r.x))[0]}  (n=${rs.length})`;
     console.log(`\nTrain series logloss ${score(elo(train)).logLoss.toFixed(5)}, gate ${eloGate.logLoss.toFixed(5)}`);
@@ -653,6 +643,406 @@ function adjustmentExperiment(key: "luckWeight" | "skillWeight"): void {
         console.log(`  ${labelOf.get(w)}  mse=${mean(errors.map((e) => e.se)).toFixed(4)}  gain ${g.toFixed(4)} (${((100 * g) / baseMse).toFixed(2)}%), ` +
             `90% CI (${mLo.toFixed(4)}, ${mHi.toFixed(4)})`);
     }
+}
+
+/** Logistic regression with offset logit(p) and no intercept, by Newton steps on a 1- or 2-feature design. */
+function fitOffsetLogit(rs: Array<{ offset: number; y: 0 | 1 }>, xs: number[][]): { beta: number[]; se: number[] } {
+    const invert = (m: number[][]) => {
+        const n = m.length;
+        const a = m.map((row, i) => [...row, ...row.map((_, j) => (i === j ? 1 : 0))]);
+        for (let c = 0; c < n; c++) {
+            const pivot = a.slice(c).reduce((best, row, i) => (Math.abs(row[c]) > Math.abs(a[best][c]) ? c + i : best), c);
+            [a[c], a[pivot]] = [a[pivot], a[c]];
+            const d = a[c][c];
+            a[c] = a[c].map((v) => v / d);
+            for (let r = 0; r < n; r++) if (r !== c) a[r] = a[r].map((v, j) => v - a[r][c] * a[c][j]);
+        }
+        return a.map((row) => row.slice(n));
+    };
+    const kf = xs[0]?.length ?? 0;
+    const beta = new Array<number>(kf).fill(0);
+    let H: number[][] = [];
+    for (let iter = 0; iter < 25; iter++) {
+        const g = new Array<number>(kf).fill(0);
+        H = Array.from({ length: kf }, () => new Array<number>(kf).fill(0));
+        rs.forEach((r, i) => {
+            const x = xs[i];
+            const q = 1 / (1 + Math.exp(-(r.offset + x.reduce((s, v, j) => s + v * beta[j], 0))));
+            for (let j = 0; j < kf; j++) {
+                g[j] += (r.y - q) * x[j];
+                for (let l = 0; l < kf; l++) H[j][l] += q * (1 - q) * x[j] * x[l];
+            }
+        });
+        const inv = invert(H);
+        for (let j = 0; j < kf; j++) beta[j] += inv[j].reduce((s, v, l) => s + v * g[l], 0);
+    }
+    const inv = invert(H);
+    return { beta, se: beta.map((_, j) => Math.sqrt(inv[j][j])) };
+}
+
+// `--region-residual`: on cross-region maps, does one Valve region beat its ratings against another (a closed-pool
+// level error), and are favourites overconfident when a side's last cross-region series is old?
+function regionResidual(): void {
+    const NAMES = ["Europe", "Americas", "Asia"];
+    const toPoints = (logitUnits: number) => (logitUnits * params.scale) / Math.LN10;
+    const cross = predictions.filter((p) => p.crossRegion && p.regions[0] !== null && p.regions[1] !== null);
+    const periods: Array<[string, (p: SeriesPrediction) => boolean]> = [
+        ["2024", (p) => dayOf(p.t).startsWith("2024")],
+        ["2025", (p) => dayOf(p.t).startsWith("2025")],
+        ["2024–25", (p) => dayOf(p.t) >= "2024-01-01" && dayOf(p.t) <= "2025-12-31"],
+        ["2026", (p) => dayOf(p.t).startsWith("2026")],
+    ];
+    const pointsFit = (rows: Array<{ offset: number; y: 0 | 1; x: number }>) => {
+        if (rows.length < 30) return `n=${rows.length}`.padStart(24);
+        const { beta, se } = fitOffsetLogit(rows, rows.map((r) => [r.x]));
+        const v = toPoints(beta[0]);
+        return `${(v >= 0 ? "+" : "") + v.toFixed(1)} ± ${toPoints(se[0]).toFixed(1)} (n=${rows.length})`.padStart(24);
+    };
+
+    console.log(`\nRegion residual on cross-region maps (Elo points for the first region; offset logit(p))`);
+    console.log(`  ${"pair".padEnd(20)}${periods.map(([l]) => l.padStart(24)).join("")}`);
+    for (const [r1, r2] of [[0, 1], [0, 2], [1, 2]]) {
+        const cells = periods.map(([, inPeriod]) =>
+            pointsFit(
+                cross
+                    .filter((s) => inPeriod(s) && s.regions.includes(r1) && s.regions.includes(r2))
+                    .flatMap((s) => s.maps.map((m) => ({ offset: logit(clip(m.p)), y: m.y, x: s.regions[0] === r1 ? 1 : -1 })))
+            )
+        );
+        console.log(`  ${`${NAMES[r1]} v ${NAMES[r2]}`.padEnd(20)}${cells.join("")}`);
+    }
+    for (let r = 0; r < 3; r++) {
+        const cells = periods.map(([, inPeriod]) =>
+            pointsFit(
+                cross
+                    .filter((s) => inPeriod(s) && s.regions.includes(r))
+                    .flatMap((s) => s.maps.map((m) => ({ offset: logit(clip(m.p)), y: m.y, x: s.regions[0] === r ? 1 : -1 })))
+            )
+        );
+        console.log(`  ${`${NAMES[r]} v rest`.padEnd(20)}${cells.join("")}`);
+    }
+
+    const BUCKETS: Array<[string, (d: number) => boolean]> = [
+        ["≤ 30 days", (d) => d <= 30],
+        ["30–90 days", (d) => d > 30 && d <= 90],
+        ["90–180 days", (d) => d > 90 && d <= 180],
+        ["> 180 days or never", (d) => d > 180],
+    ];
+    const staleness = (s: SeriesPrediction) => Math.max(...s.crossGapDays.map((d) => d ?? Infinity));
+    console.log(`\nCross-region calibration by the staler side's days since its last cross-region series (slope < 1 is overconfident)`);
+    for (const [label, inPeriod] of periods) {
+        for (const [bucket, inBucket] of BUCKETS) {
+            const slice = cross.filter((s) => inPeriod(s) && inBucket(staleness(s)));
+            if (slice.length < 30) continue;
+            diag(`${label} ${bucket} series`, elo(slice));
+            diag(`${label} ${bucket} maps`, maps(slice));
+        }
+    }
+
+    console.log(`\nStale side (last cross-region > 90 days or never) against a fresh one (≤ 30 days), Elo points for the stale side`);
+    const staleRows = (inPeriod: (p: SeriesPrediction) => boolean) =>
+        cross.filter(inPeriod).flatMap((s) => {
+            const [ga, gb] = s.crossGapDays.map((d) => d ?? Infinity);
+            const stale = ga > 90 && gb <= 30 ? 1 : gb > 90 && ga <= 30 ? -1 : 0;
+            return stale === 0 ? [] : s.maps.map((m) => ({ offset: logit(clip(m.p)), y: m.y, x: stale }));
+        });
+    for (const [label, inPeriod] of periods) console.log(`  ${label.padEnd(20)}${pointsFit(staleRows(inPeriod))}`);
+
+    // Where does Asia's residual live? Splits that separate a pool-level rating error from travel or isolation.
+    const rawDir = path.resolve("data/raw");
+    const tournamentFiles = [
+        ...fs.readdirSync(path.join(rawDir, "archive")).filter((f) => f.startsWith("tournaments-")).map((f) => path.join(rawDir, "archive", f)),
+        path.join(rawDir, "tournaments.json"),
+    ];
+    const eventRegion = new Map<string, number | null>();
+    for (const file of tournamentFiles) {
+        for (const row of JSON.parse(fs.readFileSync(file, "utf8")) as Array<{ pagename: string; locations?: Record<string, string> }>) {
+            eventRegion.set(row.pagename, countryRegion(row.locations?.country1 ?? ""));
+        }
+    }
+    const eventOfSeries = new Map(feed.matches.map((m) => [m.id, m.event]));
+    const OCEANIA = new Set(["au", "nz"]);
+    const isOceania = (lineup: string[]) =>
+        lineup.filter((p) => OCEANIA.has((feed.players[p]?.country ?? "").toLowerCase())).length >= 3;
+
+    // Share of each lineage's maps in the trailing 180 days against its own region, before each series.
+    const insularity = new Map<string, [number | null, number | null]>();
+    const history = new Map<number, Array<{ t: number; maps: number; same: boolean }>>();
+    for (const s of predictions) {
+        const shares = s.lineages.map((id) => {
+            const h = (history.get(id) ?? []).filter((e) => e.t >= s.t - 180 * 86400);
+            history.set(id, h);
+            const total = h.reduce((n, e) => n + e.maps, 0);
+            return total < 10 ? null : h.reduce((n, e) => n + (e.same ? e.maps : 0), 0) / total;
+        }) as [number | null, number | null];
+        insularity.set(s.id, shares);
+        const same = s.regions[0] !== null && s.regions[0] === s.regions[1];
+        s.lineages.forEach((id) => history.get(id)?.push({ t: s.t, maps: s.maps.length, same }) ?? history.set(id, [{ t: s.t, maps: s.maps.length, same }]));
+    }
+
+    const asiaSide = (s: SeriesPrediction) => (s.regions[0] === 2 ? 0 : s.regions[1] === 2 ? 1 : -1);
+    // Splits only see series already filtered to `asiaSide(s) >= 0`.
+    const asiaIndex = (s: SeriesPrediction) => asiaSide(s) as 0 | 1;
+    const asiaRows = (slice: SeriesPrediction[]) =>
+        slice.flatMap((s) => {
+            const side = asiaSide(s);
+            return side < 0 ? [] : s.maps.map((m) => ({ offset: logit(clip(m.p)), y: m.y, x: side === 0 ? 1 : -1 }));
+        });
+    const SPLITS: Array<[string, Array<[string, (s: SeriesPrediction) => boolean]>]> = [
+        [
+            "venue",
+            [
+                ["LAN in Asia", (s) => s.lan && eventRegion.get(eventOfSeries.get(s.id)!) === 2],
+                ["LAN abroad", (s) => s.lan && eventRegion.get(eventOfSeries.get(s.id)!) !== undefined && eventRegion.get(eventOfSeries.get(s.id)!) !== 2],
+                ["online", (s) => !s.lan],
+            ],
+        ],
+        [
+            "Asia side",
+            [
+                ["Oceania", (s) => isOceania(s.lineups[asiaIndex(s)])],
+                ["rest of Asia", (s) => !isOceania(s.lineups[asiaIndex(s)])],
+            ],
+        ],
+        [
+            "Asia side's own-region share, 180 days",
+            [
+                ["< 50%", (s) => (insularity.get(s.id)![asiaIndex(s)] ?? -1) >= 0 && insularity.get(s.id)![asiaIndex(s)]! < 0.5],
+                ["50–80%", (s) => (insularity.get(s.id)![asiaIndex(s)] ?? -1) >= 0.5 && insularity.get(s.id)![asiaIndex(s)]! < 0.8],
+                ["≥ 80%", (s) => (insularity.get(s.id)![asiaIndex(s)] ?? -1) >= 0.8],
+                ["< 10 maps", (s) => insularity.get(s.id)![asiaIndex(s)] === null],
+            ],
+        ],
+        [
+            "tier",
+            [
+                ["tier 1", (s) => s.tier === 1],
+                ["tier 2+", (s) => s.tier > 1],
+            ],
+        ],
+        [
+            "Asia side's pre-series rating",
+            [
+                ["≥ 0", (s) => s.ratings[asiaIndex(s)] >= 0],
+                ["< 0", (s) => s.ratings[asiaIndex(s)] < 0],
+            ],
+        ],
+    ];
+    console.log(`\nAsia v rest residual by split (Elo points for the Asia side, maps)`);
+    for (const [title, groups] of SPLITS) {
+        console.log(`  ${title}`);
+        for (const [label, inGroup] of groups) {
+            const cells = periods.map(([, inPeriod]) => pointsFit(asiaRows(cross.filter((s) => inPeriod(s) && asiaSide(s) >= 0 && inGroup(s)))));
+            console.log(`    ${label.padEnd(18)}${cells.join("")}`);
+        }
+    }
+
+    // Valve's Asia includes Oceania, so Oceania v East Asia never counts as cross-region. Split it out (3 = Oceania).
+    const FINE = [...NAMES, "Oceania"];
+    const fineRegion = (s: SeriesPrediction, side: number) => (isOceania(s.lineups[side]) ? 3 : s.regions[side]);
+    console.log(`\nOceania v each region, every series with a known region (Elo points for Oceania, maps)`);
+    for (const r of [0, 1, 2]) {
+        const cells = periods.map(([, inPeriod]) =>
+            pointsFit(
+                predictions
+                    .filter((s) => inPeriod(s) && [0, 1].some((i) => fineRegion(s, i) === 3 && fineRegion(s, 1 - i) === r))
+                    .flatMap((s) => s.maps.map((m) => ({ offset: logit(clip(m.p)), y: m.y, x: fineRegion(s, 0) === 3 ? 1 : -1 })))
+            )
+        );
+        console.log(`  ${`Oceania v ${FINE[r]}`.padEnd(20)}${cells.join("")}`);
+    }
+
+    // Within one region: does a side that has played abroad lately beat its rating against a home-only side?
+    const fineSides = (s: SeriesPrediction) => [fineRegion(s, 0), fineRegion(s, 1)];
+    console.log(`\nSame-region series, travelled side (cross-region series ≤ 90 days ago) v home side (none in 180 days or ever), points for the travelled side, maps`);
+    for (const r of [0, 1, 2, 3]) {
+        const rows = (inPeriod: (p: SeriesPrediction) => boolean) =>
+            predictions
+                .filter((s) => inPeriod(s) && fineSides(s).every((x) => x === r))
+                .flatMap((s) => {
+                    const [ga, gb] = s.crossGapDays.map((d) => d ?? Infinity);
+                    const x = ga <= 90 && gb > 180 ? 1 : gb <= 90 && ga > 180 ? -1 : 0;
+                    return x === 0 ? [] : s.maps.map((m) => ({ offset: logit(clip(m.p)), y: m.y, x }));
+                });
+        console.log(`  ${FINE[r].padEnd(20)}${periods.map(([, inPeriod]) => pointsFit(rows(inPeriod))).join("")}`);
+    }
+
+    console.log(`\nSame-region series calibration by region (slope > 1 is underconfident)`);
+    for (const r of [0, 1, 2, 3]) {
+        for (const [label, inPeriod] of periods) {
+            diag(`${FINE[r]} ${label} series`, elo(predictions.filter((s) => inPeriod(s) && fineSides(s).every((x) => x === r))));
+        }
+    }
+    console.log(`\nSame-region series calibration by region and tier`);
+    for (const r of [0, 1, 2, 3]) {
+        for (const tier of [1, 2, 3, 4]) {
+            for (const [label, inPeriod] of [periods[1], periods[3]]) {
+                const slice = predictions.filter((s) => inPeriod(s) && s.tier === tier && fineSides(s).every((x) => x === r));
+                if (slice.length >= 100) diag(`${FINE[r]} tier ${tier} ${label}`, elo(slice));
+            }
+        }
+    }
+
+    // Seeding too high in a closed pool hands the excess to that pool's incumbents as the newcomer loses it.
+    const engine = new EloEngine(params, feed.players);
+    engine.run(feed.matches);
+    const born = engine.lineages.filter((l) => l.seed !== undefined && l.rating30 !== undefined && l.region !== null);
+    const SEED_GROUPS: Array<[string, (n: number) => boolean]> = [
+        ["all", () => true],
+        ["0 unrated", (n) => n === 0],
+        ["1–4 unrated", (n) => n > 0 && n < 5],
+        ["5 unrated", (n) => n === 5],
+    ];
+    const drift = (ls: typeof born) => {
+        if (ls.length < 10) return `n=${ls.length}`.padStart(26);
+        const d = ls.map((l) => l.rating30! - l.seed!);
+        const mean = d.reduce((s, x) => s + x, 0) / d.length;
+        const se = Math.sqrt(d.reduce((s, x) => s + (x - mean) ** 2, 0) / (d.length - 1) / d.length);
+        return `${(mean >= 0 ? "+" : "") + mean.toFixed(1)} ± ${se.toFixed(1)} (n=${ls.length})`.padStart(26);
+    };
+    const bornIn: Array<[string, (l: (typeof born)[number]) => boolean]> = [
+        ["2024–25", (l) => dayOf(l.firstT) >= "2024-01-01" && dayOf(l.firstT) <= "2025-12-31"],
+        ["2026", (l) => dayOf(l.firstT).startsWith("2026")],
+    ];
+    console.log(`\nNew lineages: rating after 30 maps minus seed (negative means seeded too high), by region and unrated seeds`);
+    for (const [label, inPeriod] of bornIn) {
+        console.log(`  born ${label}`);
+        console.log(`    ${"region".padEnd(10)}${SEED_GROUPS.map(([g]) => g.padStart(26)).join("")}`);
+        for (let r = 0; r < 3; r++) {
+            const ls = born.filter((l) => inPeriod(l) && l.region === r);
+            console.log(`    ${NAMES[r].padEnd(10)}${SEED_GROUPS.map(([, g]) => drift(ls.filter((l) => g(l.seedsFromMean!)))).join("")}`);
+        }
+    }
+
+    // Fixed Asia offset in the simulator: shift cross-region odds by `points` for the Asia side, scored on 2026.
+    const eventOfId = new Map(feed.matches.map((m) => [m.id, m.event]));
+    const shiftP = (q: number, points: number) => 1 / (1 + Math.exp(-(logit(clip(q)) + (points * Math.LN10) / params.scale)));
+    const mapPOf = (s: SeriesPrediction) => {
+        let [lo, hi] = [1e-6, 1 - 1e-6];
+        for (let i = 0; i < 60; i++) {
+            const mid = (lo + hi) / 2;
+            if (seriesWinProbability(mid, s.bestOf, params.seriesMapTemp) < s.p) lo = mid;
+            else hi = mid;
+        }
+        return (lo + hi) / 2;
+    };
+    const shifted = (s: SeriesPrediction, asia: number): SeriesPrediction => {
+        const points = !cross.includes(s) ? 0 : s.regions[0] === 2 ? asia : s.regions[1] === 2 ? -asia : 0;
+        if (points === 0) return s;
+        return {
+            ...s,
+            p: seriesWinProbability(shiftP(mapPOf(s), points), s.bestOf, params.seriesMapTemp),
+            maps: s.maps.map((m) => ({ ...m, p: shiftP(m.p, points) })),
+        };
+    };
+    const asiaCross = (s: SeriesPrediction) => cross.includes(s) && s.regions.includes(2);
+    console.log(`\nFixed Asia offset on cross-region series (fit on 2024–25: −23 points), Elo series log loss`);
+    for (const [label, slice] of [
+        ["2024–25 cross-region", cross.filter(periods[2][1])],
+        ["2026 cross-region", cross.filter(isTest)],
+        ["2026 gate", gateSet],
+        ["2026 gate cross-region", gateSet.filter((s) => cross.includes(s))],
+        ["2026 cross-region, not in gate", cross.filter((s) => isTest(s) && !gateSet.includes(s))],
+        ["2026 tier-1 cross-region", cross.filter((s) => isTest(s) && s.tier === 1)],
+    ] as Array<[string, SeriesPrediction[]]>) {
+        const base = score(elo(slice)).logLoss;
+        const cells = [-10, -23, -35].map((asia) => {
+            const adj = slice.map((s) => shifted(s, asia));
+            const loss = (q: number, y: number) => -Math.log(clip(y ? q : 1 - q));
+            const gains = slice.map((s, i) => loss(s.p, s.y) - loss(adj[i].p, s.y));
+            const [lo, hi] = clusterCi(gains, slice.map((s) => eventOfId.get(s.id)!));
+            const mean = gains.reduce((a, g) => a + g, 0) / gains.length;
+            return `${asia}: ${score(elo(adj)).logLoss.toFixed(4)} (gain ${mean.toFixed(4)}, 90% CI ${lo.toFixed(4)} to ${hi.toFixed(4)}; slope ${calibrationSlope(elo(adj)).slope.toFixed(3)})`;
+        });
+        console.log(`  ${label} (${slice.length} series, ${slice.filter(asiaCross).length} with Asia): 0: ${base.toFixed(4)} (slope ${calibrationSlope(elo(slice)).slope.toFixed(3)})`);
+        for (const c of cells) console.log(`    ${c}`);
+    }
+}
+
+// `--region-walk` fits region priors on earlier years and scores the next; pass rule in elo-experiments.md (2026-11-19).
+// `--region-walk-fixed` scores the params' own priors instead of fitting them.
+function regionWalk(): void {
+    const OCEANIA = new Set(["au", "nz"]);
+    const fineOf = (lineup: string[], valve: number | null) =>
+        lineup.filter((p) => OCEANIA.has((feed.players[p]?.country ?? "").toLowerCase())).length >= 3 ? 3 : valve;
+    const fine = (s: SeriesPrediction): [number | null, number | null] => [fineOf(s.lineups[0], s.regions[0]), fineOf(s.lineups[1], s.regions[1])];
+    const fineCross = (s: SeriesPrediction) => {
+        const [a, b] = fine(s);
+        return a !== null && b !== null && a !== b;
+    };
+    const toPoints = (beta: number) => (beta * params.scale) / Math.LN10;
+    const yearOf = (s: SeriesPrediction) => dayOf(s.t).slice(0, 4);
+    const eventOfId = new Map(feed.matches.map((m) => [m.id, m.event]));
+    const KEYS = ["regionPriorAmericas", "regionPriorAsia", "regionPriorOceania"] as const;
+    // `--region-walk-keys 3` fits Oceania only (1 Americas, 2 Asia, 3 Oceania).
+    const fitRegions = option("region-walk-keys", "1,2,3").split(",").map(Number);
+    const baseParams: EloParams = { ...params, regionPriorAmericas: 0, regionPriorAsia: 0, regionPriorOceania: 0, oceaniaCross: 0, oceaniaK: 1, oceaniaTemp: 1 };
+    const base = run(baseParams);
+    const baseById = new Map(base.map((s) => [s.id, s]));
+    const loss = (q: number, y: number) => -Math.log(clip(y ? q : 1 - q));
+
+    const folds: Array<[string[], string]> = [
+        [["2024"], "2025"],
+        [["2024", "2025"], "2026"],
+    ];
+    const gains: number[] = [];
+    const clusters: string[] = [];
+    for (const [trainYears, testYear] of folds) {
+        let treated = { ...params };
+        if (!flag("region-walk-fixed")) {
+            const prior = [0, 0, 0];
+            for (let iter = 0; iter < 3; iter++) {
+                treated = { ...params, regionPriorAmericas: prior[0], regionPriorAsia: prior[1], regionPriorOceania: prior[2] };
+                const rows = run(treated).filter((s) => trainYears.includes(yearOf(s)) && fineCross(s));
+                const mapsRows = rows.flatMap((s) => s.maps.map((m) => ({ offset: logit(clip(m.p)), y: m.y, s })));
+                const xs = mapsRows.map(({ s }) => {
+                    const [a, b] = fine(s);
+                    return fitRegions.map((r) => (a === r ? 1 : 0) - (b === r ? 1 : 0));
+                });
+                const { beta } = fitOffsetLogit(mapsRows, xs);
+                beta.forEach((b, j) => (prior[fitRegions[j] - 1] += toPoints(b)));
+            }
+            treated = { ...params, regionPriorAmericas: prior[0], regionPriorAsia: prior[1], regionPriorOceania: prior[2] };
+        }
+        const after = run(treated);
+        const test = after.filter((s) => yearOf(s) === testYear && baseById.has(s.id));
+        const crossTest = test.filter((s) => fineCross(baseById.get(s.id)!));
+        const foldGains = crossTest.map((s) => loss(baseById.get(s.id)!.p, s.y) - loss(s.p, s.y));
+        gains.push(...foldGains);
+        clusters.push(...crossTest.map((s) => eventOfId.get(s.id)!));
+        const mean = (xs: number[]) => xs.reduce((a, x) => a + x, 0) / xs.length;
+        const [lo, hi] = clusterCi(foldGains, crossTest.map((s) => eventOfId.get(s.id)!));
+        const allGain = mean(test.map((s) => loss(baseById.get(s.id)!.p, s.y) - loss(s.p, s.y)));
+        console.log(`\nFit ${trainYears.join("+")} → test ${testYear}: ${KEYS.map((k) => `${k} ${treated[k].toFixed(1)}`).join(", ")}, oceaniaCross ${treated.oceaniaCross}`);
+        console.log(`  Cross-region (Oceania split) series: ${crossTest.length}, log loss ${mean(crossTest.map((s) => loss(baseById.get(s.id)!.p, s.y))).toFixed(4)} → ` +
+            `${mean(crossTest.map((s) => loss(s.p, s.y))).toFixed(4)}, gain ${mean(foldGains).toFixed(4)} (90% CI ${lo.toFixed(4)} to ${hi.toFixed(4)})`);
+        console.log(`  All ${testYear} series: ${test.length}, gain ${allGain.toFixed(4)}`);
+        const oceOce = test.filter((s) => fine(baseById.get(s.id)!).every((r) => r === 3));
+        const oceGains = oceOce.map((s) => loss(baseById.get(s.id)!.p, s.y) - loss(s.p, s.y));
+        const [oLo, oHi] = clusterCi(oceGains, oceOce.map((s) => eventOfId.get(s.id)!));
+        console.log(`  Oceania v Oceania series: ${oceOce.length}, gain ${mean(oceGains).toFixed(4)} (90% CI ${oLo.toFixed(4)} to ${oHi.toFixed(4)})`);
+        const slopeOf = (ss: SeriesPrediction[]) => calibrationSlope(elo(ss));
+        const [b0, b1] = [slopeOf(oceOce.map((s) => baseById.get(s.id)!)), slopeOf(oceOce)];
+        console.log(`  Oceania v Oceania slope ${b0.slope.toFixed(3)} → ${b1.slope.toFixed(3)}, intercept ${b0.intercept.toFixed(3)} → ${b1.intercept.toFixed(3)}`);
+        if (testYear === "2026") {
+            const gateIds = new Set(gateSet.map((s) => s.id));
+            const g = test.filter((s) => gateIds.has(s.id));
+            console.log(`  2026 gate: ${g.length}, log loss ${mean(g.map((s) => loss(baseById.get(s.id)!.p, s.y))).toFixed(4)} → ${mean(g.map((s) => loss(s.p, s.y))).toFixed(4)}`);
+            const oce = (ss: SeriesPrediction[]) => ss.filter((s) => fine(s).includes(3));
+            const gateGain = (keep: (s: SeriesPrediction) => boolean) => {
+                const ss = g.filter((s) => keep(baseById.get(s.id)!));
+                const total = ss.reduce((a, s) => a + loss(baseById.get(s.id)!.p, s.y) - loss(s.p, s.y), 0);
+                return `${ss.length} series, ${(total / g.length).toFixed(4)} of the gate gain`;
+            };
+            console.log(`  Gate gain from: Oceania involved ${gateGain((s) => fine(s).includes(3))}; ` +
+                `other cross-region ${gateGain((s) => !fine(s).includes(3) && fineCross(s))}; ` +
+                `same region ${gateGain((s) => !fine(s).includes(3) && !fineCross(s))}`);
+            console.log(`  2026 Oceania cross-region series: ${oce(crossTest).length}, gain ${mean(oce(crossTest).map((s) => loss(baseById.get(s.id)!.p, s.y) - loss(s.p, s.y))).toFixed(4)}`);
+        }
+    }
+    const [lo, hi] = clusterCi(gains, clusters);
+    const pooled = gains.reduce((a, g) => a + g, 0) / gains.length;
+    console.log(`\nPooled cross-region gain ${pooled.toFixed(4)} on ${gains.length} series (90% CI ${lo.toFixed(4)} to ${hi.toFixed(4)}) → ${lo > 0 ? "PASS" : "FAIL"} (gate check above)`);
 }
 
 function clip(q: number): number {

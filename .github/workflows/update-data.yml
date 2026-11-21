@@ -45,15 +45,22 @@ jobs:
           cache: npm
       - run: npm ci
       # Keeps the Liquipedia store between runs so fetch-liquipedia only refetches recent days.
-      - uses: actions/cache@v4
+      - uses: actions/cache/restore@v4
         with:
           path: data/raw
           key: liquipedia-raw-${{ github.run_id }}
           restore-keys: liquipedia-raw-
       - name: Fetch Liquipedia data
+        id: fetch
         env:
           LIQUIPEDIA_API_KEY: ${{ secrets.LIQUIPEDIA_API_KEY }}
         run: npm run fetch-liquipedia
+      # Saved right after the fetch, so a later failing step can't discard it and force a refetch next run.
+      - uses: actions/cache/save@v4
+        if: always() && steps.fetch.outcome == 'success'
+        with:
+          path: data/raw
+          key: liquipedia-raw-${{ github.run_id }}
       # Read by the local demo pipeline (`cs2demos auto`), which has no Liquipedia store of its own.
       - name: Export recent LAN series for demos
         continue-on-error: true

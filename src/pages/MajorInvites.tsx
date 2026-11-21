@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
 import { useQueryParams } from "../hooks/useQueryParams.ts";
@@ -12,7 +12,7 @@ import { TeamLogo } from "../components/TeamLogo.tsx";
 import { liquipediaUrl } from "../utils/liquipedia.ts";
 import { percent } from "../utils/format.ts";
 import { fetchSimJson } from "../sim/fetch.ts";
-import type { InviteIndexEntry, InviteOdds, InviteOddsRoster } from "../sim/types.ts";
+import type { InviteOdds, InviteOddsRoster } from "../sim/types.ts";
 import type { Region } from "../vrs/types.ts";
 
 const REGIONS: Region[] = ["Europe", "Americas", "Asia"];
@@ -41,7 +41,7 @@ const RankRange = ({ rank }: { rank: InviteOddsRoster["rank"] }) => {
     );
 };
 
-export const MajorInvites = () => {
+export const MajorInvites = ({ slug, switcher }: { slug: string; switcher?: ReactNode }) => {
     const [queryParams, setQueryParams] = useQueryParams();
     const requested = queryParams.get("region") as Region | null;
     const region = requested && REGIONS.includes(requested) ? requested : "Europe";
@@ -58,17 +58,13 @@ export const MajorInvites = () => {
         setQueryParams({ q: q || null });
     };
 
-    const indexQuery = useQuery({ queryKey: ["sim", "invites"], queryFn: () => fetchSimJson<InviteIndexEntry[]>("invites/index.json") });
-    const majors = indexQuery.data ?? [];
-    const major = majors.find((m) => m.slug === queryParams.get("major")) ?? majors[0];
     const oddsQuery = useQuery({
-        queryKey: ["sim", "invites", major?.slug],
-        queryFn: () => fetchSimJson<InviteOdds>(`invites/${major!.slug}.json`),
-        enabled: !!major,
+        queryKey: ["sim", "invites", slug],
+        queryFn: () => fetchSimJson<InviteOdds>(`invites/${slug}.json`),
     });
-    const data = major ? oddsQuery.data : indexQuery.data === undefined ? undefined : null;
-    const isLoading = indexQuery.isLoading || (!!major && oddsQuery.isLoading);
-    const error = indexQuery.error ?? oddsQuery.error;
+    const data = oddsQuery.data;
+    const isLoading = oddsQuery.isLoading;
+    const error = oddsQuery.error;
 
     const regionRosters = useMemo(() => {
         return (data?.rosters ?? []).filter((r) => r.region === region);
@@ -97,9 +93,6 @@ export const MajorInvites = () => {
     }, [regionRosters, query, sort]);
 
     if (isLoading) return <LoadingBar label="Loading invite odds…" />;
-    if (data === null) {
-        return <EmptyState>Major invite odds start once the previous Major's participants are announced.</EmptyState>;
-    }
     if (error || !data) {
         return <EmptyState className="text-down">Error loading invite odds: {error instanceof Error ? error.message : "Unknown error"}</EmptyState>;
     }
@@ -132,14 +125,7 @@ export const MajorInvites = () => {
                             aria-label="Filter rosters by team or player"
                             className="w-44"
                         />
-                        {majors.length > 1 && (
-                            <Segmented
-                                aria-label="Major"
-                                options={majors.map((m) => ({ value: m.slug, label: m.name }))}
-                                value={data.slug}
-                                onChange={(slug) => setQueryParams({ major: slug === majors[0].slug ? null : slug })}
-                            />
-                        )}
+                        {switcher}
                         <Segmented
                             aria-label="Region"
                             options={REGIONS}

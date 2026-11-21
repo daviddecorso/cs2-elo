@@ -52,3 +52,4 @@ __pycache__/
 wp-models.tar
 data/elo/luck-maps.jsonl
 data/elo/player-skill.json
+data/external/

@@ -26,6 +26,36 @@ export interface EloRankings {
     rosters: EloRoster[];
 }
 
+export interface EloGame {
+    /** `YYYY-MM-DD`, UTC. */
+    date: string;
+    /** Liquipedia tournament page. */
+    event: string;
+    tier: number;
+    lan: boolean;
+    bestOf: number;
+    opponent: string;
+    won: boolean;
+    /** Maps won by the team, then by the opponent. */
+    score: [number, number];
+    /** Rounds as [team, opponent]. */
+    maps: Array<{ map: string; rounds: [number, number] }>;
+    /** Both ratings are before the series. */
+    elo: number;
+    oppElo: number;
+    /** Pre-series probability the team wins. */
+    p: number;
+    delta: number;
+}
+
+/** `public/data/elo/games/<teamSlug>.json`, newest first. */
+export interface EloGameLog {
+    generatedAt: string;
+    team: string;
+    from: string;
+    games: EloGame[];
+}
+
 export interface EloScore {
     n: number;
     logLoss: number;

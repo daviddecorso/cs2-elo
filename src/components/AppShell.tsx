@@ -5,7 +5,7 @@ const NAV_ITEMS = [
     { path: "/rankings", label: "Rankings", alsoActive: ["/teams"] },
     { path: "/", label: "VRS", alsoActive: ["/vrs", "/standings"] },
     { path: "/events", label: "Events" },
-    { path: "/major-invites", label: "Major invites" },
+    { path: "/major", label: "Major" },
     { path: "/vrs-sim", label: "Season sim" },
     { path: "/players", label: "Players" },
     { path: "/model", label: "Model" },

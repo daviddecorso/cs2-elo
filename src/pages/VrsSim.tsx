@@ -895,7 +895,7 @@ export const VrsSim = () => {
                     )}{" "}
                     Schedules also offer LANs with an assumed format and invite, marked as such. This page shows what-ifs from announced and assumed
                     fields. The{" "}
-                    <Link to="/major-invites" className="text-accent hover:underline">
+                    <Link to="/major" className="text-accent hover:underline">
                         Major invite odds
                     </Link>{" "}
                     use announced events only.

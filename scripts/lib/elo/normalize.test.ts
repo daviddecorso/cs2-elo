@@ -55,4 +55,13 @@ describe("normalizeMatches", () => {
         const { matches } = normalizeMatches([raw({ winner: "0" }), raw({ game: "csgo", match2id: "x" }), raw({ match2id: "y" }), raw({ match2id: "y" })], []);
         expect(matches.map((m) => m.id)).toEqual(["Event/2026:y"]);
     });
+
+    it("reads CS:GO rows only when asked, tagged and with MR15 regulation", () => {
+        const csgo = raw({ game: "csgo", match2games: [{ map: "Inferno", scores: [16, 14] }, { map: "Nuke", scores: [13, 9] }] });
+        const { matches } = normalizeMatches([csgo, raw({ match2id: "cs2" })], [], "csgo");
+        expect(matches).toHaveLength(1);
+        expect(matches[0].game).toBe("csgo");
+        expect(matches[0].maps).toEqual([{ map: "Inferno", rounds: [16, 14] }]);
+        expect("game" in normalizeMatches([raw()], []).matches[0]).toBe(false);
+    });
 });

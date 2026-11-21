@@ -59,9 +59,72 @@ export interface EventOdds {
     teams: EventOddsTeam[];
     /** Missing from files written before the bracket view. */
     bracket?: StageBracket[];
+    /** Majors only. */
+    pickem?: PickemData;
 }
 
-export type EventIndexEntry = Pick<EventOdds, "slug" | "name" | "startDate" | "endDate">;
+export interface PlayedSeries {
+    /** Swiss round from Liquipedia's match section; null when unknown. */
+    round: number | null;
+    teams: [string, string];
+    winner: 0 | 1;
+}
+
+export interface PickemBracketMatch {
+    id: string;
+    /** Seed (`s1`, 1-based) or an earlier match's winner or loser (`w:<id>`, `l:<id>`). */
+    teams: [string, string];
+    bestOf?: number;
+}
+
+export type PickemStage =
+    | {
+          id: string;
+          name: string;
+          format: "swiss";
+          /** Invited teams in seed order; the `from` stage's advancers are seeded after them. */
+          seeds: string[];
+          from?: string;
+          bestOf: { default: number; decider?: number };
+          played: PlayedSeries[];
+      }
+    | {
+          id: string;
+          name: string;
+          format: "bracket";
+          seeds: string[];
+          from?: string;
+          matches: PickemBracketMatch[];
+          bestOf: { default: number; final?: number };
+          played: PlayedSeries[];
+      };
+
+export interface PickemSet {
+    threeZero: string[];
+    advance: string[];
+    zeroThree: string[];
+}
+
+/** A Swiss stage's model Pick'em, frozen once the stage has a played result. */
+export interface PickemModel {
+    /** Ratings date the model was computed with. */
+    asOf: string;
+    seeds: string[];
+    picks: PickemSet;
+    n: number;
+    /** Held-out pre-stage simulations: base64, 2 bits per seed per simulation (see `PickemBucket`). */
+    sample: string;
+}
+
+export interface PickemData {
+    stages: PickemStage[];
+    /** `bo1[i][j]`: P(`teams[i]` beats `teams[j]`) from today's Elo, without the simulator's rating drift. */
+    odds: { teams: string[]; bo1: number[][]; bo3: number[][]; bo5: number[][] };
+    /** Swiss stage id → model, for stages whose seeds are known. */
+    model?: Record<string, PickemModel>;
+}
+
+export type EventIndexEntry = Pick<EventOdds, "slug" | "name" | "startDate" | "endDate"> & { major?: boolean };
 
 export interface InviteOddsRoster {
     rosterKey: string;

@@ -24,6 +24,8 @@ export interface EloMatch {
     winner: 0 | 1;
     forfeit: boolean;
     maps: EloMap[];
+    /** Set only for CS:GO series (MR15); absent means CS2. */
+    game?: "csgo";
 }
 
 /** Player page name → display nick and ISO2 country ("" if unknown). */

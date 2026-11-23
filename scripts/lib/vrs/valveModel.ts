@@ -215,7 +215,45 @@ interface SnapshotEvent {
     eventId: string | number;
     finished?: boolean;
     endDate?: string;
+    prizeDistribution?: { qualifiedEvents?: (string | number)[] }[];
 }
+
+/** Valve's loader follows the last non-empty `qualifiedEvents` of an event; `String` matches how it indexes events by that array. */
+const qualifierTarget = (ev: SnapshotEvent): string | null => {
+    const linked = (ev.prizeDistribution ?? []).filter((p) => (p.qualifiedEvents?.length ?? 0) > 0);
+    return linked.length ? String(linked[linked.length - 1].qualifiedEvents) : null;
+};
+
+const warnedLoops = new Set<string>();
+
+/** Valve's loader recurses through finished qualifier targets with no visited check, so a loop would overflow the stack. */
+export const breakQualifierLoops = <T extends SnapshotEvent>(events: T[]): T[] => {
+    const byId = new Map(events.map((ev) => [String(ev.eventId), ev]));
+    const cut = new Set<string>();
+    const next = (id: string): string | null => {
+        if (cut.has(id)) return null;
+        const target = qualifierTarget(byId.get(id)!);
+        return target !== null && byId.get(target)?.finished ? target : null;
+    };
+    for (const start of byId.keys()) {
+        const seen = new Set([start]);
+        for (let id = start, to = next(id); to !== null; id = to, to = next(id)) {
+            if (!seen.has(to)) {
+                seen.add(to);
+                continue;
+            }
+            cut.add(id);
+            const loop = `${[...seen].join(" -> ")} -> ${to}`;
+            if (!warnedLoops.has(loop)) console.warn(`Qualifier links loop (${loop}); dropping the link from ${id}.`);
+            warnedLoops.add(loop);
+            break;
+        }
+    }
+    if (cut.size === 0) return events;
+    return events.map((ev) =>
+        cut.has(String(ev.eventId)) ? { ...ev, prizeDistribution: ev.prizeDistribution?.map((p) => ({ ...p, qualifiedEvents: [] })) } : ev
+    );
+};
 
 /** Valve treats an event as unfinished while its pull holds later matches or it ends after the snapshot. */
 export const finishedAtSnapshot = (ev: SnapshotEvent, snapshotDate: string, eventsWithLaterMatches: Set<string>): boolean =>
@@ -237,10 +275,12 @@ const prepareSnapshotInput = (
     const eventsWithLaterMatches = new Set(
         matches.filter((m) => m.matchStartTime > pullTime).map((m) => String(m.eventId))
     );
-    const events = (eventData as SnapshotEvent[]).map((ev) => {
-        const finished = finishedAtSnapshot(ev, snapshotDate, eventsWithLaterMatches);
-        return finished === ev.finished ? ev : { ...ev, finished };
-    });
+    const events = breakQualifierLoops(
+        (eventData as SnapshotEvent[]).map((ev) => {
+            const finished = finishedAtSnapshot(ev, snapshotDate, eventsWithLaterMatches);
+            return finished === ev.finished ? ev : { ...ev, finished };
+        })
+    );
 
     return {
         json: JSON.stringify({

@@ -2,6 +2,7 @@ import path from "node:path";
 import type { Standings } from "../../../src/vrs/types.ts";
 import type { ValveEvent, ValveMatch, ValvePlayer } from "./buildMatchdata.ts";
 import {
+    breakQualifierLoops,
     finishedAtSnapshot,
     getSnapshotWindow,
     getSubmoduleCommits,
@@ -302,10 +303,13 @@ const assemble = (world: ValveWorld, delta: WorldDelta) => {
 
     const events: Record<string, VEvent> = {};
     const rawEvents = replaced.size ? [...world.rawEvents.filter((e) => !replaced.has(String(e.eventId))), ...deltaEvents] : world.rawEvents;
-    for (const ev of rawEvents) {
-        const finished = finishedAtSnapshot(ev, world.snapshotDate, later);
-        events[ev.eventId] = new v.Event(finished === ev.finished ? ev : { ...ev, finished });
-    }
+    const snapshotEvents = breakQualifierLoops(
+        rawEvents.map((ev) => {
+            const finished = finishedAtSnapshot(ev, world.snapshotDate, later);
+            return finished === ev.finished ? ev : { ...ev, finished };
+        })
+    );
+    for (const ev of snapshotEvents) events[ev.eventId] = new v.Event(ev);
     linkPrizePools(events);
 
     const added = filterInput(

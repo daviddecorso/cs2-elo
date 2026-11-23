@@ -1,7 +1,26 @@
 import fs from "node:fs";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
-import { computeStandings, getSnapshotWindow } from "./valveModel.ts";
+import { breakQualifierLoops, computeStandings, getSnapshotWindow } from "./valveModel.ts";
+
+describe("breakQualifierLoops", () => {
+    const ev = (eventId: string, to: string[], finished = true) => ({ eventId, finished, prizeDistribution: [{ qualifiedEvents: to }] });
+
+    it("returns loop-free input unchanged", () => {
+        const events = [ev("a", ["b"]), ev("b", ["c"]), ev("c", [])];
+        expect(breakQualifierLoops(events)).toBe(events);
+    });
+
+    it("cuts one link per loop, including self-links", () => {
+        const out = breakQualifierLoops([ev("a", ["b"]), ev("b", ["a"]), ev("c", ["c"])]);
+        expect(out.filter((e) => e.prizeDistribution[0].qualifiedEvents.length > 0).map((e) => e.eventId)).toEqual(["a"]);
+    });
+
+    it("leaves loops through unfinished events alone, since Valve doesn't follow them", () => {
+        const events = [ev("a", ["b"]), ev("b", ["a"], false)];
+        expect(breakQualifierLoops(events)).toBe(events);
+    });
+});
 
 describe("valveModel", () => {
     const fixturePath = path.resolve(process.cwd(), "fixtures/matchdata.synthetic.json");

@@ -126,10 +126,14 @@ describe("resolveParticipants", () => {
         expect(out.unresolved).toEqual(["Stage 1: Valve snapshot 2026-11-02 not published locally"]);
     });
 
-    const matchesFile = path.resolve("data/raw/matches.json");
-    it.skipIf(!fs.existsSync(matchesFile))("reproduces IEM Beijing 2026's hand-keyed groups from its draw", () => {
+    it("reproduces IEM Beijing 2026's hand-keyed groups from its draw", () => {
         const beijing = JSON.parse(fs.readFileSync(path.resolve("data/events/iem-beijing-2026.json"), "utf8")) as EventConfig;
-        const matchRows = JSON.parse(fs.readFileSync(matchesFile, "utf8")) as RawRow[];
+        const draw = (section: string, pairs: [string, string][]) =>
+            pairs.map(([a, b], i) => match(`R01-M00${i + 1}`, a, b, beijing.liquipedia, section));
+        const matchRows = [
+            ...draw("Group A", [["Legacy", "The MongolZ"], ["HEROIC", "B8"], ["FURIA", "FaZe Clan"], ["Natus Vincere", "Team Falcons"], ["Legacy", "B8"], ["FaZe Clan", "Team Falcons"]]),
+            ...draw("Group B", [["MOUZ", "TYLOO"], ["9z Team", "BetBoom Team"], ["Aurora Gaming", "Team Liquid"], ["PARIVISION", "G2 Esports"], ["TYLOO", "9z Team"], ["Aurora Gaming", "G2 Esports"]]),
+        ];
         const blank = { ...beijing, stages: beijing.stages.map((s) => (s.invited ? { ...s, invited: [] } : s)) };
         const out = resolveParticipants(blank, { matchRows, placementRows: [], invites: [], snapshot: () => null });
         expect(out.unresolved).toEqual([]);

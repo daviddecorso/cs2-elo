@@ -1,7 +1,7 @@
 {
   "33": {
     "slug": "33",
-    "hasDark": false
+    "hasDark": true
   },
   "100 thieves": {
     "slug": "100-thieves",
@@ -191,6 +191,10 @@
     "slug": "astralis",
     "hasDark": false
   },
+  "ASTRON": {
+    "slug": "astron",
+    "hasDark": true
+  },
   "Ataks": {
     "slug": "ataks",
     "hasDark": true
@@ -329,7 +333,7 @@
   },
   "BET-M": {
     "slug": "33",
-    "hasDark": false
+    "hasDark": true
   },
   "BETBOOM": {
     "slug": "betboom-team",
@@ -594,6 +598,10 @@
   "Diamant Esports": {
     "slug": "diamant-esports",
     "hasDark": false
+  },
+  "DimoniX Esports": {
+    "slug": "dimonix-esports",
+    "hasDark": true
   },
   "DNK": {
     "slug": "dnk",
@@ -1407,6 +1415,10 @@
     "slug": "k27",
     "hasDark": false
   },
+  "K27 Female": {
+    "slug": "k27-female",
+    "hasDark": false
+  },
   "Kaleido": {
     "slug": "kaleido-gaming",
     "hasDark": false
@@ -1775,6 +1787,10 @@
     "slug": "mouz-nxt",
     "hasDark": false
   },
+  "mYinsanity": {
+    "slug": "myinsanity",
+    "hasDark": false
+  },
   "Nas": {
     "slug": "not-a-squad-esports",
     "hasDark": false
@@ -1928,8 +1944,8 @@
     "hasDark": true
   },
   "NuTorious": {
-    "slug": "f5-esports",
-    "hasDark": false
+    "slug": "nutorious",
+    "hasDark": true
   },
   "Oasis Gaming": {
     "slug": "oasis-gaming",
@@ -2379,6 +2395,14 @@
     "slug": "sekinlo",
     "hasDark": true
   },
+  "SemperFi": {
+    "slug": "semperfi-esports",
+    "hasDark": false
+  },
+  "SemperFi Esports": {
+    "slug": "semperfi-esports",
+    "hasDark": false
+  },
   "Shimmer": {
     "slug": "shimmer",
     "hasDark": false
@@ -2483,6 +2507,10 @@
     "slug": "sportsbetexpert",
     "hasDark": false
   },
+  "spray'n'pray": {
+    "slug": "spray-n-pray",
+    "hasDark": false
+  },
   "Stallions": {
     "slug": "stallions",
     "hasDark": false
@@ -2515,6 +2543,10 @@
     "slug": "team-strogo",
     "hasDark": true
   },
+  "Swole Patrol": {
+    "slug": "swole-patrol",
+    "hasDark": false
+  },
   "T.Beast": {
     "slug": "t-beast",
     "hasDark": false
@@ -2541,7 +2573,7 @@
   },
   "Team 33": {
     "slug": "33",
-    "hasDark": false
+    "hasDark": true
   },
   "Team 3DMAX": {
     "slug": "envy",
@@ -2719,6 +2751,10 @@
     "slug": "astralis",
     "hasDark": false
   },
+  "Team ASTRON": {
+    "slug": "astron",
+    "hasDark": true
+  },
   "Team Ataks": {
     "slug": "ataks",
     "hasDark": true
@@ -2857,7 +2893,7 @@
   },
   "Team BET-M": {
     "slug": "33",
-    "hasDark": false
+    "hasDark": true
   },
   "Team BETBOOM": {
     "slug": "betboom-team",
@@ -3122,6 +3158,10 @@
   "Team Diamant Esports": {
     "slug": "diamant-esports",
     "hasDark": false
+  },
+  "Team DimoniX Esports": {
+    "slug": "dimonix-esports",
+    "hasDark": true
   },
   "Team DNK": {
     "slug": "dnk",
@@ -3939,6 +3979,10 @@
     "slug": "k27",
     "hasDark": false
   },
+  "Team K27 Female": {
+    "slug": "k27-female",
+    "hasDark": false
+  },
   "Team Kaleido": {
     "slug": "kaleido-gaming",
     "hasDark": false
@@ -4315,6 +4359,10 @@
     "slug": "mouz-nxt",
     "hasDark": false
   },
+  "Team mYinsanity": {
+    "slug": "myinsanity",
+    "hasDark": false
+  },
   "Team Nas": {
     "slug": "not-a-squad-esports",
     "hasDark": false
@@ -4472,8 +4520,8 @@
     "hasDark": true
   },
   "Team NuTorious": {
-    "slug": "f5-esports",
-    "hasDark": false
+    "slug": "nutorious",
+    "hasDark": true
   },
   "Team Oasis Gaming": {
     "slug": "oasis-gaming",
@@ -4923,6 +4971,14 @@
     "slug": "sekinlo",
     "hasDark": true
   },
+  "Team SemperFi": {
+    "slug": "semperfi-esports",
+    "hasDark": false
+  },
+  "Team SemperFi Esports": {
+    "slug": "semperfi-esports",
+    "hasDark": false
+  },
   "Team Shimmer": {
     "slug": "shimmer",
     "hasDark": false
@@ -5039,6 +5095,10 @@
     "slug": "sportsbetexpert",
     "hasDark": false
   },
+  "Team spray'n'pray": {
+    "slug": "spray-n-pray",
+    "hasDark": false
+  },
   "Team Stallions": {
     "slug": "stallions",
     "hasDark": false
@@ -5070,6 +5130,10 @@
   "Team StRoGo Team": {
     "slug": "team-strogo",
     "hasDark": true
+  },
+  "Team Swole Patrol": {
+    "slug": "swole-patrol",
+    "hasDark": false
   },
   "Team T.Beast": {
     "slug": "t-beast",
@@ -5239,6 +5303,14 @@
     "slug": "ttg-esports",
     "hasDark": true
   },
+  "Team TulpaR": {
+    "slug": "tulpar-kazakh-team",
+    "hasDark": false
+  },
+  "Team TulpaR (Kazakh team)": {
+    "slug": "tulpar-kazakh-team",
+    "hasDark": false
+  },
   "Team turma do pagode": {
     "slug": "turma-do-pagode",
     "hasDark": false
@@ -5343,6 +5415,10 @@
     "slug": "team-voca",
     "hasDark": true
   },
+  "Team VoFoxen Esport": {
+    "slug": "vofoxen-esport",
+    "hasDark": false
+  },
   "Team VP.Future": {
     "slug": "vp-future",
     "hasDark": false
@@ -5365,6 +5441,10 @@
   },
   "Team Wanted Goons": {
     "slug": "wanted-goons",
+    "hasDark": true
+  },
+  "Team Wanted Goons Outlaws": {
+    "slug": "wanted-goons-outlaws",
     "hasDark": true
   },
   "Team wazabi": {
@@ -5481,6 +5561,10 @@
   },
   "Team XI Esport": {
     "slug": "xi-esport",
+    "hasDark": true
+  },
+  "Team XMETA": {
+    "slug": "xmeta",
     "hasDark": true
   },
   "Team Y27": {
@@ -5643,6 +5727,14 @@
     "slug": "ttg-esports",
     "hasDark": true
   },
+  "TulpaR": {
+    "slug": "tulpar-kazakh-team",
+    "hasDark": false
+  },
+  "TulpaR (Kazakh team)": {
+    "slug": "tulpar-kazakh-team",
+    "hasDark": false
+  },
   "turma do pagode": {
     "slug": "turma-do-pagode",
     "hasDark": false
@@ -5739,6 +5831,10 @@
     "slug": "team-voca",
     "hasDark": true
   },
+  "VoFoxen Esport": {
+    "slug": "vofoxen-esport",
+    "hasDark": false
+  },
   "VP.Future": {
     "slug": "vp-future",
     "hasDark": false
@@ -5761,6 +5857,10 @@
   },
   "Wanted Goons": {
     "slug": "wanted-goons",
+    "hasDark": true
+  },
+  "Wanted Goons Outlaws": {
+    "slug": "wanted-goons-outlaws",
     "hasDark": true
   },
   "wazabi": {
@@ -5869,6 +5969,10 @@
   },
   "XI Esport": {
     "slug": "xi-esport",
+    "hasDark": true
+  },
+  "XMETA": {
+    "slug": "xmeta",
     "hasDark": true
   },
   "Y27": {

@@ -5,11 +5,16 @@ on:
     branches: [main]
   pull_request:
 
+permissions:
+  contents: read
+
 jobs:
   check:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
       - name: Check out submodule with full history
         run: |
           git submodule update --init vendor/counter-strike_regional_standings
@@ -32,6 +37,8 @@ jobs:
         working-directory: demos
     steps:
       - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
       - uses: astral-sh/setup-uv@v6
       - run: uv sync --locked
       - run: uv run pytest

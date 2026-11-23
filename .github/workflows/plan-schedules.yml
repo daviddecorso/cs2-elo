@@ -4,8 +4,8 @@ on:
   workflow_dispatch:
     inputs:
       max:
-        description: Teams to plan
-        default: "8"
+        description: Most teams to plan (empty for every team on the invite bubble)
+        default: ""
       budget:
         description: Minutes to spend planning
         default: "240"
@@ -20,8 +20,11 @@ concurrency: plan-schedules
 jobs:
   plan:
     if: github.ref == 'refs/heads/main' || github.event_name == 'workflow_dispatch'
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, self-runner]
     timeout-minutes: 300
+    env:
+      # V8 caps the heap at about a quarter of RAM by default (under 1 GB on the 3.5 GB runner VM); the setup needs about 2 GB.
+      NODE_OPTIONS: --max-old-space-size=3072
     steps:
       - uses: actions/checkout@v4
       - run: git submodule update --init vendor/counter-strike_regional_standings vendor/counter-strike_rules_and_regs
@@ -40,7 +43,10 @@ jobs:
       - name: Build matchdata
         run: npm run build-matchdata -- --date $(date -u +%Y-%m-%d)
       - name: Plan teams on the invite bubble
-        run: npm run plan-batch -- --max ${{ inputs.max || '8' }} --budget-minutes ${{ inputs.budget || '240' }}
+        env:
+          MAX: ${{ inputs.max }}
+          BUDGET: ${{ inputs.budget || '240' }}
+        run: npm run plan-batch -- ${MAX:+--max "$MAX"} --budget-minutes "$BUDGET"
       - run: npm run test:run
       - name: Commit plans
         run: |

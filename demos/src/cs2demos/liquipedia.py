@@ -157,11 +157,17 @@ def load_event(event: str, raw_dir: Path = LP_RAW, lan_series: Path = LAN_SERIES
     return _collect(lambda r: r.get("pagename") == event or r.get("parent") == event, raw_dir, lan_series, links, event)
 
 
+# Showmatches Liquipedia omits `liquipediatiertype: "Showmatch"` on.
+EXCLUDED_EVENTS = frozenset({"Match_of_LeGGends/Double_Down"})
+
+
 def is_tier1_lan(row: dict, since: str = LAN_SINCE) -> bool:
     return (
         row.get("game") == "cs2"
         and str(row.get("liquipediatier", "")) == "1"
+        and row.get("liquipediatiertype") != "Showmatch"
         and row.get("type") == "Offline"
+        and event_of(row) not in EXCLUDED_EVENTS
         and str(row.get("date", "")) >= since
     )
 

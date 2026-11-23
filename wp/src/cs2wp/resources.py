@@ -91,9 +91,10 @@ def thrower_smokes(grenades: pl.DataFrame, ticks: pl.DataFrame) -> pl.DataFrame:
 
 
 def thrower_grenades(grenades: pl.DataFrame, ticks: pl.DataFrame,
-                     types: tuple[str, ...] = tuple(GRENADE_COUNT)) -> pl.DataFrame:
+                     types: tuple[str, ...] = tuple(GRENADE_COUNT),
+                     with_origin: bool = False) -> pl.DataFrame:
     """One row per grenade of `types`: round_num, type, thrower, side, pop_tick and where it ended (x, y, and z when
-    the grenades table has it).
+    the grenades table has it). With `with_origin=True`, also includes the first trajectory point (x0, y0, z0, t0).
 
     The parser leaves `thrower_steamid` empty, so the thrower is the player whose count of that grenade drops across
     the trajectory's first tick and who stood within THROWER_RADIUS of its first point. Unmatched grenades have a
@@ -103,7 +104,8 @@ def thrower_grenades(grenades: pl.DataFrame, ticks: pl.DataFrame,
     traj = (grenades.filter(pl.col("type").is_in(list(types))).sort("tick")
             .group_by("round_num", "entity_id", "entity_serial")
             .agg(pl.col("type").first(), pl.col("tick").first().alias("t0"), pl.col("x").first().alias("x0"),
-                 pl.col("y").first().alias("y0"), pl.col("tick").last().alias("pop_tick"), pl.col("x").last().alias("x"),
+                 pl.col("y").first().alias("y0"), *([pl.col("z").first().alias("z0")] if has_z else []),
+                 pl.col("tick").last().alias("pop_tick"), pl.col("x").last().alias("x"),
                  pl.col("y").last().alias("y"), *([pl.col("z").last().alias("z")] if has_z else []))
             .sort("round_num", "pop_tick", "entity_id", "entity_serial")
             .with_row_index("grenade")
@@ -131,8 +133,10 @@ def thrower_grenades(grenades: pl.DataFrame, ticks: pl.DataFrame,
     found = (pairs.filter((count() > count("_after")) & (dist <= THROWER_RADIUS))
              .with_columns(dist.alias("_d")).sort("_d")
              .group_by("grenade").agg(pl.col("steamid").first().alias("thrower"), pl.col("side").first()))
+    origin_cols = ["x0", "y0", *(["z0"] if has_z else []), "t0"] if with_origin else []
     return (traj.join(found, on="grenade", how="left")
-            .select("round_num", "type", "thrower", "side", "pop_tick", "x", "y", *(["z"] if has_z else []))
+            .select("round_num", "type", "thrower", "side", "pop_tick", "x", "y", *(["z"] if has_z else []),
+                    *origin_cols)
             .sort("pop_tick"))
 
 

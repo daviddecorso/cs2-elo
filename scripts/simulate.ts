@@ -16,6 +16,7 @@ import { EloEngine } from "./lib/elo/engine.ts";
 import { loadFeed } from "./lib/elo/history.ts";
 import type { RawRow } from "./lib/elo/normalize.ts";
 import { DEFAULT_PARAMS } from "./lib/elo/params.ts";
+import { publishRating } from "./lib/elo/publish.ts";
 import { readUpcoming } from "./lib/liquipedia/upcoming.ts";
 import { stageBrackets } from "./lib/sim/bracketView.ts";
 import { buildPickemModel, pickemModels } from "./lib/sim/pickemModel.ts";
@@ -225,7 +226,7 @@ const eventOdds = (config: EventConfig, summary: EventSummary, input: EventInput
                 const lineage = predictor.lineageOf(team);
                 return {
                     team,
-                    rating: lineage ? Math.round((lineage.rating + engine.regionPrior(lineage)) * 10) / 10 : null,
+                    rating: lineage ? publishRating(lineage.rating + engine.regionPrior(lineage)) : null,
                     reach: share(summary.reached.get(team), advancedInto.map((s) => s.id)),
                     placements: share(summary.placements.get(team), labels),
                 };

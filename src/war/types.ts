@@ -208,6 +208,52 @@ export interface ClutchPlayer {
     clutch: Rate;
 }
 
+export interface StyleMetric {
+    label: string;
+    group: "production" | "style" | "overall";
+    unit: string;
+    /** `role`: AWPers rank against AWPers, everyone else against non-AWPers. */
+    pool: "all" | "role";
+    /** Null for metrics gated where they're first published (WAA, ADR, clutch). */
+    splitHalfR: number | null;
+}
+
+export interface StyleArchetype {
+    label: string;
+    description: string;
+    roles: string[];
+}
+
+export interface StyleComp {
+    steamid: string;
+    similarity: number;
+}
+
+export interface StylePlayer {
+    steamid: string;
+    archetype: string | null;
+    runnerUp: string | null;
+    /** RMS distance to the archetype's targets, in percentile points. */
+    fit: number | null;
+    /** `pct` is 0 (lowest in the pool) to 100 (highest). */
+    values: Record<string, { value: number; pct: number }>;
+    comps: { production: StyleComp[]; style: StyleComp[] };
+}
+
+/** `cs2wp style --publish`; only metrics that passed the split-half gate appear. */
+export interface StyleData {
+    generatedAt: string;
+    minRounds: number;
+    window: PlayerWarData["window"];
+    splitGate: number;
+    compSize: number;
+    agreement: number | null;
+    metrics: Record<string, StyleMetric>;
+    archetypes: Record<string, StyleArchetype>;
+    source: ClutchData["source"];
+    players: StylePlayer[];
+}
+
 /** `cs2wp clutch --publish`; only classes that passed year-to-year stability appear. */
 export interface ClutchData {
     generated_at: string;

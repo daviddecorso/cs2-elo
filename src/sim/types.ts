@@ -211,6 +211,46 @@ export interface SeasonEvent {
     fedBy?: Array<{ slug: string; name: string; slots: number }>;
 }
 
+export interface SeasonEventFieldTeam extends SeasonFieldTeam {
+    /** Its likeliest finish when it attends. */
+    finish: string | null;
+}
+
+/** A top-60 team whose schedule search had the event as a candidate. */
+export interface SeasonOptimalTeam {
+    team: string;
+    teamName: string;
+    region: Region;
+    /** Share of runs it attends under the season's rules. */
+    attend: number;
+    /** Share of runs it could get a place. */
+    reach: number;
+    /** Recommended schedules that include the event. */
+    picks: Array<{ goal: ScheduleGoal; volumes: ScheduleVolume[] }>;
+    /** The event is announced for it, and a recommended schedule leaves it out. */
+    dropped: boolean;
+    /** The event alone: mean points added at the target, and the change in invite share (null without known slots). */
+    points: number | null;
+    invite: number | null;
+    finish: string | null;
+}
+
+/** `season/fields/<slug>.json`: who we expect at an upcoming event, against who the schedule search says should go. */
+export interface SeasonEventFile {
+    generatedAt: string;
+    asOf: string;
+    target: SeasonIndex["target"];
+    n: number;
+    event: Omit<SeasonEvent, "field">;
+    /** Field size, and teams already announced. */
+    teams: number;
+    announced: number;
+    field: SeasonEventFieldTeam[];
+    optimal: SeasonOptimalTeam[];
+    /** Teams whose average-volume points schedule includes the event. */
+    demand: number;
+}
+
 export interface SeasonIndex {
     generatedAt: string;
     /** Date of the latest match in the ratings. */
@@ -233,6 +273,10 @@ export interface SeasonIndex {
     /** Teams with a `teams/<file>` schedule. */
     schedules?: SeasonScheduleEntry[];
     impact?: SeasonImpactStats;
+    /** Slugs of events with a `fields/<slug>.json`. */
+    fields?: string[];
+    /** Set when standings ranges and invite shares are calibrated on a rolling hindcast (`data/sim/season-calibration.json`). */
+    calibration?: { source: string; fittedAt: string };
 }
 
 export interface SeasonImpactStats {
@@ -323,6 +367,8 @@ export interface ScheduleSummary {
     p90: number;
     /** Share of runs with a Major invite; null when the previous Major's results aren't simulated. */
     invite: number | null;
+    /** Wilson 95% interval of `invite`, on exact summaries only: they come from few runs. */
+    inviteCi?: [number, number];
 }
 
 export interface ScheduleCandidate {
@@ -332,6 +378,8 @@ export interface ScheduleCandidate {
     endDate: string;
     region: Region | null;
     announced: boolean;
+    /** A Major the team is invited to: in every schedule. */
+    required?: boolean;
     /** Share of runs the team could get a slot. */
     reach: number;
     /** Share of runs it attends under the season's attendance rules. */
@@ -342,6 +390,24 @@ export interface ScheduleCandidate {
     projected?: number;
     /** Mostly reached through an open slot: an invitation the model assumes its organizer would give, not one a rule does. */
     assumedInvite: boolean;
+    why?: EventWhy;
+}
+
+/** Order of `EventWhy.parts`. */
+export const WHY_PARTS = ["bountyCollected", "bountyOffered", "opponentNetwork", "lanFactor", "headToHead"] as const;
+
+/** What one event alone is worth to a team at the target, over the runs it played or reached it, other rosters frozen. */
+export interface EventWhy {
+    /** Runs counted. */
+    n: number;
+    /** Mean points added. */
+    points: number;
+    /** Mean points by source in `WHY_PARTS` order; they sum to `points`. */
+    parts: number[];
+    /** [placement label, share of runs, mean points added at that finish], best finish first. */
+    place: Array<[string, number, number]>;
+    /** Mean prize money, USD. */
+    prize: number;
 }
 
 export type ScheduleVolume = "low" | "average" | "high";
@@ -387,7 +453,7 @@ export interface SeasonTeamSchedule {
     /** Under the season's own attendance rules, which take whatever invites come; exact, over the same runs as `recommended[].exact`. */
     rules: ScheduleSummary;
     recommended: RecommendedSchedule[];
-    /** One-team estimates: [mask, mean, p10, p90, invite share or null], every feasible subset within the high cap. */
+    /** One-team estimates: [mask, mean, p10, p90, invite share or null], every feasible subset within the high cap that holds the required candidates. */
     subsets: Array<[number, number, number, number, number | null]>;
 }
 
@@ -454,6 +520,16 @@ export interface PlanOption {
     reached: number;
     entered: number;
     qualified: number | null;
+    /** Searched options only, on the search runs: the option alone against announced events only. */
+    alone?: { invite: number; smooth: number; points: number };
+    /** Searched options only; a qualifier route that entered a feeder and failed finishes "DNQ". */
+    why?: EventWhy;
+}
+
+/** `plan/events.json`: per event slug, the planned teams whose default schedule goes there. */
+export interface PlanEvents {
+    generatedAt: string;
+    events: Record<string, Array<{ team: string; teamName: string; region: Region; route: PlanOptionKind; worth: number | null }>>;
 }
 
 export interface PlanOdds {
@@ -526,4 +602,72 @@ export interface PlanTeamFile {
 export interface PlanIndex {
     generatedAt: string;
     teams: Array<{ team: string; teamName: string; file: string; asOf: string; target: SeasonIndex["target"]; generatedAt: string }>;
+}
+
+/** Past Majors replayed by `backtest-majors --write`: every stage forecast at its start, with earlier stages played. */
+export interface MajorHistory {
+    generatedAt: string;
+    /** Simulations per forecast. */
+    n: number;
+    /** Elo was tuned on this year's series, so its Majors are in-sample. */
+    tuningYear: string;
+    /** Only aggregate scores and Pick'em counts are published for it, never its per-team forecasts. */
+    external: { name: string; url?: string } | null;
+    models: MajorModelSummary[];
+    /** Paired per-stage differences `a − b` over the stages both forecast, with 90% bootstrap intervals. */
+    diffs: Array<{ a: string; b: string; metric: "stage" | "advance"; diff: number; lo: number; hi: number; stages: number }>;
+    /** Oldest first. */
+    majors: PastMajor[];
+}
+
+export interface MajorModelSummary {
+    model: string;
+    stages: number;
+    /** Mean stage outcome log loss; null when no stage had full outcome buckets. */
+    logLoss: number | null;
+    advanceLogLoss: number;
+    advanceBrier: number;
+    /** Swiss stages: mean correct picks out of 10, and how many stages reached 5 (the coin upgrade). */
+    pickem: { stages: number; meanCorrect: number; coins: number } | null;
+}
+
+export interface PastMajor {
+    slug: string;
+    name: string;
+    liquipedia: string;
+    startDate: string;
+    endDate: string;
+    champion: string;
+    inSample: boolean;
+    stages: PastMajorStage[];
+}
+
+export interface PastMajorStage {
+    id: string;
+    name: string;
+    swiss: boolean;
+    /** First match day, when the forecast was made. */
+    startDate: string;
+    scores: Array<{
+        model: string;
+        logLoss: number | null;
+        advanceLogLoss: number;
+        pChampion: number | null;
+        championRank: number | null;
+        pickem: number | null;
+    }>;
+    /** Outcome labels in display order: Pick'em buckets for Swiss, placements for playoffs. */
+    outcomes: string[];
+    /** Elo's Pick'em set from the coin search; null outside Swiss stages. */
+    picks: PickemSet | null;
+    /** Seed order. */
+    teams: Array<{
+        team: string;
+        outcome: string;
+        /** Elo's share of each outcome label. */
+        p: Record<string, number>;
+        /** Elo's P(advance), or P(title) in the last stage. */
+        advance: number;
+        advanced: boolean;
+    }>;
 }

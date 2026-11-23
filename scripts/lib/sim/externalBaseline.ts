@@ -7,6 +7,9 @@ import type { TeamId } from "./types.ts";
 /** Percent rows: Swiss `[advance, 3-0, 3-1, 3-2, 0-3 | null]`, 8-team playoffs `[reach semifinal, reach final, title]`. */
 export interface ExternalForecasts {
     source: string;
+    /** Public name and link for the site's credit line. */
+    name?: string;
+    url?: string;
     majors: Record<
         string,
         {

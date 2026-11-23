@@ -32,6 +32,20 @@ def test_group_by_map_ignores_team_name_like_map_number():
     assert groups == {1: [dems[0]], 2: [dems[1]]}
 
 
+def test_group_by_map_rejects_mismatched_map_slug_and_falls_back():
+    maps = [lp(1, "Tuscan", "de_tuscan")]
+    dems = [
+        Path("natus-vincere-vs-vitality-r1-tuscan.dem"),
+        Path("natus-vincere-vs-vitality-r2-m1-shoots.dem"),
+        Path("natus-vincere-vs-vitality-r2-m2-pool-day.dem"),
+    ]
+    assert group_by_map(dems, maps) == {1: [dems[0]]}
+
+    bo1_m80 = [lp(1, "Nuke", "de_nuke")]
+    m80_dem = [Path("spirit-vs-m80-nuke.dem")]
+    assert group_by_map(m80_dem, bo1_m80) == {1: m80_dem}
+
+
 def test_side_code():
     df = pl.DataFrame({"side": ["counter-terrorist", "terrorist", "ct", "3", None]})
     assert df.select(_side_code("side"))["side"].to_list() == [SIDE_CT, SIDE_T, SIDE_CT, SIDE_CT, None]

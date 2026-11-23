@@ -92,7 +92,16 @@ export const nickCountries = (editions: PastEdition[]): Map<string, string> => {
     return out;
 };
 
-/** One sample per listed attendee of editions starting in [from, to) that didn't come through a VRS invite, against its band and region cell. */
+/** Nicks at editions overlapping `e` where either is a LAN, which the simulation treats as a clash (online events never clash with each other). */
+export const busyAt = (editions: PastEdition[]) => {
+    const byStart = [...editions].sort((a, b) => a.startDate.localeCompare(b.startDate));
+    return (e: PastEdition): Array<Set<string>> =>
+        byStart
+            .filter((o) => o !== e && o.startDate <= e.endDate && o.endDate >= e.startDate && (o.kind === "lan" || e.kind === "lan"))
+            .map((o) => new Set(o.attendees.flatMap((a) => (a.players ?? []).map((p) => p.nick))));
+};
+
+/** One sample per non-VRS listed attendee of labelled editions in [from, to), against its band and region cell less rosters busy at a clashing edition; unlabelled editions would count VRS invitees as free choices. */
 export const affinitySamples = (
     editions: PastEdition[],
     lists: Array<{ date: string; rosters: Roster[] }>,
@@ -101,16 +110,20 @@ export const affinitySamples = (
     range: { from: string; to: string }
 ): AffinitySample[] => {
     const listByDate = new Map(lists.map((l) => [l.date, l.rosters]));
+    const busy = busyAt(editions);
     const out: AffinitySample[] = [];
     for (const e of editions) {
-        if (e.startDate < range.from || e.startDate >= range.to || !e.listDate) continue;
+        if (e.startDate < range.from || e.startDate >= range.to || !e.listDate || !e.labeled) continue;
         const rosters = listByDate.get(e.listDate);
         if (!rosters) continue;
         const invited = new Set(e.attendees.flatMap((a) => (a.label === "vrs" && a.globalRank !== null ? [a.globalRank] : [])));
         const chosen = e.attendees.flatMap((a) => (a.label !== "vrs" && a.globalRank !== null ? [a.globalRank] : []));
         if (chosen.length === 0) continue;
+        const chosenRanks = new Set(chosen);
+        const clashes = busy(e);
+        const isBusy = (r: Roster) => clashes.some((nicks) => r.players.filter((p) => nicks.has(p.toLowerCase())).length >= SHARED_PLAYERS);
         const cellOf = (r: Roster) => bandOf(r.globalRank) * 2 + (e.region !== null && r.region === e.region ? 1 : 0);
-        const pool = rosters.filter((r) => r.globalRank !== null && !invited.has(r.globalRank));
+        const pool = rosters.filter((r) => r.globalRank !== null && !invited.has(r.globalRank) && (chosenRanks.has(r.globalRank) || !isBusy(r)));
         const byRank = new Map(pool.map((r) => [r.globalRank!, r]));
         const wanted = new Set(chosen.flatMap((rank) => (byRank.has(rank) ? [cellOf(byRank.get(rank)!)] : [])));
         const event: AffinityEvent = { series: e.series, organizer: e.organizer ?? "", country: e.country ?? "", startDate: e.startDate };

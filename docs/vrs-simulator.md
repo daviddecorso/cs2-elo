@@ -2,7 +2,7 @@
 
 ## Overview
 
-Phase 8 of [spec.md](spec.md) scores many VRS what-ifs: a team's points with and without an event, over many simulated seasons and many schedules. Built so far: two fast ways to re-run Valve's model (step 1), the [event catalog](#event-catalog) of every upcoming ranked event (step 3), [field and activity models](#field-and-activity-models) learned from past editions, [projected editions](#projected-editions) of recurring series with a [hindcast](#hindcast), [qualifier links](#qualifier-links) that send simulated qualifiers' finishers to the events they feed, the [season simulation](#season-simulation) with its calendar and projections on `/vrs-sim` (step 4), the [schedule optimizer](#schedule-optimizer) with its Schedules view (step 5), the [focal planner](#focal-planner) that searches one team's events and qualifier routes for its best Major invite odds, and, from step 2, [event impact](#event-impact) on `/events/:slug` and the Major invite projection on reruns.
+Phase 8 of [spec.md](spec.md) scores many VRS what-ifs: a team's points with and without an event, over many simulated seasons and many schedules. Built so far: two fast ways to re-run Valve's model (step 1), the [event catalog](#event-catalog) of every upcoming ranked event (step 3), [field and activity models](#field-and-activity-models) learned from past editions, [projected editions](#projected-editions) of recurring series with a [hindcast](#hindcast), [qualifier links](#qualifier-links) that send simulated qualifiers' finishers to the events they feed, the [season simulation](#season-simulation) with its calendar and projections on `/vrs-sim` (step 4), the [schedule optimizer](#schedule-optimizer) with its Schedules view (step 5), the [focal planner](#focal-planner) that searches one team's events and qualifier routes for its best Major invite odds, [why one event beats another](#why-one-event-beats-another), [upcoming-event pages](#upcoming-event-pages) that set the likely field against the schedule search's picks, and, from step 2, [event impact](#event-impact) on `/events/:slug` and the Major invite projection on reruns. The [rolling hindcast](#rolling-hindcast), [oracle ladder](#oracle-ladder), [realized gains](#realized-gains) and [planner against reality](#planner-against-reality) score it all against real seasons, [value in attendance](#value-in-attendance) tests how far rivals choose rationally, and the [calibrated display](#calibrated-display) adjusts what the site shows. The [accuracy review](#accuracy-review) lists what's validated and what isn't.
 
 A full run of Valve's model (`computeStandings`) takes about 0.8 s. Almost all of that is loading. On the 2026-11-02 window (6,879 matches, 983 rosters):
 
@@ -207,7 +207,7 @@ The split (`fitPrizeSplits`) averages each finished offline event's per-position
 
 Who fills an event's open slots, and how much each team plays, learned from past editions (planner phase 2). Everything comes from local files: no Liquipedia requests.
 
-**Past editions** (`history.ts`, `pastEditions`). Every finished ranked event (Valve's `publishertier` rule, `isRanked`) since August 2024, when Valve's published lists start. About 1,220 on 2026-11-12 data, built in under 2 s, so it isn't cached. Each has:
+**Past editions** (`history.ts`, `pastEditions`). Every finished ranked event (Valve's `publishertier` rule, `isRanked`) since August 2024, when Valve's published lists start. About 1,230 on 2026-11-20 data, built in under 2 s, so it isn't cached. Attendees come from `readAttendance`: frozen months, merged per team with `readMatchHistory` (the archive build when present, else `data/matchdata.json`). Rows come from `readHistoryRows`: frozen months fill only pages the archive, hot store and upcoming store lack, since a page's participant rows read twice would count its slots twice. `npm run freeze-sim-history` writes a month once it has settled for 60 days and a store covers all of it; CI's shape (hot store, `data/matchdata.json`, frozen months) gives the same 1,232 editions as the full archive. Each has:
 
 - page, `series` (`seriesKeyOf`: the page with every number replaced, so `CCT/2026/Europe/Series_14` joins `CCT/2025/Europe/Series_3`), kind, role, Liquipedia and Valve tier, prize pool, region, and the habit `category`: `lan1`, `lan2`, `lan34` by Liquipedia tier, `online`, or `qualifier`;
 - attendees: every team with an unforfeited match in matchdata under the event's id;
@@ -228,7 +228,7 @@ Precedence: announced teams, then the event's own rule, then the learned slot mi
 **Draws** (`resolveField` with a `FieldSampler`):
 
 - A VRS slot walks its list as before, but each eligible team accepts with probability `acceptance[band] × pace`, capped at 1. `cutoffs` records the last list rank that accepted.
-- Qualifier slots and slots no rule explains are drawn without replacement (Efraimidis–Spirakis) from the latest list plus active unranked teams (5+ matches in 120 days, region from players). A team's weight is its band's probability, times the region share for its side, times its [affinity](#rival-affinity) divided by the summed affinity of the eligible teams sharing that band and side (their count, without affinity), times pace. Drawn teams have source `open`.
+- Qualifier slots and slots no rule explains are drawn from the latest list plus active unranked teams (5+ matches in 120 days, region from players), in two steps. First each place goes to a band and side (own region or not) by the band's probability times the side's region share, from its own stream (`quota|purpose`). Then each cell takes its places without replacement (Efraimidis–Spirakis) among its eligible teams, weighted by [affinity](#rival-affinity) times pace. A cell short of free teams passes its places to lower bands (same side, then the other side), and up only into bands with at least 2% of the event's past attendees (`SPILL_UP_MIN_SHARE`). With no such team left the event is short. Drawn teams have source `open`. See [who attends](#who-attends) for why the places are split before teams are picked.
 - Conflicts, caps and the top-12 rule stay hard declines.
 - Draws are only from `drawable` teams. Valve names a roster after its newest lineup, so a simulated match by a lineup that shares 3 players with another roster's history, or fewer than 3 with some of its own, relinks rosters and forces a full rerun at every later checkpoint. `lineupKeepsLinks` checks each lineup against every checkpoint world at setup, and of two teams sharing 3 players only the one that played last stays. Today's top 80 and announced teams always stay. On 2026-11-12 data 87 of about 660 teams are kept out.
 
@@ -310,6 +310,17 @@ Projections cover recurring series, but most ranked events mid-table teams play 
 
 Event counts grew through 2026, so every window still runs low; qualifiers and tier 2 LANs most. On 2026-11-18 data, as-of 2026-07-06 (the hindcast), about 180 stand-ins are expected per run, 41 of them tier 3–4 LANs.
 
+**Growth trend: rejected (2026-11-21).** A trend term scales the 180-day rate by ((last 90 days + k) / (first 90 days + k))^w (`Trend`, `DEFAULT_TREND` keeps w = 0). `npm run backtest-fields` prints the grid. On 2026-11-20 data, from each month start through 2026-09:
+
+| w / k | Deviance | Tier 2 LANs | Tier 3–4 LANs | Online | Qualifiers |
+| --- | --- | --- | --- | --- | --- |
+| 0 (kept) | 224 | ×0.53 | ×1.17 | ×0.99 | ×0.97 |
+| 0.5 / 8 | 312 | ×0.54 | ×1.17 | ×1.03 | ×1.05 |
+| 1 / 8 | 502 | ×0.55 | ×1.20 | ×1.10 | ×1.25 |
+| 1.5 / 8 | 835 | ×0.56 | ×1.26 | ×1.20 | ×1.59 |
+
+Every trend overshoots, most of all on qualifiers, which come in bursts. With October's data the flat rate already matches online and qualifier volume; only tier 2 LANs run low, on few events (9 predicted, 17 started). The flat 180-day rate now trails the past-year average (deviance 224 vs 189), the reverse of 2026-11-18.
+
 ## Rival affinity
 
 Within a rank band and region, the draw used to pick teams at random. Real teams return to series they've played, favor organizers they know, and play at home; travel distance beyond Valve's region and visas also matter but aren't modeled. `affinity.ts` adds the first three (planner phase 3b).
@@ -336,6 +347,29 @@ Past attendees carry their players' nicks and countries (`PastAttendee.players`)
 | All | −2.980 |
 
 Every feature helps on its own and on top of the others, so all three ship. Fit on the last year: repeat ×9.1, organizer ×4.4, home ×5.2.
+
+**Samples (2026-11-21).** Only labelled editions give samples: before 2026 nothing is labelled, so VRS invitees counted as free choices once full history came in. Candidates with 3 or more players at a clashing edition (overlapping dates, either one a LAN) are left out, as the simulation's hard declines would. On 2026-11-20 data with full history: uniform −2.975, all three −2.738 (2,988 held out); repeat ×7.9, organizer ×4.0, home ×3.8.
+
+### Value in attendance
+
+Habit says who usually goes; value says who should. `value.ts` tests a team's strength against an event's field in both choices the simulation makes for rivals, and fits how much it counts from past attendance, so the blend between history and optimal choice is learned rather than set. It only counts where it holds out.
+
+- **Features per (team, event)** (`CHOICE_FEATURES`): affinity's repeat, organizer and home bits; strength = (team's Elo − the field's mean Elo) / 100, clipped to ±4; strength²; and *unrated*, no Elo lineage for the lineup.
+- **Elo at a date** (`EloTimeline`): each Elo team's rating and lineup after its latest series, matched to a roster by 3 or more nicks. In the fit, the field is the other attendees' mean: counting a team in its own field pulls every attendee toward the mean, which reads as a taste for even fields. In a run, it's the announced teams plus the open places at each band's mean rating on today's list, weighted by the event's band histogram. Ratings are as of as-of, without the run's drift, so the closures stay static per event and `reach` replays them.
+- **Free choices** (`fitChoice`): the affinity draw's conditional logit with one row per candidate, inside the band and region cell. It uses `CHOICE_USE`, habit plus *unrated*.
+- **VRS acceptance** (`fitAcceptance`): a logistic on every offer `fitFieldModel` derives (accepted, or declined while free), with an intercept per band and every feature. In a run, a team's centered β·x shifts its event's shrunk band acceptance in log-odds (`acceptanceShift`, `FieldSampler.acceptShift`), so each band's average offer keeps the band's rate.
+- `loadSeasonSetup({ value: false })` keeps the affinity draw alone (`hindcast-rolling --value off`).
+
+**Backtest** (`npm run backtest-fields`, held out by month on the 365 days before, 2026-01 to 2026-11, 2026-11-20 data). Habit here is affinity plus *unrated*; *unrated* alone lifts free choices from −2.734 to −2.676.
+
+| Mean log-likelihood | Habit | + strength, strength² | Months up ≥ 0.01 |
+| --- | --- | --- | --- |
+| Free choices in a cell (2,724) | −2.684 | −2.680 | 2 of 11 |
+| VRS offers accepted (11,609) | −0.493 | −0.460 | 10 of 11 |
+
+**Habit volume, rejected.** A seventh feature, log(1 + the lineup's places in events of the same category over the prior year), added nothing to free choices (−2.6837 → −2.6842, 0 of 11 months up) or offers (−0.4599 → −0.4594). Within a cell, chosen teams averaged 1.67 on it against 1.60 for every candidate: among free teams of a band, past volume doesn't say who goes ([who attends](#who-attends)).
+
+Strength ships where it adds at least 0.01 in two of every three months: **offers yes, free choices no.** With each attendee counted in its own field, free choices first showed +0.025 in 8 of 11 months; that was the artifact above. Fit on the last year, offers: strength −0.50, strength² −0.27, unrated −2.24, repeat +0.91, home +1.30. A team declines an invite more often the further it stands above the field, about −0.5 log-odds per 100 Elo: that's the rational part of who shows up. Which events a team *chooses* is habit as far as the data can tell.
 
 ## Qualifier links
 
@@ -433,7 +467,208 @@ Without stand-ins, mid-table teams sank below even the no-events floor: the simu
 
 Volume is now right; what's left is the LAN share of ranks 15–50, about two thirds of real. Stand-in rates still run low for tier 2 LANs (×0.72) and qualifiers (×0.81), and those teams' real LANs were more often tier 2 and invitational. Not tuned to the hindcast: there's one target date with a published list, so a fit to it would test nothing.
 
+**Rerun 2026-11-21 (2026-11-20 data, full setup, 100 runs, seed 1): FAIL.** Median error −178, median |error| 178, 71% inside p10–p90. Coverage now passes and the median doesn't. The data moved under it, so the change isn't attributed to any one fix.
+
+**Invites.** The hindcast now also scores invite odds. It runs Valve's published 2026-11-02 list through the same invite rules and slots (`allocateInvites`, Cologne's fixed stage slots), and compares each roster's simulated invite share:
+
+| Predicted | Rosters | Mean predicted | Invited |
+| --- | --- | --- | --- |
+| 0–10% | 16 | 3% | 13% |
+| 10–30% | 22 | 17% | 23% |
+| 30–50% | 11 | 40% | 45% |
+| 50–70% | 3 | 57% | 67% |
+| 90–100% | 3 | 94% | 67% |
+
+Brier 0.175 against 0.206 for always predicting the 29% base rate, log loss 0.604. Invite odds have some skill, and teams below the line get invited a little more often than predicted. One target with 55 rosters is too few to tune on; the second target the plan asked for needs an invite config for Cologne 2026, which `data/events/` doesn't have.
+
 Qualifier links cost 13 points and 7 points of coverage. The likely cause, not checked: a linked slot now goes to a team that already took the qualifier's points, so LAN places concentrate among fewer mid-table teams, where the old draw handed them to others. Links stay because they make each run consistent, which the qualifying odds need. Projected, listed and LAN-only moved by under 10.
+
+**History fix (2026-11-21).** Every number above from 2026-11-19 data onward ran on starved history. `data/matchdata.json` is built from the hot store only, which keeps about 190 days (2026-05-13 on): older months live in the local `data/raw/archive/`, and only `build-matchdata --include-archive` reads them. A hindcast at 2026-07-06 therefore learned its field, affinity and activity models from 54 days, with activity rates still divided by 365 days (habits at about 15% of real), dropped list rosters that hadn't played since May 13, and checkpoint worlds missed their February–May matches. Production saw about 190 days. Now:
+
+- `npm run build-matchdata-full` writes `data/matchdata-full.json` (gitignored, local only), and `readMatchHistory` splices its older months onto `data/matchdata.json`.
+- A hindcast's model input is the full history's last 200 days before as-of (`HINDCAST_BASE_DAYS`), about what production holds; past editions, activity and affinity learn from all of it.
+- CI has no archive, so settled months of what past editions need (tournament rows, parent-page participant rows, each event's teams and first lineups) are committed under `data/history/sim/` (`npm run freeze-sim-history`, nightly after `freeze-history`; see [Field and activity models](#field-and-activity-models)).
+
+On the same as-of and target, July cohort (ranks 15–80 at as-of, n 66), 100 runs:
+
+| | Before | Full history | July unchanged |
+| --- | --- | --- | --- |
+| Spearman | 0.38 | 0.53 | 0.66 |
+| Median error | −105 | −81 | −28 |
+| Median \|error\| | 229 | 198 | 150 |
+| Invite Brier (base rate 0.184) | 0.181 | 0.159 | 0.273 |
+| Inside p10–p90 | 59% | 49% | – |
+
+One target date can't separate a model from luck, so the [rolling hindcast](#rolling-hindcast) replaces it as the gate.
+
+## Rolling hindcast
+
+`npm run hindcast-rolling [-- --origins 2026-06-01,… --months 4 --n 40 --workers N --setup full --oracle … --label name]` runs the season simulation from several past as-of dates and scores every checkpoint against Valve's published list that day. Local files only; about 5 minutes for the default 5 origins × 40 runs on 4 workers. `--compare a.json b.json` gives the paired CRPS difference of two saved runs with a bootstrap over rosters; `--report file.json` reprints one.
+
+- **Origins** are published list dates whose checkpoints have clean data: 2026-06-01, 07-06, 08-03, 09-07 and 10-05. Placements are archived from 2026-01 only, so an earlier origin's checkpoint windows would miss prizes. Each runs to at most 4 lists ahead (`until` in `loadSeasonSetup`), which gives 14 origin–horizon pairs.
+- **Cohorts** are fixed at as-of from that day's published list: ranks 15–80 (the headline), 1–14 and 81–150. A roster's later points are those of the best-points ranked roster sharing 3 players, 0 when none is ranked. Choosing by the target's rank, as the single-date hindcast did, favours risers.
+- **Truth** is Valve's published list at each checkpoint. Replaying the real matches through the same pipeline (the "matches" [oracle](#oracle-ladder)) reproduces it: Spearman 1.00, mean error 5–7 points.
+- **Baselines:** persistence (as-of points), decay (the as-of matches alone, rerun at each checkpoint), and a regression per band and horizon from points at one list to points `h` lists later, fit on list pairs from 2025-09 (after Valve's last model change) that end by the origin.
+- **Metrics:** Spearman (per origin and date, then averaged), MAE and median error of the p50, CRPS of the run samples (a point forecast's CRPS is its absolute error), p10–p90 coverage, and Brier of "inside the line": regional rank within the Singapore Major's invites per region (18 Europe, 9 Americas, 5 Asia), against persistence and the base rate.
+- **Gate** on ranks 15–80 pooled over origins: CRPS below persistence overall and at every horizon, MAE no worse, Spearman at least persistence − 0.02, |median error| ≤ 30, 70–90% inside p10–p90, invite Brier below persistence. A model change is kept when paired CRPS improves with a bootstrap interval that excludes 0.
+- **Workers** (`hindcast/hindcastPool.ts`, `hindcastWorker.ts`) load one origin's setup each, one at a time since loading is a setup's memory peak, and return the cohort's points and ranks per checkpoint.
+
+**Full history, before value (2026-11-21, 2026-11-20 data, 40 runs, seed 1).** Ranks 15–80, pooled over origins:
+
+| Horizon | n | Spearman sim / persistence | MAE sim / persistence | Median error sim / persistence | CRPS sim / persistence | Inside p10–p90 | Invite Brier sim / persistence / base |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| +1 month | 330 | 0.85 / 0.85 | 79 / 89 | −14 / 24 | 57 / 89 | 64% | 0.073 / 0.124 / 0.197 |
+| +2 | 264 | 0.78 / 0.78 | 116 / 114 | −60 / 15 | 86 / 114 | 65% | 0.099 / 0.152 / 0.198 |
+| +3 | 198 | 0.68 / 0.72 | 152 / 158 | −60 / 49 | 112 / 158 | 60% | 0.123 / 0.207 / 0.186 |
+| +4 | 132 | 0.63 / 0.72 | 196 / 185 | −65 / 13 | 149 / 185 | 55% | 0.148 / 0.182 / 0.198 |
+| All | 924 | 0.76 / 0.79 | 122 / 125 | −38 / 21 | 90 / 125 | 62% | 0.102 / 0.158 / 0.195 |
+
+Ranks 1–14 and 81–150 beat persistence on every metric. **Gate: FAIL** on Spearman (by 0.01 past the slack), median error and coverage; CRPS, MAE and invites pass. The single-date failure was mostly the history bug. The shipped configuration ([value](#value-in-attendance) in VRS acceptance) moves the median error to −31 and little else (paired CRPS −0.3, 95% −2.3 to 1.5), and still fails the same checks raw; the [calibrated display](#calibrated-display) passes them out of sample. What's left:
+
+- **Bias grows with horizon** and sits in ranks 31–50 (median error −39, −91, −112, −143 at +1 to +4 months, with 30–40% of outcomes above p90).
+- **Region:** Asia runs high (+42 to +188) and Europe and the Americas low.
+- **Ranges are too narrow** from the first month (64% inside, 24% above p90).
+
+### Who attends
+
+Places per team over each origin's horizon, real against the mean of 16 runs, by as-of rank (2026-11-22, 2026-11-20 data; scratch diagnostic, not a script). At 2026-07-06 → 2026-11-02:
+
+| Ranks | LAN tier 1 | LAN tier 2 | LAN tier 3–4 | Online | Qualifier |
+| --- | --- | --- | --- | --- | --- |
+| 1–14 | 4.86 / 4.33 | 0.21 / 0.58 | 0.14 / 0.37 | 0.00 / 0.17 | 0.93 / 2.87 |
+| 15–30 | 2.38 / 2.03 | 1.63 / 1.55 | 1.63 / 2.32 | 0.19 / 1.68 | 2.56 / 4.48 |
+| 31–50 | 0.47 / 0.63 | 0.79 / 0.70 | 2.68 / 2.71 | 2.32 / 4.38 | 6.58 / 4.65 |
+| 51–80 | 0.17 / 0.23 | 0.23 / 0.20 | 2.73 / 2.11 | 2.70 / 4.17 | 5.10 / 5.81 |
+
+The other origins look the same. Three findings:
+
+- **Band totals are right.** Ranks 31–50 get as many LAN places as they really play, and as many online plus qualifier places (8.9 against 8.9). The ranks 31–50 shortfall isn't a shortage of LANs.
+- **Top teams were filling stand-in qualifiers.** The old draw ranked every team by one weighted key. By the autumn most lower teams had reached their online cap, so places a band couldn't fill went to whoever was left, ranks 1–14 included; one 15-team Americas stand-in qualifier got 9 top-14 teams. Splitting places by band first (see Draws above) cut ranks 1–14 to 1.3 qualifier places, against 0.9 real. Events left short per run didn't change (about 60 stand-ins and 30 others were already short). Rolling hindcast, paired against the shipped configuration: CRPS −0.8 for ranks 15–80 (95% −1.9 to 0.3), −0.2 for 1–14, +1.2 for 81–150 (−0.4 to 2.8); median error −31 → −24. Kept as a fix that costs nothing.
+- **Which band peers go to LANs follows results.** Within ranks 15–80, a team's error rank-correlates with real minus simulated LAN places (−0.26, −0.34, −0.51 at the three origins). The worst misses, such as Eternal Fire, JiJieHao, Nemiga and fnatic, really played 3–6 LANs against 1.5–2.5 simulated. Past volume doesn't predict it ([habit volume](#value-in-attendance) adds nothing held out), so the likely reading is that teams which won their qualifiers both played more LANs and gained points. That is results, which the attendance oracle carries along with fields.
+
+## Oracle ladder
+
+Each rung replaces one part of the model with what happened (`oracle` in `loadSeasonSetup`), so the gaps between rungs say where the error comes from. All rungs use the rolling hindcast's origins and cohorts.
+
+| Rung | `--oracle` | What's real |
+| --- | --- | --- |
+| L1 | `matches` | Every match after as-of, as played: the reproduction floor |
+| L2 | `results` | Every match, pairing, field and prize; winners redrawn from the run's Elo paths (as a Bo3), simulated events off |
+| L3 | `attendance` | The calendar and each event's real participants, on generic formats with simulated results |
+| L4 | `calendar` | The calendar: every real ranked event to the last checkpoint, no projected editions or stand-ins; fields drawn |
+| L5 | – | The full model |
+
+Ranks 15–80, pooled over origins and horizons (40 runs):
+
+| Rung | Spearman | MAE | Median error | CRPS | Inside p10–p90 | Invite Brier |
+| --- | --- | --- | --- | --- | --- | --- |
+| L1 matches (one origin, 2 months) | 1.00 | 5–7 | 0–2 | – | – | 0.000 |
+| L2 results | 0.91 | 62 | −6 | 46 | 70% | 0.077 |
+| L3 attendance | 0.81 | 100 | −8 | 75 | 66% | 0.096 |
+| L4 calendar | 0.77 | 125 | −48 | 93 | 59% | 0.102 |
+| L5 full, habit only | 0.76 | 122 | −37 | 91 | 61% | 0.103 |
+| Persistence | 0.79 | 125 | +21 | 125 | – | 0.158 |
+
+L3–L5 are habit only (`--value off`). In L3, an announced participant with no lineup in the last 200 days is left out and its place drawn; at first such teams dropped the whole event, and only 57–85 of about 300 real events per origin were simulated.
+
+- **Results (L2) pass the gate** on every check, by a wide margin, and the regional biases vanish (Asia +11 to −4, Europe −4 to −23). L2 keeps the real match list, so a team's real progression (how many matches it got to play) leaks in: it's an upper bound for results, not a reachable target.
+- **Calendar: nothing to gain.** The real calendar (L4) scores like the modelled one (L5): projected editions and stand-ins are as good as knowing which events happen.
+- **Attendance is the lever.** Real participants (L3) against drawn ones (L4): paired CRPS −17.7 for ranks 15–80 (95% −23.2 to −12.3), −9.8 for 1–14 and 81–150. Real attendance also removes the bias (−48 → −8) and most of the ranks 31–50 shortfall.
+- **Formats, prizes and progression** are the rest (L3 → L2, CRPS 75 → 46). Generic brackets and prize splits are a share of it; real progression is the other, and can't be had ahead of time.
+
+## Realized gains
+
+`npm run realized-gains [-- --from 2026-02-02]` measures, for each published list since `--from` and each roster ranked 1–150 on our reproduction of it, what every event the roster finished since the previous list added to its points: the one-team model's remove case on the real world (`withoutEvents`, mean error 0.65 in the [backtest](#backtest)). Each row also carries the roster's pre-event Elo and its field's (each team's first series there), prize pool, LAN, matches and wins. It writes `.cache/realized-gains.json` in about 20 s, from local files only. It is the reality the planner's "attend X, gain Y" is checked against, and the training data for a value model.
+
+On 2026-11-20 data, 2026-02 to 2026-11: 1,680 roster-events, 1,646 with Elo for the team and its field.
+
+| | Ranks 1–14 | 15–80 | 81–150 |
+| --- | --- | --- | --- |
+| LAN: n, mean gain | 199, 87 | 603, 67 | 207, 114 |
+| Online: n, mean gain | 20, 17 | 336, 32 | 315, 39 |
+
+The seed factors carry the gain (a LAN's seed part averages 119–181); head to head takes some back. Out of sample (fit to 2026-06, scored from 2026-07, 797 rows), what's known before an event explains little of what it's worth:
+
+| Linear model of gain on | R² | Slope of realized on predicted |
+| --- | --- | --- |
+| LAN, log prize pool | 0.03 | 1.12 |
+| + strength against the field's mean and its top 4 | 0.03 | 0.78 |
+| + the team's points before | 0.23 | 0.93 |
+
+Placement luck dominates any one event, and a team's existing points cap what it can add (−160 points of gain per 1,000 points held: only its top 10 results count, normalized against the top). A single event's gain is a poor value feature; strength against the field enters attendance [directly](#value-in-attendance) instead.
+
+## Planner against reality
+
+The optimizer and the focal planner rest on two things the season run supplies: who else plays each event, and what playing it is worth. `hindcast-rolling --planner` checks both against what happened. In every run, at every checkpoint, `cohortGains` scores what each event a cohort roster finished since the last checkpoint added to its points (the same remove case as [realized gains](#realized-gains), on the run's world; a relinked checkpoint loads a fresh world). The pairs are every cohort roster (ranks 1–150 at as-of) × every real event the runs simulated that finished in the window, joined to `.cache/realized-gains.json` by event and 3 shared players.
+
+- **Attendance:** the share of runs the roster played the event, against whether it really did (Brier, log loss).
+- **Gain:** where the roster really played it and did in 5 or more runs, the mean simulated gain against the realized one. The slope of realized on predicted should be near 1: the planner's choices are differences between these gains.
+
+On 2026-11-20 data, 5 origins × 40 runs, 1–4 months:
+
+| | Value on (shipped) | Value off |
+| --- | --- | --- |
+| Attendance pairs (really attended) | 34,800 (1,368) | 34,950 (1,369) |
+| Brier (base rate 0.038) | 0.032 | 0.031 |
+| Log loss | 0.141 | 0.138 |
+| Mean odds, teams that went / the rest | 0.275 / 0.027 | 0.259 / 0.028 |
+| Gain pairs | 683 | 683 |
+| Mean gain, predicted / realized | 50 / 47 | 51 / 46 |
+| Slope of realized on predicted (LAN, online) | 0.63 (0.58, 0.31) | 0.59 (0.53, 0.39) |
+| Correlation | 0.37 | 0.35 |
+
+- **Who attends:** the run gives a team that really went 10 times the odds of one that didn't, but its Brier only beats the base rate by 15%: most real attendances get odds under a third. Value doesn't change that.
+- **What it's worth:** on average right (50 against 47), but too spread out: realized gains move about 0.6 points per point of predicted difference, and online gains barely track (slope 0.3). A recommended event worth 40 more points than another is worth about 25 more in reality. The [oracle ladder](#oracle-ladder) says why: drawn fields, generic formats and estimated prizes make each event's outcome more extreme for a team than real fields do.
+- **Gate:** slope between 0.7 and 1.3. **Fail** at 0.63. The planner's rankings of schedules hold up; the size of the gaps it shows doesn't.
+
+## Calibrated display
+
+The rolling hindcast still fails on Spearman (by 0.01 past the slack) and coverage, so the shown numbers are calibrated on it, the guardrail chosen for when structural fixes don't close the gap. `hindcast-rolling --calibrate run.json` fits, per today's rank band (1–14, 15–80, 81–150; unranked and lower take the last) and months ahead:
+
+- **λ**, the weight on the simulated p50 against today's points that minimizes absolute error;
+- **widen**, the least factor on p10–p90 around the new centre that covers 80% of outcomes;
+- a linear map for Major invite shares, fit by least squares on "inside the line".
+
+It writes `data/sim/season-calibration.json` (committed). `simulate-season` applies it to `standings.json` (points, and global and regional ranks by the same transform from today's ranks, which the hindcast doesn't check separately) and to every invite share in team files (`rules`, recommended schedules and their `inviteCi`, the subset table, `optimal` gains); `plan-schedule` applies it to its invite odds and their differences. Searches run on raw runs. `index.json` names the run it came from. Beyond 4 months the last horizon's factors apply.
+
+Fit on the shipped configuration (2,100 rows):
+
+| Band | λ at +1 / +2 / +3 / +4 months | Widen |
+| --- | --- | --- |
+| 1–14 | 0.8 / 0.35 / 0.55 / 0.45 | 1.3 / 1.15 / 1.1 / 1 |
+| 15–80 | 0.85 / 0.55 / 0.6 / 0.35 | 1.45 / 1.55 / 1.7 / 1.7 |
+| 81–150 | 0.85 / 0.95 / 1 / 0.85 | 2 / 1.7 / 1.8 / 2.55 |
+
+Invites: 0.016 + 0.947 × share, so a 0% or 100% simulated share shows as 1.6% or 96%; on the hindcast, simulated 0% came true 4% of the time and 99% came true 92–96%. Refit on `quota-draw` after the [band-first draw](#who-attends); the table and check before it (`planner-offers`) were within 0.01 Spearman and 2 MAE.
+
+**Check, one origin left out at a time** (fit on the other four, scored on it), ranks 15–80:
+
+| | Calibrated | Raw | Persistence |
+| --- | --- | --- | --- |
+| Spearman | 0.787 | 0.757 | 0.785 |
+| MAE | 119 | 120 | 125 |
+| Median error | −3 | −24 | +21 |
+| Inside p10–p90 | 79% | 61% | – |
+
+Ranks 1–14: inside 80%, MAE 112 against 115 for persistence; 81–150: 79%, MAE 137 against 158. Invite Brier, left out by origin: 0.0558 raw, 0.0556 calibrated. The calibrated numbers pass every check of the gate out of sample. Shrinking toward today concedes that past two months, mid-table projections carry little beyond today's standings and the simulation's direction.
+
+## Accuracy review
+
+Reviewed 2026-11-22 on 2026-11-20 data. The engine checks out:
+- the exact rerun matches `computeStandings` (50 of 50), and real matches replayed through a season run reproduce Valve's lists (Spearman 1.00, 5–7 points);
+- one-team errors are inside their gates;
+- planner regret is 0 against exhaustive search;
+- the planner's invite cutoff matches `allocateInvites`.
+
+What the site shows, against real seasons ([rolling hindcast](#rolling-hindcast), 5 origins, 1–4 months):
+
+1. **Raw projections beat persistence on CRPS, MAE and invites, not on order or range.** Ranks 15–80: CRPS 90 against 125, invite Brier 0.102 against 0.158, but Spearman 0.76 against 0.79, median error −24, 61% inside p10–p90. The [calibrated display](#calibrated-display) passes every check out of sample (Spearman 0.787, 79% inside). The old −178 single-date failure was mostly [starved history](#hindcast).
+2. **Who attends is the lever.** Real participants instead of drawn ones cut CRPS by 18 for ranks 15–80; the real calendar instead of the modelled one cuts nothing ([oracle ladder](#oracle-ladder)). Ranks 31–50 still run 100–200 points low at 2–4 months. Their band totals of LAN places are right; which band peers get them tracks who won qualifiers, which neither [value](#value-in-attendance) nor past volume predicts ([who attends](#who-attends)).
+3. **Event gains are too spread.** Realized gains move about 0.6 per point of simulated difference ([planner against reality](#planner-against-reality)): rankings of schedules hold, the gaps shown don't. The gain figures in "why" and the plan view aren't calibrated yet.
+4. **Activity is back near habit.** With full history, ranks 21–250 play 1.04–1.24× habit over the next 30 days and 1.3–1.4× in days 60–90 (2026-11-19 data, CI shape). The 1.9–2.4× of 2026-11-20 was habits computed on 190 days divided by 365.
+5. **Relinks make every run slow.** About 5 inexact reruns per run (see Known limits under [Season simulation](#season-simulation)), and every exact re-score at the target falls back to the full model. A run takes about 11 s per worker instead of 2.5 s. Scaled from a 20-run sample on 3 workers, the nightly's 300 runs and 30 re-scores come to about 36 minutes, over the step's 30-minute timeout, so the step would keep yesterday's files. Not fixed.
+6. **The nightly's exact invite share comes from 30 runs**, with a Wilson interval of about ±17 points, now shown next to it.
+7. **Qualifier series calibration** is fine: 2026 slope 0.93 ([simulator.md](simulator.md)). High qualifying odds such as Cluj's come from the field, not Elo.
 
 ## Season simulation
 
@@ -449,7 +684,7 @@ Qualifier links cost 13 points and 7 points of coverage. The likely cause, not c
 - **Checkpoints** (`publicationDates`). The first Monday of each month after as-of, through the target. A month with a vendored `invitation/` list uses that list's date. One world per checkpoint is loaded once with `windowEndsAtPull` and shared by every run.
 - **Catalog.** `scope: "all"` with `learnsFields`, built from hand-written configs after `resolveParticipants`, so a Major whose stages come from a published snapshot has a fixed field. Events ending before as-of are dropped. `loadSeasonSetup({ learned: false, scope: "lan" })` gives the old LAN-only, deterministic setup.
 - **Today.** `public/data/vrs/live.json`, else Valve's latest published list. Every published list up to as-of is loaded once, for past-edition ranks and for slot months.
-- **Lineups.** Only teams whose lineup shares 3 players with today's top 80 get their current Liquipedia squad (`preferSquads`); the rest keep their last-played lineup, since a swapped lineup relinks.
+- **Lineups.** Only teams whose lineup shares 3 players with today's top 80 get their current Liquipedia squad (`preferSquads`); the rest keep their last-played lineup, since a swapped lineup relinks. A current squad that fails `lineupKeepsLinks` at any checkpoint also keeps its last-played lineup, with a warning. On 2026-11-20 data that's FUT and Nuclear TigeRES.
 - **Field and activity models**, [above](#field-and-activity-models), fitted at setup.
 
 **Which events play.** A catalog event is simulated when the catalog marks it simulated and it starts before the target. A generic event already under way is not: its played matches are in matchdata, and a generic bracket can't pick up the real one's pairings. Entry stages must be either all drawn or all open, and every announced team needs a match history. Open entry stages are sized from their bracket seeds, or split the field evenly when unsized. `listMonth` is the latest VRS slot month, of the event's rule or its learned slot mix, that still has open slots.
@@ -576,7 +811,7 @@ Commitments start with every announced and drawn field. Events resolve in list o
 
 **Known limits:**
 
-- The first checkpoint is inexact in every run: FUT's current Liquipedia squad differs from its last lineup, so its simulated matches relink a June match (`BETBOOM vs FUT at 2026-06-15`). The full-model fallback costs about 0.8 s per run.
+- Reruns are still inexact in every run on 2026-11-20 data, about 5 per run, at every checkpoint including the target. The cause is teams announced at upcoming events whose own lineups relink Valve rosters: Sökerorg, 5dads and 100RA, and Young TigeRES, which shares 3 players with Nuclear TigeRES. Announced teams can't be left out of their fields, and Valve's model really would relink them, so the fallback to `computeStandings` is correct. It costs about 0.8 s per rerun, and every exact re-score at the target falls back too. FUT's squad caused this before 2026-11-20; the squad check above fixed it.
 
 ## Event impact
 
@@ -613,7 +848,14 @@ Feature 1 of the spec. For each simulated event with a config (`impactEvents`), 
 
 Feature 3 of the spec. For each of today's top-60 rosters, it finds the LAN schedule that maximizes expected points at the target snapshot, or Major invite odds, at low, average and high volume. It runs inside `simulate-season` on the same runs. The code is `optimizer.ts`, plus `src/sim/schedule.ts` for conflicts and subset enumeration, which the site shares.
 
-**Choices.** A team's *universe* (`teamUniverse`) is every simulated LAN that hasn't started where it's announced or that has open slots: a known invite rule, a learned slot mix, or a field the model draws. That includes generic events with an assumed format and projected editions; unannounced stand-ins and online events are left out. An open slot is one the team could ask its organizer for, when the organizer would plausibly say yes (`welcomes`): at least half of past open attendees (`WELCOME_SHARE`) ranked in the team's band or below. Then `reach` puts it in an open slot, even past qualifier slots; otherwise it can only qualify, which still doesn't count as a choice. The schedule page marks candidates "projected", "assumed format" and "assumed invite" (reached through an open slot in most runs). Before the runs, an event with no known rule only enters the universe when the team could plausibly be invited (`canEnter` in `seasonSetup.ts`): its band is welcome, the top-12 rule doesn't bar it, and the event draws at least 10% of its field from other regions when the team is from one. The universe is capped at 10 events: announced first, then by prize pool. With assumed invites nearly every top-60 team filled 12, which cost 69,760 scored subsets a run instead of about 1,440. At 10 it's about 22,000. Events already under way that it plays are *committed*: they're kept in every schedule and count toward the cap. Every subset of the universe with no travel-buffer conflict and at most `high − committed` events is scored. `feasibleMasks` keeps 32-bit masks for this universe; `feasibleSets` returns index arrays with separate LAN and online caps for larger option lists.
+**Choices.** A team's *universe* (`teamUniverse`) is every simulated LAN that hasn't started where it's announced or that has open slots: a known invite rule, a learned slot mix, or a field the model draws. That includes generic events with an assumed format and projected editions; unannounced stand-ins and online events are left out. An open slot is one the team could ask its organizer for, when the organizer would plausibly say yes (`welcomes`): at least half of past open attendees (`WELCOME_SHARE`) ranked in the team's band or below. Then `reach` puts it in an open slot, even past qualifier slots; otherwise it can only qualify, which still doesn't count as a choice. The schedule page marks candidates "projected", "assumed format" and "assumed invite" (reached through an open slot in most runs). Before the runs, an event with no known rule only enters the universe when the team could plausibly be invited (`canEnter` in `seasonSetup.ts`): its band is welcome, the top-12 rule doesn't bar it, and the event draws at least 10% of its field from other regions when the team is from one. The universe is capped at 10 events: Majors first, then announced, then by prize pool. With assumed invites nearly every top-60 team filled 12, which cost 69,760 scored subsets a run instead of about 1,440. At 10 it's about 22,000. Events already under way that it plays are *committed*: they're kept in every schedule and count toward the cap. Every subset of the universe with no travel-buffer conflict and at most `high − committed` events is scored. An invited team always plays the Major (see below). `feasibleMasks` keeps 32-bit masks for this universe; `feasibleSets` returns index arrays with separate LAN and online caps for larger option lists.
+
+**Majors are mandatory.** A team in a Major's field never gets a schedule without it, whatever skipping would score:
+- An upcoming Major is a `required` bit in every mask and raises a cap that's too small to hold it.
+- A Major's dates, plus the travel buffer, are blocked, under way or not. Open events that clash with it aren't choices. Announced ones stay candidates, so they're taken out of the ledger and show under "drops announced", but no schedule takes them.
+- "Alone" gains are against the schedule holding only the required events. The Major itself has points alone (`why`), but no invite gain, since there's no schedule without it to compare.
+- The picker checks it and disables the box.
+- The season rules and the focal planner already held it: both commit every announced team before choosing anything else.
 
 **Per run** (`optimizeRun`), after the season run:
 
@@ -643,8 +885,33 @@ The shown points and invite odds come from these reruns. The **rules** row is th
   - candidates with reach and attend shares, `generic`, `projected` (chance) and `assumedInvite`, committed events and "requires qualifying" (with `via` and `qualified` for linked qualifiers);
   - the rules row;
   - the recommended schedules, with exact and one-team numbers;
-  - every feasible candidate subset within the high cap as `[mask, mean, p10, p90, invite]`. The picker reads this table and labels it an estimate.
+  - every feasible candidate subset within the high cap (required Majors included) as `[mask, mean, p10, p90, invite]`. The picker reads this table and labels it an estimate.
+  - each recommended schedule's exact invite share with a Wilson 95% interval (`exact.inviteCi`). From 30 runs it spans about ±17 points near even odds, so a smaller gap between exact and estimate is noise.
+  - each candidate's `why` ([below](#why-one-event-beats-another)).
 - `index.json` lists the teams under `schedules`.
+
+### Why one event beats another
+
+Each candidate in a team file, and each searched option in a plan, carries `why`: what the event alone adds to the team's points at the target, over the runs it plays or reaches it, with other rosters frozen (`gain.ts`).
+
+- **Per run.** `eventGain` scores the base ledger with and without the event's fragment. `splitGain` splits the change by source. Valve's seed value is the mean of four factors (bounty collected, bounty offered, opponent network, LAN wins), so each factor gets its share of the seed rating's change. Head to head is the rest, including a seed-range shift with no factor change. The parts sum to the change exactly.
+- **Finish.** The team's position as played, or in the replay that put it in the field. A qualifier route that entered a feeder and failed counts as `DNQ`.
+- **Summary** (`summarizeWhy`): runs counted, mean points, mean parts, each finish with its share and mean points, and the mean prize from the event's prize table. Parts are whole points, to keep the season output under its 1.2 MB budget (raised from 1 MB for this).
+
+The Schedules picker shows each candidate's likeliest finish, its gain alone and its gain on top of the checked events (both differences of the subset table), and a breakdown by finish and by source. It sorts by date or by gain alone. The Plan view shows finish and points on each route row, and a "Compare options" list of every searched option alone (`alone`: points and invite odds over every search run, reached or not).
+
+## Upcoming-event pages
+
+`simulate-season` writes `season/fields/<slug>.json` for every calendar event except stand-ins (`SeasonEventFile`), qualifiers and events under way included, and lists the slugs in `index.json` `fields`. `/events/:slug` renders it when there's no bracket file, so every event in the calendar has a page before anyone writes a bracket config. Each file holds:
+
+- the event as in the calendar;
+- for a simulated event, the likely field: up to 32 teams for tier 1 and 16 otherwise, with attendance share, usual source, likeliest finish and win share. An event the season doesn't simulate (a format it can't pick up mid-event, or one starting after the target) lists its announced teams instead, and the page shows why it isn't simulated;
+- `optimal`: every top-60 team that has the event as a candidate, with its attendance under the season rules, reach, which recommended schedules (goal and volume) include the event, whether one drops it though it's announced, and its gain alone in points and invite odds;
+- `demand`: teams whose average-volume points schedule includes it, shown against its open places.
+
+These files have their own 650 KB budget: 211 files came to 472 KB at 8 runs, and about 510 KB with every field at its row cap. `plan-batch` writes `plan/events.json`: per event, the planned teams whose default schedule goes there, with the route and its marginal invite value (`planEvents`).
+
+`/events/:slug` renders this page when no bracket config covers the event, and adds the "Who should go" section to bracket pages too. That section lists teams recommended to go that attend under half the time, teams that usually attend but that no recommended schedule needs, and plan routes. Each team's schedule is its best response with rivals' seasons fixed, so demand can exceed the places. `/events` lists these events under "Upcoming, from the season simulation".
 
 **First run (2026-11-17, as-of 2026-11-12, 300 runs, seed 1, 4 workers).**
 
@@ -757,17 +1024,18 @@ It reads local files only and writes `public/data/sim/plan/<team>.json` plus `pl
 **Weekly plans** (spec Phase 8, step 7). The `Plan schedules` workflow (`.github/workflows/plan-schedules.yml`) runs Mondays at 13:00 UTC, after the nightly, and commits `public/data/sim/plan/`:
 
 ```
-npm run plan-batch -- [--max 8] [--budget-minutes 240] [--min-invite 0.1] [--max-invite 0.9] [--keep-days 14] [--dry-run] [plan-schedule options]
+npm run plan-batch -- [--max N] [--group 10] [--budget-minutes 240] [--min-invite 0.1] [--max-invite 0.9] [--keep-days 21] [--dry-run] [plan-schedule options]
 ```
 
-- **Which teams** (`selectTeams` in `plan/batch.ts`): those whose invite is most in doubt. It reads each nightly team file's season-rules invite share, keeps those in [0.1, 0.9] (40 of 59 on 2026-11-12), orders each region by distance from 0.5, and takes them round-robin across regions up to `--max`. That share comes from the nightly's LAN-and-habit world, not the planner's: 100 Thieves is 0.33 there and 0.54 under the planner's habitual schedule, which adds online events and qualifiers.
-- **Runs:** each team is its own `plan-schedule` process, so its ~2 GB setups are freed before the next. A failed team is a warning, and the batch fails only if every team does. It starts no team once the elapsed time plus the slowest team so far would pass the budget. One team took about 10 minutes locally on 3 workers; the 4-core runner isn't timed yet.
-- **Pruning:** index entries generated more than `--keep-days` (14) ago are dropped with their files, so teams that leave the bubble, and plans published by hand, last two weeks. It warns when the folder is over 1 MB (about 57 KB per team).
+- **Which teams** (`selectTeams` in `plan/batch.ts`): those whose invite is most in doubt, every one by default. It reads each nightly team file's season-rules invite share, keeps those in [0.1, 0.9] (40 of 59 on 2026-11-12), orders each region by distance from 0.5, and takes them round-robin across regions. Rosters with no team file join after them when their target regional rank p10–p90 straddles the region's invite line, taken as the worst p50 among the region's teams at even odds or better (`bubbleRosters`). The share comes from the nightly's LAN-and-habit world, not the planner's: 100 Thieves is 0.33 there and 0.54 under the planner's habitual schedule, which adds online events and qualifiers.
+- **Shared runs.** The season runs don't depend on the focal team: `loadSeasonSetup({ focal })` only picks the optimizer teams. So `plan-schedule` takes several teams (`--team` repeated or `--teams a,b,c`), plays each run once, and plans every team on it (`createPlanShard` with one option set per team). The batch plans `--group` teams (10) per process, so each group's setups are freed before the next. A failed group is retried one team at a time, skipping teams it already wrote. It starts no group once the elapsed time plus the slowest group so far would pass the budget.
+- **Measured (2026-11-21, 40 + 40 runs, 10 exact, 4 workers).** HOTU alone took 219 s, 174 s of it runs. 9z, HOTU and BC.Game together took 432 s, 302 s of runs, with other jobs on the machine. That's about 1.5× cheaper per team, not the 4–5× hoped: each team's replays of its own options (2,000–4,400 per team here) are a large share of a run. HOTU's plan from the group is identical to the solo one apart from timestamps. A full week of every bubble team (about 40, at the default 300 + 300 runs) isn't timed on the runner; the budget guard stops starting groups at 240 minutes, and skipped teams keep last week's plan.
+- **Pruning:** index entries generated more than `--keep-days` (21) ago are dropped with their files, so a team the budget skips keeps last week's plan. It then writes `events.json` from every plan left, and warns when the folder is over 3 MB (about 60 KB per team).
 - **Data:** the workflow restores the nightly's `data/raw` cache without saving one, and rebuilds `matchdata.json` from it. It makes no Liquipedia requests and needs no API key.
 - **Options:** any option the batch doesn't own (`--n`, `--workers`, `--out`…) is passed to every `plan-schedule` run. `--out` also moves the index it prunes.
 - **By hand:** `plan-schedule` for one team, without `--out`, still writes into the same folder and index.
 
-**Tests.** `options.test.ts`, `planShard.test.ts` (qualify fragments are the feeder plus the main event when qualified, the feeder only when not; the exact delta reruns identically to a full run), `search.test.ts` (matches the exhaustive optimum on random problems with interactions, deterministic), `batch.test.ts` (selection, pruning), `slimFrozen` in `oneTeam.test.ts`; the view in `src/sim/plan.test.ts` and `SimPages.test.tsx`, which also renders every published plan.
+**Tests.** `options.test.ts`, `planShard.test.ts` (qualify fragments are the feeder plus the main event when qualified, the feeder only when not; the exact delta reruns identically to a full run; a route's finish and gain parts; planning a second team on the same run leaves the first unchanged), `search.test.ts` (matches the exhaustive optimum on random problems with interactions, deterministic), `batch.test.ts` (selection, the bubble pool, groups, pruning, `events.json`), `gain.test.ts`, `slimFrozen` in `oneTeam.test.ts`; the view in `src/sim/plan.test.ts` and `SimPages.test.tsx`, which also renders every published plan.
 
 **Known limits:**
 

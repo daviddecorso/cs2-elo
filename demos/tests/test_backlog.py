@@ -9,10 +9,12 @@ from cs2demos.parse import PARSER_VERSION
 from cs2demos.store import Manifest
 
 
-def row(match2id, pagename, parent, date, hltv=None, tier="1", type_="Offline", score=(13, 7), team1="Vitality"):
+def row(match2id, pagename, parent, date, hltv=None, tier="1", type_="Offline", score=(13, 7), team1="Vitality",
+        tiertype=None):
     return {
         "game": "cs2", "finished": 1, "walkover": "", "resulttype": "", "match2id": match2id,
-        "pagename": pagename, "parent": parent, "liquipediatier": tier, "type": type_, "date": date,
+        "pagename": pagename, "parent": parent, "liquipediatier": tier, "liquipediatiertype": tiertype,
+        "type": type_, "date": date,
         "links": {"hltv": {"1": {"1": f"https://www.hltv.org/matches/{hltv}/x"}}} if hltv else [],
         "match2opponents": [
             {"type": "team", "name": team1, "teamtemplate": {"page": f"Team_{team1}", "name": f"Team {team1}", "shortname": team1}},
@@ -63,6 +65,8 @@ def test_load_lan_events_filters_tier_type_and_date(tmp_path):
             row("old", "Old", "Old", "2024-12-30"),
             row("online", "On", "On", "2025-06-03", type_="Online"),
             row("t2", "T2", "T2", "2025-06-03", tier="2"),
+            row("show", "S", "S", "2025-06-03", tiertype="Showmatch"),
+            row("excl", "Match_of_LeGGends/Double_Down", "Match_of_LeGGends/Double_Down", "2025-06-03"),
         ],
         hot_rows=[row("c", "F", "F", "2026-05-01", hltv=5)],
     )

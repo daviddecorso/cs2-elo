@@ -62,10 +62,27 @@ export interface PastEdition {
 }
 
 
+/** Per event id, each team with an unforfeited match there and the first lineup it fielded. */
+export type Attendance = Map<string, Map<string, ValvePlayer[]>>;
+
+export const attendanceOf = (matchdata: Matchdata, into: Attendance = new Map()): Attendance => {
+    for (const m of matchdata.matches) {
+        if (m.forfeited) continue;
+        const id = String(m.eventId);
+        let teams = into.get(id);
+        if (!teams) into.set(id, (teams = new Map()));
+        if (!teams.has(String(m.team1Id))) teams.set(String(m.team1Id), m.team1Players);
+        if (!teams.has(String(m.team2Id))) teams.set(String(m.team2Id), m.team2Players);
+    }
+    return into;
+};
+
 export interface HistoryInput {
     tournamentRows: RawRow[];
     placementRows: RawRow[];
-    matchdata: Matchdata;
+    attendance: Attendance;
+    /** Editions must have ended by this day. */
+    finishedBy: string;
     /** Published VRS lists, any order. */
     lists: Array<{ date: string; rosters: Roster[] }>;
     rules: RankedRules;
@@ -79,36 +96,99 @@ export interface HistoryInput {
     to: string;
 }
 
-/** Tournament and placement rows from the archive, then the hot store, then the upcoming store, so later rows win per page. */
-export const readHistoryRows = (rawDir = "data/raw"): { tournamentRows: RawRow[]; placementRows: RawRow[] } => {
+/** Settled months of what `pastEditions` reads, committed because CI has no `data/raw/archive` (`npm run freeze-sim-history`). */
+export const SIM_HISTORY_DIR = "data/history/sim";
+
+export interface FrozenSimMonth {
+    month: string;
+    tournaments: RawRow[];
+    /** Participant and placement rows on parent pages. */
+    placements: RawRow[];
+    attendance: Array<{ eventId: string; teams: Array<{ teamId: string; players: ValvePlayer[] }> }>;
+}
+
+const frozenCache = new Map<string, FrozenSimMonth[]>();
+export const readFrozenSimMonths = (dir = SIM_HISTORY_DIR): FrozenSimMonth[] => {
+    let months = frozenCache.get(dir);
+    if (!months) {
+        months = fs.existsSync(dir)
+            ? fs
+                  .readdirSync(dir)
+                  .filter((f) => /^\d{4}-\d{2}\.json$/.test(f))
+                  .sort()
+                  .map((f) => readJson<FrozenSimMonth>(path.join(dir, f), { month: f.slice(0, 7), tournaments: [], placements: [], attendance: [] }))
+            : [];
+        frozenCache.set(dir, months);
+    }
+    return months;
+};
+
+/** Tournament and placement rows from frozen months, the archive, the hot store, then the upcoming store, so later rows win per page. */
+export const readHistoryRows = (rawDir = "data/raw", frozenDir = SIM_HISTORY_DIR): { tournamentRows: RawRow[]; placementRows: RawRow[] } => {
     const archive = path.join(rawDir, "archive");
     const monthly = (prefix: string) =>
-        fs
-            .readdirSync(archive)
-            .filter((f) => f.startsWith(prefix) && f.endsWith(".json"))
-            .sort()
-            .flatMap((f) => readJson<RawRow[]>(path.join(archive, f), []));
+        fs.existsSync(archive)
+            ? fs
+                  .readdirSync(archive)
+                  .filter((f) => f.startsWith(prefix) && f.endsWith(".json"))
+                  .sort()
+                  .flatMap((f) => readJson<RawRow[]>(path.join(archive, f), []))
+            : [];
     const upcoming = readUpcoming();
+    const tournamentRows = [...monthly("tournaments-"), ...readJson<RawRow[]>(path.join(rawDir, "tournaments.json"), []), ...(upcoming?.tournaments ?? [])];
+    const placementRows = [...monthly("placements-"), ...readJson<RawRow[]>(path.join(rawDir, "placements.json"), []), ...(upcoming?.placements ?? [])];
+    // Frozen rows only fill pages the stores lack: repeated participant rows would count a page's slots twice.
+    const pages = new Set(tournamentRows.map((r) => String(r.pagename)));
+    const parents = new Set(placementRows.map((r) => String(r.parent)));
+    const frozen = readFrozenSimMonths(frozenDir);
     return {
-        tournamentRows: [...monthly("tournaments-"), ...readJson<RawRow[]>(path.join(rawDir, "tournaments.json"), []), ...(upcoming?.tournaments ?? [])],
-        placementRows: [...monthly("placements-"), ...readJson<RawRow[]>(path.join(rawDir, "placements.json"), []), ...(upcoming?.placements ?? [])],
+        tournamentRows: [...frozen.flatMap((m) => m.tournaments.filter((r) => !pages.has(String(r.pagename)))), ...tournamentRows],
+        placementRows: [...frozen.flatMap((m) => m.placements.filter((r) => !parents.has(String(r.parent)))), ...placementRows],
     };
+};
+
+/** Frozen months' attendance merged per team with `matchdata`'s, whose lineups win; an event straddling the hot store's start is only partly in it. */
+export const readAttendance = (matchdata: Matchdata, frozenDir = SIM_HISTORY_DIR): Attendance => {
+    const out: Attendance = new Map();
+    for (const m of readFrozenSimMonths(frozenDir)) for (const e of m.attendance) out.set(e.eventId, new Map(e.teams.map((t) => [t.teamId, t.players])));
+    for (const [id, teams] of attendanceOf(matchdata)) out.set(id, new Map([...(out.get(id) ?? []), ...teams]));
+    return out;
 };
 
 /** Valve's published lists, and so attendee ranks, start in August 2024. */
 export const HISTORY_FROM = "2024-08-01";
 
+/** Built by `npm run build-matchdata-full` from the local archive; `data/matchdata.json` only holds the hot store's ~190 days. */
+export const FULL_MATCHDATA = "data/matchdata-full.json";
+
+/** `current` (default `data/matchdata.json`) with every older match spliced in from `FULL_MATCHDATA`, when that file exists. */
+export const readMatchHistory = (current?: Matchdata): Matchdata => {
+    const now = current ?? readJson<Matchdata | null>("data/matchdata.json", null);
+    if (!now) throw new Error("data/matchdata.json is missing; run npm run build-matchdata first");
+    const full = readJson<Matchdata | null>(FULL_MATCHDATA, null);
+    if (!full) return now;
+    const from = now.matches.reduce((t, m) => Math.min(t, m.matchStartTime), Infinity);
+    const older = full.matches.filter((m) => m.matchStartTime < from);
+    const olderEvents = new Set(older.map((m) => String(m.eventId)));
+    const nowEvents = new Set(now.events.map((e) => String(e.eventId)));
+    return {
+        ...now,
+        matches: [...older, ...now.matches],
+        events: [...full.events.filter((e) => olderEvents.has(String(e.eventId)) && !nowEvents.has(String(e.eventId))), ...now.events],
+    };
+};
+
 /** Every past edition and published list from local files, with team ids as the model input spells them; for scripts that don't load a season. */
 export const loadHistory = (valveRoot: string) => {
     const overrides = readJson<Overrides>("data/overrides.json", {});
-    const matchdata = readJson<Matchdata | null>("data/matchdata.json", null);
-    if (!matchdata) throw new Error("data/matchdata.json is missing; run npm run build-matchdata first");
+    const matchdata = readMatchHistory();
     const lists = publishedSnapshotDates(valveRoot, ["invitation"]).map((date) => ({ date, rosters: readPublishedSnapshot(valveRoot, date).rosters }));
     const countryRegion = (loadValveCjs(path.join(valveRoot, "model/util/region.js")) as { getCountryRegion: CountryRegion }).getCountryRegion;
     const lastDay = new Date(matchdata.matches.reduce((t, m) => Math.max(t, m.matchStartTime), 0) * 1000).toISOString().slice(0, 10);
     const editions = pastEditions({
         ...readHistoryRows(),
-        matchdata,
+        attendance: readAttendance(matchdata),
+        finishedBy: lastDay,
         lists,
         rules: rankedRules(overrides),
         countryRegion,
@@ -123,7 +203,6 @@ export const loadHistory = (valveRoot: string) => {
 const MIN_SHARED_PLAYERS = 3;
 const VALVE_REGIONS: Region[] = ["Europe", "Americas", "Asia"];
 const str = (v: unknown): string => (v === null || v === undefined ? "" : String(v));
-const dayOf = (t: number) => new Date(t * 1000).toISOString().slice(0, 10);
 
 /** Valve region of a majority of a lineup's players, else null. */
 export const lineupRegion = (players: ValvePlayer[], countryRegion: CountryRegion): Region | null => {
@@ -144,8 +223,7 @@ export const lineupRegion = (players: ValvePlayer[], countryRegion: CountryRegio
 export const pastEditions = (input: HistoryInput): PastEdition[] => {
     const rowByPage = new Map<string, RawRow>();
     for (const r of input.tournamentRows) rowByPage.set(str(r.pagename), r);
-    const lastDay = input.matchdata.matches.reduce((t, m) => Math.max(t, m.matchStartTime), 0);
-    const finishedBy = dayOf(lastDay);
+    const { finishedBy } = input;
 
     const rows = [...rowByPage.values()].filter((r) => {
         const start = str(r.startdate);
@@ -164,15 +242,7 @@ export const pastEditions = (input: HistoryInput): PastEdition[] => {
         if (!rowByEventId.has(id) || str(r.pagename) === id) rowByEventId.set(id, r);
     }
 
-    const lineupsByEvent = new Map<string, Map<string, ValvePlayer[]>>();
-    for (const m of input.matchdata.matches) {
-        const id = String(m.eventId);
-        if (!rowByEventId.has(id) || m.forfeited) continue;
-        let teams = lineupsByEvent.get(id);
-        if (!teams) lineupsByEvent.set(id, (teams = new Map()));
-        if (!teams.has(String(m.team1Id))) teams.set(String(m.team1Id), m.team1Players);
-        if (!teams.has(String(m.team2Id))) teams.set(String(m.team2Id), m.team2Players);
-    }
+    const lineupsByEvent = input.attendance;
 
     const labelsByPage = new Map<string, Map<string, Pick<PastAttendee, "label" | "vrs">>>();
     for (const r of input.placementRows) {

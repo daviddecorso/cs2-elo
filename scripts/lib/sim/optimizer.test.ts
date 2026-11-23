@@ -147,6 +147,63 @@ describe("teamUniverse", () => {
         const standIn = { ...drawn, config: { ...drawn.config, slug: "stand-in" }, unannounced: true };
         expect(teamUniverse([cup, drawn, standIn], t0, day(0), caps).universe).toEqual([0, 1]);
     });
+
+    describe("with a Major invite", () => {
+        const major = { ...cup, projection: { ...cup.projection, major: true } };
+        const later = seasonEvent(singleElim("later", 20), { ...open.field, slug: "later" }, "2026-11");
+
+        it("puts the Major in every schedule and offers nothing open that clashes with it", () => {
+            const u = teamUniverse([major, open, later], t0, day(0), caps);
+            expect(u).toMatchObject({ universe: [0, 2], required: 1, masks: [1, 3] });
+        });
+
+        it("blocks a Major's dates once it's under way", () => {
+            const u = teamUniverse([major, open, later], t0, day(3), caps);
+            expect(u).toMatchObject({ universe: [2], committed: ["cup"], required: 0, masks: [0, 1] });
+        });
+
+        it("keeps an announced clash as a candidate that no schedule takes", () => {
+            const clash = { ...open, field: { ...open.field, announced: [t0, t4] } };
+            for (const [asOf, masks] of [[day(0), [1]], [day(3), [0]]] as const) {
+                const u = teamUniverse([major, clash], t0, asOf, caps);
+                expect(u.universe).toContain(1);
+                expect(u.masks).toEqual(masks);
+            }
+        });
+
+        it("keeps the Major when the caps are already full", () => {
+            const u = teamUniverse([major, later], t0, day(0), { low: 0, average: 0, high: 0 });
+            expect(u.masks).toEqual([1]);
+        });
+
+        it("keeps the Major ahead of richer events past the universe limit", () => {
+            const prizes = new Map([["1", 1e7]]);
+            const richer = Array.from({ length: 12 }, (_, i) => {
+                const e = seasonEvent(singleElim(`rich-${i}`, 20 + 10 * i), { ...open.field, slug: `rich-${i}`, announced: [t0] }, null);
+                return { ...e, projection: { ...e.projection, prizes } };
+            });
+            const u = teamUniverse([...richer, major], t0, day(0), caps);
+            expect(u.universe[0]).toBe(12);
+            expect(u.masks.every((m) => m & 1)).toBe(true);
+        });
+
+        it("recommends it at every volume and goal, even when skipping scores better", () => {
+            const events = [major, later];
+            const setup: OptimizerSetup = {
+                ...opt,
+                caps: { low: 0, average: 1, high: 2 },
+                teams: [{ ...opt.teams[0], ...teamUniverse(events, t0, day(0), caps) }],
+            };
+            const tally = emptyOptimizerTally(setup, 1);
+            const scores = tally.teams[0];
+            scores.seen.fill(1);
+            tally.slotsKnown.fill(1);
+            scores.reach.fill(1);
+            scores.points.set([100, 50]);
+            const pick = pickSchedules(tally, setup, { ...input, events }, 0);
+            expect(pick.recommended).toEqual([{ m: 0, volumes: ["low", "average", "high"], goals: ["points", "invite"] }]);
+        });
+    });
 });
 
 describe("optimizeRun", () => {
@@ -297,7 +354,7 @@ describe("pickSchedules", () => {
     const setup: OptimizerSetup = {
         ...opt,
         caps,
-        teams: [{ ...opt.teams[0], universe: [0, 1, 2, 3], announced: new Set(["a"]), committed: [], masks: [...Array(16).keys()] }],
+        teams: [{ ...opt.teams[0], universe: [0, 1, 2, 3], announced: new Set(["a"]), committed: [], required: 0, masks: [...Array(16).keys()] }],
     };
     const n = 10;
     const tally: OptimizerTally = emptyOptimizerTally(setup, n);

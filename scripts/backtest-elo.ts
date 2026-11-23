@@ -222,6 +222,8 @@ for (const year of ["2024", "2025", "2026"]) {
         diag(`${year} ${venue} Bo1`, elo(slice.filter((p) => p.bestOf === 1)));
         diag(`${year} ${venue} Bo3+`, elo(slice.filter((p) => p.bestOf > 1)));
     }
+    diag(`${year} tier-1 LAN series`, elo(ofYear.filter((p) => p.tier === 1 && p.lan)));
+    diag(`${year} tier-1 LAN maps`, maps(ofYear.filter((p) => p.tier === 1 && p.lan)));
 }
 
 // Post-hoc temperature fit on train: the ceiling for a pure calibration fix, never applied to published numbers.
@@ -230,6 +232,30 @@ const tempered = (ps: SeriesPrediction[]): Forecast[] => ps.map(({ p, y }) => ({
 console.log(`\nPost-hoc temperature ${temperature.toFixed(3)} (fit on train)`);
 console.log(fmt("Tempered series, gate set", score(tempered(gateSet))));
 diag("tempered test series", tempered(test));
+
+// Each slice's temperature is applied to that slice only; the gain is spread over the whole gate set so it compares to the 0.0005 bar.
+const sinceChange = (p: SeriesPrediction): number => Math.min(...p.mapsSinceCoreChange.map((n) => n ?? Infinity));
+const coreChangeSlices: Array<[string, (p: SeriesPrediction) => boolean]> = [
+    ["< 30 maps since core change", (p) => sinceChange(p) < 30],
+    ["30–100 maps since core change", (p) => sinceChange(p) >= 30 && sinceChange(p) < 100],
+    ["≥ 100 maps or no core change", (p) => sinceChange(p) >= 100],
+];
+const temper = (ps: SeriesPrediction[], slope: number): Forecast[] => ps.map(({ p, y }) => ({ p: 1 / (1 + Math.exp(-slope * logit(p))), y }));
+const gateGain = (ps: SeriesPrediction[], slope: number) =>
+    (ps.length * (score(elo(ps)).logLoss - score(temper(ps, slope)).logLoss)) / gateSet.length;
+if (flag("core-change")) console.log(`\nCore-change slices: slope, and the gate gain from tempering only that slice (fit on 2025 train, or on the slice itself as a ceiling)`);
+for (const [label, inSlice] of flag("core-change") ? coreChangeSlices : []) {
+    for (const [scope, filter] of [["", () => true], [", cross-region", (p: SeriesPrediction) => p.crossRegion]] as const) {
+        const gate = gateSet.filter((p) => inSlice(p) && filter(p));
+        if (gate.length < 30) continue;
+        diag(`gate ${label}${scope}`, elo(gate));
+        const trainSlope = calibrationSlope(elo(train.filter((p) => inSlice(p) && filter(p)))).slope;
+        const oracleSlope = calibrationSlope(elo(gate)).slope;
+        console.log(
+            `    train slope ${trainSlope.toFixed(3)} → gate gain ${gateGain(gate, trainSlope).toFixed(5)}; ceiling (slope ${oracleSlope.toFixed(3)}) ${gateGain(gate, oracleSlope).toFixed(5)}`
+        );
+    }
+}
 
 const eloGate = score(elo(gateSet));
 const vrsGate = score(vrs(gateSet));
@@ -240,12 +266,20 @@ if (flag("residual-lead")) {
     residualLead();
     process.exit(0);
 }
+if (flag("h2h")) {
+    headToHead();
+    process.exit(0);
+}
 if (flag("region-residual")) {
     regionResidual();
     process.exit(0);
 }
 if (flag("region-walk")) {
     regionWalk();
+    process.exit(0);
+}
+if (flag("walk")) {
+    walkForward();
     process.exit(0);
 }
 
@@ -496,6 +530,86 @@ function residualLead(): void {
         const [b1, b2] = fitN(rows, rows.map((r) => r.split[k]));
         console.log(`  ${labels[k][0].padEnd(18)} ${b1}   ${labels[k][1].padEnd(8)} ${b2}`);
     }
+}
+
+// `--h2h`: does a pair's decayed past map residual against each other predict their next maps beyond each side's
+// residual against everyone? Declared test in elo-experiments.md (head-to-head persistence).
+function headToHead(): void {
+    const TAU = 365 * 86400;
+    const PAIR_SHRINK = 10;
+    const TEAM_SHRINK = 40;
+    type Past = { r: number; t: number; map: string };
+    const team = new Map<number, Past[]>();
+    const pair = new Map<string, Past[]>();
+    const push = <K>(m: Map<K, Past[]>, k: K, e: Past) => m.set(k, [...(m.get(k) ?? []), e]);
+    const mean = (ps: Past[] | undefined, t: number, shrink: number, map?: string) => {
+        let n = 0;
+        let s = 0;
+        for (const e of ps ?? []) {
+            if (map && e.map !== map) continue;
+            const d = Math.exp(-(t - e.t) / TAU);
+            n += d;
+            s += e.r * d;
+        }
+        return s / (n + shrink);
+    };
+    const eventOfId = new Map(feed.matches.map((m) => [m.id, m.event]));
+    type Row = { offset: number; y: 0 | 1; pair: number; sameMap: number; control: number; year: string; tier: number; met: number; event: string };
+    const rows: Row[] = [];
+    for (const s of predictions) {
+        const [a, b] = s.lineages;
+        const year = dayOf(s.t).slice(0, 4);
+        if (year === "2025" || year === "2026") {
+            const history = pair.get(`${a}:${b}`);
+            const control = mean(team.get(a), s.t, TEAM_SHRINK) - mean(team.get(b), s.t, TEAM_SHRINK);
+            for (const m of s.maps) {
+                rows.push({
+                    offset: logit(clip(m.p)),
+                    y: m.y,
+                    pair: mean(history, s.t, PAIR_SHRINK),
+                    sameMap: mean(history, s.t, PAIR_SHRINK, m.map),
+                    control,
+                    year,
+                    tier: s.tier,
+                    met: history?.length ?? 0,
+                    event: eventOfId.get(s.id)!,
+                });
+            }
+        }
+        for (const m of s.maps) {
+            const r = m.y - m.p;
+            push(team, a, { r, t: s.t, map: m.map });
+            push(team, b, { r: -r, t: s.t, map: m.map });
+            push(pair, `${a}:${b}`, { r, t: s.t, map: m.map });
+            push(pair, `${b}:${a}`, { r: -r, t: s.t, map: m.map });
+        }
+    }
+    const fit = (rs: Row[], feature: "pair" | "sameMap") => {
+        const { beta, se } = fitOffsetLogit(rs, rs.map((r) => [r[feature], r.control]));
+        return `${feature.padEnd(8)} ${beta[0].toFixed(3)} ± ${se[0].toFixed(3)} (z ${(beta[0] / se[0]).toFixed(2)})  control ${beta[1].toFixed(3)} ± ${se[1].toFixed(3)}  n=${rs.length}`;
+    };
+    console.log(`\nHead-to-head persistence (offset logit(p); coefficient on pair residual with each side's form as control)`);
+    for (const year of ["2025", "2026"]) {
+        const ys = rows.filter((r) => r.year === year);
+        console.log(`${year}: ${ys.length} maps, ${ys.filter((r) => r.met > 0).length} with an earlier meeting`);
+        console.log(`  all           ${fit(ys, "pair")}`);
+        console.log(`  all           ${fit(ys, "sameMap")}`);
+        console.log(`  tier 1        ${fit(ys.filter((r) => r.tier === 1), "pair")}`);
+        console.log(`  met 3+ maps   ${fit(ys.filter((r) => r.met >= 3), "pair")}`);
+        const sd = Math.sqrt(ys.filter((r) => r.met > 0).reduce((a, r) => a + r.pair ** 2, 0) / ys.filter((r) => r.met > 0).length);
+        console.log(`  pair residual SD where met: ${sd.toFixed(4)}`);
+    }
+    const train25 = rows.filter((r) => r.year === "2025");
+    const test26 = rows.filter((r) => r.year === "2026");
+    const withPair = fitOffsetLogit(train25, train25.map((r) => [r.pair, r.control])).beta;
+    const controlOnly = fitOffsetLogit(train25, train25.map((r) => [r.control])).beta;
+    const loss = (x: number, y: number) => Math.log(1 + Math.exp(y ? -x : x));
+    const gains = test26.map((r) => loss(r.offset + controlOnly[0] * r.control, r.y) - loss(r.offset + withPair[0] * r.pair + withPair[1] * r.control, r.y));
+    const [lo, hi] = clusterCi(gains, test26.map((r) => r.event));
+    console.log(
+        `\n2026 map log loss gain from the 2025 pair coefficient (${withPair[0].toFixed(3)}) over control only: ` +
+            `${(gains.reduce((a, g) => a + g, 0) / gains.length).toFixed(5)} (90% CI ${lo.toFixed(5)} to ${hi.toFixed(5)})`
+    );
 }
 
 // `--luck` / `--skill`: tune luckWeight or skillWeight on 2025 series where both rosters have recent luck maps, score 2026.
@@ -1043,6 +1157,76 @@ function regionWalk(): void {
     const [lo, hi] = clusterCi(gains, clusters);
     const pooled = gains.reduce((a, g) => a + g, 0) / gains.length;
     console.log(`\nPooled cross-region gain ${pooled.toFixed(4)} on ${gains.length} series (90% CI ${lo.toFixed(4)} to ${hi.toFixed(4)}) → ${lo > 0 ? "PASS" : "FAIL"} (gate check above)`);
+}
+
+// `--walk key=v1,v2,…` (repeatable; grids are crossed) picks the combination with the lowest log loss on earlier years'
+// `--walk-fit` slice (all, cross or t1lan) and scores the next year against the current params; tier-1 LAN rule in elo-experiments.md.
+function walkForward(): void {
+    const grids = args.flatMap((arg, i) => (arg === "--walk" ? [args[i + 1] ?? ""] : [])).map((spec) => {
+        const [key, values] = spec.split("=");
+        if (!(key in params) || !values) throw new Error(`Bad --walk ${spec}`);
+        return { key: key as keyof EloParams, values: values.split(",").map(Number) };
+    });
+    const fitSlice = option("walk-fit", "all");
+    const slices: Record<string, (s: SeriesPrediction) => boolean> = {
+        all: () => true,
+        cross: (s) => s.crossRegion,
+        t1lan: (s) => s.tier === 1 && s.lan,
+    };
+    if (!slices[fitSlice]) throw new Error(`Bad --walk-fit ${fitSlice}`);
+    const combos = grids.reduce<Array<Partial<EloParams>>>((acc, g) => acc.flatMap((c) => g.values.map((v) => ({ ...c, [g.key]: v }))), [{}]);
+    const yearOf = (s: SeriesPrediction) => dayOf(s.t).slice(0, 4);
+    const eventOfId = new Map(feed.matches.map((m) => [m.id, m.event]));
+    const loss = (q: number, y: number) => -Math.log(clip(y ? q : 1 - q));
+    const mean = (xs: number[]) => xs.reduce((a, x) => a + x, 0) / xs.length;
+    const label = (c: Partial<EloParams>) => Object.entries(c).map(([k, v]) => `${k} ${v}`).join(", ");
+    const base = run(params);
+    const baseById = new Map(base.map((s) => [s.id, s]));
+    const gateIds = new Set(gateSet.map((s) => s.id));
+
+    const folds: Array<[string[], string]> = [
+        [["2024"], "2025"],
+        [["2024", "2025"], "2026"],
+    ];
+    // Only each fold's best run is kept, so large grids fit in memory.
+    const best = folds.map(() => ({ loss: Infinity, combo: {} as Partial<EloParams>, test: [] as SeriesPrediction[] }));
+    for (const combo of combos) {
+        const preds = run({ ...params, ...combo });
+        folds.forEach(([trainYears, testYear], f) => {
+            const fitLoss = mean(preds.filter((s) => trainYears.includes(yearOf(s)) && slices[fitSlice](s)).map((s) => loss(s.p, s.y)));
+            if (fitLoss < best[f].loss) best[f] = { loss: fitLoss, combo, test: preds.filter((s) => yearOf(s) === testYear && baseById.has(s.id)) };
+        });
+    }
+    const t1Gains: number[] = [];
+    const t1Events: string[] = [];
+    let gate2026 = NaN;
+    for (const [f, [trainYears, testYear]] of folds.entries()) {
+        const { combo, test } = best[f];
+        console.log(`\nFit ${trainYears.join("+")} on ${fitSlice} → test ${testYear}: ${label(combo)}`);
+        const report = (name: string, ss: SeriesPrediction[]) => {
+            if (ss.length === 0) return [];
+            const gains = ss.map((s) => loss(baseById.get(s.id)!.p, s.y) - loss(s.p, s.y));
+            const [lo, hi] = clusterCi(gains, ss.map((s) => eventOfId.get(s.id)!));
+            console.log(`  ${name.padEnd(14)} ${String(ss.length).padStart(6)} series, gain ${mean(gains).toFixed(4)} (90% CI ${lo.toFixed(4)} to ${hi.toFixed(4)})`);
+            return gains;
+        };
+        report("all", test);
+        report("cross-region", test.filter((s) => slices.cross(baseById.get(s.id)!)));
+        const t1 = test.filter((s) => slices.t1lan(baseById.get(s.id)!));
+        t1Gains.push(...report("tier-1 LAN", t1));
+        t1Events.push(...t1.map((s) => eventOfId.get(s.id)!));
+        if (testYear === "2026") {
+            const gate = test.filter((s) => gateIds.has(s.id));
+            const gains = report("gate", gate);
+            gate2026 = mean(gains);
+        }
+    }
+    const [lo, hi] = clusterCi(t1Gains, t1Events);
+    const pass = lo > 0 && gate2026 >= -0.0002;
+    console.log(
+        `\nPooled tier-1 LAN gain ${mean(t1Gains).toFixed(4)} on ${t1Gains.length} series (90% CI ${lo.toFixed(4)} to ${hi.toFixed(4)}); ` +
+            `2026 gate ${gate2026.toFixed(4)} → ${pass ? "PASS" : "FAIL"}`
+    );
 }
 
 function clip(q: number): number {

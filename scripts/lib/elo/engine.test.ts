@@ -127,6 +127,29 @@ describe("EloEngine", () => {
         expect(regressed.rating).toBeLessThan(kept.rating);
     });
 
+    it("moves a core change toward incoming players' active ratings by transferWeight", () => {
+        const a = roster("ta");
+        const s = roster("ts");
+        const b = roster("tb");
+        const two: Array<[number, number]> = [[13, 2], [13, 2]];
+        const setup = [
+            ...Array.from({ length: 15 }, (_, i) => match(i * DAY, ["S", "B"], [s, b], 0, two)),
+            ...Array.from({ length: 6 }, (_, i) => match((15 + i) * DAY, ["A", "B"], [a, b], 1)),
+        ];
+        const run = (transferWeight: number, incoming: string[]) => {
+            const engine = new EloEngine({ ...params, regress: 0, coreWindow: 3, transferWeight }, players);
+            const changed = [...a.slice(0, 3), ...incoming];
+            const preds = engine.run([...setup, ...Array.from({ length: 2 }, (_, i) => match((21 + i) * DAY, ["A", "B"], [changed, b], 0))]);
+            return { engine, flip: preds.at(-1)!.ratings[0] };
+        };
+        const off = run(0, [s[0], s[1]]);
+        const on = run(1, [s[0], s[1]]);
+        const strong = off.engine.lineages.find((l) => l.team === "S")!;
+        expect(strong.maps).toBe(30);
+        expect(on.flip - off.flip).toBeCloseTo((2 / 5) * (strong.rating - off.flip), 6);
+        expect(run(1, ["tnew1", "tnew2"]).flip).toBeCloseTo(run(0, ["tnew1", "tnew2"]).flip, 10);
+    });
+
     it("starts a new lineage when three players change, seeded from their old ratings", () => {
         const a = roster("g");
         const b = roster("h");
@@ -188,6 +211,46 @@ describe("EloEngine", () => {
         const on = run(500, skill);
         expect(on[0].p).toBeGreaterThan(0.5);
         expect(on[0].maps[0].p).toBeCloseTo(expectedScore(50, params.scale), 10);
+    });
+
+    it("ignores round share at roundWeight 0 and learns less from a close map above it", () => {
+        const a = roster("rw");
+        const b = roster("rx");
+        const ratingAfter = (roundWeight: number, rounds: [number, number], roundSlope = params.roundSlope) => {
+            const engine = new EloEngine({ ...params, roundWeight, roundSlope }, players);
+            engine.run([match(0, ["A", "B"], [a, b], rounds[0] > rounds[1] ? 0 : 1, [rounds])]);
+            return engine.teamLineageOf("A")!.rating;
+        };
+        expect(ratingAfter(0, [13, 11], 0.9)).toBe(ratingAfter(0, [13, 11]));
+        const closeWin = ratingAfter(1, [13, 11]);
+        expect(closeWin).toBeGreaterThan(1500);
+        expect(closeWin).toBeLessThan(ratingAfter(0, [13, 11]));
+        expect(ratingAfter(1, [13, 3]) - 1500).toBeGreaterThan(closeWin - 1500);
+        expect(ratingAfter(1, [11, 13]) - 1500).toBeCloseTo(1500 - closeWin, 6);
+    });
+
+    it("lowers an insular Asian roster's cross-region odds by insularityPrior, predictions only by default", () => {
+        const asia = roster("ia", "cn");
+        const asia2 = roster("ib", "cn");
+        const europe = roster("ic", "se");
+        const series = [
+            ...Array.from({ length: 4 }, (_, i) => match(i * DAY, ["A", "C"], [asia, asia2], (i % 2) as 0 | 1, [[13, 9], [9, 13], [13, 9]])),
+            match(10 * DAY, ["A", "E"], [asia, europe], 0),
+        ];
+        const run = (overrides: Partial<EloParams>) => {
+            const engine = new EloEngine({ ...params, ...overrides }, players);
+            const preds = engine.run(series);
+            return { last: preds.at(-1)!, rating: engine.teamLineageOf("A")!.rating };
+        };
+        const plain = run({});
+        const insular = run({ insularityPrior: -100 });
+        expect(plain.last.ownRegionShare[0]).toBe(1);
+        expect(insular.last.maps[0].p).toBeCloseTo(expectedScore(plain.last.ratings[0] - plain.last.ratings[1] - 100, params.scale), 10);
+        expect(insular.rating).toBe(plain.rating);
+        expect(run({ insularityPrior: -100, insularityInUpdate: 1 }).rating).toBeGreaterThan(plain.rating);
+        expect(run({ insularityPrior: -100 }).last.p).toBeLessThan(plain.last.p);
+        const sameRegion = new EloEngine({ ...params, insularityPrior: -100 }, players).run(series.slice(0, 4));
+        expect(sameRegion.map((p) => p.p)).toEqual(new EloEngine(params, players).run(series.slice(0, 4)).map((p) => p.p));
     });
 
     it("takes θ at a series only from series with an earlier t", () => {

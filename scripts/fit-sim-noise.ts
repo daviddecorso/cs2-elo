@@ -2,6 +2,8 @@ import { EloEngine, expectedScore } from "./lib/elo/engine.ts";
 import { loadFeed } from "./lib/elo/history.ts";
 import { DEFAULT_PARAMS } from "./lib/elo/params.ts";
 import { seriesLength, seriesWinProbability } from "./lib/elo/series.ts";
+import { roleOf } from "./lib/sim/catalog.ts";
+import { readHistoryRows } from "./lib/sim/history.ts";
 
 // Method of moments: with a shared form offset ε ~ N(0, σ²) per team per event, residuals of one team's series in
 // the same event covary by about g_i · g_j · σ², where g is the series probability's slope per Elo point.
@@ -158,5 +160,28 @@ for (const bucket of TIER_BUCKETS) {
     const tau = fitTau(train);
     console.log(
         `  tier ${bucket === 3 ? "3+" : bucket}: τ ${tau.toFixed(3)} (2025 n ${train.length}); 2026 n ${test.length}: log loss ${logLoss(test, 1).toFixed(4)} → ${logLoss(test, tau).toFixed(4)}, slope ${slopeOf(test, 1).toFixed(3)} → ${slopeOf(test, tau).toFixed(3)}`
+    );
+}
+
+// Qualifier series on their own, which the planner's qualifying odds rest on; reported, no temperature applied.
+const qualifierPages = new Set(
+    readHistoryRows()
+        .tournamentRows.filter((r) => roleOf(r) === "qualifier")
+        .map((r) => String(r.pagename))
+);
+const isQualifier = (event: string) => qualifierPages.has(event) || qualifierPages.has(event.replace(/ /g, "_"));
+console.log("\nQualifier series (role from the tournament row), as played at τ 1:");
+for (const [from, to] of [
+    ["2025-01-01", "2025-12-31"],
+    ["2026-01-01", "2026-12-31"],
+]) {
+    const items: TierItem[] = predictions.flatMap((p) => {
+        const day = new Date(p.t * 1000).toISOString().slice(0, 10);
+        if (day < from || day > to || p.p <= 0.001 || p.p >= 0.999 || !isQualifier(eventOf.get(p.id)!)) return [];
+        return [{ d: gapFor(p.p, p.bestOf), bo: p.bestOf, y: p.y }];
+    });
+    const tau = fitTau(items);
+    console.log(
+        `  ${from.slice(0, 4)}: n ${items.length}, slope ${slopeOf(items, 1).toFixed(3)}, log loss ${logLoss(items, 1).toFixed(4)}; best τ ${tau.toFixed(3)} would give ${logLoss(items, tau).toFixed(4)}`
     );
 }

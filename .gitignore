@@ -31,6 +31,7 @@ plans/
 .cache/
 data/raw/
 data/matchdata.json
+data/matchdata-full.json
 data/lan-series.json
 data/demos/lp/
 data/demos/auto.lock
@@ -53,3 +54,6 @@ wp-models.tar
 data/elo/luck-maps.jsonl
 data/elo/player-skill.json
 data/external/
+# Carries HLTV ban and pick rates; veto-weights.json is the committed part.
+data/sim/veto-model.json
+public/data/war/heatmaps/

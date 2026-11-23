@@ -2,7 +2,7 @@
 
 ## Overview
 
-Phase 6 of [spec.md](spec.md): wins above replacement, comparing each player with a replacement in the same role. Built so far: **CT positions** (item 1), **T roles** (item 2), **role validation** (item 3), **role baselines** (item 4), **expected duels** (item 5), **IGL tags** (item 6), **Wins Above Average & replacement hook** (item 7), **bootstrap uncertainty & web publishing** (item 8), **team factor & APM** (`cs2wp team-factor`, gated off-site), and the Phase 7 team stats: **duel execution and quality** (`cs2wp duel-stats`), **team round stats** (`cs2wp team-stats`), **tactics stats** (`cs2wp tactics`), **T-side predictability** (`cs2wp predictability`) and **clutch and man-advantage conversion** (`cs2wp clutch`). The code lives in `wp/` (`cs2wp positions`, `cs2wp roles`, `cs2wp validate-roles`, `cs2wp baselines`, `cs2wp duels`, `cs2wp duel-stats`, `cs2wp igls`, `cs2wp usage`, `cs2wp war`, `cs2wp validate-war`, `cs2wp team-factor`, `cs2wp team-stats`, `cs2wp tactics`, `cs2wp predictability`, `cs2wp clutch`). The public site publishes provisional WAA rankings at `/players`, with a page per player at `/players/:player` (`public/data/war/players.json`).
+Phase 6 of [spec.md](spec.md): wins above replacement, comparing each player with a replacement in the same role. Built so far: **CT positions** (item 1), **T roles** (item 2), **role validation** (item 3), **role baselines** (item 4), **expected duels** (item 5), **IGL tags** (item 6), **Wins Above Average & replacement hook** (item 7), **bootstrap uncertainty & web publishing** (item 8), **team factor & APM** (`cs2wp team-factor`, gated off-site), and the Phase 7 team stats: **duel execution and quality** (`cs2wp duel-stats`), **team round stats** (`cs2wp team-stats`), **tactics stats** (`cs2wp tactics`), **T-side predictability** (`cs2wp predictability`) and **clutch and man-advantage conversion** (`cs2wp clutch`). The code lives in `wp/` (`cs2wp positions`, `cs2wp roles`, `cs2wp validate-roles`, `cs2wp baselines`, `cs2wp duels`, `cs2wp duel-stats`, `cs2wp igls`, `cs2wp usage`, `cs2wp war`, `cs2wp validate-war`, `cs2wp team-factor`, `cs2wp team-stats`, `cs2wp tactics`, `cs2wp predictability`, `cs2wp clutch`). The public site publishes one rating at `/players`, WAA per 100 rounds from `wpa_opp` credit [shrunk for sample size](#shrinkage), with a page per player at `/players/:player` (`public/data/war/players.json`).
 
 ## CT positions
 
@@ -384,7 +384,7 @@ The comparator is each unit's raw CT and T round win rate above the league rate,
 
 | Stat (62 stints, 300+ rounds) | Split-half r (90% CI) | k (rounds) | Quarter persistence r (90% CI) | r with Elo | Elo + stat gain (90% CI) | Verdict |
 | --- | --- | --- | --- | --- | --- | --- |
-| Time-and-position value | 0.415 (0.239, 0.577) | 1,102 | 0.379 (0.238, 0.496) | −0.48 | +0.0005 (−0.0007, +0.0016) | Published, descriptive |
+| Time-and-position value | 0.415 (0.239, 0.577) | 1,102 | 0.379 (0.238, 0.496) | −0.48 | +0.0005 (−0.0007, +0.0016) | Published, descriptive; hidden on the site since 2026-11-22 |
 | Round wins over expected, economy | 0.662 (0.529, 0.764) | 399 | 0.570 (0.477, 0.644) | 0.93 | −0.0001 (−0.0012, +0.0009) | Published, descriptive |
 | Round conversion over duels | 0.323 (0.118, 0.508) | 1,641 | 0.065 (−0.066, 0.194) | 0.19 | −0.0003 (−0.0009, +0.0002) | **Fails persistence** |
 | Round wins over expected, player WAR | 0.239 (−0.018, 0.467) | 2,290 | 0.094 (−0.035, 0.219) | 0.56 | +0.0013 (−0.0006, +0.0030) | **Fails** both (same as Stage 1) |
@@ -399,11 +399,15 @@ Adjusted T and CT ratings, by stint:
 Findings:
 
 - **The economy version is Elo without Elo** (r 0.93). It measures strength honestly, but adds nothing to Elo.
-- **Time-and-position value is not Elo-free.** Drift comes from the WP model, which includes `elo_diff_ct`. A favourite's p0 already prices its edge, so strong teams tend to lose drift (r −0.48). Treat it as "positioning given the rating", not as a pure tactics measure.
+- **Time-and-position value is not Elo-free.** Drift comes from the WP model, which includes `elo_diff_ct`. A favourite's p0 already prices its edge, so strong teams tend to lose drift (r −0.48). Don't read it as positioning skill.
+- **Time-and-position value is hidden on the site until it's reworked (decided 2026-11-22).** It read as backwards: the 10 best stints by the economy version are all negative and 9 of the worst 10 are positive. Checked on the stored reports of 2026-11-12 (67,425 rounds):
+  - The sign is correct: drift is CT-positive, the T team gets its negative, and side labels agree with every round's winner.
+  - Favourites average +0.74 per 100 rounds from events, −0.39 from drift and −0.03 after the last event. The likely cause, inferred and not tested, is that expected kills are priced in and decay while none happen.
+  - Elo may not be the whole cause. By team (46 with 300+ rounds) drift is r −0.47 with Elo and −0.42 with event value. After a linear adjustment for mean Elo edge, 7 of the top 10 Elo teams are still negative. Holding Elo at 0 in the model hasn't been tested.
 - **Conversion is reliable inside a window but doesn't carry across quarters for stints.** By `lp_team` it does: r 0.162 (0.031, 0.278). Rosters and callers change between quarters, so a whole team carries it better than an IGL stint. It isn't published until the stint test passes.
 - **The player-WAR version** reproduces Stage 1 and fails for the same reason: too little archive.
 
-`team-stats.json` publishes `tpv`, `rwoe_econ`, `ct_def` and `t_off` for 62 stints. They appear on the Rounds tab of `/rankings` (`src/pages/TeamRounds.tsx`) and on each team page.
+`team-stats.json` publishes `tpv`, `rwoe_econ`, `ct_def` and `t_off` for 62 stints. All but `tpv` appear on the Rounds tab of `/rankings` (`src/pages/TeamRounds.tsx`) and on each team page.
 
 ## Tactics stats
 
@@ -570,6 +574,115 @@ Findings:
 - **Closing out an advantage isn't stable.**
 
 `clutch.json` publishes stint `clutch` and `disadv` (81 stints with 120+ entries) on the Tactics tab of `/rankings` (`src/pages/TeamClutch.tsx`), and player clutches (230 players with 60+) on the Clutch view of `/players` and each player page (`src/pages/PlayerClutch.tsx`). Rates are round wins per 100 entries. Hopeless 1v4 and 1v5 entries are in the denominator, which keeps team rates small.
+
+## Style and archetypes
+
+`wp/src/cs2wp/style.py`. It gives each player percentile bars for production and style, and names their nearest archetype, for the Style section of the player page.
+
+```
+cd wp
+uv run cs2wp style [--rebuild] [--resamples 200] [--publish]
+```
+
+It reads `public/data/war/players.json` (run `cs2wp war --publish` first) and `clutch.json`, plus `resource-rounds.parquet`, `duels.parquet` and `team-rounds.parquet`. It writes:
+
+- `style-rounds.parquet`: per player-round counts from the raw tables, parsed incrementally (0.1 s a map, so `--rebuild` takes about a minute)
+- `player-style.parquet`
+- `reports/style.md`
+- with `--publish`, `public/data/war/style.json`
+
+**Metrics.** Each metric is a mean over its own observations. Duels are oriented to each player as in `duelstats.py`.
+
+| Key | Label | Observation | Value |
+| --- | --- | --- | --- |
+| `firepower` | Firepower | duel | 100 × (win − expected) |
+| `openingWin` | Opening duels | opening duel | 100 × (win − expected) |
+| `tradeKills` | Trading | player-round | 100 × trade kills (`kills.is_trade`) |
+| `utilityDamage` | Utility damage | player-round | HE and molotov health damage to enemies |
+| `flashAssists` | Flash assists | player-round | 100 × flash assists |
+| `survival` | Survival | player-round | 100 × survived |
+| `pace` | Early fights | player-round with a duel | seconds from freeze end to the first duel's start; lower ranks higher |
+| `opening` | Opening attempts | player-round | 100 × in the round's first duel |
+| `peeking` | Peeking | duel | top speed in the second before the duel (`a_speed`/`v_speed`), on maps with velocity |
+| `range` | Duel range | duel | distance |
+| `isolation` | Isolation | T player-round | distance to the nearest living teammate at the first tick 20 s after freeze end |
+| `utilityThrown` | Utility thrown | player-round | grenades thrown (`resources.thrower_grenades`) |
+| `flashing` | Flashing | player-round | enemy blind seconds from the player's flashes |
+| `support` | Supported duels | duel | 100 × a teammate's flash or smoke supported it |
+| `traded` | Deaths traded | player-round with a death | 100 × traded |
+| `resourceShare` | Resource share | full-buy player-round | 100 × share of team equipment |
+| `headshot` | Headshots | rifle kill | 100 × headshot |
+
+ADR, clutch conversion and WAA per 100 (`wpa_opp`) are copied from `players.json` and `clutch.json`, which gate them. They're shown but never feed archetypes.
+
+**Older demos have no velocity.** Before mid-2025 the parse has no velocity, so speed is null, or 0 on the few duels that have it. With those maps in, peeking passed split-half (0.86) but failed year to year (0.14), because the year split mostly measured which parse a map came from. Peeking now skips maps where every duel's speed is null or 0.
+
+**Gate.** A metric ships when its split-half r is at least 0.5. Split-half uses alternating series, needs 40+ observations per half, and runs over the 267 qualified players (`unitstats.split_half`). Year-to-year r is reported as a diagnostic.
+
+**Percentiles.** The average rank in the pool, scaled to 0–100. Production and overall metrics rank everyone together. Style metrics rank AWPers (`tRole` AWPer) against AWPers and everyone else against non-AWPers, so range and pace aren't just measuring the AWP.
+
+**Archetypes.** The `ARCHETYPES` table in `style.py`. Each archetype has the T roles it applies to and target percentiles on 3–4 shipped metrics. A player gets the archetype with the smallest RMS distance over the targets they have values for (2+ needed), and the runner-up is published too.
+
+| Archetype | Roles | Targets |
+| --- | --- | --- |
+| Aggressive AWP | AWPer | pace 80, opening 80, peeking 75, range 40 |
+| Anchor AWP | AWPer | pace 20, opening 30, peeking 25, range 80 |
+| Hybrid AWP | AWPer | opening 50, peeking 50, utility thrown 65, trading 60 |
+| Spacetaker | Entry, Rifler | opening 85, pace 85, traded 75, survival 25 |
+| Star Entry | Entry | opening 80, opening duels 80, firepower 75 |
+| Trader | Entry, Rifler | trading 85, pace 60, isolation 30 |
+| Star Rifler | Entry, Rifler | firepower 85, resource share 80, survival 65 |
+| Lurker | Rifler | isolation 85, pace 20, opening 30, traded 25 |
+| Support | Rifler | utility thrown 80, flashing 75, flash assists 75, resource share 25 |
+| Closer | Rifler | survival 85, pace 25, isolation 55, firepower 60 |
+
+**Results (2026-11-21).** 9.78M observations for 267 players.
+
+| Metric | Split-half r (90% CI) | Year-to-year r (90% CI) | Ships |
+| --- | --- | --- | --- |
+| Firepower | 0.51 (0.42, 0.59) | 0.49 (0.40, 0.58) | yes |
+| Opening duels | 0.29 (0.19, 0.39) | 0.37 (0.24, 0.47) | **no** |
+| Trading | 0.53 (0.46, 0.62) | 0.31 (0.22, 0.40) | yes |
+| Utility damage | 0.79 (0.75, 0.82) | 0.72 (0.66, 0.76) | yes |
+| Flash assists | 0.83 (0.79, 0.85) | 0.80 (0.75, 0.84) | yes |
+| Survival | 0.67 (0.59, 0.73) | 0.71 (0.64, 0.77) | yes |
+| Early fights | 0.81 (0.76, 0.84) | 0.63 (0.56, 0.69) | yes |
+| Opening attempts | 0.79 (0.75, 0.83) | 0.66 (0.60, 0.71) | yes |
+| Peeking | 0.85 (0.82, 0.88) | 0.86 (0.82, 0.89) | yes |
+| Duel range | 0.91 (0.89, 0.92) | 0.87 (0.84, 0.89) | yes |
+| Isolation | 0.85 (0.82, 0.88) | 0.68 (0.63, 0.72) | yes |
+| Utility thrown | 0.94 (0.92, 0.95) | 0.81 (0.78, 0.84) | yes |
+| Flashing | 0.91 (0.89, 0.92) | 0.82 (0.80, 0.85) | yes |
+| Supported duels | 0.82 (0.79, 0.85) | 0.73 (0.69, 0.77) | yes |
+| Deaths traded | 0.57 (0.50, 0.64) | 0.47 (0.36, 0.56) | yes |
+| Resource share | 0.99 (0.99, 0.99) | 0.94 (0.93, 0.95) | yes |
+| Headshots | 0.73 (0.66, 0.78) | 0.67 (0.61, 0.72) | yes |
+
+What the results show:
+
+- **Opening-duel win rate isn't a trait** at this sample size, so Star Entry falls back to opening volume and firepower.
+- **Archetypes are moderately stable.** When archetypes are assigned on each half separately, 162 of 267 players (61%) get the same one. Groups range from 9 players (Anchor AWP) to 46 (Support). Examples: s1mple and MartinezSa are Aggressive AWP, Jame and torzsi Anchor AWP, NiKo and XANTARES Star Rifler, KSCERATO and frozen Lurker.
+- **Isolation finds lurkers.** Among 143 non-AWPers matched to the 2024 NER0cs labels, isolation ranks labelled Lurkers above Spacetakers with AUC 0.79, and above every other label with AUC 0.75. The Lurker archetype catches 18 of 46 labelled Lurkers and only 4 of 82 other players. Some of the misses will be role changes since 2024.
+
+### Comps
+
+Each player gets two lists of 5 nearest peers (`compSize: 5` in `style.json`), computed from the same 267 whole-window percentile profiles:
+
+- **Production comps:** the 7 shipped `production` axes (Firepower, Damage, Trading, Utility damage, Flash assists, Survival, Clutch; Rating is left out because it summarises the others). Everyone is compared with everyone.
+- **Style comps:** the 11 shipped `style` axes. Players are only compared within their own pool (AWPers with AWPers, everyone else with non-AWPers), because style percentiles are only meaningful inside a pool.
+
+Distance is the unweighted RMS percentile gap over the axes both players have, requiring at least 70% of axes in common (so missing clutch or peeking values don't distort pairs). Similarity is `100 − RMS`. A random pair of uniform percentiles averages about 41 RMS, or ~59 similarity, so a score in the high 70s or 80s is a genuine match rather than middling.
+
+**Validation (2026-11-21, alternating-series halves).** Production split-half checks use only the 5 `own` axes (Firepower, Trading, Utility damage, Flash assists, Survival), because ADR, clutch and rating don't exist per half.
+
+| Group | Players | Top-1 ID (chance) | Top-5 ID (chance) | Top-5 overlap (chance) | Teammate share |
+| --- | --- | --- | --- | --- | --- |
+| Production | 267 | 15.0% (0.4%) | 35.6% (1.9%) | 0.61 (0.09) | 24/1335 (1.8%) |
+| Style | 267 | 51.3% (0.7%) | 75.3% (3.7%) | 1.29 (0.19) | 26/1335 (1.9%) |
+
+- **Identification is well above chance.** On style, a player's own half-1 profile is the single nearest match to their half-0 profile 51% of the time (70× chance) and lands in the top 5 for 75% of players (20× chance). Production is noisier (15% top-1, 36% top-5), as expected with fewer and lower-reliability axes, but still ~19–40× chance.
+- **Top-5 lists are moderately stable.** Mean overlap between halves is 1.29 of 5 on style (7× chance) and 0.61 on production (6.5× chance): the neighbourhood is real, though individual rank order shifts with sample noise.
+- **No team-system inflation.** Only 1.8% of production comps and 1.9% of style comps share a current Liquipedia team, right around the ~1.5% base rate for 5-player rosters, so comps reflect individual profiles rather than team systems.
 
 ## Luck-adjusted Elo
 
@@ -777,7 +890,7 @@ uv run cs2wp igls   # data/war/igls.parquet + data/war/reports/igls.md
 
 ```
 cd wp
-uv run cs2wp war --model dryrun-regularized --publish --allow-ungated
+uv run cs2wp war --model production --publish
 # data/war/player-war.parquet + data/war/reports/war.md + public/data/war/players.json
 ```
 
@@ -808,22 +921,23 @@ For each resample, the mean round-win above average is scaled to cumulative map 
 
 ## Validation diagnostics
 
-Measured on qualified players (300+ rounds across 23 events):
+Measured on the 267 qualified players (300+ rounds across 53 events), production credits, as published 2026-11-13:
 
 | Metric | M2M r (100+ rds) | M2M r (200+ rds) | M2M r (300+ rds) | Split-half r (SB) | r with K/D |
 | --- | --- | --- | --- | --- | --- |
-| WAA (WPA) | 0.214 (598) | 0.363 (297) | 0.548 (104) | 0.210 (0.347) | 0.498 |
-| WAA (neutral man-count) | 0.286 (598) | 0.394 (297) | 0.523 (104) | 0.243 (0.391) | 0.633 |
-| WAA (neutral event) | 0.325 (598) | 0.389 (297) | 0.448 (104) | 0.262 (0.415) | 0.700 |
-| Raw WPA / round | 0.435 (598) | 0.591 (297) | 0.728 (104) | 0.467 (0.637) | n/a |
-| Kills above expected / round | 0.402 (598) | 0.509 (297) | 0.608 (104) | 0.384 (0.555) | 0.737 |
-| Rating 2.0 (approx) | 0.470 (598) | 0.591 (297) | 0.641 (104) | 0.480 (0.649) | 0.946 |
-| HLTV Rating 3.0 | 0.455 (592) | 0.594 (295) | 0.697 (104) | 0.436 (0.607) | 0.880 |
-| HLTV Swing | 0.432 (592) | 0.593 (295) | 0.700 (104) | 0.391 (0.562) | 0.886 |
-| K/D | 0.516 (598) | 0.625 (297) | 0.675 (104) | 0.547 (0.707) | 1.000 |
+| **WAA (`wpa_opp`, shown on the site)** | 0.299 (1475) | 0.398 (669) | 0.455 (276) | 0.461 (0.631) | not yet published |
+| WAA (WPA) | 0.208 (1475) | 0.323 (669) | 0.401 (276) | 0.312 (0.476) | 0.467 |
+| WAA (neutral man-count) | 0.283 (1475) | 0.399 (669) | 0.461 (276) | 0.364 (0.533) | 0.577 |
+| WAA (neutral event) | 0.318 (1475) | 0.440 (669) | 0.462 (276) | 0.405 (0.577) | 0.620 |
+| Raw WPA / round | 0.417 (1475) | 0.558 (669) | 0.610 (276) | 0.576 (0.731) | n/a |
+| Kills above expected / round | 0.371 (1475) | 0.504 (669) | 0.546 (276) | 0.508 (0.674) | 0.738 |
+| Rating 2.0 (approx) | 0.475 (1475) | 0.611 (669) | 0.651 (276) | 0.577 (0.732) | 0.945 |
+| HLTV Rating 3.0 | 0.425 (1455) | 0.582 (659) | 0.659 (272) | 0.538 (0.700) | 0.870 |
+| HLTV Swing | 0.380 (1455) | 0.552 (659) | 0.634 (272) | 0.502 (0.669) | 0.903 |
+| K/D | 0.513 (1475) | 0.642 (669) | 0.659 (276) | 0.673 (0.805) | 1.000 |
 
-- **K/D independence:** WAA (WPA) correlates only `0.498` with K/D, compared to `0.880` for HLTV Rating 3.0 and `0.946` for Rating 2.0. This confirms WPA measures game-state impact rather than box-score hunting.
-- **Split-half stability:** Evaluated across alternating chronological series, so maps of one series stay in one half. WAA is the least stable metric in the table: half r 0.21 (Spearman-Brown 0.35), against 0.44 for HLTV 3.0 and 0.55 for K/D. See [WAR validation](#war-validation).
+- **K/D independence:** every WAA version that reports it is further from K/D (0.47–0.62) than HLTV Rating 3.0 (0.870) or Rating 2.0 (0.945).
+- **Stability:** WAA is less stable than the box scores in every column, so the site shrinks it. See [Shrinkage](#shrinkage).
 
 ## WAR validation
 
@@ -833,7 +947,40 @@ Measured on qualified players (300+ rounds across 23 events):
 
 **Does prior lineup WAR add to Elo?** For each test map, each player's rate uses only maps from before the map's event starts, shrunk toward the league mean by `k`. The feature is the difference in the two lineups' summed rates. A no-intercept logistic fit (team order is arbitrary) on the pre-map Elo logit plus that feature is scored by leave-one-event-out log loss against an Elo-only refit. A 90% interval on the gain comes from resampling whole series. HLTV 3.0 and K−D per round go through the same pipeline as comparators.
 
-**Results (2026-11-06, dry-run credits, 1,312 maps).**
+**Current results (2026-11-13, `production` credits, 3,112 maps, 267 players).** The test set is 1,161 maps from 2026-03-01.
+
+| Metric | Half r | k (rounds) | Within-team r | Team share | r with team Elo | Alone | Gain over Elo (90% CI) |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| **WAA (`wpa_opp`)** | **0.461** | 984 | 0.400 | 0.263 | 0.449 | 0.6576 | −0.0004 (−0.0027, +0.0018) |
+| WAA (neutral event) | 0.405 | 1,234 | **0.554** | 0.381 | 0.495 | 0.6572 | −0.0006 (−0.0031, +0.0018) |
+| WAA (neutral man-count) | 0.364 | 1,472 | 0.442 | 0.239 | 0.392 | 0.6611 | −0.0008 (−0.0027, +0.0010) |
+| WAA (WPA) | 0.312 | 1,852 | 0.392 | 0.089 | 0.076 | 0.6781 | −0.0011 (−0.0019, −0.0003) |
+| HLTV Rating 3.0 | 0.538 | 702 | 0.617 | 0.179 | 0.306 | 0.6565 | −0.0002 (−0.0033, +0.0027) |
+
+**Decision (2026-11-22): the site lists one rating, `wpa_opp`.** The other three stay in `players.json` and the reports as diagnostics.
+
+- `wpa_opp` is the most reliable version over a player's whole record and keeps real leverage.
+- It is **not** free of team strength: its team share and r with team Elo are both above HLTV 3.0's. "Own team at average Elo" describes the credit, so don't label it team-neutral.
+- Neutral event is the version to revisit. It separates teammates better and is slightly steadier month to month, but a team share of 0.381 and four Vitality players in its top 20 are too much team strength for a player rating.
+- Raw WPA under-credits players on strong teams.
+- None of them improves on Elo, and none beats HLTV 3.0 at prediction or stability. WAA says what a player's actions were worth. It isn't a forecast.
+
+### Shrinkage
+
+The site's rating is `waaRate` in `src/war/players.ts`: `mean + (rate − mean) × rounds / (rounds + 984)`, where the mean is 0 for WAA (100 × the replacement rate for WAR). 984 is `wpa_opp`'s split-half k above. Update `SHRINK_ROUNDS` and the Methodology copy if a `validate-war` run moves it materially. Map wins, context, usage, conversion, `vs HLTV` and the style percentiles stay unshrunk.
+
+Out-of-sample check (2026-11-22): rates from before each cutoff predict rates after it, for players with 300+ rounds on both sides. Errors are squared, per 100 rounds, weighted by later rounds. Run on the local `role-rounds.parquet`, which is slightly newer than the published file (rates differ by 0.032 at most).
+
+| Cutoff | Players | k fit before cutoff | MSE raw | MSE, fitted k | MSE, k = 984 | Rank r raw | Rank r, k = 984 |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| 2025-10-01 | 145 | 847 | 0.694 | 0.555 | 0.561 | 0.594 | 0.592 |
+| 2026-01-01 | 139 | 1,142 | 0.692 | 0.589 | 0.584 | 0.549 | 0.555 |
+| 2026-03-01 | 141 | 981 | 0.779 | 0.699 | 0.699 | 0.492 | 0.513 |
+| 2026-06-01 | 132 | 825 | 0.813 | 0.679 | 0.683 | 0.549 | 0.549 |
+
+Shrinkage cuts error by 10–19% at every cutoff without losing rank order, and the fixed k matches a refitted one.
+
+**Earlier results (2026-11-06, dry-run credits, 1,312 maps).** These and the two follow-ups are the history behind `wpa_opp`. Current numbers are above.
 
 | Metric | Half r | k (rounds) | Rel. at 3,000 rds | Alone | Gain over Elo (90% CI) | r with Elo |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -984,15 +1131,16 @@ The AWP is worth little here because g already includes the role: an AWPer is ex
 
 ## Public interface (`/players`)
 
-`/players` (`src/pages/Players.tsx`) is laid out like `/rankings`: a search box and a view switch (`?view=`) for WAR (the default), Clutch (`clutch.json`) and Validation (the stability diagnostics for the selected credit version). `/war` redirects here, keeping the query string. Every player name links to `/players/:player` (`src/pages/PlayerPage.tsx`), keyed by the in-game name, which is unique across published players; lookup falls back to a case-insensitive match. The player page shows WAA under all four credit versions with context, usage, conversion, `vs HLTV` and rank among IGLs or non-IGLs, then the profile (roles, CT positions by map, duels and box score, resources), clutch conversion when published, and teammates on the same Liquipedia team.
+`/players` (`src/pages/Players.tsx`) is laid out like `/rankings`: a search box and a view switch (`?view=`) for WAA (the default), Clutch (`clutch.json`) and Validation (the stability diagnostics for `wpa_opp`, before shrinkage). `/war` redirects here, keeping the query string. Every player name links to `/players/:player` (`src/pages/PlayerPage.tsx`), keyed by the in-game name, which is unique across published players; lookup falls back to a case-insensitive match. The player page shows the one WAA rating with its rank among IGLs or non-IGLs, map wins, the unshrunk rate, context, usage, conversion and `vs HLTV`, then Style (`style.json`: the archetype, production and style percentile bars (not the `rating` metric, which is the unshrunk rate and would contradict the rank) drawn with `src/components/PercentileRow.tsx`, and the 5 nearest production and style comps; see [Style and archetypes](#style-and-archetypes)), then the profile (roles, CT positions by map, duels and box score, resources), clutch conversion when published, and teammates on the same Liquipedia team.
 
-The WAR view:
+The WAA view:
 - Reads `public/data/war/players.json` with TanStack Query.
-- Displays 90% bootstrap intervals next to every map win and rate value, accompanied by a visual interval bar (`aria-hidden="true"`).
-- Role filters (`All`, `AWP`, `Entry`, `Rifle`, `IGL`) and credit toggles: `WPA (team-neutral)` (`wpa_opp`, the default since 2026-11-06 because it's the most reliable version and has no team-strength bias in either direction; see [WAR validation](#war-validation)), `WPA (raw)` (`?credit=wpa`), `Neutral man-count` and `Neutral event`.
-- `vs HLTV` gap column (`z(WAA/100) − z(HLTV 3.0)` in SD units, sortable, follows the credit toggle, `"–"` when HLTV 3.0 is missing), with the 90% interval in its tooltip.
-- Usage and Conversion columns (per 100 rounds, 90% intervals) that follow the credit toggle.
-- Provisional banner noting the 2026 dry-run credit source pending Phase 5 demo backfill completion.
+- Headlines and ranks on the [shrunk](#shrinkage) rate per 100 rounds, colored only when the unshrunk 90% interval excludes zero. The tooltip has the unshrunk rate and interval.
+- Map wins is secondary: the unshrunk total, with its 90% bootstrap interval and interval bar (`aria-hidden="true"`).
+- Role filters (`All`, `AWP`, `Entry`, `Rifle`). There's no credit toggle: `?credit=` is ignored.
+- `vs HLTV` gap column (`z(unshrunk WAA/100) − z(HLTV 3.0)` in SD units, sortable, `"–"` when HLTV 3.0 is missing), with the 90% interval in its tooltip.
+- Usage and Conversion columns (per 100 rounds, unshrunk, 90% intervals).
+- Provisional banner, shown only when the file was published from a model that failed the gate.
 - Full CC-BY-SA Liquipedia and HLTV demo attribution.
 - Team names link to the team page (`/teams/:team`). Team stat tables live on `/rankings`, not here.
 
@@ -1006,7 +1154,7 @@ uv run cs2wp team-factor   # writes data/war/team-map-residuals.parquet, team-fa
 ```
 
 **Design constraints.**
-- **Out-of-sample expectation, no team Elo.** Same-map WPA credits sum to round outcomes minus drift, so expectation uses out-of-sample shrunk player rates (`loeo` across all other events by default; `prior` strictly before the event start for forward tests) with team-neutral `wpa_opp` as the primary credit and no Elo in the expectation.
+- **Out-of-sample expectation, no team Elo.** Same-map WPA credits sum to round outcomes minus drift, so expectation uses out-of-sample shrunk player rates (`loeo` across all other events by default; `prior` strictly before the event start for forward tests) with `wpa_opp` as the primary credit and no Elo in the expectation.
 - **Unidentifiable average calling level.** Every 5-man lineup has one tagged IGL, so a constant caller offset cancels in $A - B$. Only differences *between* IGLs are identified from plus-minus; replacing the fixed offset keeps "the average IGL is league average (`0.0000`)" as the baseline level and adds centered per-IGL deviations on top.
 
 **Stage 1: Team-map residual & team factor `τ`.** Across 3,111 5v5 maps, `2,671` (`85.9%` of maps, `96.7%` of player slots) have all 10 players at `>= 100` out-of-sample rounds (`r_win = 5.68`). Linear `share − 0.5 = β·x` is fit leave-one-event-out weighted by rounds with no intercept, giving antisymmetric residuals `rounds × (share − 0.5 − β·x)`. Ridge (`residual = τ_A − τ_B`) fits `lp_team × IGL stint` (and plain `lp_team`), penalized by alternating-series split-half `k` with series-bootstrap 90% CIs.
@@ -1041,3 +1189,39 @@ Raw `wpa` reaches `r = 0.586` mainly because it still mixes opponent/team streng
 | `xertioN` | `+0.90 [+0.49, +1.32]` / `+11.28w` | `+1.07 [+0.65, +1.51]` / `+13.51w` | `+0.17`, `+0.03` |
 | `Brollan` | `+0.41 [-0.08, +0.89]` / `+3.48w` | `-0.03 [-0.72, +0.62]` / `-0.27w` | `-0.44`, `+0.38` |
 | `ZywOo` (control) | `+2.86 [+2.41, +3.29]` / `+36.57w` | `+2.86 [+2.40, +3.31]` / `+36.69w` | `+0.00` |
+
+## Map tendencies (`cs2wp heatmaps`)
+
+`wp/src/cs2wp/radar.py` and `wp/src/cs2wp/heatmaps.py`. Per-map positional heatmaps, repeated utility lineups and callout summaries rendered over Valve's 1024 px radars on `/players/:player`.
+
+```bash
+cd wp
+uv run cs2wp radars                                   # public/radar/*.webp + data/war/radar.json
+uv run cs2wp heatmaps [--months 6] [--from DATE] [--rebuild] [--publish] [--upload]
+```
+
+**Radar assets (`cs2wp radars`).** Reads `awpy.data.map_data(NAV_RELEASE)` (`pos_x`, `pos_y`, `scale`, lower-level `z` bounds), commits the active-pool subset to `data/war/radar.json`, and converts awpy's radar PNGs (including `_lower` variants for Nuke, Train and Vertigo) to 1024 px WebPs in `public/radar/<map>.webp`. `world_to_radar(map, x, y, z)` matches `awpy.plot.world_to_pixel`: `px = (x - pos_x) / scale`, `py = (pos_y - y) / scale`, split into `upper` and `lower` levels by `z`.
+
+**Extraction and caching.** `map_layers(ref)` runs across 6 worker processes and caches incrementally in `data/war/heatmaps-raw.parquet` (plus companion `heatmaps-lineups-raw.parquet`, `heatmaps-callouts-raw.parquet`, `heatmaps-rounds-raw.parquet`, all gitignored), keyed on `map_key`.
+
+- **Grid:** 64×64 over the 1024 px radar (16 px cells, ~80 game units).
+- **Phases** (measured from `freeze_end_tick`): **Setup** `0–20 s`, **Mid** `20–50 s`, **Late** `50 s+` before the bomb plant, and **Post-plant** from `finish_plant` onward. Rounds without a plant have no post-plant phase.
+- **Layers:** `presence` (alive 4 Hz ticks per phase, normalized by rounds played on that side), `kills` (attacker position), `deaths` (victim position), `open_kill` / `open_death` (from `roles.openings()`), `plant` (T only, from `bomb.finish_plant`), and `util_land:<type>` (`smoke`, `flash`, `he`, `molotov` via `resources.thrower_grenades(with_origin=True)`).
+- **Lineups (landing zones):** Greedy density clustering in radar px per `(side, type, level)` with type-specific landing radii (smoke 32, molotov 36, HE 40, flash 56 px). Within each landing zone, throw origins are clustered with a 24 px radius, sorted by count descending and capped at 8 (`from: [[px, py, n], ...]`, dominant origin first). Zones with ≥2 throws are kept, sorted by `n` desc then `tMed`, capped at top 10 per `(type, side)` as `{ land: [px, py], r, n, share, tMed, level, from }` where `r` is the 80th-percentile landing distance from the zone center (clamped to ≥8 px). `land_cell` and `throw_cell` remain in the cached parquet to avoid a forced `--rebuild`.
+- **Callouts:** Alive time per `last_place_name` per side and phase, plus kill and death callouts (backward `join_asof` onto `ticks` within 1 s), opening-duel W/L and traded-death share.
+
+**Window and scope.** Default `--months 6` (from the latest map date in the mirror). Each player's current `lp_team` is their most recent non-null team in the window. On a given map, a player uses only maps with their current team when they have ≥3 maps there (`scope.type = "team"`); otherwise that map falls back to all teams in the window (`scope.type = "all"`). Player-maps under 3 maps are omitted; maps under 8 carry `lowSample: true`.
+
+**Encoding and baselines.** Every grid is sparse, sorted by flattened cell index and delta-coded: `{ max, n, cells: [dIdx, v, ...] }`. Average baselines (`v2/_avg/<map>.json`) average all qualifying players' per-round rates per `(side, level, layer, phase)` and store them scaled by `10000` in the same sparse encoding to drive the frontend's diverging "vs average" view.
+
+**Outputs, budget and R2 layout.** Schema `v2`, written under `public/data/war/heatmaps/` (gitignored) with `--publish` and synced to the public R2 bucket under `heatmaps/v2/` with `--upload`:
+
+- `heatmaps/v2/<steamid>/index.json`: map list, sample counts, scope, `lowSample`, levels, top 5 callouts per phase/kills/deaths, opening-duel W/L and traded-death share.
+- `heatmaps/v2/<steamid>/<map>.json`: grids and utility landing zones.
+- `heatmaps/v2/_avg/<map>.json`: per-map average baselines.
+
+Budget enforced on every run: ≤30 KB gzipped per player-map file and ≤15 MB gzipped total (2026-11-21 6-month run: 942 maps, 221 players, 1,018 player-maps, 7.76 MB gzipped total, 15.5 KB largest player-map). Old `heatmaps/v1/` keys on R2 are not deleted by the `v2/` sync and need manual cleanup.
+
+**R2 and env vars.** `--upload` uses `R2.public()` (`R2_PUBLIC_BUCKET` in `.env`, keeping `R2_BUCKET` private for the HLTV cache), uploads deterministic gzip (`mtime=0`) with `ContentType: application/json`, `ContentEncoding: gzip`, `Cache-Control: public, max-age=3600`, skips unchanged keys by matching MD5 against the remote ETag, and deletes stale keys under `heatmaps/v2/`. The frontend reads `VITE_HEATMAPS_URL` (e.g. `https://<public-r2-origin>/heatmaps`, falling back to `${BASE_URL}data/war/heatmaps/` in local dev).
+
+**Frontend.** `src/components/heatmap/MapTendencies.tsx` (lazy-loaded in `PlayerPage.tsx` after `ProfileSection`), `RadarHeatmap.tsx`, `CalloutList.tsx`, `src/war/heatmap.ts`, `src/war/heatmapTypes.ts`. Decodes sparse grids, normalizes per round, applies separable Gaussian blur (`σ = 1` cell), colorizes with a perceptually uniform sequential ramp (or blue–orange diverging ramp for "vs average", emerald/rose overlay for opening duels), and upscales onto the radar `<canvas>` with SVG utility landing-zone rings, dominant arrows and throw-spot overlays on top.

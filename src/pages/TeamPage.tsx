@@ -6,7 +6,8 @@ import { Badge, DataRow, EmptyState, Inset, Label, LoadingBar, PageHeader, Secti
 import { LiquipediaCredit } from "../components/LiquipediaCredit.tsx";
 import { TeamLogo } from "../components/TeamLogo.tsx";
 import { StintTable } from "../components/StintTable.tsx";
-import { PlayerLink } from "../components/WarValues.tsx";
+import { PlayerLink, WaaRateValue } from "../components/WarValues.tsx";
+import { waaRate } from "../war/players.ts";
 import { liquipediaUrl } from "../utils/liquipedia.ts";
 import { teamFromParam } from "../utils/teams.ts";
 import { percent } from "../utils/format.ts";
@@ -26,9 +27,8 @@ import { getRosterKey } from "../vrs/types.ts";
 import type { EloGameLog, EloRoster } from "../elo/types.ts";
 import { TeamLink } from "../components/TeamLink.tsx";
 import type { EventIndexEntry, EventOdds, InviteIndexEntry, InviteOdds, InviteOddsRoster, SeasonIndex } from "../sim/types.ts";
-import type { CreditVersion, WarPlayer } from "../war/types.ts";
+import type { WarPlayer } from "../war/types.ts";
 
-const CREDIT: CreditVersion = "wpa_opp";
 
 const signed = (n: number, digits = 0) => (n > 0 ? `+${n.toFixed(digits)}` : n.toFixed(digits));
 
@@ -280,15 +280,15 @@ const StintSection = <T extends StintBase>({
         </div>
     );
 
-const PlayersSection = ({ players }: { players: WarPlayer[] }) => {
+const PlayersSection = ({ players, replacementRate }: { players: WarPlayer[]; replacementRate: number }) => {
     if (players.length === 0) return null;
-    const sorted = [...players].sort((a, b) => b.metrics[CREDIT].per100 - a.metrics[CREDIT].per100);
+    const sorted = [...players].sort((a, b) => waaRate(b, replacementRate) - waaRate(a, replacementRate));
     return (
         <Section
             title="Players / round-wins above role average"
             subtitle={
                 <>
-                    Per 100 rounds, team-neutral WPA credit, 90% round-bootstrap intervals. Full breakdown on{" "}
+                    WAA per 100 rounds, shrunk toward the league average for sample size. Full breakdown on{" "}
                     <Link to="/players" className="text-accent hover:underline">
                         Players
                     </Link>
@@ -303,34 +303,28 @@ const PlayersSection = ({ players }: { players: WarPlayer[] }) => {
                         T / CT role
                     </Th>
                     <Th>Rounds</Th>
-                    <Th>Per 100</Th>
+                    <Th>WAA / 100</Th>
                 </TableHead>
                 <TableBody>
-                    {sorted.map((p) => {
-                        const est = p.metrics[CREDIT];
-                        return (
-                            <Row key={p.steamid}>
-                                <Td className="font-sans">
-                                    <span className="inline-flex items-center gap-1.5">
-                                        <PlayerLink name={p.name} />
-                                        {p.isIgl && <Badge tone="accent">IGL</Badge>}
-                                    </span>
-                                </Td>
-                                <Td className="hidden sm:table-cell text-muted">
-                                    {p.tRole} / {p.ctRole}
-                                </Td>
-                                <Td align="right" className="text-muted tabular-nums">
-                                    {p.rounds.toLocaleString("en-US")}
-                                </Td>
-                                <Td align="right" className="tabular-nums">
-                                    <span className={est.per100P5 > 0 ? "text-up" : est.per100P95 < 0 ? "text-down" : "text-fg"}>
-                                        {signed(est.per100, 2)}
-                                    </span>
-                                    <span className="text-muted text-[10px] ml-1">{`(${signed(est.per100P5, 2)}, ${signed(est.per100P95, 2)})`}</span>
-                                </Td>
-                            </Row>
-                        );
-                    })}
+                    {sorted.map((p) => (
+                        <Row key={p.steamid}>
+                            <Td className="font-sans">
+                                <span className="inline-flex items-center gap-1.5">
+                                    <PlayerLink name={p.name} />
+                                    {p.isIgl && <Badge tone="accent">IGL</Badge>}
+                                </span>
+                            </Td>
+                            <Td className="hidden sm:table-cell text-muted">
+                                {p.tRole} / {p.ctRole}
+                            </Td>
+                            <Td align="right" className="text-muted tabular-nums">
+                                {p.rounds.toLocaleString("en-US")}
+                            </Td>
+                            <Td align="right">
+                                <WaaRateValue player={p} replacementRate={replacementRate} />
+                            </Td>
+                        </Row>
+                    ))}
                 </TableBody>
             </DataTable>
             <div className="space-y-1">
@@ -490,7 +484,7 @@ export const TeamPage = () => {
                 </Section>
             )}
 
-            <PlayersSection players={players} />
+            <PlayersSection players={players} replacementRate={war.data?.replacementRate ?? 0} />
         </div>
     );
 };

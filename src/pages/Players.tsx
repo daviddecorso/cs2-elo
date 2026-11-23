@@ -10,26 +10,17 @@ import { Badge, EmptyState, Inset, LoadingBar, PageHeader, Section, Segmented, T
 import { LiquipediaCredit } from "../components/LiquipediaCredit.tsx";
 import { TeamLogo } from "../components/TeamLogo.tsx";
 import { TeamLink } from "../components/TeamLink.tsx";
-import { HltvGapValue, PlayerLink, RateValue, WaaValue } from "../components/WarValues.tsx";
-import {
-    CONVERSION_LABEL,
-    CREDIT_OPTIONS,
-    CREDIT_VERSIONS,
-    DEFAULT_CREDIT,
-    USAGE_LABEL,
-    rankPlayers,
-    signed,
-    type RankedPlayer,
-} from "../war/players.ts";
+import { HltvGapValue, MapWinsValue, PlayerLink, RateValue, WaaRateValue } from "../components/WarValues.tsx";
+import { CONVERSION_LABEL, SHRINK_ROUNDS, USAGE_LABEL, WAA_CREDIT, rankPlayers, signed, type RankedPlayer } from "../war/players.ts";
 import { teamPath } from "../utils/teams.ts";
 import { playerWarQuery } from "../data/queries.ts";
 import { PlayerClutch } from "./PlayerClutch.tsx";
-import type { CreditVersion, PlayerWarData, WarPlayer } from "../war/types.ts";
+import type { PlayerWarData, WarPlayer } from "../war/types.ts";
 
 const VIEWS = ["war", "clutch", "validation"] as const;
 type View = (typeof VIEWS)[number];
 const VIEW_OPTIONS: Array<{ value: View; label: string }> = [
-    { value: "war", label: "WAR" },
+    { value: "war", label: "WAA" },
     { value: "clutch", label: "Clutch" },
     { value: "validation", label: "Validation" },
 ];
@@ -50,8 +41,8 @@ const SORT_KEYS = [
     "team",
     "role",
     "rounds",
-    "waa",
     "per100",
+    "waa",
     "usage",
     "conversion",
     "killsAbove",
@@ -84,7 +75,7 @@ const matchesQuery = (p: WarPlayer, q: string): boolean => {
     );
 };
 
-const sortRankedRows = (list: RankedPlayer[], sort: { key: SortKey; reversed: boolean }, credit: CreditVersion): RankedPlayer[] => {
+const sortRankedRows = (list: RankedPlayer[], sort: { key: SortKey; reversed: boolean }): RankedPlayer[] => {
     const opts = (ascending: boolean) => ({ ascending, reversed: sort.reversed });
     return [...list].sort((a, b) => {
         switch (sort.key) {
@@ -97,14 +88,14 @@ const sortRankedRows = (list: RankedPlayer[], sort: { key: SortKey; reversed: bo
             case "rounds":
                 return columnOrder(a.player.rounds, b.player.rounds, opts(false));
             case "waa":
-                return columnOrder(a.player.metrics[credit].waa, b.player.metrics[credit].waa, opts(false));
+                return columnOrder(a.player.metrics[WAA_CREDIT].waa, b.player.metrics[WAA_CREDIT].waa, opts(false));
             case "per100":
-                return columnOrder(a.player.metrics[credit].per100, b.player.metrics[credit].per100, opts(false));
+                return columnOrder(a.rate, b.rate, opts(false));
             case "usage":
             case "conversion":
                 return columnOrder(
-                    a.player.metrics[credit][sort.key]?.per100 ?? null,
-                    b.player.metrics[credit][sort.key]?.per100 ?? null,
+                    a.player.metrics[WAA_CREDIT][sort.key]?.per100 ?? null,
+                    b.player.metrics[WAA_CREDIT][sort.key]?.per100 ?? null,
                     opts(false)
                 );
             case "killsAbove":
@@ -112,7 +103,7 @@ const sortRankedRows = (list: RankedPlayer[], sort: { key: SortKey; reversed: bo
             case "rating3":
                 return columnOrder(a.player.rating3, b.player.rating3, opts(false));
             case "hltvGap":
-                return columnOrder(a.player.metrics[credit].hltvGap?.z ?? null, b.player.metrics[credit].hltvGap?.z ?? null, opts(false));
+                return columnOrder(a.player.metrics[WAA_CREDIT].hltvGap?.z ?? null, b.player.metrics[WAA_CREDIT].hltvGap?.z ?? null, opts(false));
             default:
                 return rankOrder(a.rank, b.rank, sort.reversed);
         }
@@ -124,16 +115,16 @@ const LeaderboardTable = ({
     emptyMessage,
     sort,
     onSort,
-    credit,
     metric,
+    replacementRate,
     intervalBound,
 }: {
     rows: RankedPlayer[];
     emptyMessage: string;
     sort: { key: SortKey; reversed: boolean };
     onSort: (key: SortKey) => void;
-    credit: CreditVersion;
     metric: "WAA" | "WAR";
+    replacementRate: number;
     intervalBound: number;
 }) => (
     <DataTable stickyHeader>
@@ -153,11 +144,11 @@ const LeaderboardTable = ({
             <SortHeader sortKey="rounds" sort={sort} onSort={onSort}>
                 Rds
             </SortHeader>
-            <SortHeader sortKey="waa" sort={sort} onSort={onSort}>
-                {metric} (90% CI)
+            <SortHeader sortKey="per100" sort={sort} onSort={onSort}>
+                {metric} / 100
             </SortHeader>
-            <SortHeader sortKey="per100" sort={sort} onSort={onSort} className="hidden lg:table-cell">
-                / 100 rds
+            <SortHeader sortKey="waa" sort={sort} onSort={onSort} className="hidden md:table-cell">
+                Map wins (90% CI)
             </SortHeader>
             <SortHeader sortKey="usage" sort={sort} onSort={onSort} className="hidden lg:table-cell">
                 Usage
@@ -184,7 +175,7 @@ const LeaderboardTable = ({
                 </tr>
             ) : (
                 rows.map(({ player: p, rank }) => {
-                    const est = p.metrics[credit];
+                    const est = p.metrics[WAA_CREDIT];
                     return (
                         <Row key={p.steamid}>
                             <Td align="right" className="text-muted">
@@ -210,10 +201,10 @@ const LeaderboardTable = ({
                                 {p.rounds.toLocaleString("en-US")}
                             </Td>
                             <Td align="right">
-                                <WaaValue est={est} bound={intervalBound} metric={metric} />
+                                <WaaRateValue player={p} replacementRate={replacementRate} />
                             </Td>
-                            <Td align="right" className="hidden lg:table-cell">
-                                <RateValue est={est} />
+                            <Td align="right" className="hidden md:table-cell">
+                                <MapWinsValue est={est} bound={intervalBound} />
                             </Td>
                             <Td align="right" className="hidden lg:table-cell">
                                 <RateValue est={est.usage} label={USAGE_LABEL} />
@@ -238,30 +229,30 @@ const LeaderboardTable = ({
     </DataTable>
 );
 
-const WarTables = ({ data, credit, role, query }: { data: PlayerWarData; credit: CreditVersion; role: RoleFilter; query: string }) => {
+const WarTables = ({ data, role, query }: { data: PlayerWarData; role: RoleFilter; query: string }) => {
     const { sort, onSort } = useTableSort<SortKey>(SORT_KEYS);
-    const ranked = useMemo(() => rankPlayers(data.players, credit), [data, credit]);
+    const ranked = useMemo(() => rankPlayers(data), [data]);
     const roleFiltered = useMemo(() => ranked.nonIgls.filter(({ player }) => matchesRole(player, role)), [ranked, role]);
     const rows = useMemo(
-        () => sortRankedRows(roleFiltered.filter(({ player }) => matchesQuery(player, query)), sort, credit),
-        [roleFiltered, query, sort, credit]
+        () => sortRankedRows(roleFiltered.filter(({ player }) => matchesQuery(player, query)), sort),
+        [roleFiltered, query, sort]
     );
     const iglRows = useMemo(
-        () => sortRankedRows(ranked.igls.filter(({ player }) => matchesQuery(player, query)), sort, credit),
-        [ranked, query, sort, credit]
+        () => sortRankedRows(ranked.igls.filter(({ player }) => matchesQuery(player, query)), sort),
+        [ranked, query, sort]
     );
     const intervalBound = useMemo(() => {
         let maxAbs = 1;
         for (const p of data.players) {
-            const m = p.metrics[credit];
+            const m = p.metrics[WAA_CREDIT];
             maxAbs = Math.max(maxAbs, Math.abs(m.waaP5), Math.abs(m.waaP95));
         }
         return maxAbs;
-    }, [data, credit]);
+    }, [data]);
 
     const metric = data.metric;
-    const adj = data.iglAdjustmentPer100[credit];
-    const table = { sort, onSort, credit, metric, intervalBound };
+    const adj = data.iglAdjustmentPer100[WAA_CREDIT];
+    const table = { sort, onSort, metric, replacementRate: data.replacementRate, intervalBound };
 
     return (
         <>
@@ -281,8 +272,8 @@ const WarTables = ({ data, credit, role, query }: { data: PlayerWarData; credit:
             )}
 
             <Section
-                title="Players / map wins above role average (90% round-bootstrap intervals)"
-                subtitle="Each map assigns T roles (AWPer, Entry, Rifler) and CT callout positions and subtracts empirically shrunk role baselines. Per 100 rounds, the rate splits into team context + usage (what the player's own equipment, utility and drops are worth) + conversion (what they made of them), so receiving resources is never penalized."
+                title="Players / round-wins above role average per 100 rounds"
+                subtitle={`Ranked by ${metric} per 100 rounds, shrunk toward the league average for sample size: a player with ${SHRINK_ROUNDS} rounds keeps half their raw rate. Map wins is the unshrunk total. The unshrunk rate splits into team context + usage (what the player's own equipment, utility and drops are worth) + conversion (what they made of them), so receiving resources is never penalized.`}
                 actions={
                     <span className="text-xs font-mono text-muted">
                         {query.trim() || role !== "all" ? `${rows.length} of ${ranked.nonIgls.length} players` : `${rows.length} players`}
@@ -316,8 +307,8 @@ const WarTables = ({ data, credit, role, query }: { data: PlayerWarData; credit:
     );
 };
 
-const ValidationTable = ({ data, credit }: { data: PlayerWarData; credit: CreditVersion }) => {
-    const valKey = `${credit}_waa_r`;
+const ValidationTable = ({ data }: { data: PlayerWarData }) => {
+    const valKey = `${WAA_CREDIT}_waa_r`;
     const m100 = data.validation.monthToMonth100[valKey];
     const m200 = data.validation.monthToMonth200[valKey];
     const splitHalf = data.validation.splitHalf[valKey];
@@ -328,14 +319,12 @@ const ValidationTable = ({ data, credit }: { data: PlayerWarData; credit: Credit
     return (
         <Section
             title="Validation diagnostics"
-            subtitle={`Out-of-role skill stability and independence from raw kill/death ratio on qualified players, for ${
-                CREDIT_OPTIONS.find((o) => o.value === credit)?.label ?? credit
-            }.`}
+            subtitle="Out-of-role skill stability and independence from raw kill/death ratio on qualified players, before shrinkage."
         >
             <DataTable>
                 <TableHead>
                     <Th align="left">Check</Th>
-                    <Th>Selected {data.metric}</Th>
+                    <Th>{data.metric}</Th>
                     <Th>Reference</Th>
                 </TableHead>
                 <TableBody>
@@ -383,8 +372,6 @@ export const Players = () => {
     const view: View = requestedView && VIEWS.includes(requestedView) ? requestedView : "war";
     const rawRole = queryParams.get("role") as RoleFilter | null;
     const role: RoleFilter = rawRole && ROLE_FILTERS.includes(rawRole) ? rawRole : "all";
-    const rawCredit = queryParams.get("credit") as CreditVersion | null;
-    const credit: CreditVersion = rawCredit && CREDIT_VERSIONS.includes(rawCredit) ? rawCredit : DEFAULT_CREDIT;
 
     const [query, setQuery] = useState(queryParams.get("q") ?? "");
     const urlQuery = queryParams.get("q") ?? "";
@@ -445,21 +432,13 @@ export const Players = () => {
                                 onChange={(r) => setQueryParams({ role: r === "all" ? null : r })}
                             />
                         )}
-                        {view !== "clutch" && (
-                            <Segmented
-                                aria-label="Credit version"
-                                options={CREDIT_OPTIONS}
-                                value={credit}
-                                onChange={(c) => setQueryParams({ credit: c === DEFAULT_CREDIT ? null : c })}
-                            />
-                        )}
                     </div>
                 }
             />
 
-            {view === "war" && <WarTables data={data} credit={credit} role={role} query={query} />}
+            {view === "war" && <WarTables data={data} role={role} query={query} />}
             {view === "clutch" && <PlayerClutch query={query} />}
-            {view === "validation" && <ValidationTable data={data} credit={credit} />}
+            {view === "validation" && <ValidationTable data={data} />}
         </div>
     );
 };

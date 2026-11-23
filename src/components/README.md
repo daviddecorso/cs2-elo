@@ -13,6 +13,7 @@ Every page uses the flat look: text on the page background, no boxes. Build page
 - `StatTile`: a label, big value and caption, with no box.
 - `EmptyState`: centered muted text for empty or error states.
 - `Badge`: a small tag, with `tone` of `neutral`, `up`, `down`, `heat` or `accent`.
+- `PercentileRow`: a label, a 0–100 dot-on-track bar and the number, for percentile profiles.
 - `Tooltip`: interactive viewport-clamped tooltip rendered inside a portal `Card`.
 - `Modal`: accessible keyboard-trapped modal dialog.
 - `DataTable`, `TableHead`, `Th`, `SortHeader`, `Row`, `Td`, `ProbabilityBar`, `FactorBar`: every table. Don't hand-roll `<table>` or local `TH`/`TD` constants.

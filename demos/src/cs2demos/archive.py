@@ -30,14 +30,26 @@ def extract(archive: Path, work_dir: Path) -> list[Path]:
     return sorted(dems)
 
 
+def _map_slug_after(name: str, end: int) -> str:
+    tail = PART_NUMBER.sub("", name[end:])
+    tail = re.sub(r"\.dem$", "", tail, flags=re.IGNORECASE)
+    return re.sub(r"[^a-z0-9]", "", tail.lower())
+
+
 def group_by_map(dems: list[Path], lp_maps: list[LpMap]) -> dict[int, list[Path]]:
     """Map number → demo parts in order. Falls back to the map name when the filename has no -mN-."""
+    by_num = {lp.number: lp for lp in lp_maps}
     out: dict[int, list[Path]] = {}
     for p in dems:
         # Last match, since team names like M80 also look like -mN-.
-        if numbers := MAP_NUMBER.findall(p.name):
-            out.setdefault(int(numbers[-1]), []).append(p)
-            continue
+        if matches := list(MAP_NUMBER.finditer(p.name)):
+            m = matches[-1]
+            n = int(m.group(1))
+            if lp := by_num.get(n):
+                slug = _map_slug_after(p.name, m.end())
+                if not slug or lp.demo_map.removeprefix("de_") in slug:
+                    out.setdefault(n, []).append(p)
+                    continue
         named = [lp.number for lp in lp_maps if lp.demo_map.removeprefix("de_") in p.name.lower()]
         if len(named) == 1:
             out.setdefault(named[0], []).append(p)

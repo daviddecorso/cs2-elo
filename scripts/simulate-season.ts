@@ -8,7 +8,10 @@ import type {
     RecommendedSchedule,
     ScheduleSummary,
     SeasonEvent,
+    SeasonEventFieldTeam,
+    SeasonEventFile,
     SeasonImpact,
+    SeasonOptimalTeam,
     SeasonIndex,
     SeasonOptimizerStats,
     SeasonRoster,
@@ -18,9 +21,11 @@ import type {
 } from "../src/sim/types.ts";
 import { addDays } from "./lib/liquipedia/rawStore.ts";
 import { BAND_LABELS, bandOf } from "./lib/sim/fieldModel.ts";
+import { summarizeWhy, wilson } from "./lib/sim/gain.ts";
 import { CATEGORIES } from "./lib/sim/history.ts";
-import { feedersFor, MAX_UNIVERSE, MIN_REACH, pickSchedules, summarize, VOLUMES, type RescoreJob, type Summary } from "./lib/sim/optimizer.ts";
+import { feedersFor, MAX_UNIVERSE, MIN_REACH, pickSchedules, scheduleCap, summarize, VOLUMES, type RescoreJob, type Summary } from "./lib/sim/optimizer.ts";
 import { range, type EventTally } from "./lib/sim/season.ts";
+import { calibrateInvite, calibrateInviteGain, calibrateRange, readCalibration, SEASON_CALIBRATION } from "./lib/sim/calibration.ts";
 import { playSeason } from "./lib/sim/seasonPool.ts";
 import { loadSeasonSetup, type CalendarEntry } from "./lib/sim/seasonSetup.ts";
 import { saveJson } from "./lib/writeJson.ts";
@@ -42,8 +47,15 @@ const impactCheckN = Math.min(n, Number(option("impact-check-n", "20")));
 const OUT_DIR = path.resolve(option("out", "public/data/sim/season"));
 const TEAMS_DIR = "teams";
 const IMPACT_DIR = "impact";
+const FIELDS_DIR = "fields";
 const MIN_IMPACT_RUNS = 20;
-const SIZE_BUDGET = 1_000_000;
+/** Raised from 1 MB for each candidate's `why` breakdown. */
+const SIZE_BUDGET = 1_200_000;
+/** Separate from `SIZE_BUDGET`, which the rest of the output already nearly fills. */
+const FIELDS_BUDGET = 650_000;
+/** Likeliest attendees in an event's field file: tier 1, and the rest. */
+const FIELD_FILE_ROWS = 32;
+const FIELD_FILE_ROWS_LOWER = 16;
 /** Rosters published: those at or above this global rank today or at p50 at any checkpoint. */
 const TOP = 60;
 const MIN_ATTEND = 0.01;
@@ -56,6 +68,8 @@ const ACTIVITY_CHECK_DAYS = 30;
 const started = Date.now();
 const setup = loadSeasonSetup({ n, seed });
 const { input, calendar, asOf, target, today } = setup;
+const calibration = readCalibration();
+console.log(calibration ? `Calibrating standings and invite shares with ${SEASON_CALIBRATION} (fit on ${calibration.source}).` : `No ${SEASON_CALIBRATION}: standings and invite shares are raw.`);
 const opt = setup.optimizer.opt;
 const checkpoints = input.checkpoints.map((c) => c.date);
 console.log(
@@ -189,12 +203,16 @@ const rosters: SeasonRoster[] = [...keys]
             region: seen?.region ?? now!.region,
             players: seen?.players ?? now!.players,
             today: now ? { points: round1(now.points), globalRank: now.globalRank, regionalRank: now.regionalRank } : null,
-            checkpoints: tally.standings.map((cp) => {
+            // Checkpoints are monthly, so checkpoint c is c + 1 months ahead for the calibration.
+            checkpoints: tally.standings.map((cp, c) => {
                 const t = cp.get(rosterKey);
+                const rank = now?.globalRank ?? null;
+                const ranks = (values: number[], today: number | null) =>
+                    calibrateRange(calibration, rank, today, c + 1, range(values, tally.n, Infinity), (x) => Math.max(1, Math.round(x)));
                 return {
-                    points: range(t?.points ?? [], tally.n, 0, round1),
-                    globalRank: range(t?.globalRanks ?? [], tally.n, Infinity),
-                    regionalRank: range(t?.regionalRanks ?? [], tally.n, Infinity),
+                    points: calibrateRange(calibration, rank, now ? now.points : null, c + 1, range(t?.points ?? [], tally.n, 0, round1), (x) => round1(Math.max(0, x))),
+                    globalRank: ranks(t?.globalRanks ?? [], now?.globalRank ?? null),
+                    regionalRank: ranks(t?.regionalRanks ?? [], now?.regionalRank ?? null),
                     ranked: share(t?.globalRanks.length ?? 0),
                 };
             }),
@@ -232,7 +250,19 @@ const exactSummary = (rows: typeof results): Summary => {
         invite: known.length === 0 ? null : known.filter((r) => r.invited).length / known.length,
     };
 };
-const rounded = (s: Summary): ScheduleSummary => ({ mean: round1(s.mean), p10: round1(s.p10), p90: round1(s.p90), invite: s.invite === null ? null : round3(s.invite) });
+const rounded = (s: Summary): ScheduleSummary => ({
+    mean: round1(s.mean),
+    p10: round1(s.p10),
+    p90: round1(s.p90),
+    invite: s.invite === null ? null : round3(calibrateInvite(calibration, s.invite)),
+});
+const roundedExact = (rows: typeof results): ScheduleSummary => {
+    const s = rounded(exactSummary(rows));
+    const known = rows.filter((r) => scores.slotsKnown[r.run]);
+    if (s.invite === null || known.length === 0) return s;
+    const [lo, hi] = wilson(known.filter((r) => r.invited).length, known.length);
+    return { ...s, inviteCi: [round3(calibrateInvite(calibration, lo)), round3(calibrateInvite(calibration, hi))] };
+};
 const errorStats = (values: number[]): ErrorStats => {
     const sorted = [...values].sort((a, b) => a - b);
     return {
@@ -249,6 +279,7 @@ const regrets: number[] = [];
 const fileOf = (team: string) => `${team.replace(/ /g, "_").replace(/[/\\]/g, "-")}.json`;
 const teamFiles: Array<[string, SeasonTeamSchedule]> = [];
 const schedules: SeasonScheduleEntry[] = [];
+const optimalByEvent = new Map<string, SeasonOptimalTeam[]>();
 
 opt.teams.forEach((team, k) => {
     const pick = picks[k];
@@ -272,17 +303,40 @@ opt.teams.forEach((team, k) => {
             goals: rec.goals,
             mask: remap(mask),
             dropsAnnounced: announcedSlugs.filter((s) => !chosen.has(s)),
-            exact: rounded(exact),
+            exact: roundedExact(rows),
             estimate: rounded(estimate),
         };
     });
     for (const volume of VOLUMES) {
-        const cap = opt.caps[volume] - team.committed.length;
+        const cap = scheduleCap(team, opt.caps[volume]);
         const chosen = pick.recommended.find((rec) => rec.volumes.includes(volume) && rec.goals.includes("points"));
         if (!chosen) continue;
         const exactMean = (m: number) => exactSummary(exactByPick.get(`${k}|${m}`) ?? []).mean;
         const best = Math.max(...pick.recommended.filter((rec) => popcount(team.masks[rec.m]) <= cap).map((rec) => exactMean(rec.m)));
         regrets.push(best - exactMean(chosen.m));
+    }
+
+    const subsetOf = (universeMask: number) => pick.subsets.find((s) => team.masks[s.m] === universeMask)?.summary;
+    const none = subsetOf(team.required);
+    const whys = new Map(pick.candidates.map((u) => [u, summarizeWhy(t.place, t.gain, u * tally.n, pick.runs, input.events[team.universe[u]].projection.prizes)]));
+    for (const u of pick.candidates) {
+        const slug = eventAt(u).slug;
+        const alone = (team.required >> u) & 1 ? undefined : subsetOf(team.required | (1 << u));
+        const why = whys.get(u);
+        const rows = optimalByEvent.get(slug) ?? [];
+        rows.push({
+            team: team.team,
+            teamName: team.teamName,
+            region: team.region,
+            attend: round3(t.attended[u] / seen),
+            reach: round3(t.reach[u] / seen),
+            picks: recommended.flatMap((rec, r) => ((team.masks[pick.recommended[r].m] >> u) & 1 ? rec.goals.map((goal) => ({ goal, volumes: rec.volumes })) : [])),
+            dropped: recommended.some((rec) => rec.dropsAnnounced.includes(slug)),
+            points: why ? why.points : null,
+            invite: alone && none && alone.invite !== null && none.invite !== null ? round3(calibrateInviteGain(calibration, alone.invite - none.invite)) : null,
+            finish: why ? why.place.reduce((a, b) => (b[1] > a[1] ? b : a))[0] : null,
+        });
+        optimalByEvent.set(slug, rows);
     }
 
     const file = fileOf(team.team);
@@ -305,6 +359,7 @@ opt.teams.forEach((team, k) => {
                 const e = input.events[team.universe[u]];
                 const c = e.config;
                 const entry = calendar.find((x) => x.season === e)!.catalog;
+                const why = whys.get(u);
                 return {
                     slug: c.slug,
                     name: c.name,
@@ -312,11 +367,13 @@ opt.teams.forEach((team, k) => {
                     endDate: c.endDate,
                     region: c.location?.region ?? null,
                     announced: team.announced.has(c.slug),
+                    ...((team.required >> u) & 1 ? { required: true } : {}),
                     reach: round3(t.reach[u] / seen),
                     attend: round3(t.attended[u] / seen),
                     generic: entry.generic,
                     ...(entry.projection ? { projected: round3(entry.projection.chance) } : {}),
                     assumedInvite: t.viaOpen[u] * 2 > t.reach[u],
+                    ...(why ? { why } : {}),
                 };
             }),
             requiresQualifying: [
@@ -340,7 +397,7 @@ opt.teams.forEach((team, k) => {
                 Math.round(s.mean),
                 Math.round(s.p10),
                 Math.round(s.p90),
-                s.invite === null ? null : Math.round(s.invite * 100) / 100,
+                s.invite === null ? null : Math.round(calibrateInvite(calibration, s.invite) * 100) / 100,
             ]),
         },
     ]);
@@ -404,6 +461,51 @@ const impactFiles: Array<[string, SeasonImpact]> = input.events.flatMap((e): Arr
 });
 console.log(`Impact: ${impactFiles.length} events; check error mean ${impactCheck.mean}, p95 ${impactCheck.p95} (n ${impactCheck.n}); ${tally.impactFullLoads} checkpoints loaded in full after an inexact rerun.`);
 
+// --- Upcoming events: likely field against the schedule search's picks
+
+const mode = (counts: Map<string, number>) => ([...counts].sort((a, b) => b[1] - a[1] || placementOrder(a[0], b[0]))[0]?.[0] ?? null);
+const fieldFiles: Array<[string, SeasonEventFile]> = calendar.flatMap((entry): Array<[string, SeasonEventFile]> => {
+    const { catalog } = entry;
+    const c = catalog.config;
+    if (catalog.unannounced) return [];
+    const indexed = events.find((e) => e.slug === c.slug);
+    if (!indexed) return [];
+    const event = Object.fromEntries(Object.entries(indexed).filter(([key]) => key !== "field")) as Omit<SeasonEvent, "field">;
+    const t = tally.events.get(c.slug);
+    const field: SeasonEventFieldTeam[] = entry.season
+        ? [...(t?.teams ?? [])]
+              .map(([team, s]) => ({
+                  team,
+                  attend: Math.round((s.attend / tally.n) * 100) / 100,
+                  source: [...s.sources].sort((a, b) => b[1] - a[1])[0][0] as FieldSource,
+                  win: Math.round(((s.placements.get("1") ?? 0) / tally.n) * 100) / 100,
+                  finish: mode(s.placements),
+              }))
+              .filter((f) => f.attend >= MIN_ATTEND)
+              .sort((a, b) => b.attend - a.attend || (b.win ?? 0) - (a.win ?? 0))
+              .slice(0, catalog.tier === 1 ? FIELD_FILE_ROWS : FIELD_FILE_ROWS_LOWER)
+        : catalog.announced.map((team) => ({ team, attend: 1, source: "announced", win: null, finish: null }));
+    const optimal = (optimalByEvent.get(c.slug) ?? []).sort((a, b) => b.picks.length - a.picks.length || (b.points ?? -Infinity) - (a.points ?? -Infinity));
+    const demand = optimal.filter((o) => o.picks.some((p) => p.goal === "points" && p.volumes.includes("average"))).length;
+    return [
+        [
+            `${c.slug}.json`,
+            {
+                generatedAt,
+                asOf,
+                target: { slug: target.slug, name: target.name, date: target.snapshotDate, estimated: target.snapshotEstimated },
+                n: tally.n,
+                event,
+                teams: catalog.teams,
+                announced: catalog.announced.length,
+                field,
+                optimal,
+                demand,
+            },
+        ],
+    ];
+});
+
 const index: SeasonIndex = {
     generatedAt,
     asOf,
@@ -416,6 +518,7 @@ const index: SeasonIndex = {
     unmatchedRosters: setup.unmatchedRosters,
     events,
     unannounced: [...unannounced].map(([category, expected]) => ({ category, expected: round1(expected) })),
+    ...(calibration ? { calibration: { source: calibration.source, fittedAt: calibration.fittedAt } } : {}),
     optimizer,
     schedules,
     impact: {
@@ -423,6 +526,7 @@ const index: SeasonIndex = {
         check: impactCheck,
         fullLoads: tally.impactFullLoads,
     },
+    fields: fieldFiles.map(([, f]) => f.event.slug),
 };
 const standings: SeasonStandings = { generatedAt, asOf, todayDate: today.snapshotDate, n: tally.n, checkpoints, rosters };
 
@@ -444,9 +548,16 @@ if (size > SIZE_BUDGET) {
     );
     process.exit(1);
 }
+const fieldJson = fieldFiles.map(([file, f]): [string, string] => [path.join(FIELDS_DIR, file), JSON.stringify(f)]);
+const fieldsSize = fieldJson.reduce((s, [, json]) => s + Buffer.byteLength(json), 0);
+if (fieldsSize > FIELDS_BUDGET) {
+    console.error(`Event field files are ${fieldsSize} bytes, over the ${FIELDS_BUDGET}-byte budget; nothing written.`);
+    process.exit(1);
+}
 for (const [subdir, names] of [
     [TEAMS_DIR, teamFiles.map(([file]) => file)],
     [IMPACT_DIR, impactFiles.map(([file]) => file)],
+    [FIELDS_DIR, fieldFiles.map(([file]) => file)],
 ] as const) {
     const dir = path.join(OUT_DIR, subdir);
     fs.mkdirSync(dir, { recursive: true });
@@ -457,4 +568,7 @@ for (const [file, json, detail] of files) {
     if (file.startsWith(TEAMS_DIR)) fs.writeFileSync(path.join(OUT_DIR, file), json);
     else saveJson(path.join(OUT_DIR, file), json, detail);
 }
-console.log(`Season output ${(size / 1000).toFixed(0)} KB (${teamFiles.length} team files, ${impactFiles.length} impact files).`);
+for (const [file, json] of fieldJson) fs.writeFileSync(path.join(OUT_DIR, file), json);
+console.log(
+    `Season output ${(size / 1000).toFixed(0)} KB (${teamFiles.length} team files, ${impactFiles.length} impact files), plus ${(fieldsSize / 1000).toFixed(0)} KB in ${fieldFiles.length} event field files.`
+);

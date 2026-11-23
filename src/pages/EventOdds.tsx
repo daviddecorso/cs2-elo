@@ -14,6 +14,8 @@ import { liquipediaUrl } from "../utils/liquipedia.ts";
 import { percent } from "../utils/format.ts";
 import { fetchSimJson } from "../sim/fetch.ts";
 import type { EventIndexEntry, EventOdds as EventOddsData, EventOddsTeam, SeasonImpact, SeasonImpactTeam, StageBracket } from "../sim/types.ts";
+import { seasonIndexQuery } from "../data/queries.ts";
+import { SeasonEventPage, WhoShouldGo } from "./SeasonEvent.tsx";
 
 
 /** Probability of finishing at or above `label` in the event's best-first placement list. */
@@ -87,7 +89,7 @@ export const EventOdds = () => {
     }, [data, query, sort]);
 
     if (isLoading) return <LoadingBar label="Loading event odds…" />;
-    if (data === null) return <EmptyState>This event hasn't been simulated yet.</EmptyState>;
+    if (data === null) return <SeasonEventPage slug={slug} />;
     if (error || !data) {
         return <EmptyState className="text-down">Error loading event odds: {error instanceof Error ? error.message : "Unknown error"}</EmptyState>;
     }
@@ -225,6 +227,7 @@ export const EventOdds = () => {
                 <LiquipediaCredit what="Brackets, results, prize and team logo data" />
             </Section>
             <ImpactSection slug={slug} />
+            <WhoShouldGo slug={slug} />
             {data.bracket && data.bracket.length > 0 && <BracketSection stages={data.bracket} />}
         </div>
     );
@@ -395,9 +398,13 @@ export const EventList = () => {
         queryKey: ["sim", "events"],
         queryFn: () => fetchSimJson<EventIndexEntry[]>("events/index.json"),
     });
-    if (isLoading) return <LoadingBar label="Loading events…" />;
-    if (data === null || data?.length === 0) return <EmptyState>No simulated events yet.</EmptyState>;
-    if (error || !data) {
+    const season = useQuery(seasonIndexQuery);
+    const bracketSlugs = new Set((data ?? []).map((e) => e.slug));
+    const withField = new Set(season.data?.fields ?? []);
+    const upcoming = (season.data?.events ?? []).filter((e) => withField.has(e.slug) && !bracketSlugs.has(e.slug));
+    if (isLoading || season.isLoading) return <LoadingBar label="Loading events…" />;
+    if ((data === null || data?.length === 0) && upcoming.length === 0) return <EmptyState>No simulated events yet.</EmptyState>;
+    if (error) {
         return <EmptyState className="text-down">Error loading events: {error instanceof Error ? error.message : "Unknown error"}</EmptyState>;
     }
     return (
@@ -413,21 +420,51 @@ export const EventList = () => {
                     </>
                 }
             />
-            <Section>
-                <ul className="divide-y divide-line">
-                    {data.map((e) => (
-                        <li key={e.slug} className="py-2 flex items-baseline justify-between gap-3">
-                            <Link to={`/events/${e.slug}`} className="font-medium text-fg hover:text-accent">
-                                {e.name}
-                            </Link>
-                            <span className="text-xs font-mono text-muted">
-                                {e.startDate} to {e.endDate}
-                            </span>
-                        </li>
-                    ))}
-                </ul>
-                <LiquipediaCredit what="Brackets, results and prize data" />
-            </Section>
+            {data && data.length > 0 && (
+                <Section>
+                    <ul className="divide-y divide-line">
+                        {data.map((e) => (
+                            <li key={e.slug} className="py-2 flex items-baseline justify-between gap-3">
+                                <Link to={`/events/${e.slug}`} className="font-medium text-fg hover:text-accent">
+                                    {e.name}
+                                </Link>
+                                <span className="text-xs font-mono text-muted">
+                                    {e.startDate} to {e.endDate}
+                                </span>
+                            </li>
+                        ))}
+                    </ul>
+                    <LiquipediaCredit what="Brackets, results and prize data" />
+                </Section>
+            )}
+            {upcoming.length > 0 && (
+                <Section
+                    title="Season calendar"
+                    subtitle={`Likely fields and which teams' best schedules include each event, from ${season.data!.n} season simulations as of ${season.data!.asOf}.`}
+                >
+                    <ul className="divide-y divide-line">
+                        {upcoming.map((e) => (
+                            <li key={e.slug} className="py-2 flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
+                                <span className="flex flex-wrap items-baseline gap-2">
+                                    <Link to={`/events/${e.slug}`} className="font-medium text-fg hover:text-accent">
+                                        {e.name}
+                                    </Link>
+                                    <span className="text-[11px] font-mono text-muted">
+                                        {e.kind === "lan" ? "LAN" : "Online"}
+                                        {e.tier !== null && ` / Tier ${e.tier}`}
+                                        {e.projection && " / projected"}
+                                        {!e.simulated && " / not simulated"}
+                                    </span>
+                                </span>
+                                <span className="text-xs font-mono text-muted">
+                                    {e.startDate} to {e.endDate}
+                                </span>
+                            </li>
+                        ))}
+                    </ul>
+                    <LiquipediaCredit what="Event dates, prize pools and participant data" />
+                </Section>
+            )}
         </div>
     );
 };

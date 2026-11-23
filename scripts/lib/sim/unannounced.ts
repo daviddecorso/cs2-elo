@@ -24,7 +24,17 @@ export interface UnannouncedOptions {
     projected?: Array<{ row: RawRow; chance: number }>;
     /** Teams with a match at a past event, by page: Liquipedia's `participantsnumber` counts about twice that for qualifiers. */
     played?: Map<string, number>;
+    trend?: Trend;
 }
+
+/** The rate is scaled by ((last half + prior) / (first half + prior))^weight over `RATE_DAYS`; weight 0 is a flat rate. */
+export interface Trend {
+    weight: number;
+    /** Events added to both halves, shrinking the ratio toward 1 in sparse cells. */
+    prior: number;
+}
+
+export const DEFAULT_TREND: Trend = { weight: 0, prior: 4 };
 
 export interface UnannouncedEvent {
     row: RawRow;
@@ -84,14 +94,18 @@ export const unannouncedEvents = (tournamentRows: RawRow[], countryRegion: Count
     }
 
     const out: UnannouncedEvent[] = [];
+    const trend = opts.trend ?? DEFAULT_TREND;
+    const half = addDays(opts.asOf, -RATE_DAYS / 2);
     for (const c of [...cells.values()].sort((a, b) => `${a.category}|${a.region}`.localeCompare(`${b.category}|${b.region}`))) {
         const teamsOf = (r: RawRow) => opts.played?.get(str(r.pagename)) ?? Number(r.participantsnumber);
         const templates = c.past.filter((r) => teamsOf(r) >= 2 && teamsOf(r) <= MAX_TEAMS).sort((a, b) => Number(a.prizepool) - Number(b.prizepool));
         if (templates.length === 0) continue;
+        const recent = c.past.filter((r) => str(r.startdate) > half).length;
+        const growth = ((recent + trend.prior) / (c.past.length - recent + trend.prior)) ** trend.weight;
         const buckets: Array<{ from: string; to: string; expected: number }> = [];
         for (let from = addDays(opts.asOf, 1); from < opts.until; from = addDays(from, BUCKET_DAYS)) {
             const to = addDays(from, BUCKET_DAYS) < opts.until ? addDays(from, BUCKET_DAYS) : opts.until;
-            const rate = (c.past.length * days(from, to)) / RATE_DAYS;
+            const rate = (growth * c.past.length * days(from, to)) / RATE_DAYS;
             const listed = c.listed.filter((d) => d >= from && d < to).length;
             const projected = c.projected.filter((p) => p.date >= from && p.date < to).reduce((s, p) => s + p.chance, 0);
             buckets.push({ from, to, expected: Math.max(0, rate - listed - projected) });

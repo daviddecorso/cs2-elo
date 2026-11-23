@@ -4,11 +4,25 @@ import { describe, expect, it } from "vitest";
 import { renderToString } from "react-dom/server";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { EventOdds } from "./EventOdds.tsx";
+import { EventList, EventOdds } from "./EventOdds.tsx";
 import { Major } from "./Major.tsx";
+import { MajorHistory } from "./MajorHistory.tsx";
 import { VrsSim } from "./VrsSim.tsx";
+import { defaultSchedule } from "../sim/plan.ts";
 import { testPlan } from "../sim/testPlan.ts";
-import type { EventOdds as EventOddsData, InviteOdds, PlanIndex, SeasonImpact, SeasonIndex, SeasonStandings, SeasonTeamSchedule } from "../sim/types.ts";
+import type {
+    EventOdds as EventOddsData,
+    EventWhy,
+    InviteOdds,
+    MajorHistory as MajorHistoryData,
+    PlanEvents,
+    PlanIndex,
+    SeasonEventFile,
+    SeasonImpact,
+    SeasonIndex,
+    SeasonStandings,
+    SeasonTeamSchedule,
+} from "../sim/types.ts";
 
 const render = (path: string, route: string, element: React.ReactNode, ...entries: Array<[unknown[], unknown]>) => {
     const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
@@ -402,6 +416,58 @@ describe("simulator pages", () => {
         expect(playoffs).toContain("Champion");
     });
 
+    it("renders past Majors with the model comparison and Elo's stage forecast", () => {
+        const history: MajorHistoryData = {
+            generatedAt: "2026-11-20T00:00:00Z",
+            n: 10000,
+            tuningYear: "2025",
+            external: { name: "Luz's Major Supercomputer" },
+            models: [
+                { model: "Coin", stages: 1, logLoss: 1.26, advanceLogLoss: 0.69, advanceBrier: 0.25, pickem: null },
+                { model: "Elo", stages: 1, logLoss: 1.13, advanceLogLoss: 0.6, advanceBrier: 0.2, pickem: { stages: 1, meanCorrect: 6, coins: 1 } },
+                { model: "Supercomputer", stages: 1, logLoss: null, advanceLogLoss: 0.61, advanceBrier: 0.21, pickem: { stages: 1, meanCorrect: 5, coins: 1 } },
+            ],
+            diffs: [{ a: "Elo", b: "Coin", metric: "stage", diff: -0.13, lo: -0.2, hi: -0.05, stages: 1 }],
+            majors: [
+                {
+                    slug: "cologne",
+                    name: "IEM Cologne Major 2026",
+                    liquipedia: "Intel_Extreme_Masters/2026/Cologne",
+                    startDate: "2026-06-02",
+                    endDate: "2026-06-21",
+                    champion: "Team Falcons",
+                    inSample: false,
+                    stages: [
+                        {
+                            id: "stage1",
+                            name: "Stage 1",
+                            swiss: true,
+                            startDate: "2026-06-02",
+                            scores: [
+                                { model: "Elo", logLoss: 1.13, advanceLogLoss: 0.6, pChampion: 0.08, championRank: 4, pickem: 6 },
+                                { model: "Supercomputer", logLoss: null, advanceLogLoss: 0.61, pChampion: null, championRank: null, pickem: 5 },
+                            ],
+                            outcomes: ["3-0", "3-X", "0-3", "out"],
+                            picks: { threeZero: ["Team Falcons"], advance: [], zeroThree: ["Lynn Vision Gaming"] },
+                            teams: [
+                                { team: "Team Falcons", outcome: "3-0", p: { "3-0": 0.4, "3-X": 0.4, "0-3": 0.02, out: 0.18 }, advance: 0.8, advanced: true },
+                                { team: "Lynn Vision Gaming", outcome: "3-X", p: { "3-0": 0.02, "3-X": 0.2, "0-3": 0.4, out: 0.38 }, advance: 0.22, advanced: true },
+                            ],
+                        },
+                    ],
+                },
+            ],
+        };
+        const html = render("/major/history", "/major/history", <MajorHistory />, [["sim", "past-majors"], history]);
+        expect(html).toContain("Model comparison");
+        expect(html).toContain("Luz&#x27;s Major Supercomputer");
+        expect(html).toContain("0.610 adv.");
+        expect(html).toContain("6/10 Pick&#x27;em");
+        expect(html).toContain("Elo&#x27;s Stage 1 forecast");
+        expect(html).toContain("3-0 pick");
+        expect(html).toContain("Team Falcons 8% to win");
+    });
+
     it("filters major invite rosters by search query", () => {
         const invites: InviteOdds = {
             slug: "ba",
@@ -586,6 +652,14 @@ describe("simulator pages", () => {
         expect(html).not.toContain("CCT Europe 2026 Series #17");
     });
 
+    it("links calendar events to their event page when one exists, else to Liquipedia", () => {
+        const withPage = render("/vrs-sim", "/vrs-sim", <VrsSim />, [["sim", "season", "index"], { ...seasonIndex, fields: ["lodz"] }]);
+        expect(withPage).toContain('href="/events/lodz"');
+        const without = render("/vrs-sim", "/vrs-sim", <VrsSim />, [["sim", "season", "index"], seasonIndex]);
+        expect(without).not.toContain('href="/events/lodz"');
+        expect(without).toContain("liquipedia.net");
+    });
+
     it("shows projected editions under the Projected filter, with their chance and no link to a page that doesn't exist", () => {
         const html = render("/vrs-sim?kind=projected", "/vrs-sim", <VrsSim />, [["sim", "season", "index"], seasonIndex]);
         expect(html).toContain("CCT Europe 2026 Series #17");
@@ -679,6 +753,159 @@ describe("simulator pages", () => {
             [["sim", "plan", "index"], planIndex]
         );
         expect(withPlan.replaceAll("<!-- -->", "")).toContain("Full plan for MOUZ");
+
+        const why: EventWhy = {
+            n: 120,
+            points: 64.2,
+            parts: [20, 5, 10, 15, 14],
+            place: [
+                ["1", 0.1, 150],
+                ["3-4", 0.5, 70],
+                ["5-8", 0.4, 30],
+            ],
+            prize: 42000,
+        };
+        const explained: SeasonTeamSchedule = {
+            ...schedule,
+            candidates: schedule.candidates.map((c) => (c.slug === "iem-us" ? { ...c, why } : c)),
+            recommended: schedule.recommended.map((r) => ({ ...r, exact: { ...r.exact, inviteCi: [0.83, 1] as [number, number] } })),
+        };
+        const whyHtml = render(
+            "/vrs-sim?view=schedules&team=MOUZ",
+            "/vrs-sim",
+            <VrsSim />,
+            [["sim", "season", "index"], { ...seasonIndex, schedules: [{ team: "MOUZ", teamName: "MOUZ", rosterKey: "mouz", region: "Europe", file: "MOUZ.json" }] }],
+            [["sim", "season", "team", "MOUZ.json"], explained]
+        ).replaceAll("<!-- -->", "");
+        expect(whyHtml).toContain("likely 3-4");
+        expect(whyHtml).toContain("alone +141 pts, +7 invite");
+        expect(whyHtml).toContain("in this schedule +141 pts");
+        expect(whyHtml).toContain("Points by source (+64 in all)");
+        expect(whyHtml).toContain("LAN wins");
+        expect(whyHtml).toContain("Expected prize $42,000");
+        expect(whyHtml).toContain("(83%–100%)");
+
+        const withMajor: SeasonTeamSchedule = {
+            ...explained,
+            candidates: explained.candidates.map((c) => (c.slug === "lodz" ? { ...c, required: true } : c)),
+            recommended: [{ ...explained.recommended[0], mask: 1, dropsAnnounced: [] }],
+            subsets: [
+                [1, 1900, 1800, 2000, 0.9],
+                [3, 1960, 1860, 2060, 0.95],
+            ],
+        };
+        const majorHtml = render(
+            "/vrs-sim?view=schedules&team=MOUZ",
+            "/vrs-sim",
+            <VrsSim />,
+            [["sim", "season", "index"], { ...seasonIndex, schedules: [{ team: "MOUZ", teamName: "MOUZ", rosterKey: "mouz", region: "Europe", file: "MOUZ.json" }] }],
+            [["sim", "season", "team", "MOUZ.json"], withMajor]
+        ).replaceAll("<!-- -->", "");
+        expect(majorHtml).toMatch(/<input(?=[^>]*aria-label="PGL Łódź 2027")(?=[^>]*disabled="")(?=[^>]*checked="")/);
+        expect(majorHtml).toContain("always attends");
+        expect(majorHtml).toContain("alone +60 pts, +5 invite");
+        expect(majorHtml).not.toContain("alone +0 pts");
+    });
+
+    it("compares a plan's options alone, with finishes and points by source", () => {
+        const plan = testPlan();
+        const why: EventWhy = { n: 280, points: 48, parts: [10, 3, 12, 8, 15], place: [["1", 0.2, 90], ["2", 0.3, 50], ["DNQ", 0.5, 4]], prize: 0 };
+        const searched = plan.schedules[defaultSchedule(plan)].options[0];
+        const explained = {
+            ...plan,
+            options: plan.options.map((o) => (o.id === searched ? { ...o, alone: { invite: 0.12, smooth: 0.1, points: 40.5 }, why } : o)),
+        };
+        const planIndex: PlanIndex = {
+            generatedAt: "",
+            teams: [{ team: plan.team, teamName: plan.teamName, file: "100_Thieves.json", asOf: plan.asOf, target: plan.target, generatedAt: "" }],
+        };
+        const html = render(
+            "/vrs-sim?view=plan&team=100_Thieves",
+            "/vrs-sim",
+            <VrsSim />,
+            [["sim", "season", "index"], seasonIndex],
+            [["sim", "plan", "index"], planIndex],
+            [["sim", "plan", "team", "100_Thieves.json"], explained]
+        ).replaceAll("<!-- -->", "");
+        expect(html).toContain("Compare options");
+        expect(html).toContain("+41 pts, +12.0 invite");
+        expect(html).toContain("likely DNQ");
+        expect(html).toContain("no qual.");
+        expect(html).toContain("+48 pts when it goes");
+    });
+
+    const fieldFile: SeasonEventFile = {
+        generatedAt: "",
+        asOf: "2026-11-19",
+        target: seasonIndex.target,
+        n: 300,
+        event: { ...seasonIndex.events[2], slug: "cup-9", name: "Cup 9", kind: "lan", startDate: "2027-01-10", endDate: "2027-01-12" },
+        teams: 8,
+        announced: 2,
+        field: [
+            { team: "MOUZ", attend: 0.9, source: "announced", win: 0.4, finish: "1" },
+            { team: "Sashi", attend: 0.3, source: "open", win: 0.02, finish: "5-8" },
+        ],
+        optimal: [
+            { team: "HEROIC", teamName: "HEROIC", region: "Europe", attend: 0.2, reach: 0.7, picks: [{ goal: "points", volumes: ["average", "high"] }], dropped: false, points: 55.5, invite: 0.08, finish: "3-4" },
+            { team: "MOUZ", teamName: "MOUZ", region: "Europe", attend: 0.9, reach: 1, picks: [], dropped: true, points: 3, invite: 0, finish: "1" },
+        ],
+        demand: 1,
+    };
+
+    it("renders an unsimulated event's announced teams and why it isn't simulated", () => {
+        const stub: SeasonEventFile = {
+            ...fieldFile,
+            event: { ...fieldFile.event, simulated: false, reason: "starts after the target snapshot" },
+            field: [{ team: "MOUZ", attend: 1, source: "announced", win: null, finish: null }],
+            optimal: [],
+            demand: 0,
+        };
+        const html = render("/events/cup-9", "/events/:slug", <EventOdds />, [["sim", "event", "cup-9"], null], [["sim", "season", "field", "cup-9"], stub]).replaceAll(
+            "<!-- -->",
+            ""
+        );
+        expect(html).toContain("Announced teams");
+        expect(html).toContain("Not simulated: starts after the target snapshot");
+        expect(html).toContain('/teams/MOUZ"');
+        expect(html).not.toContain("Likely field");
+    });
+
+    it("renders an upcoming season event without a bracket: likely field and who should go", () => {
+        const planEvents: PlanEvents = { generatedAt: "", events: { "cup-9": [{ team: "100 Thieves", teamName: "100 Thieves", region: "Europe", route: "inviteOrQualify", worth: 0.031 }] } };
+        const html = render(
+            "/events/cup-9",
+            "/events/:slug",
+            <EventOdds />,
+            [["sim", "event", "cup-9"], null],
+            [["sim", "season", "field", "cup-9"], fieldFile],
+            [["sim", "plan", "events"], planEvents]
+        ).replaceAll("<!-- -->", "");
+        expect(html).toContain("Cup 9");
+        expect(html).toContain("Likely field");
+        expect(html).toContain("2 of 8 places announced");
+        expect(html).toContain("drawn like past editions");
+        expect(html).toContain("Who should go");
+        expect(html).toContain("average-volume schedule includes this event, for 6 open places");
+        expect(html).toContain("Recommended, but usually elsewhere");
+        expect(html).toContain("+56 pts");
+        expect(html).toContain("Usually there, but no recommended schedule needs it");
+        expect(html).toContain("dropped");
+        expect(html).toContain("invite or qualifier");
+        expect(html).toContain("worth +3.1 invite");
+        expect(html).toContain("Last edition on Liquipedia");
+        expect(html).toContain("Liquipedia");
+
+        const list = render(
+            "/events",
+            "/events",
+            <EventList />,
+            [["sim", "events"], []],
+            [["sim", "season", "index"], { ...seasonIndex, events: [...seasonIndex.events, fieldFile.event as SeasonIndex["events"][number]], fields: ["cup-9"] }]
+        );
+        expect(list).toContain("Season calendar");
+        expect(list).toContain('/events/cup-9"');
+        expect(list).not.toContain('/events/lodz"');
     });
 
     it("renders a team's plan: schedules against the season rules, and the average route with qualifier branches", () => {

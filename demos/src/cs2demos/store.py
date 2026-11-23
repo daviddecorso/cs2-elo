@@ -1,6 +1,7 @@
 """Parquet output, R2 upload, the per-map manifest and the HLTV cache backup."""
 
 import gzip
+import hashlib
 import json
 import os
 import shutil
@@ -36,15 +37,18 @@ def write_tables(tables: dict[str, pl.DataFrame], out_dir: Path) -> list[Path]:
 
 
 class R2:
-    def __init__(self) -> None:
+    def __init__(self, bucket: str | None = None, *, bucket_env: str = "R2_BUCKET") -> None:
         import boto3
         from dotenv import load_dotenv
 
         load_dotenv(REPO_ROOT / ".env")
-        missing = [k for k in ("R2_ACCOUNT_ID", "R2_ACCESS_KEY_ID", "R2_SECRET_ACCESS_KEY", "R2_BUCKET") if not os.environ.get(k)]
+        needed = ["R2_ACCOUNT_ID", "R2_ACCESS_KEY_ID", "R2_SECRET_ACCESS_KEY"]
+        if bucket is None:
+            needed.append(bucket_env)
+        missing = [k for k in needed if not os.environ.get(k)]
         if missing:
             raise SystemExit(f"Missing {', '.join(missing)} in .env (or pass --no-upload)")
-        self.bucket = os.environ["R2_BUCKET"]
+        self.bucket = bucket or os.environ[bucket_env]
         self.client = boto3.client(
             "s3",
             endpoint_url=f"https://{os.environ['R2_ACCOUNT_ID']}.r2.cloudflarestorage.com",
@@ -52,6 +56,10 @@ class R2:
             aws_secret_access_key=os.environ["R2_SECRET_ACCESS_KEY"],
             region_name="auto",
         )
+
+    @classmethod
+    def public(cls, bucket: str | None = None) -> "R2":
+        return cls(bucket=bucket, bucket_env="R2_PUBLIC_BUCKET")
 
     def upload_dir(self, local: Path, prefix: str) -> list[str]:
         keys = []
@@ -80,6 +88,49 @@ class R2:
         for page in self.client.get_paginator("list_objects_v2").paginate(Bucket=self.bucket, Prefix=prefix):
             keys += [o["Key"] for o in page.get("Contents", [])]
         return keys
+
+    def list_etags(self, prefix: str) -> dict[str, str]:
+        etags: dict[str, str] = {}
+        for page in self.client.get_paginator("list_objects_v2").paginate(Bucket=self.bucket, Prefix=prefix):
+            for o in page.get("Contents", []):
+                etags[o["Key"]] = o.get("ETag", "").strip('"')
+        return etags
+
+    def delete_keys(self, keys: list[str]) -> int:
+        deleted = 0
+        for i in range(0, len(keys), 1000):
+            batch = keys[i:i + 1000]
+            self.client.delete_objects(Bucket=self.bucket, Delete={"Objects": [{"Key": k} for k in batch]})
+            deleted += len(batch)
+        return deleted
+
+    def put_json_gz(self, key: str, gz_body: bytes, cache_control: str = "public, max-age=3600") -> None:
+        self.client.put_object(
+            Bucket=self.bucket,
+            Key=key,
+            Body=gz_body,
+            ContentType="application/json",
+            ContentEncoding="gzip",
+            CacheControl=cache_control,
+        )
+
+    def sync_json_gz(
+        self, prefix: str, files: dict[str, bytes], cache_control: str = "public, max-age=3600"
+    ) -> dict[str, int]:
+        """Gzip and upload JSON payloads under `prefix`, skipping keys whose ETag matches MD5 and deleting stale keys."""
+        existing = self.list_etags(prefix)
+        uploaded = skipped = 0
+        for key, raw in files.items():
+            # mtime=0 keeps gzip output deterministic so MD5 matches across runs.
+            gz = gzip.compress(raw, compresslevel=6, mtime=0)
+            if existing.get(key) == hashlib.md5(gz).hexdigest():
+                skipped += 1
+                continue
+            self.put_json_gz(key, gz, cache_control=cache_control)
+            uploaded += 1
+        stale = sorted(set(existing) - set(files))
+        deleted = self.delete_keys(stale) if stale else 0
+        return {"uploaded": uploaded, "skipped": skipped, "deleted": deleted}
 
     def get_json(self, key: str) -> dict | None:
         try:

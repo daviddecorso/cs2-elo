@@ -1,0 +1,41 @@
+{
+    "asOf": "2026-11-19",
+    "actions": {
+        "1": "bbbbbb",
+        "3": "bbppbb",
+        "5": "bbpppp"
+    },
+    "orders": {
+        "1": "FFSSSF",
+        "3": "FSFSFS",
+        "5": "FSFSFS"
+    },
+    "inputs": {
+        "k": 40.0,
+        "tau": 365.0,
+        "playPrior": 10.0,
+        "playTau": 90.0
+    },
+    "favouriteSecond": 0.7167,
+    "forecast": {
+        "shrink": 0.9,
+        "bands": {
+            "likely": 0.7,
+            "possible": 0.3
+        },
+        "bo1Shown": 3
+    },
+    "map": {
+        "du": 3.55971
+    },
+    "choice": {
+        "ban": {
+            "play": 13.40411,
+            "edge": 4.13518
+        },
+        "pick": {
+            "play": 5.83423,
+            "edge": 6.28084
+        }
+    }
+}

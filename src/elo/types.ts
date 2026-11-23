@@ -103,3 +103,83 @@ export interface EloCalibration {
     bins: { elo: EloCalibrationBin[]; vrs: EloCalibrationBin[] };
     hltv?: EloHltvComparison;
 }
+
+export interface MatchSide {
+    /** Liquipedia team page name for this match. */
+    team: string;
+    /** Rated lineage team name when the team renamed since its last played series; used for `/teams/` links. */
+    profileTeam?: string;
+    /** Active Elo rank, or null when unranked/provisional. */
+    rank: number | null;
+    vrsRank: number | null;
+    /** Pre-series Elo rating (including region prior), or null when unrated. */
+    rating: number | null;
+    rated: boolean;
+    /** Maps won (completed matches only). */
+    score?: number;
+    /** Post-series rating change (completed matches only). */
+    delta?: number;
+    players?: Array<{ page: string; nick: string }>;
+}
+
+export interface MatchMapBreakdown {
+    map: string;
+    /** Pre-map Elo win probability for sides[0]. */
+    p: number;
+    /** Active-pool map offsets [sides[0], sides[1]] for upcoming matches. */
+    offsets?: [number, number];
+    /** Round score [sides[0], sides[1]] for completed matches. */
+    rounds?: [number, number];
+    winner?: 0 | 1;
+}
+
+export type VetoChance = "likely" | "possible" | "unlikely";
+
+/** Bo1 gets only its likeliest maps in order; longer series get every pool map, likeliest first. */
+export type MatchVeto =
+    | { kind: "shortlist"; maps: string[] }
+    | {
+          kind: "chances";
+          /** `pickedBy` lists the sides whose likeliest pick this map is (Bo3 only). */
+          maps: Array<{ map: string; chance: VetoChance; pickedBy?: Array<0 | 1> }>;
+      };
+
+export interface ScheduledMatch {
+    id: string;
+    /** Unix seconds UTC; null when Liquipedia has no date yet. */
+    t: number | null;
+    dateExact: boolean;
+    status: "upcoming" | "completed";
+    /** Parent Liquipedia tournament page. */
+    event: string;
+    eventName: string;
+    eventSlug: string;
+    /** Liquipedia page holding the match row (may be a stage subpage). */
+    page: string;
+    section?: string;
+    tier: number | null;
+    lan: boolean;
+    /** Scheduled best-of (0 when unspecified on Liquipedia). */
+    bestOf: number;
+    sides: [MatchSide, MatchSide];
+    /** Pre-series Elo win probability for sides[0]. */
+    p: number;
+    seriesOdds?: { bo1: number; bo3: number; bo5: number };
+    winner?: 0 | 1;
+    maps: MatchMapBreakdown[];
+    /** Upcoming Bo1, Bo3 and Bo5 between rated sides only; the odds don't use it. */
+    veto?: MatchVeto;
+}
+
+export interface EloMatchesData {
+    generatedAt: string;
+    /** `YYYY-MM-DD` of the latest completed series in the Elo feed. */
+    asOf: string;
+    /** `YYYY-MM-DD` of the latest `upcoming.json` fetch, or null. */
+    upcomingFetched: string | null;
+    /** Highest active Elo rating, used to anchor excitement quality on the current rating scale. */
+    topRating: number;
+    pool: string[];
+    upcoming: ScheduledMatch[];
+    recent: ScheduledMatch[];
+}

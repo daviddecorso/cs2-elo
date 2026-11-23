@@ -7,6 +7,7 @@ import { findRoster, freeze, scoreTeam } from "../../vrs/oneTeam.ts";
 import { computeStandings } from "../../vrs/valveModel.ts";
 import { loadWorld, rerun, type RerunResult } from "../../vrs/valveWorld.ts";
 import type { EventConfig } from "../config.ts";
+import { GAIN_PARTS, NOT_QUALIFIED } from "../gain.ts";
 import type { OptimizeRunContext, OptimizerSetup, OptimizerTeam } from "../optimizer.ts";
 import type { SeriesModel } from "../predict.ts";
 import { runSeason, type SeasonEvent, type SeasonInput } from "../season.ts";
@@ -109,6 +110,7 @@ const team: OptimizerTeam = {
     universe: [],
     committed: [],
     announced: new Set(),
+    required: 0,
     masks: [0],
     paths: [],
 };
@@ -175,5 +177,31 @@ describe("planRun", () => {
         expect(withRoute.points).not.toBeCloseTo(none.points, 3);
         expect(withRoute.smooth).toBeGreaterThan(0);
         expect(withRoute.smooth).toBeLessThan(1);
+    });
+
+    it("records the route's finish and what it alone adds, by source", () => {
+        const won = play(always(t0)).data;
+        expect(won.info.place[0]).toBe(1);
+        const parts = Array.from(won.info.gain.subarray(0, GAIN_PARTS.length));
+        expect(parts.reduce((a, b) => a + b, 0)).toBeCloseTo(scoreSchedule(won, [0]).points - scoreSchedule(won, []).points, 3);
+        expect(play(never(t0)).data.info.place[0]).toBe(NOT_QUALIFIED);
+    });
+
+    it("plans a second team on the same run without changing the first", () => {
+        const predictor = always(t0);
+        const runInput = { ...input, predictor };
+        const captured: { result: RerunResult | null } = { result: null };
+        const result = runSeason({ ...runInput, onCheckpoint: (_r, _cp, res) => (captured.result = res) }, 0);
+        const state = captured.result!.state;
+        const frozen = freeze(state);
+        const lineup5 = lineups.get(t5)!;
+        const other: OptimizerTeam = { ...team, team: t5, teamId: t5, rosterKey: t5, teamName: lineup5.name, playerIds: lineup5.players.map((p) => String(p.playerId)), nicks: lineup5.players.map((p) => p.nick) };
+        const ctx: OptimizeRunContext = { input: runInput, opt: { ...opt, teams: [team, other] }, asOf: day(0), previousSlug: null, regionOf: () => () => "Europe" };
+        const alone = planRun(ctx, set, team, 0, result, state, frozen, false);
+        planRun(ctx, buildOptions(events, t5, "Europe", day(0), () => true), other, 0, result, state, frozen, false);
+        const again = planRun(ctx, set, team, 0, result, state, frozen, false);
+        expect(again.info).toEqual(alone.info);
+        expect(again.fragments).toEqual(alone.fragments);
+        expect(scoreSchedule(again, [0])).toEqual(scoreSchedule(alone, [0]));
     });
 });

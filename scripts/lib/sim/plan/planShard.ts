@@ -16,6 +16,7 @@ import {
     type OptimizeRunContext,
     type OptimizerTeam,
 } from "../optimizer.ts";
+import { eventGain, GAIN_PARTS, NOT_QUALIFIED } from "../gain.ts";
 import { positionOf, runSeason, type RunResult, type SeasonEvent, type SeasonInput } from "../season.ts";
 import type { SeasonSetup } from "../seasonSetup.ts";
 import type { TeamId } from "../types.ts";
@@ -51,6 +52,10 @@ export interface PlanRunInfo {
     skipped: number;
     /** Qualifications through a feeder whose slot the target didn't fill from it, so there's no place to take. */
     noSlot: number;
+    /** Per option: the team's finish at its event (0 = none, `NOT_QUALIFIED` = entered a feeder and failed). */
+    place: Uint16Array;
+    /** Per (option × parts): what the option alone adds to the team's points, by `GAIN_PARTS`. */
+    gain: Float32Array;
 }
 
 /** A run's scoring inputs, kept by the worker that played it. */
@@ -106,6 +111,8 @@ export const planRun = (
         replays: 0,
         skipped: 0,
         noSlot: 0,
+        place: new Uint16Array(count),
+        gain: new Float32Array(count * GAIN_PARTS.length),
     };
     const empty: Ledger = { roster: -1, matches: [], events: [] };
     const self = findRoster(frozen, team.playerIds);
@@ -182,31 +189,46 @@ export const planRun = (
         return entered ? { qualified: false, steps } : null;
     };
 
+    const positions = new Array<number>(count).fill(0);
+    const playedAt = (slug: string) => {
+        const played = result.events.get(slug);
+        return played && played.field !== null ? positionOf(played.outcome.placements.get(team.team)) : 0;
+    };
+    const replayedAt = (o: number, e: SeasonEvent, field: TeamId[]) => {
+        const r = replay(e, field);
+        positions[o] = positionOf(r.outcome.placements.get(team.team));
+        return r.part;
+    };
     const steps: PlanStep[][] = set.options.map((option, o) => {
         const e = events[option.event];
         const slug = e.config.slug;
         if (option.kind !== "qualify") {
             if (inField(slug)) {
                 info.reached[o] = 1;
+                positions[o] = playedAt(slug);
                 return [{ slug }];
             }
             const reached = result.reach.get(slug)?.(team.team);
             if (reached) {
                 info.reached[o] = 1;
-                return [{ slug, replay: replay(e, reached.map((f) => f.team)).part }];
+                return [{ slug, replay: replayedAt(o, e, reached.map((f) => f.team)) }];
             }
             if (option.kind === "event") return [];
         } else if (inField(slug)) {
             // Drawn into a qualifier slot the run didn't simulate.
             info.entered[o] = info.qualified[o] = 1;
+            positions[o] = playedAt(slug);
             return [{ slug }];
         }
         const q = through(e, 0);
         if (!q) return [];
         info.entered[o] = 1;
-        if (!q.qualified) return q.steps;
+        if (!q.qualified) {
+            positions[o] = NOT_QUALIFIED;
+            return q.steps;
+        }
         info.qualified[o] = 1;
-        return [...q.steps, { slug, replay: replay(e, q.field!).part }];
+        return [...q.steps, { slug, replay: replayedAt(o, e, q.field!) }];
     });
 
     const held = [...new Set(set.options.flatMap((o) => o.holds.map((i) => events[i].config.slug)))];
@@ -223,6 +245,12 @@ export const planRun = (
             parts.push(part);
         }
         return { matches: parts.flatMap((p) => p.matches), events: parts.flatMap((p) => p.events) };
+    });
+    const before = scoreTeam(frozen, base, { rank: false });
+    fragments.forEach((fragment, o) => {
+        if (!fragment || !Number.isFinite(positions[o]) || positions[o] === 0) return;
+        info.place[o] = Math.min(positions[o], NOT_QUALIFIED);
+        eventGain(frozen, base, fragment, before).parts.forEach((v, p) => (info.gain[o * GAIN_PARTS.length + p] = v));
     });
     return {
         info,
@@ -295,19 +323,20 @@ export interface ExactResult extends ExactJob {
 }
 
 export interface PlanShard {
-    play(runs: number[], onRun?: (info: PlanRunInfo) => void): PlanRunInfo[];
-    /** Scores each schedule on the requested runs this shard played. */
-    score(schedules: number[][], runs: number[]): ScoreBatch;
-    exact(jobs: ExactJob[]): ExactResult[];
+    /** `infos[k]` is focal team k's info for the run. */
+    play(runs: number[], onRun?: (infos: PlanRunInfo[]) => void): number;
+    /** Scores each of team k's schedules on the requested runs this shard played. */
+    score(k: number, schedules: number[][], runs: number[]): ScoreBatch;
+    exact(k: number, jobs: ExactJob[]): ExactResult[];
 }
 
-/** Runs seasons for the focal team and keeps each run's scoring inputs; `exactRuns` also keep what an exact re-score needs. */
-export const createPlanShard = (setup: SeasonSetup, set: OptionSet, exactRuns: ReadonlySet<number>): PlanShard => {
+/** Runs seasons once for every focal team (`sets[k]` for `opt.teams[k]`) and keeps each run's scoring inputs; `exactRuns` also keep what an exact re-score needs. */
+export const createPlanShard = (setup: SeasonSetup, sets: OptionSet[], exactRuns: ReadonlySet<number>): PlanShard => {
     const { input, optimizer: ctx } = setup;
-    const team = ctx.opt.teams[0];
+    const teams = ctx.opt.teams;
     const last = input.checkpoints.length - 1;
     const target = input.checkpoints[last];
-    const kept = new Map<number, PlanRunData>();
+    const kept = teams.map(() => new Map<number, PlanRunData>());
     let targetResult: RerunResult | null = null;
     const shardInput: SeasonInput = {
         ...input,
@@ -320,7 +349,7 @@ export const createPlanShard = (setup: SeasonSetup, set: OptionSet, exactRuns: R
 
     return {
         play(runs, onRun) {
-            return runs.map((run) => {
+            for (const run of runs) {
                 targetResult = null;
                 const result = runSeason(shardInput, run);
                 let state = (targetResult as RerunResult | null)?.state;
@@ -328,19 +357,23 @@ export const createPlanShard = (setup: SeasonSetup, set: OptionSet, exactRuns: R
                     const full = fullInput(result.delta);
                     state = rerun(loadWorld(full.matches, full.events, target.date, { windowEndsAtPull: true })).state;
                 }
-                const data = planRun(runCtx, set, team, run, result, state, freeze(state), exactRuns.has(run));
-                kept.set(run, data);
-                onRun?.(data.info);
-                return data.info;
-            });
+                const frozen = freeze(state);
+                const infos = teams.map((team, k) => {
+                    const data = planRun(runCtx, sets[k], team, run, result, state, frozen, exactRuns.has(run));
+                    kept[k].set(run, data);
+                    return data.info;
+                });
+                onRun?.(infos);
+            }
+            return runs.length;
         },
-        score(schedules, runs) {
-            const own = runs.filter((r) => kept.has(r));
+        score(k, schedules, runs) {
+            const own = runs.filter((r) => kept[k].has(r));
             const size = schedules.length * own.length;
             const batch: ScoreBatch = { runs: own, points: new Float32Array(size), smooth: new Float32Array(size), invited: new Uint8Array(size) };
             schedules.forEach((chosen, s) => {
                 own.forEach((run, j) => {
-                    const v = scoreSchedule(kept.get(run)!, chosen);
+                    const v = scoreSchedule(kept[k].get(run)!, chosen);
                     batch.points[s * own.length + j] = v.points;
                     batch.smooth[s * own.length + j] = v.smooth;
                     batch.invited[s * own.length + j] = Number(v.invited);
@@ -348,9 +381,10 @@ export const createPlanShard = (setup: SeasonSetup, set: OptionSet, exactRuns: R
             });
             return batch;
         },
-        exact(jobs) {
+        exact(k, jobs) {
+            const team = teams[k];
             return jobs.map((job) => {
-                const data = kept.get(job.run)?.exact;
+                const data = kept[k].get(job.run)?.exact;
                 if (!data) throw new Error(`Run ${job.run} wasn't kept for an exact re-score by this shard`);
                 const delta = planDelta(data, team.teamId, job.chosen);
                 const fast = rerun(target.world, delta);

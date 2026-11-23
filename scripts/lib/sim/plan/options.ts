@@ -58,11 +58,9 @@ export const buildOptions = (events: SeasonEvent[], team: TeamId, region: Region
     return { options, locked, committed };
 };
 
-/** The focal team's options in a setup loaded with `focal`. */
-export const focalOptions = (setup: SeasonSetup): OptionSet => {
-    const team = setup.optimizer.opt.teams[0];
-    return buildOptions(setup.input.events, team.team, team.region, setup.asOf, setup.canEnterFor.get(team.team) ?? (() => true));
-};
+/** Each focal team's options in a setup loaded with `focal`, in `opt.teams` order. */
+export const focalOptions = (setup: SeasonSetup): OptionSet[] =>
+    setup.optimizer.opt.teams.map((team) => buildOptions(setup.input.events, team.team, team.region, setup.asOf, setup.canEnterFor.get(team.team) ?? (() => true)));
 
 /** Whether the chosen options fit together beside the locked and committed events: no shared event, no clash, caps and online concurrency kept. */
 export const feasible = (events: SeasonEvent[], set: OptionSet, chosen: number[], caps: Caps): boolean => {

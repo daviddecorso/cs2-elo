@@ -13,13 +13,14 @@ import { loadValveCjs } from "../vrs/valveModel.ts";
 import { lineupKeepsLinks, loadWorld } from "../vrs/valveWorld.ts";
 import { capsFor, fitActivity } from "./activity.ts";
 import { isLowerTier, LOWER_TIER_TOP_RANK, welcomes, type ListEntry, type Subregion } from "./attendance.ts";
-import { bandOf, fitFieldModel, type EventFieldModel } from "./fieldModel.ts";
-import { categoryOf, HISTORY_FROM, lineupRegion, pastEditions, readHistoryRows, type PastEdition } from "./history.ts";
+import { BANDS, bandOf, fitFieldModel, type EventFieldModel } from "./fieldModel.ts";
+import { categoryOf, HISTORY_FROM, lineupRegion, pastEditions, readAttendance, readHistoryRows, readMatchHistory, type PastEdition } from "./history.ts";
 import { buildCatalog, fitPrizeSplits, kindOf, rankedRules, slotKey, type CatalogEvent, type CatalogScope, type CountryRegion, type RankedRules } from "./catalog.ts";
 import { backtestProjections, projectEditions, projectionCategory, projectionChances, seriesKey } from "./series.ts";
 import { unannouncedEvents } from "./unannounced.ts";
 import { qualifierLinks, type LinkEnd } from "./qualifierLinks.ts";
-import { AffinityIndex, affinitySamples, affinityWeight, fitAffinity, nickCountries } from "./affinity.ts";
+import { AffinityIndex, nickCountries } from "./affinity.ts";
+import { acceptanceShift, CHOICE_USE, choiceRow, EloTimeline, fitAcceptance, fitChoice, HABIT_ONLY, valueSamples } from "./value.ts";
 import { EVENTS_DIR, loadEventConfigs, type EventConfig } from "./config.ts";
 import { readJson, readSquadRows, squadSets, squadsByTeamId, teamIdResolver } from "./inputs.ts";
 import { loadInviteConfigs, makeIntactCheck, makeRegionEligibleCheck, REGIONS, type InviteConfig } from "./invites.ts";
@@ -47,12 +48,14 @@ const SOUTH_AMERICA = new Set(["ar", "bo", "br", "cl", "co", "ec", "gy", "pe", "
 
 const dayOf = (t: number) => new Date(t * 1000).toISOString().slice(0, 10);
 
-/** Matches up to `cutoff` (unix seconds), and the events they belong to. */
-const truncateMatchdata = (m: Matchdata, cutoff: number): Matchdata => {
-    const matches = m.matches.filter((x) => x.matchStartTime <= cutoff);
+/** Matches in [from, cutoff] (unix seconds), and the events they belong to. */
+const truncateMatchdata = (m: Matchdata, cutoff: number, from = -Infinity): Matchdata => {
+    const matches = m.matches.filter((x) => x.matchStartTime <= cutoff && x.matchStartTime >= from);
     const ids = new Set(matches.map((x) => String(x.eventId)));
     return { ...m, matches, events: m.events.filter((e) => ids.has(String(e.eventId))) };
 };
+/** A hindcast's model input covers this many days before as-of, about what the hot store holds in production. */
+const HINDCAST_BASE_DAYS = 200;
 
 /** Live series' next editions, each played in the share of runs that past projections of its category came true. */
 const projectedEditions = (tournamentRows: RawRow[], countryRegion: CountryRegion, asOf: string, rules: RankedRules) => {
@@ -116,31 +119,61 @@ export interface SeasonSetupOptions {
     unannounced?: boolean;
     /** Hindcast: ratings, matches, lists and participants as of this day, and only the events Liquipedia would have listed then (`HINDCAST_LISTED_DAYS`). */
     asOf?: string;
-    /** Plan for this team only (team page or roster name, any case, `_` for spaces) instead of the top 60. */
-    focal?: string;
+    /** Last checkpoint, when before the target snapshot; later events and stand-ins are left out. For hindcasts only: the optimizer still targets the snapshot. */
+    until?: string;
+    /** Hindcast diagnostics (`docs/vrs-simulator.md`, "Oracle ladder"), each replacing part of the model with what happened. */
+    oracle?: Oracle;
+    /** Weigh VRS acceptance by strength against each event's field, and draws by whether a lineup has Elo history, next to habit (`docs/vrs-simulator.md`, "Value in attendance"); default on. */
+    value?: boolean;
+    /** Plan for these teams only (team page or roster name, any case, `_` for spaces) instead of the top 60; the season runs don't depend on them. */
+    focal?: string | string[];
 }
+
+/** "calendar" lists every real ranked event to the last checkpoint (no projections or stand-ins); "attendance" also announces their real participants; "results" replays the real matches with winners redrawn from the run's ratings instead of simulating events; "matches" replays them as played, which should reproduce Valve's lists. */
+export type Oracle = "calendar" | "attendance" | "results" | "matches";
 
 /** In a hindcast, events starting this many days after as-of count as listed; tier 1–2 LANs always do, as they're announced months ahead. */
 const HINDCAST_LISTED_DAYS = 30;
 const str = (v: unknown): string => (v === null || v === undefined ? "" : String(v));
 
 /** Everything a season run needs, from local files only. */
-export const loadSeasonSetup = ({ n, seed, scope = "all", learned = true, projections = true, unannounced = true, asOf: hindcastAsOf, focal }: SeasonSetupOptions): SeasonSetup => {
+export const loadSeasonSetup = ({
+    n,
+    seed,
+    scope = "all",
+    learned = true,
+    projections = true,
+    unannounced = true,
+    asOf: hindcastAsOf,
+    until,
+    oracle,
+    value = true,
+    focal,
+}: SeasonSetupOptions): SeasonSetup => {
     const hindcast = hindcastAsOf !== undefined;
+    if (oracle && !hindcast) throw new Error("An oracle needs a hindcast as-of date");
+    const replays = oracle === "results" || oracle === "matches";
     const cutoff = hindcast ? Date.parse(`${hindcastAsOf}T23:59:59Z`) / 1000 : Infinity;
     const feed = loadFeed();
     const feedMatches = feed.matches.filter((m) => m.t <= cutoff);
     const engine = new EloEngine(DEFAULT_PARAMS, feed.players);
-    engine.run(feedMatches);
+    const predictions = engine.run(feedMatches);
     const lastT = feedMatches.at(-1)!.t;
     const asOf = dayOf(lastT);
+
+    const inviteConfigs = loadInviteConfigs(EVENTS_DIR);
+    const target = inviteConfigs.find((c) => c.snapshotDate > asOf);
+    if (!target) throw new Error(`No invite snapshot after ${asOf} in ${EVENTS_DIR}`);
+    const end = until !== undefined && until > asOf && until < target.snapshotDate ? until : target.snapshotDate;
 
     const history = readHistoryRows();
     const upcoming = hindcast ? null : readUpcoming();
     const rowByPage = new Map(history.tournamentRows.map((r) => [str(r.pagename), r]));
     const startedBy = (r: RawRow) => str(rowByPage.get(str(r.parent) || str(r.pagename))?.startdate) <= asOf;
     const listedThen = (r: RawRow) =>
-        str(r.startdate) <= addDays(asOf, HINDCAST_LISTED_DAYS) || (kindOf(r) === "lan" && Number(r.liquipediatier) > 0 && Number(r.liquipediatier) <= 2);
+        oracle
+            ? str(r.startdate) <= end
+            : str(r.startdate) <= addDays(asOf, HINDCAST_LISTED_DAYS) || (kindOf(r) === "lan" && Number(r.liquipediatier) > 0 && Number(r.liquipediatier) <= 2);
     const finishedPlacements = hindcast
         ? history.placementRows.filter((r) => str(rowByPage.get(str(r.parent))?.enddate) <= asOf)
         : readJson<RawRow[]>("data/raw/placements.json", []);
@@ -153,7 +186,7 @@ export const loadSeasonSetup = ({ n, seed, scope = "all", learned = true, projec
               startedBy(r)
                   ? [r]
                   : r.pagename === r.parent && r.opponenttype === "team"
-                    ? [{ ...r, opponentname: "TBD", opponenttemplate: "", placement: "", prizemoney: 0 }]
+                    ? [oracle === "attendance" ? { ...r, placement: "", prizemoney: 0 } : { ...r, opponentname: "TBD", opponenttemplate: "", placement: "", prizemoney: 0 }]
                     : []
           )
         : [...finishedPlacements, ...(upcoming?.placements ?? [])];
@@ -162,10 +195,6 @@ export const loadSeasonSetup = ({ n, seed, scope = "all", learned = true, projec
         : [...readJson<RawRow[]>("data/raw/tournaments.json", []), ...(upcoming?.tournaments ?? [])];
     const overrides = readJson<Overrides>("data/overrides.json", {});
     const pages = templatePages(matchRows);
-
-    const inviteConfigs = loadInviteConfigs(EVENTS_DIR);
-    const target = inviteConfigs.find((c) => c.snapshotDate > asOf);
-    if (!target) throw new Error(`No invite snapshot after ${asOf} in ${EVENTS_DIR}`);
 
     const snapshot = (date: string) => {
         try {
@@ -185,15 +214,20 @@ export const loadSeasonSetup = ({ n, seed, scope = "all", learned = true, projec
     const valveRegion = loadValveCjs(path.join(VALVE_ROOT, "model/util/region.js")) as { getCountryRegion: CountryRegion };
     const seriesRows = hindcast ? tournamentRows : history.tournamentRows;
     const projected =
-        projections && learned && scope === "all" ? projectedEditions(seriesRows, valveRegion.getCountryRegion, asOf, rankedRules(overrides)) : [];
+        !oracle && projections && learned && scope === "all" ? projectedEditions(seriesRows, valveRegion.getCountryRegion, asOf, rankedRules(overrides)) : [];
     const allMatchdata = readJson<Matchdata | null>("data/matchdata.json", null);
     if (!allMatchdata) throw new Error("data/matchdata.json is missing; run npm run build-matchdata first");
-    const base = hindcast ? truncateMatchdata(allMatchdata, cutoff) : allMatchdata;
+    const fullHistory = readMatchHistory(allMatchdata);
+    const matchHistory = hindcast ? truncateMatchdata(fullHistory, cutoff) : fullHistory;
+    const base = hindcast ? truncateMatchdata(matchHistory, cutoff, cutoff - HINDCAST_BASE_DAYS * 86400) : allMatchdata;
+    const endT = Date.parse(`${end}T00:00:00Z`) / 1000;
+    const replayed = replays ? fullHistory.matches.filter((m) => m.matchStartTime > cutoff && m.matchStartTime < endT).sort((a, b) => a.matchStartTime - b.matchStartTime) : [];
+    const replayedEvents = new Set(replayed.map((m) => String(m.eventId)));
     const standIns =
-        projections && unannounced && learned && scope === "all"
+        !oracle && projections && unannounced && learned && scope === "all"
             ? unannouncedEvents(seriesRows, valveRegion.getCountryRegion, {
                   asOf,
-                  until: target.snapshotDate,
+                  until: end,
                   rules: rankedRules(overrides),
                   projected,
                   played: playedTeams(base, seriesRows, (page) => canonicalEventId(overrides, page)),
@@ -230,7 +264,19 @@ export const loadSeasonSetup = ({ n, seed, scope = "all", learned = true, projec
         const shared = lineups.get(teamId)?.players.filter((p) => topNicks.has(p.nick.toLowerCase())).length ?? 0;
         if (shared < MIN_SHARED_PLAYERS) squads.delete(teamId);
     }
-    if (!hindcast) preferSquads(base, lineups, squads, nickOf);
+    const checkpoints = publicationDates(asOf, end, publishedDates).map((date) => ({
+        date,
+        world: loadWorld(base.matches, base.events, date, { windowEndsAtPull: true }),
+    }));
+    // A current squad that relinks Valve rosters makes that checkpoint's rerun inexact in every run.
+    const relinking: string[] = [];
+    if (!hindcast)
+        preferSquads(base, lineups, squads, nickOf, (players, teamId) => {
+            const keeps = checkpoints.every((c) => lineupKeepsLinks(c.world, players));
+            if (!keeps) relinking.push(lineups.get(teamId)?.name ?? teamId);
+            return keeps;
+        });
+    if (relinking.length) console.warn(`Kept the last-played lineup for ${relinking.join(", ")}: the current squad relinks Valve rosters.`);
 
     // --- Rosters as team pages
 
@@ -300,7 +346,8 @@ export const loadSeasonSetup = ({ n, seed, scope = "all", learned = true, projec
     const editions = learned
         ? pastEditions({
               ...history,
-              matchdata: base,
+              attendance: readAttendance(matchHistory),
+              finishedBy: asOf,
               lists: allLists,
               rules: rankedRules(overrides),
               countryRegion: valveRegion.getCountryRegion,
@@ -341,7 +388,7 @@ export const loadSeasonSetup = ({ n, seed, scope = "all", learned = true, projec
             stages: entry.config.stages.map((s) => (s.invited ? { ...s, invited: s.invited.map(canonical) } : s)),
         };
         if (!entry.simulated) return { catalog: entry, reason: entry.reason };
-        if (config.startDate >= target.snapshotDate) return { catalog: entry, reason: "starts after the target snapshot" };
+        if (config.startDate >= end) return { catalog: entry, reason: "starts after the target snapshot" };
         // Its played matches are already in matchdata, and a generic bracket can't pick up the real one's pairings.
         if (entry.generic && config.startDate <= asOf) return { catalog: entry, reason: "under way in a format the simulator doesn't know" };
         const waiting = config.stages.filter((s) => s.vrsStage && s.invited?.length === 0);
@@ -352,10 +399,14 @@ export const loadSeasonSetup = ({ n, seed, scope = "all", learned = true, projec
         if (!fixed && filled.length > 0) return { catalog: entry, reason: "some entry stages are drawn and others aren't" };
         const stages = fixed ? [] : entryStages(config, entry.teams);
         if (typeof stages === "string") return { catalog: entry, reason: stages };
-        const announced = [...new Set(entry.announced.map(canonical))];
-        const announcedVia = Object.fromEntries(Object.entries(entry.announcedVia).map(([team, via]) => [canonical(team), via]));
+        let announced = [...new Set(entry.announced.map(canonical))];
+        let announcedVia = Object.fromEntries(Object.entries(entry.announcedVia).map(([team, via]) => [canonical(team), via]));
         const missing = missingLineups(fixed ? entries.flatMap((s) => s.invited!) : announced);
-        if (missing.length) return { catalog: entry, reason: `no match history for ${missing.join(", ")}` };
+        // The attendance oracle announces every real participant, many with no recent lineup; their places are drawn instead.
+        if (missing.length && oracle === "attendance" && !fixed) {
+            announced = announced.filter((t) => !missing.includes(t));
+            announcedVia = Object.fromEntries(Object.entries(announcedVia).filter(([t]) => !missing.includes(t)));
+        } else if (missing.length) return { catalog: entry, reason: `no match history for ${missing.join(", ")}` };
         const category = categoryOf(entry.kind, entry.role, entry.tier);
         const model = fieldModel?.forEvent(
             {
@@ -416,7 +467,7 @@ export const loadSeasonSetup = ({ n, seed, scope = "all", learned = true, projec
         };
         return { catalog: entry, season };
     });
-    const events = calendar.flatMap((c) => (c.season ? [c.season] : []));
+    const events = replays ? [] : calendar.flatMap((c) => (c.season ? [c.season] : []));
 
     // --- Qualifier links: feeders' finishers fill the slots they qualify for
 
@@ -462,19 +513,16 @@ export const loadSeasonSetup = ({ n, seed, scope = "all", learned = true, projec
 
     // --- Model
 
+    const replayHorizon = (t: number) => Math.max(0, Math.floor((t - lastT) / 86400));
     const predictor = new Predictor(engine, DEFAULT_PARAMS, lastT, {
         driftPerDay: DRIFT_PER_DAY,
-        horizons: events.map((e) => e.horizon),
+        horizons: [...events.map((e) => e.horizon), ...replayed.map((m) => replayHorizon(m.matchStartTime))],
         fallbackRating: engine.tierMean(2, lastT),
         previousNames,
     });
-    const checkpoints = publicationDates(asOf, target.snapshotDate, publishedDates).map((date) => ({
-        date,
-        world: loadWorld(base.matches, base.events, date, { windowEndsAtPull: true }),
-    }));
 
     const top = listEntries(today.rosters.slice()).slice(0, 40);
-    const volume = volumeBaselines(base, top.map((e) => resolveTeamId(e.team)), asOf, daysBetween(asOf, target.snapshotDate));
+    const volume = volumeBaselines(base, top.map((e) => resolveTeamId(e.team)), asOf, daysBetween(asOf, end));
     const unmatchedRosters = today.rosters
         .filter((r) => r.globalRank !== null && r.globalRank <= LIST_DEPTH && !teamOfRoster(r))
         .map((r) => r.teamName);
@@ -483,7 +531,7 @@ export const loadSeasonSetup = ({ n, seed, scope = "all", learned = true, projec
 
     // --- Habits, and teams off the list that open slots can draw
 
-    const horizonDays = daysBetween(asOf, target.snapshotDate);
+    const horizonDays = daysBetween(asOf, end);
     const todayList = listEntries(today.rosters);
     const onTodayList = new Set(todayList.map((e) => e.team));
     const activeSince = Date.parse(`${asOf}T00:00:00Z`) / 1000 - ACTIVE_DAYS * 86400;
@@ -538,9 +586,40 @@ export const loadSeasonSetup = ({ n, seed, scope = "all", learned = true, projec
         }
     }
     const affinity = new Map<string, (team: string) => number>();
+    const acceptance = new Map<string, (team: string, band: number) => number>();
     if (learned) {
         const index = new AffinityIndex(editions);
-        const beta = fitAffinity(affinitySamples(editions, allLists, index, nickCountries(editions), { from: addDays(asOf, -365), to: addDays(asOf, 1) }));
+        const timeline = new EloTimeline(predictions, (link) => nickOf(link) ?? link);
+        const samples = valueSamples(editions, allLists, index, nickCountries(editions), timeline, { from: addDays(asOf, -365), to: addDays(asOf, 1) });
+        const beta = fitChoice(samples.choices, value ? CHOICE_USE : HABIT_ONLY);
+        const offers = value ? fitAcceptance(samples.offers) : null;
+        timeline.advanceTo(addDays(asOf, 1));
+        const ratings = new Map<string, number | null>();
+        const ratingOf = (team: string) => {
+            if (!ratings.has(team)) ratings.set(team, timeline.ratingOf((lineups.get(resolveTeamId(team))?.players ?? []).map((p) => p.nick)));
+            return ratings.get(team)!;
+        };
+        // Open places are expected to fill like the event's past editions, at each band's mean rating on today's list.
+        const bandRatings = Array.from({ length: BANDS }, () => [] as number[]);
+        for (const entry of todayList) {
+            const r = ratingOf(entry.team);
+            if (r !== null) bandRatings[bandOf(entry.globalRank)].push(r);
+        }
+        const bandMean = bandRatings.map((rs) => (rs.length ? rs.reduce((a, b) => a + b, 0) / rs.length : null));
+        const fieldRating = (e: SeasonEvent, model: EventFieldModel): number | null => {
+            const known = e.field.announced.map(ratingOf).filter((r): r is number => r !== null);
+            let weight = 0;
+            let sum = 0;
+            model.open.forEach((share, b) => {
+                if (share > 0 && bandMean[b] !== null) {
+                    weight += share;
+                    sum += share * bandMean[b]!;
+                }
+            });
+            const open = weight > 0 ? Math.max(0, e.field.teams - e.field.announced.length) : 0;
+            const total = known.length + open;
+            return total >= 2 ? (known.reduce((a, b) => a + b, 0) + open * (sum / Math.max(weight, 1e-9))) / total : null;
+        };
         for (const c of calendar) {
             const e = c.season;
             if (!e || e.unannounced || !models.has(e.config.slug)) continue;
@@ -550,15 +629,23 @@ export const loadSeasonSetup = ({ n, seed, scope = "all", learned = true, projec
                 country: c.catalog.kind === "lan" ? (e.config.location?.country ?? "") : "",
                 startDate: e.config.startDate,
             };
+            const field = value ? fieldRating(e, models.get(e.config.slug)!) : null;
+            const rows = new Map<string, number[]>();
+            const rowOf = (team: string) => {
+                let row = rows.get(team);
+                if (!row) {
+                    const players = (lineups.get(resolveTeamId(team))?.players ?? []).map((p) => ({ nick: p.nick, country: str(p.countryIso) }));
+                    rows.set(team, (row = value ? choiceRow(index.pattern(players, event), ratingOf(team), field) : choiceRow(index.pattern(players, event), 0, null)));
+                }
+                return row;
+            };
             const weights = new Map<string, number>();
             affinity.set(e.config.slug, (team) => {
                 let w = weights.get(team);
-                if (w === undefined) {
-                    const players = (lineups.get(resolveTeamId(team))?.players ?? []).map((p) => ({ nick: p.nick, country: str(p.countryIso) }));
-                    weights.set(team, (w = affinityWeight(beta, index.pattern(players, event))));
-                }
+                if (w === undefined) weights.set(team, (w = Math.exp(rowOf(team).reduce((s, x, i) => s + x * beta[i], 0))));
                 return w;
             });
+            if (offers) acceptance.set(e.config.slug, (team, band) => acceptanceShift(offers, band, rowOf(team)));
         }
     }
     const capCache = new Map<string, Caps>();
@@ -573,9 +660,10 @@ export const loadSeasonSetup = ({ n, seed, scope = "all", learned = true, projec
                   if (!c) capCache.set(team, (c = capsFor(activity, resolveTeamId(team), horizonDays, volume.high)));
                   return c;
               },
-              horizonEnd: target.snapshotDate,
+              horizonEnd: end,
               horizonDays,
               affinity,
+              ...(acceptance.size ? { acceptance } : {}),
           }
         : undefined;
 
@@ -612,18 +700,25 @@ export const loadSeasonSetup = ({ n, seed, scope = "all", learned = true, projec
     const ranked = today.rosters.filter((x) => x.globalRank !== null).sort((a, b) => a.globalRank! - b.globalRank!);
     const normalized = (s: string) => s.replace(/_/g, " ").trim().toLowerCase();
     const matchesTeam = (r: Roster, name: string) => [teamOfRoster(r), r.teamName].some((s) => s !== null && normalized(s) === normalized(name));
-    const focalRoster = focal === undefined ? undefined : ranked.find((r) => matchesTeam(r, focal));
-    if (focal !== undefined && !focalRoster) throw new Error(`No ranked roster matches "${focal}"`);
+    const focalNames = focal === undefined ? undefined : [focal].flat();
+    const focalRosters = focalNames?.map((name) => {
+        const r = ranked.find((x) => matchesTeam(x, name));
+        if (!r) throw new Error(`No ranked roster matches "${name}"`);
+        return r;
+    });
     const optimizerTeams: OptimizerTeam[] = [];
     const seenTeams = new Set<string>();
-    for (const r of focalRoster ? [focalRoster] : ranked.filter((x) => x.globalRank! <= OPTIMIZER_TOP)) {
+    for (const r of focalRosters ?? ranked.filter((x) => x.globalRank! <= OPTIMIZER_TOP)) {
         const built = optimizerTeamFor(r);
-        if (!built || seenTeams.has(built.team.team)) continue;
+        if (!built) {
+            if (focalRosters) throw new Error(`"${r.teamName}" has no team page or lineup`);
+            continue;
+        }
+        if (seenTeams.has(built.team.team)) continue;
         seenTeams.add(built.team.team);
         optimizerTeams.push(built.team);
         canEnterFor.set(built.team.team, built.canEnter);
     }
-    if (focalRoster && optimizerTeams.length === 0) throw new Error(`"${focal}" has no team page or lineup`);
     const optimizer: OptimizerSetup = {
         teams: optimizerTeams,
         caps: { low: volume.low, average: volume.average, high: volume.high },
@@ -650,6 +745,17 @@ export const loadSeasonSetup = ({ n, seed, scope = "all", learned = true, projec
         published,
         volumeCap: volume.average,
         ...(fields ? { fields } : {}),
+        ...(replays
+            ? {
+                  replay: {
+                      matches: replayed,
+                      events: fullHistory.events.filter((e) => replayedEvents.has(String(e.eventId))),
+                      teamOf: pageOf,
+                      horizonOf: replayHorizon,
+                      redraw: oracle === "results",
+                  },
+              }
+            : {}),
         n,
         seed,
     };

@@ -122,6 +122,8 @@ const Simulator = ({ event, data, switcher }: { event: EventOdds; data: PickemDa
 };
 
 const today = () => new Date().toISOString().slice(0, 10);
+/** Switcher value for `/major/history`; Major slugs are never this. */
+const PAST = "history";
 
 export const Major = () => {
     const { slug } = useParams();
@@ -149,18 +151,26 @@ export const Major = () => {
     if (eventsQuery.isLoading || invitesQuery.isLoading || eventQuery.isLoading) return <LoadingBar label="Loading Major…" />;
     const error = eventsQuery.error ?? invitesQuery.error ?? eventQuery.error;
     if (error) return <EmptyState className="text-down">Error loading the Major: {error.message}</EmptyState>;
-    if (!major) return <EmptyState>No upcoming Major is configured yet.</EmptyState>;
+    if (!major) {
+        return (
+            <EmptyState>
+                No upcoming Major is configured yet.{" "}
+                <Link to="/major/history" className="text-accent hover:underline">
+                    Past Majors
+                </Link>
+            </EmptyState>
+        );
+    }
 
-    const switcher =
-        majors.length > 1 ? (
-            <Segmented
-                aria-label="Major"
-                className="max-w-full overflow-x-auto"
-                options={majors.map((m) => ({ value: m.slug, label: m.name }))}
-                value={major.slug}
-                onChange={(s) => navigate(s === majors[0].slug ? "/major" : `/major/${s}`)}
-            />
-        ) : undefined;
+    const switcher = (
+        <Segmented
+            aria-label="Major"
+            className="max-w-full overflow-x-auto"
+            options={[...majors.map((m) => ({ value: m.slug, label: m.name })), { value: PAST, label: "Past Majors" }]}
+            value={major.slug}
+            onChange={(s) => navigate(s === PAST ? "/major/history" : s === majors[0].slug ? "/major" : `/major/${s}`)}
+        />
+    );
 
     const event = eventQuery.data;
     if (event?.pickem) return <Simulator key={event.slug} event={event} data={event.pickem} switcher={switcher} />;

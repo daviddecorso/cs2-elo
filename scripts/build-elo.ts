@@ -5,8 +5,15 @@ import { teamSlug } from "../src/utils/teams.ts";
 import type { Region } from "../src/vrs/types.ts";
 import { EloEngine } from "./lib/elo/engine.ts";
 import { loadFeed } from "./lib/elo/history.ts";
+import { buildMatches } from "./lib/elo/matches.ts";
+import type { RawRow } from "./lib/elo/normalize.ts";
 import { DEFAULT_PARAMS } from "./lib/elo/params.ts";
+import { publishRating } from "./lib/elo/publish.ts";
 import { findVrsRoster, makeNickLookup, readGlobalSnapshots, type VrsRoster } from "./lib/elo/vrsBaseline.ts";
+import { readUpcoming } from "./lib/liquipedia/upcoming.ts";
+import { loadEventConfigs } from "./lib/sim/config.ts";
+import { loadVetoWeights, VETO_WEIGHTS } from "./lib/sim/veto.ts";
+import { makeVetoForecaster } from "./lib/sim/vetoForecast.ts";
 import type { Overrides } from "./lib/vrs/buildMatchdata.ts";
 import { saveJson, writeJsonIfChanged } from "./lib/writeJson.ts";
 
@@ -28,10 +35,10 @@ const matchById = new Map(feed.matches.map((m) => [m.id, m]));
 const lastT = feed.matches.at(-1)!.t;
 const asOf = new Date(lastT * 1000).toISOString().slice(0, 10);
 // Oceania's prior is in the update, so its raw ratings sit on their own scale; publish rating + prior.
-const publishedRating = (l: (typeof engine.lineages)[number]) => l.rating + engine.regionPrior(l);
+const ratingWithPrior = (l: (typeof engine.lineages)[number]) => l.rating + engine.regionPrior(l);
 const active = engine.lineages
     .filter((l) => l.lastT >= lastT - ACTIVE_DAYS * 86400 && l.maps >= MIN_MAPS)
-    .sort((a, b) => publishedRating(b) - publishedRating(a));
+    .sort((a, b) => ratingWithPrior(b) - ratingWithPrior(a));
 
 const overrides = JSON.parse(fs.readFileSync(path.resolve("data/overrides.json"), "utf8")) as Overrides;
 const nicksOf = makeNickLookup(feed.players, overrides.playerAliases);
@@ -73,7 +80,7 @@ const rosters: EloRoster[] = active.map((l, i) => {
         rank: i + 1,
         team: l.team,
         players: l.core.map((page) => ({ page, nick: feed.players[page]?.nick ?? page })),
-        rating: Math.round(publishedRating(l) * 10) / 10,
+        rating: publishRating(ratingWithPrior(l)),
         mapOffsets: Object.fromEntries(pool.map((m) => [m, Math.round((l.mapOffsets.get(m) ?? 0) * 10) / 10])),
         maps: l.maps,
         lastMatch: new Date(l.lastT * 1000).toISOString().slice(0, 10),
@@ -122,8 +129,8 @@ for (let i = predictions.length - 1; i >= 0 && predictions[i].t >= gamesFrom; i-
                 const rounds = match.maps[j].rounds;
                 return { map: m.map, rounds: side === 0 ? rounds : [rounds[1], rounds[0]] };
             }),
-            elo: round1(s.ratings[side] + s.regionPriors[side]),
-            oppElo: round1(s.ratings[opp] + s.regionPriors[opp]),
+            elo: publishRating(s.ratings[side] + s.regionPriors[side]),
+            oppElo: publishRating(s.ratings[opp] + s.regionPriors[opp]),
             p: Math.round((side === 0 ? s.p : 1 - s.p) * 1000) / 1000,
             delta: round1(s.after[side] - s.ratings[side]),
         };
@@ -149,3 +156,32 @@ for (const file of fs.existsSync(gamesDir) ? fs.readdirSync(gamesDir) : []) {
     }
 }
 console.log(`Game logs: ${gamesByTeam.size} teams, ${written} written, ${removed} removed`);
+
+const readRawRows = (file: string): RawRow[] =>
+    fs.existsSync(file) ? (JSON.parse(fs.readFileSync(file, "utf8")) as RawRow[]) : [];
+
+const vetoWeights = loadVetoWeights();
+if (!vetoWeights) console.warn(`${VETO_WEIGHTS} is missing; building matches without veto predictions.`);
+const upcoming = readUpcoming();
+const matchesData = buildMatches({
+    engine,
+    predictions,
+    matchById,
+    players: feed.players,
+    rosters,
+    lastT,
+    asOf,
+    upcoming,
+    tournamentRows: [...readRawRows(path.resolve("data/raw/tournaments.json")), ...(upcoming?.tournaments ?? [])],
+    placementRows: [...readRawRows(path.resolve("data/raw/placements.json")), ...(upcoming?.placements ?? [])],
+    finishedRawRows: readRawRows(path.resolve("data/raw/matches.json")),
+    configuredEvents: loadEventConfigs(),
+    forecastVeto: vetoWeights
+        ? makeVetoForecaster({ weights: vetoWeights, predictions, pool, t: lastT, eloScale: DEFAULT_PARAMS.scale })
+        : undefined,
+});
+saveJson(
+    path.resolve("public/data/elo/matches.json"),
+    JSON.stringify(matchesData),
+    `${matchesData.upcoming.length} upcoming, ${matchesData.recent.length} recent matches`
+);

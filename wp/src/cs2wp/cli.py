@@ -204,6 +204,12 @@ def cmd_clutch(args) -> int:
     return build(model=args.model, resamples=args.resamples, publish=args.publish)
 
 
+def cmd_style(args) -> int:
+    from .style import build
+
+    return build(rebuild=args.rebuild, resamples=args.resamples, publish=args.publish)
+
+
 def cmd_luck(args) -> int:
     from .luck import build
 
@@ -220,6 +226,24 @@ def cmd_sim_veto(args) -> int:
     from .simveto import build
 
     return build(write=args.write)
+
+
+def cmd_radars(args) -> int:
+    from .radar import build_radars
+
+    return build_radars()
+
+
+def cmd_heatmaps(args) -> int:
+    from .heatmaps import build
+
+    return build(
+        months=args.months,
+        window_from=args.window_from,
+        rebuild=args.rebuild,
+        publish=args.publish,
+        upload=args.upload,
+    )
 
 
 def main() -> None:
@@ -332,6 +356,11 @@ def main() -> None:
     p.add_argument("--model", default=PRODUCTION, help="Directory name under data/wp/models holding the folds")
     p.add_argument("--resamples", type=int, default=1000)
     p.add_argument("--publish", action="store_true", help="Write public/data/war/clutch.json for the classes that pass")
+    p = sub.add_parser("style", help="Player style metrics with a split-half gate, percentiles and archetypes "
+                                     "(reads public/data/war/players.json)")
+    p.add_argument("--rebuild", action="store_true", help="Re-parse every map instead of only new ones")
+    p.add_argument("--resamples", type=int, default=200)
+    p.add_argument("--publish", action="store_true", help="Write public/data/war/style.json")
     p = sub.add_parser("luck", help="Luck-adjusted map margins from duel expectations, for the Elo experiment, and the "
                                     "hot-hand check")
     p.add_argument("--resamples", type=int, default=1000)
@@ -340,6 +369,13 @@ def main() -> None:
     p.add_argument("--publish", action="store_true", help="Write public/data/war/team-veto.json if persistence passes")
     p = sub.add_parser("sim-veto", help="Veto choice model for the bracket simulator, and its series gate")
     p.add_argument("--write", action="store_true", help="Write data/sim/veto-model.json for npm run simulate")
+    sub.add_parser("radars", help="Convert awpy radar PNGs to 1024 px WebPs in public/radar/ and write data/war/radar.json")
+    p = sub.add_parser("heatmaps", help="Per-player map heatmaps, utility lineups and callout summaries")
+    p.add_argument("--months", type=int, default=6, help="Window length in months (default: 6)")
+    p.add_argument("--from", dest="window_from", help="Window start YYYY-MM-DD (overrides --months)")
+    p.add_argument("--rebuild", action="store_true", help="Re-extract all maps instead of reusing heatmaps-raw.parquet")
+    p.add_argument("--publish", action="store_true", help="Write public/data/war/heatmaps/v2/")
+    p.add_argument("--upload", action="store_true", help="Gzip and sync heatmaps/v2/ to R2_PUBLIC_BUCKET")
 
     args = ap.parse_args()
     handlers = {"sync": cmd_sync, "states": cmd_states, "train": cmd_train, "credit": cmd_credit,
@@ -349,7 +385,8 @@ def main() -> None:
                 "validate-roles": cmd_validate_roles, "baselines": cmd_baselines, "duels": cmd_duels,
                 "usage": cmd_usage, "igls": cmd_igls, "war": cmd_war, "validate-war": cmd_validate_war,
                 "team-factor": cmd_team_factor, "duel-stats": cmd_duel_stats, "team-stats": cmd_team_stats, "tactics": cmd_tactics,
-                "predictability": cmd_predictability, "clutch": cmd_clutch, "luck": cmd_luck, "veto": cmd_veto, "sim-veto": cmd_sim_veto}
+                "predictability": cmd_predictability, "clutch": cmd_clutch, "style": cmd_style, "luck": cmd_luck, "veto": cmd_veto,
+                "sim-veto": cmd_sim_veto, "radars": cmd_radars, "heatmaps": cmd_heatmaps}
     sys.exit(handlers[args.cmd](args))
 
 

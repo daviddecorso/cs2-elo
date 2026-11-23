@@ -3,21 +3,27 @@ import type { SeasonSetup } from "../seasonSetup.ts";
 import type { OptionSet } from "./options.ts";
 import { createPlanShard, type ExactJob, type ExactResult, type PlanRunInfo, type PlanShard, type ScoreBatch } from "./planShard.ts";
 
+/** One focal team's view of a pool. */
 export interface PlanPool {
     /** By run. */
     infos: PlanRunInfo[];
     /** Schedule s on `runs[j]` at s × runs.length + j, the same for any worker count. */
     score(schedules: number[][], runs: number[]): Promise<Omit<ScoreBatch, "runs">>;
     exact(jobs: ExactJob[]): Promise<ExactResult[]>;
+}
+
+export interface SharedPlanPool {
+    /** `teams[k]` for `opt.teams[k]`. */
+    teams: PlanPool[];
     close(): Promise<void>;
 }
 
-type Response = { kind: "run"; info: PlanRunInfo } | { kind: "done"; result: unknown } | { kind: "error"; error: string };
+type Response = { kind: "run"; infos: PlanRunInfo[] } | { kind: "done"; result: unknown } | { kind: "error"; error: string };
 
-const call = <T>(worker: Worker, msg: unknown, onRun?: (info: PlanRunInfo) => void) =>
+const call = <T>(worker: Worker, msg: unknown, onRun?: (infos: PlanRunInfo[]) => void) =>
     new Promise<T>((resolve, reject) => {
         const onMessage = (res: Response) => {
-            if (res.kind === "run") return onRun?.(res.info);
+            if (res.kind === "run") return onRun?.(res.infos);
             worker.off("message", onMessage);
             worker.off("error", reject);
             if (res.kind === "error") reject(new Error(res.error));
@@ -46,29 +52,31 @@ const merge = (schedules: number, runs: number[], batches: ScoreBatch[]) => {
     return out;
 };
 
-/** Plays runs 0 … n − 1 for the focal team; run r goes to worker r mod W, which keeps its scoring inputs. */
+/** Plays runs 0 … n − 1 once for every focal team; run r goes to worker r mod W, which keeps its scoring inputs. */
 export const playPlan = async (
     setup: SeasonSetup,
-    set: OptionSet,
-    options: { n: number; seed: number; focal: string; exactRuns: number[]; workers: number },
+    sets: OptionSet[],
+    options: { n: number; seed: number; focal: string[]; exactRuns: number[]; workers: number },
     onProgress?: (done: number) => void
-): Promise<PlanPool> => {
+): Promise<SharedPlanPool> => {
     const { n, seed, focal, exactRuns } = options;
     const runs = [...Array(n).keys()];
-    const infos: PlanRunInfo[] = new Array(n);
+    const infos: PlanRunInfo[][] = sets.map(() => new Array(n));
     let done = 0;
-    const onRun = (info: PlanRunInfo) => {
-        infos[info.run] = info;
+    const onRun = (byTeam: PlanRunInfo[]) => {
+        byTeam.forEach((info, k) => (infos[k][info.run] = info));
         onProgress?.(++done);
     };
 
     if (options.workers <= 1) {
-        const shard: PlanShard = createPlanShard(setup, set, new Set(exactRuns));
+        const shard: PlanShard = createPlanShard(setup, sets, new Set(exactRuns));
         shard.play(runs, onRun);
         return {
-            infos,
-            score: async (schedules, wanted) => merge(schedules.length, wanted, [shard.score(schedules, wanted)]),
-            exact: async (jobs) => shard.exact(jobs),
+            teams: sets.map((_, k) => ({
+                infos: infos[k],
+                score: async (schedules, wanted) => merge(schedules.length, wanted, [shard.score(k, schedules, wanted)]),
+                exact: async (jobs) => shard.exact(k, jobs),
+            })),
             close: async () => {},
         };
     }
@@ -89,14 +97,17 @@ export const playPlan = async (
     try {
         await Promise.all(workers.map((w, k) => call<number>(w, { kind: "play", runs: runs.filter((r) => r % count === k) }, onRun)));
         return {
-            infos,
-            score: async (schedules, wanted) =>
-                merge(
-                    schedules.length,
-                    wanted,
-                    await Promise.all(workers.map((w, k) => call<ScoreBatch>(w, { kind: "score", schedules, runs: wanted.filter((r) => r % count === k) })))
-                ),
-            exact: async (jobs) => (await Promise.all(workers.map((w, k) => call<ExactResult[]>(w, { kind: "exact", jobs: jobs.filter((j) => j.run % count === k) })))).flat(),
+            teams: sets.map((_, k) => ({
+                infos: infos[k],
+                score: async (schedules, wanted) =>
+                    merge(
+                        schedules.length,
+                        wanted,
+                        await Promise.all(workers.map((w, i) => call<ScoreBatch>(w, { kind: "score", k, schedules, runs: wanted.filter((r) => r % count === i) })))
+                    ),
+                exact: async (jobs) =>
+                    (await Promise.all(workers.map((w, i) => call<ExactResult[]>(w, { kind: "exact", k, jobs: jobs.filter((j) => j.run % count === i) })))).flat(),
+            })),
             close,
         };
     } catch (err) {

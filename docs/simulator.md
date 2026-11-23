@@ -103,7 +103,7 @@ A pairing at 99% or more is drawn as a fixed match.
 
 Ratings carry no per-event noise. A team's rating drifts as a random walk of `DRIFT_PER_DAY` (58 Elo²/day) from the ratings' as-of date to each event's start, shared across events within a simulation. That's about σ 50 per team for an event six weeks out.
 
-Tier 2 events (Liquipedia tier, `EventConfig.tier`, set by the catalog and by `npm run simulate`) play with the map-level Elo gap scaled by `TIER_TEMP` (0.905), on both the pooled odds and the veto model's map logits. Elo is overconfident there (2026 slope 0.60). Tiers 1 and 3+ keep 1, since a temperature didn't help them. Events with no tier keep 1. These choices are measured in [elo-experiments.md](elo-experiments.md), and `npm run fit-sim-noise` re-measures them.
+Tier 2 events (Liquipedia tier, `EventConfig.tier`, set by the catalog and by `npm run simulate`) play with the map-level Elo gap scaled by `TIER_TEMP` (0.905), on both the pooled odds and the veto model's map logits. Elo is overconfident there (2026 slope 0.60). Tiers 1 and 3+ keep 1, since a temperature didn't help them. Events with no tier keep 1. These choices are measured in [elo-experiments.md](elo-experiments.md), and `npm run fit-sim-noise` re-measures them. It also reports qualifier series alone, which the planner's qualifying odds rest on: on 2026-11-20 data the slope is 1.04 in 2025 and 0.93 in 2026 (n 5,794), and the best temperature would cut 2026 log loss only from 0.6023 to 0.6019, so qualifiers keep 1.
 
 ### Veto simulation (off: ties the current simulator)
 
@@ -112,35 +112,69 @@ Tier 2 events (Liquipedia tier, `EventConfig.tier`, set by the catalog and by `n
 - **Map logit:** the Elo base logit (overall ratings plus drift) plus `veto.py`'s map terms: `c_u·Δu`, and for `hltv` also the ban- and pick-rate terms and `γ` for the picker.
 - **Choices:** at each step the acting team bans or picks from the remaining maps by a conditional logit, whose features are:
   - its own HLTV ban or pick rate (`hltv` only);
-  - its Liquipedia played-map preference (plays per series over the uniform share, shrunk by 5 series);
+  - its recent Liquipedia played-map preference: plays over the uniform share, per series with that map in the pool, decayed over 90 days and shrunk by 10 series. A map's uniform share accrues only while it's in the pool, so a new map starts neutral;
   - the map model's edge for it.
+- **Weights:** bans and picks have their own (since 2026-11-22).
 - **Who acts first:** the lower seed in the stage's seed order bans first. Across HLTV vetoes, the better-ranked team acts second about 70% of the time in Bo1 and Bo3.
 - **Order:** the defaults per format are each format's most common HLTV order: Bo1 `FFSSSF`, Bo3 `FSFSFS`, Bo5 `FSFSFS`, where `F` is the team that bans first. Majors mostly run Bo3 as `FSFSSF`, so an event config can override the order with `vetoOrder` (`{ "3": "FSFSSF" }`), as Singapore's does.
 - **`liquipedia` mode** keeps HLTV ban and pick rates out of the output, but its choice weights are still fit on HLTV vetoes.
 
 **Why the first version lost (fixed in `veto-v2`).** `u` wasn't centred on the team's pool, so besides map strength it carried "this team beats its Elo overall". That part predicts the next maps with the wrong sign (−8.4 ± 1.0 per map when split out, against +2.78 ± 0.24 for the map-specific part). It shifts every map of a Bo3 the same way, so it never cancels: a veto with random choices, or no veto and every map shifted by the pool-mean gap, reproduced the whole loss (−0.0006). The veto logic was never the problem. `u` is now centred (see [war.md](war.md#veto-value-lost)), and `K, TAU` follow `cs2wp veto`'s retune (40 maps, 365 days).
 
-**Result (2026-11-15, `veto-v2`):**
+**Why the play preference changed (2026-11-22).** It never decayed, and it charged a map the uniform share for series from before that map entered the pool. From Cache's entry on 2026-07-28 the model predicted 383 Cache bans (175 real) and 16 picks (63 real). The choice log-likelihoods published here on 2026-11-15 (−0.929 `hltv`, −1.142 `liquipedia`) were also in-sample. Decay and shrinkage were chosen on pre-2026 vetoes. The ban/pick split was tried after seeing 2026's pick bias, so its 2026 gain is slightly optimistic, though it also wins before 2026 (−0.940 → −0.919).
 
-- **Choice model:** it predicts real vetoes well. Per step, log-likelihood is −0.929 for `hltv` and −1.142 for `liquipedia`, against −1.421 for a uniform choice. The `hltv` blend beats habits only (−1.023) and edge only (−1.074).
-- **Series gate:** a tie. Series log loss from 2026-01-01 is 0.5999 for the current simulator, against:
+**Result (2026-11-22):**
+
+- **Choice model:** fit before 2026, scored on 3,696 steps from 2026:
+
+  | Model | `hltv` log-likelihood | `hltv` top choice | `liquipedia` log-likelihood | `liquipedia` top choice |
+  | --- | --- | --- | --- | --- |
+  | Uniform | −1.421 | 26.5% | −1.421 | 26.5% |
+  | Habits only | −0.975 | 59.2% | −1.024 | 59.0% |
+  | Edge only | −1.183 | 48.6% | −1.274 | 42.5% |
+  | Blend | −0.868 | 64.7% | −0.910 | 64.3% |
+
+  Remaining `liquipedia` bias over 2026: Mirage picks (271 predicted, 218 real), and too few Dust II bans (230, 292 real).
+- **Series gate:** still a tie. Series log loss from 2026-01-01 is 0.5957 for the current simulator, against:
 
   | Series | n | `hltv` gain (90% CI) | `liquipedia` gain (90% CI) |
   | --- | --- | --- | --- |
-  | All | 16,777 | +0.0001 (−0.0000, +0.0003) | −0.0001 (−0.0002, +0.0001) |
-  | Vetoed | 587 | −0.0001 (−0.0021, +0.0019) | +0.0001 (−0.0007, +0.0010) |
-  | Tier 1–2 | 1,091 | −0.0001 (−0.0013, +0.0011) | −0.0000 (−0.0006, +0.0005) |
-  | Bo1 | 3,147 | +0.0001 (−0.0003, +0.0004) | −0.0002 (−0.0006, +0.0002) |
-  | Bo3 | 13,477 | +0.0001 (−0.0000, +0.0003) | −0.0000 (−0.0002, +0.0001) |
+  | All | 17,132 | −0.0001 (−0.0003, +0.0001) | −0.0002 (−0.0004, +0.0001) |
+  | Vetoed | 616 | −0.0001 (−0.0023, +0.0021) | +0.0003 (−0.0014, +0.0020) |
+  | Tier 1–2 | 1,110 | −0.0005 (−0.0019, +0.0009) | −0.0003 (−0.0014, +0.0008) |
+  | Bo1 | 3,183 | +0.0000 (−0.0006, +0.0007) | −0.0002 (−0.0009, +0.0005) |
+  | Bo3 | 13,793 | −0.0002 (−0.0004, +0.0001) | −0.0002 (−0.0005, +0.0001) |
 
-  The report's strict "no worse" check reads `hltv` PASS, `liquipedia` FAIL, but both are within noise.
-- **What the gain is made of** (all series):
+  The report's strict "no worse" check reads FAIL for both, within noise.
+- **What the gain is made of** (all series, as measured 2026-11-15; on 2026-11-22 uniform choices are +0.0000 for both and known maps −0.0003 for both, the same conclusion):
   - **Uniform choices:** +0.0001 for `hltv`, +0.0000 for `liquipedia`. Veto prediction adds nothing beyond the map model.
   - **Pool-mean only:** +0.0000 for both, equal to the current simulator as it should be once `u` is centred.
   - **Played maps known:** the ceiling for a perfect veto predictor, using a Bo1's real map, or a Bo3's real first two maps with the decider averaged over the rest. On 16,214 series it's −0.0001 (−0.0004, +0.0003) for `hltv` and −0.0002 (−0.0005, +0.0002) for `liquipedia`. So better veto prediction has no series-level headroom, which rules out opponent-aware bans for now. Map edges are real but small: the edge on a played map has an sd of 0.10–0.14 logits, about 3 points of win probability, worth the +0.002 per map the map gate measures. In a Bo3 the two picks' edges correlate at −0.47 because each team picks its own strong map, and the decider is unknown, so knowing the maps moves the series probability by 0.7 points on average (90th percentile 1.7). That is worth about 0.0001 per series, half the standard error on 13,022 Bo3s. Bo1s move twice as much, but 3,117 series are too few to resolve it: +0.0001 ± 0.0008. Elo's own map offsets on the known maps tie too (Bo3 −0.00002).
 - **Why a tie is the realistic outcome:** a team's rating is earned on maps that already went through vetoes, the two picks in a Bo3 largely offset each other, and 97% of the scored series have no veto history.
-- **Default:** `npm run simulate` defaults to `--vetoes off`, and the model file isn't committed.
-- **Rerun:** `cd wp && uv run cs2wp sim-veto`, which takes about 3 minutes and writes `data/war/reports/sim-veto.md`.
+- **Default:** `npm run simulate` defaults to `--vetoes off`. The model file is gitignored, since it carries HLTV ban and pick rates.
+- **Rerun:** `npm run export-map-elo`, then `cd wp && uv run cs2wp sim-veto [--write]`. It takes about 6 minutes and writes `data/war/reports/sim-veto.md`. `--write` also writes `data/sim/veto-model.json` (local) and `data/sim/veto-weights.json` (committed).
+
+### Veto predictions on `/matches`
+
+`npm run build-elo` adds a `veto` forecast to each upcoming Bo1, Bo3 and Bo5 between two rated sides in `public/data/elo/matches.json`. Win odds don't use it.
+
+- **Inputs:** `scripts/lib/sim/vetoInputs.ts` recomputes each lineage's map strength and play preference from the Elo run, so the nightly needs no Python and no HLTV data. `data/sim/veto-weights.json` supplies fitted weights only. The inputs match the Python export to 6e-6.
+- **Forecast:** the exact distribution over vetoes in `liquipedia` mode, mixing both orders by how often the higher-rated team bans second (72%), in the event's `vetoOrder` when it has one.
+- **Labels, not percentages:** unshrunk, maps forecast at 85% were selected 75% of the time. Choice scores are multiplied by 0.9 (fit before 2026), which leaves gaps of up to about 10 points. The label cutoffs (70% and 30%) were chosen after seeing 2026, but hold before it too. Share of maps picked or left as decider:
+
+  | Series | Label | Before 2026 | 2026 |
+  | --- | --- | --- | --- |
+  | Bo3 | Likely | 71% | 72% |
+  | Bo3 | Possible | 55% | 53% |
+  | Bo3 | Unlikely | 11% | 14% |
+  | Bo5 | Likely | 96% | 96% |
+  | Bo5 | Possible | 40% (25 maps) | 56% (16 maps) |
+  | Bo5 | Unlikely | 4% (28 maps) | 0% (27 maps) |
+
+- **Bo1:** only the top three maps, in order. One of them was played 70% of the time in 2026, against 55% for pool frequency (64 series).
+- **Likeliest pick (Bo3 only):** right 45–46% of the time in 2026, against 16% for pool frequency. The likeliest decider isn't shown: 35% against 27%.
+- **Map selection Brier score, 2026:** 0.173, against 0.219 for the pool's recent veto frequency and 0.231 for uniform.
+- **Not scored live:** Liquipedia has no vetoes, so accuracy is re-measured only by rerunning `sim-veto` on HLTV vetoes.
 
 ## VRS layer
 
@@ -208,29 +242,44 @@ Swiss and round-robin draws outside Majors aren't resolved; key those by hand. T
 
 | Model | Stage blocks | Stage outcome log loss | P(advance) log loss | P(advance) Brier |
 | --- | --- | --- | --- | --- |
-| Elo | 18 | **1.1307** | 0.5309 | 0.1787 |
+| Elo | 18 | 1.1307 | 0.5309 | 0.1787 |
 | VRS points | 15 | 1.1447 | 0.5568 | 0.1883 |
-| Supercomputer | 7 (8 for advance) | 1.1577 | **0.5272** | **0.1764** |
+| Supercomputer | 8 | **1.1281** | **0.5272** | **0.1764** |
 | Coin | 18 | 1.2448 | 0.6433 | 0.2279 |
 
 - Differences, over (Major, stage) blocks, resampled:
   - Elo − coin: −0.114 (90% CI −0.176, −0.051).
   - Elo − VRS: −0.008 (−0.038, +0.022).
-  - Elo − Supercomputer on the 7 shared blocks: −0.003 (−0.035, +0.026). On advance log loss: −0.003 (−0.028, +0.026).
+  - Elo − Supercomputer on the 8 shared blocks: −0.003 (−0.029, +0.022). On advance log loss: −0.003 (−0.028, +0.026). The pooled means favour the Supercomputer only because it isn't scored on the earlier Majors, where Elo does worse.
+  - VRS − Supercomputer: +0.034 (+0.011, +0.059).
 - **Before the CS:GO warmup (2026-11-20)**, Elo scored 1.2066 / 0.5843 / 0.1895, and VRS beat it by 0.041 (−0.007, +0.088). Almost all of the change is at Copenhagen and Shanghai: Copenhagen's Opening Stage went from 1.81 to 1.17, and its played-series log loss from 0.965 to 0.663.
 - **Before the event:** placement log loss is 1.907 for Elo, 1.959 for VRS (4 Majors) and 2.114 for a coin.
 - **Pick'em:** Elo's coin set averaged 4.2 of 10 correct and would have earned the coin in 7 of 13 Swiss stages. VRS's coin set got 4.4 correct and 6 of 11.
-- **How far to trust this:** 5 events and 18 blocks, with outcomes correlated within each event, so none of the differences between Elo, VRS and the Supercomputer is significant. Austin and Budapest are in-sample for Elo.
+- **How far to trust this:** 5 events and 18 blocks, with outcomes correlated within each event, so neither the Elo − VRS nor the Elo − Supercomputer difference is significant. VRS − Supercomputer is the only gap that clears zero, on 8 blocks from 2 Majors. Austin and Budapest are in-sample for Elo.
 - **Played Major series** (464, priced at their stage's start):
   - Log loss is 0.640, with slope 0.80 (CI 0.62–1.01). By Major: Copenhagen 0.663 (slope 0.57), Shanghai 0.600 (0.98), Austin 0.689 (0.50), Budapest 0.638 (0.98), Cologne 0.603 (1.42).
   - VRS gets 0.605, 0.682, 0.663 and 0.633 on the last four.
   - Elo still leans overconfident at Majors, but the slope swings from 0.5 to 1.4 by Major, and the 2026 tier-1 series slope is 0.98. That's too noisy to justify a Major-only temperature.
 - **External comparison.** With `data/external/supercomputer.json` present (another model's published stage marginals and picks, kept local), the backtest adds it as a model.
-  - Budapest Stage 3's source column isn't 0-3 (it sums to 300%), so that block is scored on P(advance) only.
   - Its published picks averaged 5.0 correct and earned the coin in 5 of 6 stages.
-  - The two models rank teams similarly (P(advance) rank correlation 0.86–0.95 per stage, mean gap 3–11 points), and Elo is no more spread out than it.
+  - The two models rank teams similarly (P(advance) rank correlation 0.86–0.95 per stage, mean gap 3–11 points). Elo's Swiss odds are less spread out in every block.
   - Elo's biggest loss is still the Budapest playoffs, where it gave the champion Vitality 18.9% against the Supercomputer's 34.4%.
+  - `--set key=value` reruns the backtest on other Elo params (refused with `--write`).
+  - **Team by team** (`--explain`, 112 team-stages; Δ is Elo's advance log loss minus the Supercomputer's, so positive means the Supercomputer was closer). The gap is about spread, not about which teams are good:
+    - Swiss stages go to Elo: Δ −1.97 over 96 team-stages. The Supercomputer's costliest misses are favourites it priced at 75–91% that went out: Legacy, Aurora, NaVi, Astralis, HEROIC and GamerLegion. Its sharper Swiss odds lose.
+    - Playoffs go to the Supercomputer: Δ +0.83 over 16 team-stages, almost all of it Vitality at Budapest.
+    - Where the Supercomputer was higher, it gained +4.21 on teams that advanced and lost −5.96 on teams that went out. Where Elo was higher, Elo gained −3.72 and lost +4.32.
+    - Its disagreements with Elo follow the rankings: logit(Supercomputer) − logit(Elo) correlates −0.47 with VRS rank minus Elo rank and −0.33 with HLTV rank minus Elo rank. On Swiss team-stages, including Singapore Stage 1, the OLS R² is 0.46.
+    - Following the rankings doesn't pay. Where VRS ranks a team 3+ places above Elo, Δ is +1.13; where VRS ranks it 3+ places below, Δ is −1.12.
+    - Region, own-region share, maps since a core change and 90-day form show no pattern. Asia leans to the Supercomputer (+0.70), but on only 10 team-stages.
 - **Region at Majors.** On cross-region Major series, Americas teams beat Elo's expectation by 4.2 wins in 32 series at Copenhagen (9.7 before the warmup) and by 6.9 in 185 overall. Asia is level (−1.8 in 82).
+
+**On the site.** `--write` publishes `public/data/sim/past-majors.json` for `/major/history`:
+- The model comparison: pooled scores, the paired differences and Pick'em.
+- Each Major's stage scores per model.
+- Elo's per-team stage forecasts with its Pick'em set.
+
+The Supercomputer appears there by its aggregate scores and Pick'em counts only. Its per-team forecasts stay in the local file, and its `name` and optional `url` fields give the credit line. The nightly doesn't run this, so rerun it locally after each Major, once that Major's fixture is added.
 
 ## Config
 
@@ -275,6 +324,6 @@ npm run catalog                                                  # every upcomin
 npm run simulate-season -- [--season-n 300] [--seed 1] [--out <dir>]   # season to the next invite snapshot (vrs-simulator.md)
 npm run simulate -- [--events slug,...] [--n 10000] [--vrs-n 5000] [--seed 1] [--workers 4] [--no-vrs] [--invites <file>] [--out <dir>] [--vetoes off|liquipedia|hltv]
 npm run backtest-sim -- [--config fixtures/events/cologne-2026.json] [--snapshot 2026-07-06]
-npm run backtest-majors -- [--majors slug,...] [--n 10000] [--pickem-n 20000] [--seed 1] [--lead <days>]   # about 4 minutes
+npm run backtest-majors -- [--majors slug,...] [--n 10000] [--pickem-n 20000] [--seed 1] [--lead <days>] [--no-csgo] [--write]   # about 4 minutes
 npm run fit-sim-noise
 ```

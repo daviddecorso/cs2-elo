@@ -15,7 +15,11 @@ import { fetchSimJson } from "../sim/fetch.ts";
 import { conflicts, popcount } from "../sim/schedule.ts";
 import { NOISE_WORTH, defaultSchedule, scheduleRows, stale, timeline } from "../sim/plan.ts";
 import { planIndexQuery, planTeamQuery } from "../data/queries.ts";
+import { useEventPages } from "../hooks/useEventPages.ts";
+import { finishSummary, marginalGain, PART_LABEL, requiredMask, signed, soloGain } from "../sim/why.ts";
+import { WHY_PARTS } from "../sim/types.ts";
 import type {
+    EventWhy,
     PlanEventRef,
     PlanOdds,
     PlanOptionKind,
@@ -75,6 +79,24 @@ const RangeCell = ({ range, label, digits = 0 }: { range: SeasonRange; label: st
     );
 };
 
+/** Our event page when one exists, else the Liquipedia page, else plain text for a projected edition. */
+const EventName = ({ slug, name, liquipedia, className = "text-fg" }: { slug: string; name: string; liquipedia: string | null; className?: string }) => {
+    const pages = useEventPages();
+    if (pages.has(slug)) {
+        return (
+            <Link to={`/events/${slug}`} className={`${className} hover:text-accent hover:underline`}>
+                {name}
+            </Link>
+        );
+    }
+    if (liquipedia === null) return <span className={className}>{name}</span>;
+    return (
+        <a href={liquipediaUrl(liquipedia)} target="_blank" rel="noopener noreferrer" className={`${className} hover:underline`}>
+            {name}
+        </a>
+    );
+};
+
 const EventRow = ({ event }: { event: SeasonEvent }) => {
     const shown = event.field.slice(0, FIELD_SHOWN);
     const { projection } = event;
@@ -84,13 +106,7 @@ const EventRow = ({ event }: { event: SeasonEvent }) => {
                 {shortDate(event.startDate)}–{shortDate(event.endDate)}
             </Td>
             <Td className="font-sans">
-                {projection ? (
-                    <span className="font-medium text-fg">{event.name}</span>
-                ) : (
-                    <a href={liquipediaUrl(event.liquipedia)} target="_blank" rel="noopener noreferrer" className="font-medium text-fg hover:underline">
-                        {event.name}
-                    </a>
-                )}
+                <EventName slug={event.slug} name={event.name} liquipedia={projection ? null : event.liquipedia} className="font-medium text-fg" />
                 <div className="mt-1 flex flex-wrap gap-1">
                     {projection && (
                         <Tooltip
@@ -328,9 +344,7 @@ const EventList = ({ slugs, names }: { slugs: string[]; names: Map<string, Seaso
             {slugs.map((slug) => {
                 const e = names.get(slug);
                 return e ? (
-                    <a key={slug} href={liquipediaUrl(e.liquipedia)} target="_blank" rel="noopener noreferrer" className="text-fg hover:underline">
-                        {e.name}
-                    </a>
+                    <EventName key={slug} slug={slug} name={e.name} liquipedia={e.projection ? null : e.liquipedia} />
                 ) : (
                     <span key={slug}>{slug}</span>
                 );
@@ -340,17 +354,88 @@ const EventList = ({ slugs, names }: { slugs: string[]; names: Map<string, Seaso
 
 const slugsOf = (mask: number, candidates: ScheduleCandidate[]) => candidates.filter((_, i) => (mask >> i) & 1).map((c) => c.slug);
 
+const PartBars = ({ why }: { why: EventWhy }) => {
+    const largest = Math.max(...why.parts.map(Math.abs), 1);
+    return (
+        <ul className="space-y-0.5">
+            {WHY_PARTS.map((part, p) => (
+                <li key={part} className="grid grid-cols-[minmax(0,1fr)_3.5rem_4.5rem] items-center gap-2">
+                    <span className="text-muted truncate">{PART_LABEL[part]}</span>
+                    <span className="text-right">{signed(why.parts[p])}</span>
+                    <span className="h-1.5 rounded-sm bg-surface-2 overflow-hidden">
+                        <span
+                            className={`block h-full rounded-sm ${why.parts[p] >= 0 ? "bg-accent" : "bg-down"}`}
+                            style={{ width: `${(Math.abs(why.parts[p]) / largest) * 100}%` }}
+                        />
+                    </span>
+                </li>
+            ))}
+        </ul>
+    );
+};
+
+/** Where an event's points come from for one team: finishes, sources and prize, over the runs it attends. */
+const WhyDetails = ({ why, label = "Why" }: { why: EventWhy; label?: string }) => (
+    <details className="w-full pl-6 text-[11px]">
+        <summary className="cursor-pointer text-muted hover:text-fg">{label}</summary>
+        <div className="mt-1.5 grid gap-4 sm:grid-cols-2">
+            <div>
+                <div className="text-muted uppercase tracking-wider text-[10px] mb-1">Finish, and points it adds</div>
+                <ul className="space-y-0.5">
+                    {why.place.map(([place, share, pts]) => (
+                        <li key={place} className="grid grid-cols-[3rem_3rem_minmax(0,1fr)] gap-2">
+                            <span>{place === "DNQ" ? "no qual." : place}</span>
+                            <span className="text-muted text-right">{percent(share)}</span>
+                            <span>{signed(pts)} pts</span>
+                        </li>
+                    ))}
+                </ul>
+                {why.prize > 0 && <div className="mt-1 text-muted">Expected prize {usd(why.prize)}</div>}
+            </div>
+            <div>
+                <div className="text-muted uppercase tracking-wider text-[10px] mb-1">Points by source ({signed(why.points)} in all)</div>
+                <PartBars why={why} />
+            </div>
+        </div>
+    </details>
+);
+
+const GainText = ({ gain, label, tip }: { gain: { points: number; invite: number | null } | null; label: string; tip: string }) =>
+    gain === null ? null : (
+        <Tooltip content={tip}>
+            <span className={gain.points >= 0 ? "text-fg" : "text-down"}>
+                {label} {signed(gain.points)} pts{gain.invite !== null && Math.abs(gain.invite) >= 0.005 ? `, ${signed(gain.invite * 100)} invite` : ""}
+            </span>
+        </Tooltip>
+    );
+
 const Picker = ({ schedule, initial, names }: { schedule: SeasonTeamSchedule; initial: number; names: Map<string, SeasonEvent> }) => {
     const [mask, setMask] = useState(initial);
+    const [order, setOrder] = useState<"date" | "gain">("date");
     const { candidates, volume, committed } = schedule;
     const row = schedule.subsets.find((s) => s[0] === mask);
     const chosen = candidates.filter((_, i) => (mask >> i) & 1);
     const clashes = chosen.flatMap((a, i) => chosen.slice(i + 1).filter((b) => conflicts(a, b)).map((b) => `${a.name} and ${b.name}`));
     const count = popcount(mask) + committed.length;
     const fits = (["low", "average", "high"] as const).find((v) => count <= volume[v]);
+    const shown = candidates.map((c, i) => ({ c, i, solo: soloGain(schedule, i) }));
+    if (order === "gain") shown.sort((a, b) => (b.solo?.points ?? -Infinity) - (a.solo?.points ?? -Infinity));
 
     return (
-        <Section title="Build a schedule">
+        <Section
+            title="Build a schedule"
+            actions={
+                <Segmented
+                    aria-label="Order"
+                    value={order}
+                    options={[
+                        { value: "date", label: "By date" },
+                        { value: "gain", label: "By gain" },
+                    ]}
+                    onChange={(v) => setOrder(v as "date" | "gain")}
+                />
+            }
+        >
             <div className="grid gap-6 md:grid-cols-[minmax(0,1fr)_16rem]">
                 <ul className="space-y-1.5 text-xs font-mono">
                     {committed.map((c) => (
@@ -360,14 +445,15 @@ const Picker = ({ schedule, initial, names }: { schedule: SeasonTeamSchedule; in
                             <Badge>under way</Badge>
                         </li>
                     ))}
-                    {candidates.map((c, i) => (
-                        <li key={c.slug} className="flex flex-wrap items-center gap-2">
+                    {shown.map(({ c, i, solo }) => (
+                        <li key={c.slug} className="flex flex-wrap items-center gap-x-2 gap-y-1">
                             <input
                                 type="checkbox"
                                 checked={((mask >> i) & 1) === 1}
+                                disabled={c.required}
                                 onChange={() => setMask((m) => m ^ (1 << i))}
                                 aria-label={c.name}
-                                className="cursor-pointer"
+                                className="cursor-pointer disabled:cursor-default"
                             />
                             <span className="text-muted whitespace-nowrap">
                                 {shortDate(c.startDate)}–{shortDate(c.endDate)}
@@ -375,6 +461,11 @@ const Picker = ({ schedule, initial, names }: { schedule: SeasonTeamSchedule; in
                             <EventList slugs={[c.slug]} names={names} />
                             {c.region && <Badge>{c.region}</Badge>}
                             {c.announced && <Badge tone="accent">announced</Badge>}
+                            {c.required && (
+                                <Tooltip content="An invited team always plays the Major, so every schedule includes it">
+                                    <Badge tone="accent">always attends</Badge>
+                                </Tooltip>
+                            )}
                             {c.projected !== undefined && (
                                 <Tooltip content="Not listed on Liquipedia yet; stepped from its series' past editions">
                                     <Badge tone="heat">projected {percent(c.projected)}</Badge>
@@ -393,6 +484,18 @@ const Picker = ({ schedule, initial, names }: { schedule: SeasonTeamSchedule; in
                             <Tooltip content="Share of simulations in which the team could get a slot">
                                 <span className="text-muted">reachable {percent(c.reach)}</span>
                             </Tooltip>
+                            {c.why && (
+                                <Tooltip content={`Likeliest finish when it attends; top 4 in ${percent(finishSummary(c.why).top4)} of those runs`}>
+                                    <span className="text-muted">likely {finishSummary(c.why).likely}</span>
+                                </Tooltip>
+                            )}
+                            <GainText gain={solo} label="alone" tip="This event with no other optional events, against none: points at the target and invite odds (one-team estimate)" />
+                            <GainText
+                                gain={marginalGain(schedule, mask, i)}
+                                label={(mask >> i) & 1 ? "in this schedule" : "added here"}
+                                tip="What this event adds to the other checked events, or loses when unchecked (one-team estimate)"
+                            />
+                            {c.why && <WhyDetails why={c.why} />}
                         </li>
                     ))}
                 </ul>
@@ -463,7 +566,7 @@ const Schedules = ({ index }: { index: SeasonIndex }) => {
     if (!entry) return <EmptyState>No team schedules in this simulation.</EmptyState>;
     const schedule = scheduleQuery.data;
     const stats = index.optimizer;
-    const initial = schedule?.recommended.find((r) => r.volumes.includes("average") && r.goals.includes("points"))?.mask ?? 0;
+    const initial = schedule?.recommended.find((r) => r.volumes.includes("average") && r.goals.includes("points"))?.mask ?? (schedule ? requiredMask(schedule) : 0);
 
     return (
         <div className="space-y-10">
@@ -530,7 +633,19 @@ const Schedules = ({ index }: { index: SeasonIndex }) => {
                                             <SummaryCell summary={rec.exact} />
                                         </Td>
                                         <Td align="right" className="font-mono">
-                                            {inviteText(rec.exact)}
+                                            {rec.exact.inviteCi ? (
+                                                <Tooltip content={`95% interval from ${schedule.rescoreN} exact reruns; the one-team estimate over all ${schedule.n} runs is tighter`}>
+                                                    <span>
+                                                        {inviteText(rec.exact)}
+                                                        <span className="text-muted text-[10px]">
+                                                            {" "}
+                                                            ({percent(rec.exact.inviteCi[0])}–{percent(rec.exact.inviteCi[1])})
+                                                        </span>
+                                                    </span>
+                                                </Tooltip>
+                                            ) : (
+                                                inviteText(rec.exact)
+                                            )}
                                         </Td>
                                         <Td align="right" className="font-mono hidden sm:table-cell">
                                             <SummaryCell summary={rec.estimate} muted />
@@ -577,14 +692,9 @@ const OddsPoints = ({ odds }: { odds: PlanOdds }) => (
     </Tooltip>
 );
 
-const PlanEventName = ({ event }: { event: PlanEventRef }) =>
-    event.projected !== null ? (
-        <span className="text-fg">{event.name}</span>
-    ) : (
-        <a href={liquipediaUrl(event.liquipedia)} target="_blank" rel="noopener noreferrer" className="text-fg hover:underline">
-            {event.name}
-        </a>
-    );
+const PlanEventName = ({ event }: { event: PlanEventRef }) => (
+    <EventName slug={event.slug} name={event.name} liquipedia={event.projected !== null ? null : event.liquipedia} />
+);
 
 const ROUTE_LABEL: Record<PlanOptionKind, string | null> = { event: null, qualify: "via qualifier", inviteOrQualify: "invite or qualifier" };
 
@@ -618,6 +728,11 @@ const PlanRoute = ({ plan, schedule }: { plan: PlanTeamFile; schedule: PlanSched
                                 )}
                             </span>
                             {e.route && <span className="block text-muted whitespace-normal">{e.route}</span>}
+                            {e.option?.why && (
+                                <span className="block text-muted">
+                                    likely {finishSummary(e.option.why).likely}, {signed(e.option.why.points)} pts when it goes
+                                </span>
+                            )}
                         </span>
                         <span className="text-right whitespace-nowrap">
                             {e.worth === null ? null : e.noise ? (
@@ -637,6 +752,38 @@ const PlanRoute = ({ plan, schedule }: { plan: PlanTeamFile; schedule: PlanSched
                 );
             })}
         </ol>
+    );
+};
+
+const CompareOptions = ({ plan }: { plan: PlanTeamFile }) => {
+    const rows = plan.options.filter((o) => o.alone).sort((a, b) => b.alone!.invite - a.alone!.invite || b.alone!.points - a.alone!.points);
+    return (
+        <ul className="space-y-1.5 text-xs font-mono">
+            {rows.map((o) => {
+                const route = ROUTE_LABEL[o.kind];
+                const access = o.kind === "event" ? `place ${percent(o.reached)}` : `place ${percent(o.reached)}, enters a qualifier ${percent(o.entered)}`;
+                return (
+                    <li key={o.id} className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                        <span className="text-muted whitespace-nowrap">{shortDate(o.event.startDate)}</span>
+                        <PlanEventName event={o.event} />
+                        <Badge>{o.event.kind === "lan" ? "LAN" : "Online"}</Badge>
+                        {route && <Badge tone="accent">{route}</Badge>}
+                        <span className="text-muted">{access}</span>
+                        {o.why && (
+                            <Tooltip content={`Likeliest finish when it plays the event; top 4 in ${percent(finishSummary(o.why).top4)} of those runs`}>
+                                <span className="text-muted">likely {finishSummary(o.why).likely}</span>
+                            </Tooltip>
+                        )}
+                        <Tooltip content="Mean change over every search simulation, reached or not: points at the target, and points of invite odds">
+                            <span className={o.alone!.invite >= 0 ? "text-fg" : "text-down"}>
+                                {signed(o.alone!.points)} pts, {signedPts(o.alone!.invite, 1)} invite
+                            </span>
+                        </Tooltip>
+                        {o.why && <WhyDetails why={o.why} />}
+                    </li>
+                );
+            })}
+        </ul>
     );
 };
 
@@ -788,6 +935,12 @@ const Plan = ({ index }: { index: SeasonIndex }) => {
                 </Section>
             )}
 
+            {plan && plan.options.some((o) => o.alone) && (
+                <Section title="Compare options" subtitle="Each option alone, against announced events only, on the search simulations">
+                    <CompareOptions plan={plan} />
+                </Section>
+            )}
+
             {plan && (
                 <Inset className="text-xs space-y-2">
                     <p>
@@ -799,7 +952,7 @@ const Plan = ({ index }: { index: SeasonIndex }) => {
                     </p>
                     <p>
                         Rivals' seasons and later invites come from the season rules, so a schedule that lifts the team's rank doesn't earn it more invites
-                        here. Fields are partly assumed, as on the rest of this page. Plans are run by hand, not nightly.
+                        here. Fields are partly assumed, as on the rest of this page. Plans are rerun weekly for teams near the invite line.
                     </p>
                 </Inset>
             )}

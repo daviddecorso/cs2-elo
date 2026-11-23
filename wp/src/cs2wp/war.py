@@ -603,6 +603,7 @@ def validation_metrics(
 
     qual = players.filter(pl.col("rounds") >= min_rounds)
     kd_map = {
+        "wpa_opp_waa_r": "wpa_opp_per100",
         "wpa_waa_r": "wpa_per100",
         "nwpa_mancount_waa_r": "nwpa_mancount_per100",
         "nwpa_event_waa_r": "nwpa_event_per100",
@@ -665,7 +666,7 @@ def report_lines(
     valid = adjusted_rows.filter(pl.col("role").is_not_null())
     dates = valid["date"]
     metric = "WAR" if replacement_rate != 0.0 else "WAA"
-    qual = players.filter(pl.col("rounds") >= min_rounds).sort("wpa_waa", descending=True)
+    qual = players.filter(pl.col("rounds") >= min_rounds).sort("wpa_opp_waa", descending=True)
 
     lines = [
         f"# Player {metric}",
@@ -702,6 +703,7 @@ def report_lines(
         "| --- | --- | --- | --- | --- | --- |",
     ]
     labels = [
+        ("wpa_opp_waa_r", f"{metric} (WPA, own team at avg Elo)"),
         ("wpa_waa_r", f"{metric} (WPA)"),
         ("nwpa_mancount_waa_r", f"{metric} (neutral man-count)"),
         ("nwpa_event_waa_r", f"{metric} (neutral event)"),
@@ -729,7 +731,7 @@ def report_lines(
 
     lines += [
         "",
-        f"## Top 20 players by {metric} (WPA, {min_rounds}+ rounds)",
+        f"## Top 20 players by {metric} (WPA, own team at avg Elo, {min_rounds}+ rounds)",
         "",
         f"| # | Player | Team | Role | Rounds | {metric} (90% CI) | / 100 rds | Kills +/− | HLTV 3.0 | K/D |",
         "| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |",
@@ -740,8 +742,8 @@ def report_lines(
         kd = f"{r['kd']:.2f}" if r.get("kd") is not None else "–"
         lines.append(
             f"| {idx} | {r['name']} | {r['lp_team'] or '–'} | {role} | {r['rounds']:,} | "
-            f"{r['wpa_waa']:+.2f} ({r['wpa_waa_p5']:+.2f}, {r['wpa_waa_p95']:+.2f}) | "
-            f"{r['wpa_per100']:+.2f} | {r['kills_above']:+.1f} | {r3} | {kd} |"
+            f"{r['wpa_opp_waa']:+.2f} ({r['wpa_opp_waa_p5']:+.2f}, {r['wpa_opp_waa_p95']:+.2f}) | "
+            f"{r['wpa_opp_per100']:+.2f} | {r['kills_above']:+.1f} | {r3} | {kd} |"
         )
 
     igls_q = qual.filter(pl.col("is_igl"))
@@ -758,8 +760,8 @@ def report_lines(
             kd = f"{r['kd']:.2f}" if r.get("kd") is not None else "–"
             lines.append(
                 f"| {r['name']} | {r['lp_team'] or '–'} | {r['rounds']:,} | "
-                f"{r['wpa_waa']:+.2f} ({r['wpa_waa_p5']:+.2f}, {r['wpa_waa_p95']:+.2f}) | "
-                f"{r['wpa_per100']:+.2f} | {kd} |"
+                f"{r['wpa_opp_waa']:+.2f} ({r['wpa_opp_waa_p5']:+.2f}, {r['wpa_opp_waa_p95']:+.2f}) | "
+                f"{r['wpa_opp_per100']:+.2f} | {kd} |"
             )
 
     if "wpa_opp_hltv_gap" in qual.columns:

@@ -100,7 +100,7 @@ describe("TeamPage", () => {
         expect(html).toContain("+7.19");
         expect(html).toContain("Post-plant T");
         expect(html).toContain("+6.60");
-        expect(html).toContain("+3.21");
+        expect(html).toContain("+2.15");
         expect(html).toContain("IGL");
         expect(html).not.toContain("FURIA");
         expect(html).not.toContain("donk");

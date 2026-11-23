@@ -82,7 +82,9 @@ export const preferSquads = (
     matchdata: Matchdata,
     lineups: Map<string, { name: string; players: ValvePlayer[] }>,
     squads: Map<string, string[]>,
-    nickOf?: (link: string) => string | undefined
+    nickOf?: (link: string) => string | undefined,
+    /** A squad this rejects keeps the last-played lineup. */
+    keepsLinks?: (players: ValvePlayer[], teamId: string) => boolean
 ): number => {
     const players = new Map<string, ValvePlayer>();
     const playersByNick = new Map<string, ValvePlayer>();
@@ -103,6 +105,7 @@ export const preferSquads = (
         if (!lineup || resolved.length !== 5 || resolved.some((p) => !p)) continue;
         const kept = resolved.filter((p) => lineup.players.some((q) => q.playerId === p!.playerId)).length;
         if (kept < 3 || kept === 5) continue;
+        if (keepsLinks && !keepsLinks(resolved as ValvePlayer[], teamId)) continue;
         lineups.set(teamId, { name: lineup.name, players: resolved as ValvePlayer[] });
         swapped++;
     }

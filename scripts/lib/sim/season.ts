@@ -94,6 +94,8 @@ export interface SeasonFields {
     horizonDays: number;
     /** Event slug → each team's draw weight within its rank band and region. */
     affinity?: Map<string, (team: TeamId) => number>;
+    /** Per event slug, the log-odds a team's value adds to its band's VRS acceptance (`FieldSampler.acceptShift`). */
+    acceptance?: Map<string, (team: TeamId, band: number) => number>;
 }
 
 const seedCount = (stage: StageConfig) =>
@@ -165,6 +167,8 @@ export interface SeasonInput {
     /** Most online events a team takes in the horizon; unlimited when unset. */
     onlineCap?: number;
     fields?: SeasonFields;
+    /** Hindcast oracle: real matches after as-of, added before each checkpoint they precede, with winners redrawn from the run's ratings when `redraw` (as a Bo3). */
+    replay?: { matches: ValveMatch[]; events: ValveEvent[]; teamOf: (teamId: string) => TeamId; horizonOf: (matchStartTime: number) => number; redraw: boolean };
     n: number;
     seed: number;
     onCheckpoint?: (run: number, checkpoint: number, result: RerunResult | null, standings: Standings, runSoFar: RunResult) => void;
@@ -327,6 +331,7 @@ export const runSeason = (input: SeasonInput, run: number): RunResult => {
                       unranked: learned.unranked,
                       drawable: learned.drawable,
                       affinity: learned.affinity?.get(e.config.slug),
+                      acceptShift: learned.acceptance?.get(e.config.slug),
                       forced,
                       // Reach reruns this draw after the run, so it reuses the paces the real draw saw.
                       pace: (team) => {
@@ -393,9 +398,26 @@ export const runSeason = (input: SeasonInput, run: number): RunResult => {
         ...events.map((event) => ({ kind: "event" as const, event, date: event.config.startDate })),
     ].sort((a, b) => a.date.localeCompare(b.date) || (a.kind === "event" ? -1 : 1));
 
+    const replay = input.replay;
+    const replayRng = makeRng(subSeed(seed, "replay"));
+    let replayed = 0;
+    if (replay) delta.events.push(...replay.events);
+
     for (const step of steps) {
         if (step.kind === "checkpoint") {
             const { world, date } = checkpoints[step.index];
+            const before = Date.parse(`${date}T00:00:00Z`) / 1000;
+            while (replay && replayed < replay.matches.length && replay.matches[replayed].matchStartTime < before) {
+                const m = replay.matches[replayed++];
+                if (!replay.redraw || m.forfeited) {
+                    delta.matches.push(m);
+                    continue;
+                }
+                predictor.setHorizon(replay.horizonOf(m.matchStartTime));
+                predictor.setTier?.(null);
+                const p = predictor.seriesProbability(replay.teamOf(String(m.team1Id)), replay.teamOf(String(m.team2Id)), 3);
+                delta.matches.push({ ...m, winningTeam: replayRng() < p ? 1 : 2 });
+            }
             const fast = rerun(world, delta);
             let standings = fast.standings;
             if (!fast.exact) {

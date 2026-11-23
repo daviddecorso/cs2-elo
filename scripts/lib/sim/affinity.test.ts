@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { addDays } from "../liquipedia/rawStore.ts";
-import { AFFINITY_DAYS, AffinityIndex, affinityLogLikelihood, affinityWeight, emptyCell, fitAffinity, type AffinitySample } from "./affinity.ts";
+import type { Roster } from "../../../src/vrs/types.ts";
+import { AFFINITY_DAYS, AffinityIndex, affinityLogLikelihood, affinitySamples, affinityWeight, emptyCell, fitAffinity, type AffinitySample } from "./affinity.ts";
 import { makeRng } from "./rng.ts";
 import type { PastEdition } from "./history.ts";
 
@@ -41,6 +42,40 @@ describe("AffinityIndex", () => {
     it("counts home when three players come from the venue's country", () => {
         expect(index.pattern(players(["x", "y", "z"], "de"), event("2026-06-01", "de"))).toBe(0b100);
         expect(index.pattern(players(["x", "y", "z"], "fr"), event("2026-06-01", "de"))).toBe(0);
+    });
+});
+
+describe("affinitySamples", () => {
+    const roster = (rank: number, nicks: string[]): Roster => ({
+        rosterKey: `r${rank}`,
+        teamName: `T${rank}`,
+        players: nicks,
+        points: 2000 - rank,
+        globalRank: rank,
+        regionalRank: rank,
+        region: "Europe",
+    } as Roster);
+    const list = { date: "2026-03-02", rosters: [roster(40, ["a1", "a2", "a3", "a4", "a5"]), roster(41, ["b1", "b2", "b3", "b4", "b5"]), roster(42, ["c1", "c2", "c3", "c4", "c5"])] };
+    const at = (page: string, startDate: string, attendee: { nicks: string[]; rank: number | null; label?: "vrs" | "qualifier" | "direct" }[], labeled: boolean): PastEdition => ({
+        ...edition(page, "Org", startDate, []),
+        page,
+        listDate: list.date,
+        labeled,
+        attendees: attendee.map((a, i) => ({ teamId: `${page}${i}`, globalRank: a.rank, regionalRank: a.rank, region: "Europe", label: a.label, players: players(a.nicks) })),
+    });
+    const range = { from: "2026-03-01", to: "2026-04-01" };
+
+    it("skips unlabelled editions, whose VRS invitees would count as free choices", () => {
+        const e = at("Cup/1", "2026-03-10", [{ nicks: list.rosters[0].players, rank: 40 }], false);
+        expect(affinitySamples([e], [list], new AffinityIndex([e]), new Map(), range)).toEqual([]);
+    });
+
+    it("leaves rosters at a clashing LAN out of the chosen team's cell", () => {
+        const e = at("Cup/1", "2026-03-10", [{ nicks: list.rosters[0].players, rank: 40, label: "direct" }], true);
+        const clash = at("Other/1", "2026-03-11", [{ nicks: list.rosters[1].players, rank: 41 }], true);
+        const samples = affinitySamples([e, clash], [list], new AffinityIndex([e, clash]), new Map(), { ...range, to: "2026-03-11" });
+        expect(samples).toHaveLength(1);
+        expect(samples[0].cell.reduce((a, b) => a + b, 0)).toBe(2);
     });
 });
 

@@ -2,7 +2,7 @@ import type { FieldSource } from "../../../src/sim/types.ts";
 import type { Region } from "../../../src/vrs/types.ts";
 import { slotKey } from "./catalog.ts";
 import type { InviteRule, VrsList } from "./config.ts";
-import { bandOf, type EventFieldModel } from "./fieldModel.ts";
+import { BANDS, bandOf, type EventFieldModel } from "./fieldModel.ts";
 import { makeRng, subSeed } from "./rng.ts";
 import type { TeamId } from "./types.ts";
 
@@ -60,7 +60,15 @@ export interface FieldSampler {
     drawable?: Set<TeamId>;
     /** A team's draw weight relative to others in its rank band and region (`affinityWeight`); 1 for all when unset. */
     affinity?: (team: TeamId) => number;
+    /** Log-odds added to the band's VRS acceptance for a team, centered per band (`acceptanceShift`); 0 when unset. */
+    acceptShift?: (team: TeamId, band: number) => number;
 }
+
+/** `base` moved by `shift` log-odds; 0 and 1 stay put. */
+export const shiftedAcceptance = (base: number, shift: number) => {
+    if (base <= 0 || base >= 1 || shift === 0) return base;
+    return 1 / (1 + Math.exp(-(Math.log(base / (1 - base)) + shift)));
+};
 
 /** Qualifier slots tied to simulated events that feed them (`qualifierLinks`). */
 export interface LinkedSlots {
@@ -72,6 +80,9 @@ export interface LinkedSlots {
 
 /** Tournament Operation Requirements §3.8.4: Valve Tier 2 events may only invite from below this global rank. */
 export const LOWER_TIER_TOP_RANK = 12;
+
+/** Least share of an event's past attendees a band needs before it takes places a lower band couldn't fill. */
+export const SPILL_UP_MIN_SHARE = 0.02;
 
 /** Share of past open attendees that must be ranked no better than a team for its organizer to plausibly invite it on request. */
 export const WELCOME_SHARE = 0.5;
@@ -158,7 +169,9 @@ export const resolveField = (
             if (left <= 0) break;
             if (!eligible(e) || (s.drawable && !s.drawable.has(e.team))) continue;
             const u = uniform(s, key, e.team);
-            if (e.team !== s.forced && u >= Math.min(1, s.model.acceptance[bandOf(e.globalRank)] * s.pace(e.team))) continue;
+            const band = bandOf(e.globalRank);
+            const accept = s.acceptShift ? shiftedAcceptance(s.model.acceptance[band], s.acceptShift(e.team, band)) : s.model.acceptance[band];
+            if (e.team !== s.forced && u >= Math.min(1, accept * s.pace(e.team))) continue;
             taken.set(e.team, "vrs");
             last = rankOn(e, list);
             left--;
@@ -172,20 +185,59 @@ export const resolveField = (
         const seen = new Set<TeamId>();
         const pool = [...seedList, ...s.unranked].filter((e) => !seen.has(e.team) && seen.add(e.team) && (!s.drawable || s.drawable.has(e.team)) && eligible(e));
         const regional = s.model.region !== null && s.model.sameRegion !== null;
-        const cell = (e: ListEntry) => bandOf(e.globalRank) * 2 + (regional && sameRegion(e, s.model) ? 1 : 0);
-        const affinity = (e: ListEntry) => s.affinity?.(e.team) ?? 1;
-        // Affinity moves weight between teams of a cell, not between cells, so band and region shares stay as fitted.
-        const sizes = new Map<number, number>();
-        for (const e of pool) sizes.set(cell(e), (sizes.get(cell(e)) ?? 0) + affinity(e));
-        const regionShare = (e: ListEntry) => (!regional ? 1 : sameRegion(e, s.model) ? s.model.sameRegion! : 1 - s.model.sameRegion!);
-        // Efraimidis–Spirakis: the k largest log(u) / w are a weighted sample without replacement.
-        const keyed = pool.map((e) => {
-            const w = (bands[bandOf(e.globalRank)] * regionShare(e) * s.pace(e.team) * affinity(e)) / sizes.get(cell(e))!;
-            const u = uniform(s, purpose, e.team);
-            // An open slot takes a welcome team even from a band past editions never drew: those teams didn't ask.
-            return { e, key: e.team === s.forced && forces && (w > 0 || source === "open") ? Infinity : w > 0 ? Math.log(u) / w : -Infinity };
+        const cellOf = (e: ListEntry) => bandOf(e.globalRank) * 2 + (regional && sameRegion(e, s.model) ? 1 : 0);
+        const shares = Array.from({ length: BANDS * 2 }, (_, c) =>
+            !regional ? (c % 2 === 0 ? bands[c >> 1] : 0) : bands[c >> 1] * (c % 2 === 1 ? s.model.sameRegion! : 1 - s.model.sameRegion!)
+        );
+        // Efraimidis–Spirakis within a cell: the largest log(u) / w are a weighted sample without replacement.
+        const members = shares.map(() => [] as ListEntry[]);
+        const keys = new Map<TeamId, number>();
+        for (const e of pool) {
+            const w = s.pace(e.team) * (s.affinity?.(e.team) ?? 1);
+            if (w <= 0) continue;
+            keys.set(e.team, Math.log(uniform(s, purpose, e.team)) / w);
+            members[cellOf(e)].push(e);
+        }
+        for (const m of members) m.sort((a, b) => keys.get(b.team)! - keys.get(a.team)!);
+
+        // Places per cell come from the fitted shares, so pace, affinity and who is still free only choose teams within a cell.
+        const quota = new Array<number>(shares.length).fill(0);
+        const total = shares.reduce((a, b) => a + b, 0);
+        if (total > 0) {
+            const rng = makeRng(subSeed(s.seed, `quota|${purpose}`));
+            for (let i = 0; i < k; i++) {
+                let u = rng() * total;
+                let c = shares.findIndex((p) => (u -= p) < 0);
+                while (c < 0 || shares[c] === 0) c = (c < 0 ? shares.length : c) - 1;
+                quota[c]++;
+            }
+        }
+        const forced = s.forced === undefined ? undefined : pool.find((e) => e.team === s.forced);
+        // An open slot takes a welcome team even from a band past editions never drew: those teams didn't ask.
+        if (forced && forces && (shares[cellOf(forced)] > 0 || source === "open")) {
+            taken.set(forced.team, source);
+            const home = cellOf(forced);
+            members[home] = members[home].filter((e) => e !== forced);
+            const c = quota[home] > 0 ? home : quota.indexOf(Math.max(...quota));
+            if (quota[c] > 0) quota[c]--;
+        }
+        const next = quota.map((q, c) => Math.min(q, members[c].length));
+        members.forEach((m, c) => m.slice(0, next[c]).forEach((e) => taken.set(e.team, source)));
+        // A cell short of free teams passes its places down the bands, as real open places go to teams ranked lower still, and up only into bands that fill such places.
+        const B = BANDS;
+        const spillOrder = (c: number) => {
+            const [b, r] = [c >> 1, c % 2];
+            const down = (side: number, from: number) => Array.from({ length: Math.max(0, B - from) }, (_, i) => (from + i) * 2 + side);
+            const up = (side: number) => Array.from({ length: b }, (_, i) => (b - 1 - i) * 2 + side);
+            return [...down(r, b + 1), ...down(1 - r, b), ...up(r), ...up(1 - r)];
+        };
+        quota.forEach((q, c) => {
+            for (let d = q - next[c]; d > 0; d--) {
+                const t = spillOrder(c).find((x) => (x >> 1 >= c >> 1 ? shares[x] > 0 : bands[x >> 1] >= SPILL_UP_MIN_SHARE) && next[x] < members[x].length);
+                if (t === undefined) return;
+                taken.set(members[t][next[t]++].team, source);
+            }
         });
-        for (const { e } of keyed.filter((x) => x.key > -Infinity).sort((a, b) => b.key - a.key).slice(0, k)) taken.set(e.team, source);
     };
 
     const rule = event.invites ?? sampler?.model.learnedRule ?? undefined;

@@ -1,10 +1,11 @@
 import type { Region, Roster, Standings } from "../../../src/vrs/types.ts";
 import type { FieldSource } from "../../../src/sim/types.ts";
-import { feasibleMasks, indicesOf, popcount } from "../../../src/sim/schedule.ts";
+import { conflicts, feasibleMasks, indicesOf, maskOf, popcount } from "../../../src/sim/schedule.ts";
 import type { ValveEvent, ValveMatch } from "../vrs/buildMatchdata.ts";
 import { findRoster, freeze, scoreTeam, withEvent, withoutEvents, type FrozenWorld, type Ledger, type LedgerEvent, type LedgerMatch } from "../vrs/oneTeam.ts";
 import type { WorldState } from "../vrs/valveWorld.ts";
 import { allocateInvites, countAbove, previousMajorSlots, REGIONS, totalSlots, type InviteConfig, type StageSlots } from "./invites.ts";
+import { eventGain, GAIN_PARTS } from "./gain.ts";
 import { makeRng, runSeed, subSeed } from "./rng.ts";
 import { positionOf, withField, type RunResult, type SeasonEvent, type SeasonInput } from "./season.ts";
 import { runEvent, type EventOutcome } from "./simulate.ts";
@@ -30,6 +31,8 @@ export interface OptimizerTeam {
     committed: string[];
     /** Universe events the team is announced for. */
     announced: Set<string>;
+    /** Universe bitmask of the Majors the team is invited to; every mask contains it. */
+    required: number;
     /** Feasible subsets of `universe` within the high cap. */
     masks: number[];
     /** Indices into the season's events: LANs the team could qualify for through linked feeders (`qualifyPaths`). */
@@ -51,11 +54,13 @@ const notChosen = (source: FieldSource) => source === "qualifier";
 export const fieldTeams = (e: SeasonEvent): TeamId[] => (e.fixed ? [...new Set(e.config.stages.flatMap((s) => s.invited ?? []))] : e.field.announced);
 export const hasOpenSlots = (e: SeasonEvent) => !e.fixed && e.field.teams > e.field.announced.length;
 
-/** Events a team can choose: announced for it, or with open slots it could plausibly enter (`canEnter`), not yet started; capped at `MAX_UNIVERSE`, announced first, then by prize pool. */
+/** Events a team can choose: announced for it, or with open slots it could plausibly enter (`canEnter`), not yet started; capped at `MAX_UNIVERSE`, Majors first, then announced, then by prize pool. An invited team always plays the Major. */
 export const teamUniverse = (events: SeasonEvent[], team: TeamId, asOf: string, caps: OptimizerSetup["caps"], canEnter: (e: SeasonEvent) => boolean = () => true) => {
     const announced = new Set<string>();
     const committed: string[] = [];
     const options: number[] = [];
+    const majors = events.filter((e) => e.projection.major && fieldTeams(e).includes(team));
+    const clashesMajor = (e: SeasonEvent) => majors.some((m) => m !== e && conflicts(m.stint, e.stint));
     events.forEach((e, i) => {
         if (e.stint.kind === "online" || e.unannounced) return;
         const inField = fieldTeams(e).includes(team);
@@ -64,19 +69,29 @@ export const teamUniverse = (events: SeasonEvent[], team: TeamId, asOf: string, 
             return;
         }
         if (inField) announced.add(e.config.slug);
-        if (inField || (hasOpenSlots(e) && canEnter(e))) options.push(i);
+        // An announced clash stays in, so schedules subtract it from the team's ledger and report it as dropped.
+        if (inField || (hasOpenSlots(e) && canEnter(e) && !clashesMajor(e))) options.push(i);
     });
     const prize = (i: number) => [...events[i].projection.prizes.values()].reduce((a, b) => a + b, 0);
     const universe = options
-        .sort((a, b) => Number(announced.has(events[b].config.slug)) - Number(announced.has(events[a].config.slug)) || prize(b) - prize(a))
+        .sort(
+            (a, b) =>
+                Number(majors.includes(events[b])) - Number(majors.includes(events[a])) ||
+                Number(announced.has(events[b].config.slug)) - Number(announced.has(events[a].config.slug)) ||
+                prize(b) - prize(a)
+        )
         .slice(0, MAX_UNIVERSE)
         .sort((a, b) => events[a].config.startDate.localeCompare(events[b].config.startDate));
+    const required = maskOf(universe.flatMap((i, u) => (majors.includes(events[i]) ? [u] : [])));
     const masks = feasibleMasks(
         universe.map((i) => events[i].stint),
-        Math.max(0, caps.high - committed.length)
-    );
-    return { universe, committed, announced, masks };
+        Math.max(popcount(required), caps.high - committed.length)
+    ).filter((mask) => (mask & required) === required && indicesOf(mask).every((u) => !clashesMajor(events[universe[u]])));
+    return { universe, committed, announced, required, masks };
 };
+
+/** Universe events a schedule may hold at this volume, never fewer than the Majors it must hold. */
+export const scheduleCap = (team: OptimizerTeam, cap: number) => Math.max(popcount(team.required), cap - team.committed.length);
 
 /** A feeder the team could enter for the event it feeds: in its region, or with none. */
 export const feedersFor = (events: SeasonEvent[], slug: string, region: Region) =>
@@ -111,6 +126,10 @@ export interface TeamTally {
     /** Per path: runs the team could enter a feeder while not otherwise attending, and runs it then qualified. */
     pathEntered: Uint32Array;
     pathQualified: Uint32Array;
+    /** Per (universe index × n + run): the team's finishing position there when it played or reached it, else 0. */
+    place: Uint16Array;
+    /** Per ((universe index × n + run) × parts): what the event alone adds to the team's points, by `GAIN_PARTS`. */
+    gain: Float32Array;
 }
 
 export interface OptimizerTally {
@@ -141,6 +160,8 @@ export const emptyOptimizerTally = (opt: OptimizerSetup, n: number): OptimizerTa
         viaOpen: new Uint32Array(t.universe.length),
         pathEntered: new Uint32Array(t.paths.length),
         pathQualified: new Uint32Array(t.paths.length),
+        place: new Uint16Array(t.universe.length * n),
+        gain: new Float32Array(t.universe.length * n * GAIN_PARTS.length),
     })),
     slotsKnown: new Uint8Array(n),
     inexactTargets: 0,
@@ -153,7 +174,7 @@ export const emptyOptimizerTally = (opt: OptimizerSetup, n: number): OptimizerTa
 
 /** Shards write disjoint runs into zeroed arrays, so adding them merges. */
 export const mergeOptimizerTallies = (into: OptimizerTally, from: OptimizerTally) => {
-    const add = (a: Float32Array | Uint8Array | Uint32Array, b: typeof a) => {
+    const add = (a: Float32Array | Uint8Array | Uint16Array | Uint32Array, b: typeof a) => {
         for (let i = 0; i < a.length; i++) a[i] += b[i];
     };
     into.teams.forEach((t, k) => {
@@ -169,6 +190,8 @@ export const mergeOptimizerTallies = (into: OptimizerTally, from: OptimizerTally
         add(t.viaOpen, f.viaOpen);
         add(t.pathEntered, f.pathEntered);
         add(t.pathQualified, f.pathQualified);
+        add(t.place, f.place);
+        add(t.gain, f.gain);
     });
     add(into.slotsKnown, from.slotsKnown);
     into.inexactTargets += from.inexactTargets;
@@ -288,6 +311,7 @@ export const optimizeRun = (
 
         const ledger = frozen.ledgers[self];
         const attendedIds = new Set<string>();
+        const positions = new Array<number>(team.universe.length).fill(Infinity);
         const fragments: Array<Fragment | null> = team.universe.map((ei, u) => {
             const e = input.events[ei];
             const slug = e.config.slug;
@@ -300,6 +324,7 @@ export const optimizeRun = (
                 if (notChosen(source)) t.qualifierOnly[u]++;
                 if (source === "open") t.viaOpen[u]++;
                 for (const id of ids) attendedIds.add(id);
+                positions[u] = positionOf(played.outcome.placements.get(team.team));
                 return cutFragment(ledger, ids);
             }
             const field = result.reach.get(slug)?.(team.team) ?? null;
@@ -308,10 +333,19 @@ export const optimizeRun = (
             const source = field.find((f) => f.team === team.team)!.source;
             if (notChosen(source)) t.qualifierOnly[u]++;
             if (source === "open") t.viaOpen[u]++;
-            return replay(ctx, tally, frozen, state, run, e, team, field.map((f) => f.team), self, rescore);
+            const replayed = replay(ctx, tally, frozen, state, run, e, team, field.map((f) => f.team), self, rescore);
+            if (replayed) positions[u] = replayed.position;
+            return replayed?.fragment ?? null;
         });
 
         const base = attendedIds.size ? withoutEvents(ledger, attendedIds) : ledger;
+        const before = scoreTeam(frozen, base, { rank: false });
+        fragments.forEach((fragment, u) => {
+            if (!fragment || !Number.isFinite(positions[u])) return;
+            const cell = u * n + run;
+            t.place[cell] = Math.min(positions[u], 65535);
+            eventGain(frozen, base, fragment, before).parts.forEach((v, p) => (t.gain[cell * GAIN_PARTS.length + p] = v));
+        });
         team.masks.forEach((mask, m) => {
             const parts = indicesOf(mask).flatMap((u) => (fragments[u] ? [fragments[u]!] : []));
             const score = scoreTeam(frozen, compose(base, parts), { rank: false });
@@ -437,8 +471,8 @@ const replay = (
     field: TeamId[],
     self: number,
     rescore: RescoreRun | null
-): Fragment | null => {
-    const { part } = replayEvent(ctx, run, e, field);
+): { fragment: Fragment; position: number } | null => {
+    const { outcome, part } = replayEvent(ctx, run, e, field);
     tally.replays++;
     const fragment = ledgerFragment(frozen, state, team.teamId, self, part);
     if (!fragment) {
@@ -446,7 +480,7 @@ const replay = (
         return null;
     }
     rescore?.replays.set(`${e.config.slug}|${team.team}`, part);
-    return fragment;
+    return { fragment, position: positionOf(outcome.placements.get(team.team)) };
 };
 
 /** The run's delta with `team` playing exactly the universe events in `chosen`, where it can reach them. */
@@ -568,7 +602,7 @@ export const pickSchedules = (tally: OptimizerTally, opt: OptimizerSetup, input:
         picks.set(m, p);
     };
     for (const volume of VOLUMES) {
-        const cap = opt.caps[volume] - team.committed.length;
+        const cap = scheduleCap(team, opt.caps[volume]);
         const within = subsets.filter((s) => popcount(team.masks[s.m]) <= cap);
         if (within.length === 0) continue;
         const byPoints = within.reduce((a, b) => (b.summary.mean > a.summary.mean ? b : a));

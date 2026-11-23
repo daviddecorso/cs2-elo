@@ -95,7 +95,7 @@ const TOC = [
     { title: "Cross-region calibration", id: "cross-region-calibration" },
     { title: "Map pool offsets", id: "map-pool-offsets" },
     { title: "Tournament simulator", id: "tournament-simulator" },
-    { title: "Player WAR", id: "player-war" },
+    { title: "Player WAA", id: "player-war" },
     { title: "Elo vs. VRS", id: "elo-vs-vrs" },
 ];
 
@@ -282,15 +282,14 @@ export const Methodology = () => {
                         </p>
                     </Section>
 
-                    <Section id="player-war" title="Player WAR">
+                    <Section id="player-war" title="Player WAA">
                         <p>
                             Player Wins Above Average (WAA) values every damage, kill, flash assist, traded death, bomb
                             plant, and defuse from parsed Tier-1 LAN demos by the change in round win probability (WPA)
-                            it creates, plus two context-neutral variants that strip clutch leverage. The default,
-                            team-neutral WPA, values each player&apos;s share as if their own team were league-average Elo
-                            while keeping the opponent&apos;s real rating. Raw WPA starts from the pre-map Elo of both
-                            teams, so it gives players on strong teams little credit for the wins their team was expected
-                            to get. Bomb plants split
+                            it creates. Each player&apos;s share is valued as if their own team had league-average Elo
+                            while keeping the opponent&apos;s real rating, so players on strong teams still get credit
+                            for wins their team was expected to get. That doesn&apos;t remove team strength: the rate
+                            still correlates about 0.45 with team Elo, against 0.31 for HLTV Rating 3.0. Bomb plants split
                             defender cost evenly across alive CTs, a known simplification when demo coordinates alone
                             cannot isolate rotation blame.
                         </p>
@@ -301,6 +300,14 @@ export const Methodology = () => {
                             event. Date-bounded IGL stints receive a zero-sum positional adjustment per side so the
                             average IGL and the league overall both center on zero while individual callers still spread
                             around it.
+                        </p>
+                        <p>
+                            The headline rating is WAA per 100 rounds, shrunk toward the league average: the raw rate
+                            times rounds / (rounds + 984), where 984 rounds is the sample at which the rate is half
+                            signal. A 425-round player keeps 30% of their raw rate and a 6,000-round player keeps 86%.
+                            It measures what a player&apos;s actions were worth. It isn&apos;t a better forecast than
+                            box-score ratings, and past WAA hasn&apos;t improved Elo&apos;s match predictions. Map
+                            wins, context, usage, conversion and the HLTV gap are all unshrunk.
                         </p>
                         <p>
                             Summed round-wins above average convert to map wins via the empirical OLS slope of map wins

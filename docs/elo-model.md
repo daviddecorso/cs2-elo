@@ -42,6 +42,8 @@ The Liquipedia API has no veto data, but HLTV vetoes parse for about 1,400 tier-
 - Ratings warm up on CS:GO from 2022-01. `--tune` runs coordinate descent on series log loss from the latest full year before the test year (2025), because recent-only tuning beats all-history tuning out of sample (elo-experiments.md, 2026-11-19). It covers every parameter except `scale`, which is redundant with K. `--write` saves the result to `scripts/lib/elo/params.json`, which overrides `STARTING_PARAMS`. `--set key=value` overrides one parameter for a single run. The report ends with calibration slope and ECE by slice (Bo1/3/5, provisional, idle, tier, LAN), plus a post-hoc temperature that serves as a reference point for calibration.
 - Every experiment, kept or rejected, goes in [elo-experiments.md](elo-experiments.md).
 - `--region-residual` prints residuals on cross-region maps by Valve region pair and calibration by how stale each side's last cross-region series is. Asia sits about 23 points overrated against the rest, steadily, but correcting it doesn't lower gate log loss enough to keep (2026-11-19). The flag also splits that residual by venue, Oceania, insularity, tier and rating, and reports new lineages' seed error by region. Most of the bias is Oceania (about −130). `--region-walk` scores region priors walk-forward under the region pass rule in [elo-experiments.md](elo-experiments.md). Only `regionPriorOceania` is on; the Americas and Asia priors stay 0.
+- `--walk key=v1,v2,…` (repeatable, grids crossed; `--walk-fit all|cross|t1lan`) fits on 2024 and scores 2025, then fits on 2024–25 and scores 2026. It reports paired gains with event CIs on all, cross-region, tier-1 LAN and gate series, and the tier-1 LAN rule's verdict. `--core-change` prints calibration by maps since a core change.
+- Round share (`roundWeight`, `roundSlope`, `roundTier1Scale`, `predictionTemp`) and insularity (`insularityPrior`) are in the engine but off. Round share passed the gate but leaned worse at tier-1 LAN and Majors, so it wasn't kept (elo-experiments.md, 2026-11-21).
 - **VRS baseline** (`vrsBaseline.ts`): uses the latest Valve global snapshot published strictly before the series' UTC day, from the `invitation/` and `live/` tables. Each side's roster is found by 3+ of 5 player overlap, matching Liquipedia page name, display nick or VRS alias nick against Valve's nicks. `p = 1/(1+10^(−Δpoints/s))`, with `s` fit on training series. Snapshots start 2024-08-06.
 - **HLTV baseline** (`hltvBaseline.ts`): uses pre-match HLTV world ranks and points exported from cached match pages and weekly ranking pages (`data/demos/hltv/ranks.jsonl`, via `cs2demos match-pages` and `cs2demos rankings`). `write_ranks` verifies each team's ranking-page position against its match-page badge rank (`points: null` on missing or mismatched teams). Joined by `match2id` on tier-1 LAN series where both HLTV ranks, HLTV points (when any are present) and a VRS points difference exist. Fits one-parameter logistic links on the training series in that set for HLTV rank (`ln rank_b − ln rank_a`), VRS rank, and HLTV points (selecting between `ln pts_a − ln pts_b` and `(pts_a − pts_b) / 100` by training log loss). Reported with event-resampled 90% CIs and a calibration curve on `/model` (`calibration.json` preserves the `hltv` block across CI runs when `ranks.jsonl` is absent) and never gated.
 - **Gate**: 2026 series where both rosters have VRS points; Elo series log loss must be below VRS. `--gate` exits non-zero on failure. The report also covers Brier, accuracy, all 2026 series, map log loss, stand-in series and cross-region series. `public/data/elo/calibration.json` holds the scores and calibration bins for the methodology page.
@@ -49,6 +51,8 @@ The Liquipedia API has no veto data, but HLTV vetoes parse for about 1,400 tier-
 ## Rankings output (`scripts/build-elo.ts`)
 
 Lists rosters with 15+ rated maps and a series in the last 90 days. VRS columns come from the latest snapshot, joined by player overlap first and then by `data/elo/vrsTeamMap.json` (Liquipedia team page → Valve team name). `--update-team-map` adds overlap matches to that file.
+
+Published ratings are `rating + region prior + 2000` (`publish.ts`), which put the median ranked roster near 1500 when it was chosen (2026-11-22). Without it 541 of 551 ranked rosters were negative, because tiers seed from `1500 − tierGap·(tier−1)`. The offset is a fixed constant, so ratings only move when the model moves them and game-log deltas add up. It covers rankings, game logs, match sides and event odds. The engine, backtests, veto forecasts and `export-map-elo` use unshifted ratings, so subtract 2000 before comparing a published rating with those.
 
 It also writes a game log per ranked team to `public/data/elo/games/<teamSlug>.json`: every rated series in the last 180 days, newest first, with each side's pre-series rating, the pre-series win probability and the rating change. Logs for teams that drop out of the rankings are deleted. The team page shows it as "Game log". Every entry carries a `reason`, and hand fixes go there. `teamAliases` in `data/overrides.json` stays VRS-only.
 
@@ -80,13 +84,15 @@ Elo − HLTV points log-loss gain is +0.0220 (90% CI +0.0023 to +0.0381, events 
 Current parameters (`scripts/lib/elo/params.json`):
 
 - K is 12 per map.
-- `seriesMapTemp` is 0.8. `seriesMapTempOnline` overrides it for online series but isn't set, so it follows `seriesMapTemp` (a split was rejected 2026-11-18).
+- `seriesMapTemp` is 0.9, and `seriesMapTempOnline` is also 0.9 (a split was rejected 2026-11-18).
 - `marginWeight` is 0.75, and OT wins count as a 1-round margin.
-- `onlineK` is 1, `tierK` is 0.9, `crossRegionK` is 1.25 and `standInK` is 1.2.
-- `regress` and `newRosterRegress` are 0.
-- `tierGap` is 750, and `provisionalK` 2 applies over 100 maps (the search bound).
-- `burstMaps` is 24 and `burstDays` is 12.
-- `kMap` is 6, `mapShrink` is 0.01 and `coreWindow` is 7.
-- `regionPriorOceania` is −175 and `oceaniaTemp` is 1.5 (tuned on 2025 alone; 2026 had already been looked at, so they need a recheck on 2027).
+- `onlineK` is 1, `tierK` is 0.9, `crossRegionK` is 0.75 and `standInK` is 1.2.
+- `regress`, `newRosterRegress` and `gameRegress` are 0.
+- `tierGap` is 800 (the search bound), and `provisionalK` 2 applies over 100 maps (the search bound).
+- `burstMaps` is 16 and `burstDays` is 16.
+- `kMap` is 8, `mapShrink` is 0.01 and `coreWindow` is 7.
+- `regionPriorOceania` is −175 and `oceaniaTemp` is 1.4 (tuned on 2025 alone; 2026 had already been looked at, so they need a recheck on 2027).
+
+What these values assume about the game, and the evidence for each assumption, is in [elo-assumptions.md](elo-assumptions.md).
 
 How each value was reached, and what was rejected, is in [elo-experiments.md](elo-experiments.md). `tierGap`, `kMap` and `seriesMapTemp` move a lot between years, so treat their exact values as soft (2026-11-19 entries).

@@ -28,6 +28,8 @@ export interface EloParams {
     regress: number;
     /** Fraction of the gap to its tier mean every lineage closes at the CS:GO → CS2 switch; no effect without CS:GO series. */
     gameRegress: number;
+    /** Fraction of the gap to incoming core players' previous-lineage ratings closed on a core change, scaled by replaced/5. */
+    transferWeight: number;
     /** Fraction of the gap to the tier mean closed when seeding a new lineage from its players' old ratings. */
     newRosterRegress: number;
     /** Rating points per map moved into the per-map offsets. */
@@ -60,6 +62,17 @@ export interface EloParams {
     oceaniaK: number;
     /** Map logit multiplier for Oceania v Oceania series odds; above 1 sharpens. Predictions only. */
     oceaniaTemp: number;
+    /** Weight on σ(`roundSlope` · signed round margin) in the update target, 0–1; the rest stays on the binary result. */
+    roundWeight: number;
+    roundSlope: number;
+    /** Multiplier on `roundWeight` for tier-1 series. */
+    roundTier1Scale: number;
+    /** Map logit multiplier on every prediction, not the update's expected score; a round-share target needs it to turn rating gaps back into map odds. */
+    predictionTemp: number;
+    /** Rating points for a rest-of-Asia roster on cross-region maps at 100% own-region share over 180 days, scaled from 0 at 50%; ≤ 0. */
+    insularityPrior: number;
+    /** 1 puts `insularityPrior` in the update's expected score too; 0 applies it to predictions only. */
+    insularityInUpdate: number;
 }
 
 /** Values before tuning; `npm run backtest-elo -- --tune --write` saves the tuned set to `params.json`, which overrides these. */
@@ -75,6 +88,7 @@ export const STARTING_PARAMS: EloParams = {
     provisionalMaps: 20,
     regress: 0.5,
     gameRegress: 0.3,
+    transferWeight: 0,
     newRosterRegress: 0.3,
     kMap: 6,
     mapShrink: 0.01,
@@ -94,6 +108,12 @@ export const STARTING_PARAMS: EloParams = {
     oceaniaCross: 0,
     oceaniaK: 1,
     oceaniaTemp: 1,
+    roundWeight: 0,
+    roundSlope: 0.25,
+    roundTier1Scale: 1,
+    predictionTemp: 1,
+    insularityPrior: 0,
+    insularityInUpdate: 0,
 };
 
 const tuned = JSON.parse(fs.readFileSync(TUNED_PARAMS_PATH, "utf8")) as Partial<EloParams>;

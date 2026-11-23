@@ -3,6 +3,7 @@ import { SettingsMenu } from "./SettingsMenu.tsx";
 
 const NAV_ITEMS = [
     { path: "/rankings", label: "Rankings", alsoActive: ["/teams"] },
+    { path: "/matches", label: "Matches" },
     { path: "/", label: "VRS", alsoActive: ["/vrs", "/standings"] },
     { path: "/events", label: "Events" },
     { path: "/major", label: "Major" },

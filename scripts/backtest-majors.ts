@@ -1,9 +1,10 @@
 import fs from "node:fs";
 import path from "node:path";
 import { EloEngine } from "./lib/elo/engine.ts";
+import { readHltvRanks } from "./lib/elo/hltvBaseline.ts";
 import { loadFeed } from "./lib/elo/history.ts";
 import type { RawRow } from "./lib/elo/normalize.ts";
-import { DEFAULT_PARAMS } from "./lib/elo/params.ts";
+import { DEFAULT_PARAMS, type EloParams } from "./lib/elo/params.ts";
 import { findVrsRoster, makeNickLookup, readGlobalSnapshots, snapshotBefore, vrsProbability } from "./lib/elo/vrsBaseline.ts";
 import {
     brier,
@@ -19,6 +20,7 @@ import {
     type EventScore,
     type Forecast,
     type StageScore,
+    type Tally,
 } from "./lib/sim/backtest.ts";
 import type { EventConfig } from "./lib/sim/config.ts";
 import { externalTally, readExternalForecasts } from "./lib/sim/externalBaseline.ts";
@@ -26,10 +28,12 @@ import { knownMatches, type KnownMatch } from "./lib/sim/locks.ts";
 import { DRIFT_PER_DAY, Predictor, type SeriesModel } from "./lib/sim/predict.ts";
 import { makeRng } from "./lib/sim/rng.ts";
 import { eventTeams, runEvent } from "./lib/sim/simulate.ts";
+import type { TeamId } from "./lib/sim/types.ts";
 import type { Overrides } from "./lib/vrs/buildMatchdata.ts";
+import type { MajorHistory, PastMajor, PickemSet } from "../src/sim/types.ts";
 
 // Scores the Major simulator on every past Major in fixtures/events: before the event and at the start of each stage,
-// against VRS points and a coin flip, plus how its Pick'em sets would have done.
+// against VRS points and a coin flip, plus how its Pick'em sets would have done. `--write` publishes the results for `/major/history`.
 
 const args = process.argv.slice(2);
 const option = (name: string, fallback: string) => {
@@ -41,6 +45,17 @@ const pickemN = Number(option("pickem-n", "20000"));
 const seed = Number(option("seed", "1"));
 const leadDays = Number(option("lead", "0"));
 const only = option("majors", "").split(",").filter(Boolean);
+const write = args.includes("--write");
+// `--set key=value` (repeatable) overrides an Elo parameter, as in backtest-elo.
+const params: EloParams = { ...DEFAULT_PARAMS };
+args.forEach((arg, i) => {
+    if (arg !== "--set") return;
+    const [key, value] = (args[i + 1] ?? "").split("=");
+    if (!(key in params) || value === undefined || Number.isNaN(Number(value))) throw new Error(`Bad --set ${args[i + 1]}`);
+    Object.assign(params, { [key]: Number(value) });
+});
+if (write && args.includes("--set")) throw new Error("--write publishes the live params; drop --set");
+const HISTORY_FILE = "public/data/sim/past-majors.json";
 
 const FIXTURES = path.resolve("fixtures/events");
 /** Elo parameters were tuned on 2025 series (elo-model.md). */
@@ -66,7 +81,7 @@ const feed = loadFeed(undefined, { csgo: !args.includes("--no-csgo") });
 const engines = new Map<number, EloEngine>();
 const engineAt = (t: number) => {
     if (!engines.has(t)) {
-        const engine = new EloEngine(DEFAULT_PARAMS, feed.players);
+        const engine = new EloEngine(params, feed.players);
         engine.run(feed.matches.filter((m) => m.t < t));
         engines.set(t, engine);
     }
@@ -75,7 +90,7 @@ const engineAt = (t: number) => {
 const unrated = new Set<string>();
 const eloAt = (t: number, drift = 0, horizon = 0): Predictor => {
     const engine = engineAt(t);
-    return new Predictor(engine, DEFAULT_PARAMS, t, { driftPerDay: drift, horizons: [horizon], fallbackRating: engine.tierMean(2, t) });
+    return new Predictor(engine, params, t, { driftPerDay: drift, horizons: [horizon], fallbackRating: engine.tierMean(2, t) });
 };
 const coinFlip: SeriesModel = { resample: () => {}, setHorizon: () => {}, seriesProbability: () => 0.5 };
 
@@ -153,6 +168,10 @@ const seriesRows: Array<{ model: string; bestOf: number; f: Forecast; label: str
 const EXTERNAL = "Supercomputer";
 const external = readExternalForecasts("data/external/supercomputer.json");
 
+/** Per (Major, stage): Elo's tally at the stage's start, the actual outcomes and Elo's Pick'em set. */
+const details = new Map<string, { tally: Tally; truth: Map<TeamId, string>; picks: PickemSet | null; start: number }>();
+const champions = new Map<string, TeamId>();
+
 for (const config of configs) {
     const teams = new Set(eventTeams(config));
     // Drops showmatches that share a page with a stage.
@@ -172,6 +191,7 @@ for (const config of configs) {
     const rebuilt = runEvent({ config, known: unpaired, horizon: 0 }, coinFlip, makeRng(seed));
     const byStage = config.stages.map((s) => `${s.id} ${rebuilt.diverged.filter((k) => known.get(s.id)!.some((x) => x.id === k.id)).length}`);
     console.log(`Champion ${championOf(actual)}. Pairings rebuilt from seeds, unreached matches per stage: ${byStage.join(", ")}`);
+    champions.set(config.slug, championOf(actual));
 
     const starts = config.stages.map((s) => dayStart(Math.min(...known.get(s.id)!.map((k) => k.t))));
     const scale = vrsScaleBefore(starts[0]);
@@ -191,6 +211,7 @@ for (const config of configs) {
         for (const { name, model, horizon } of models) {
             const tally = tallyEvent(config, lockedBefore, model, { n, seed, horizon });
             stageRows.push({ major: config.slug, stage: stage.id, model: name, score: scoreStage(config, actual, tally, stage) });
+            if (name === "Elo") details.set(`${config.slug}:${stage.id}`, { tally, truth: stageOutcomes(actual, config, stage), picks: null, start: t });
             if (k === 0) eventRows.push({ major: config.slug, model: name, score: scoreEvent(config, actual, tally) });
             if (model instanceof Predictor) for (const team of model.unrated) unrated.add(`${team} (${config.slug})`);
             if (name === "Elo" || name === "VRS")
@@ -219,6 +240,7 @@ for (const config of configs) {
         for (const { name, model } of models.filter((m) => m.name === "Elo" || m.name === "VRS")) {
             const sets = pickemSets(stage, seeds, (a, b, bo) => model.seriesProbability(a, b, bo), { n: pickemN, seed });
             if (sets) pickemRows.push({ major: config.slug, stage: stage.id, model: name, coin: pickemCorrect(sets.coin, truth), favourites: pickemCorrect(sets.favourites, truth) });
+            if (sets && name === "Elo") details.get(`${config.slug}:${stage.id}`)!.picks = sets.coin;
         }
         const picks = external?.majors[config.slug]?.picks?.[stage.id];
         if (picks) {
@@ -471,4 +493,319 @@ if (liveRows && live) {
     for (const t of teams.sort((x, y) => y.a - x.a)) console.log(`| ${t.team} | ${pct(t.a)} | ${pct(t.b)} | ${((t.a - t.b) * 100).toFixed(1)} |`);
 }
 
+if (args.includes("--explain") && blocks.length) {
+    const liveField =
+        liveRows && live
+            ? {
+                  t: dayStart(feed.matches.at(-1)!.t) + DAY,
+                  teams: Object.entries(liveRows).map(([team, r]) => ({
+                      team,
+                      a: live.teams.find((x) => x.team === team)?.reach.stage2 ?? NaN,
+                      b: r[0]! / 100,
+                  })),
+              }
+            : null;
+    explainGap(blocks, liveField);
+}
+
 if (unrated.size) console.log(`\nNo Elo lineage (tier 2 mean used): ${[...unrated].join(", ")}`);
+
+if (write) {
+    const round = (x: number, digits = 4) => (Number.isFinite(x) ? Number(x.toFixed(digits)) : null);
+    const iso = (t: number) => new Date(t * 1000).toISOString().slice(0, 10);
+    const SWISS_OUTCOMES = ["3-0", "3-X", "0-3", "out"];
+    const models = [...new Set(stageRows.map((r) => r.model))].filter((m) => m === "Elo" || m === "VRS" || m === EXTERNAL || m === "Coin");
+
+    const majors: PastMajor[] = configs
+        .filter((c) => champions.has(c.slug))
+        .map((config) => ({
+            slug: config.slug,
+            name: config.name,
+            liquipedia: config.liquipedia,
+            startDate: config.startDate,
+            endDate: config.endDate,
+            champion: champions.get(config.slug)!,
+            inSample: config.startDate.startsWith(TUNING_YEAR),
+            stages: config.stages.map((stage) => {
+                const { tally, truth, picks, start } = details.get(`${config.slug}:${stage.id}`)!;
+                const swiss = stage.format === "swiss";
+                const outcomes = swiss ? SWISS_OUTCOMES : [...new Set(truth.values())].sort((a, b) => parseInt(b) - parseInt(a));
+                const elo = stageRows.find((r) => r.major === config.slug && r.stage === stage.id && r.model === "Elo")!.score;
+                const counts = tally.stages.get(stage.id)!;
+                return {
+                    id: stage.id,
+                    name: stage.name,
+                    swiss,
+                    startDate: iso(start),
+                    scores: models.flatMap((model) => {
+                        const s = stageRows.find((r) => r.major === config.slug && r.stage === stage.id && r.model === model)?.score;
+                        if (!s) return [];
+                        return [
+                            {
+                                model,
+                                logLoss: round(s.logLoss),
+                                advanceLogLoss: round(logLoss(s.advance))!,
+                                pChampion: round(s.pChampion, 3),
+                                championRank: Number.isFinite(s.championRank) ? s.championRank : null,
+                                pickem: pickemRows.find((p) => p.major === config.slug && p.stage === stage.id && p.model === model)?.coin ?? null,
+                            },
+                        ];
+                    }),
+                    outcomes,
+                    picks,
+                    teams: elo.entrants.map((team, i) => ({
+                        team,
+                        outcome: truth.get(team)!,
+                        p: Object.fromEntries(outcomes.map((o) => [o, round((counts.get(team)?.get(o) ?? 0) / tally.n, 3)!])),
+                        advance: round(elo.advance[i].p, 3)!,
+                        advanced: elo.advance[i].y === 1,
+                    })),
+                };
+            }),
+        }));
+
+    const diffs: MajorHistory["diffs"] = [];
+    for (const [a, b] of [
+        ["Elo", "VRS"],
+        ["Elo", "Coin"],
+        ["Elo", EXTERNAL],
+        ["VRS", EXTERNAL],
+    ])
+        for (const [metric, fn] of [
+            ["stage", stageLogLoss],
+            ["advance", advanceLogLoss],
+        ] as const) {
+            const d = pairedDiff(a, b, fn);
+            if (d.blocks) diffs.push({ a, b, metric, diff: round(d.diff)!, lo: round(d.lo)!, hi: round(d.hi)!, stages: d.blocks });
+        }
+
+    const history: MajorHistory = {
+        generatedAt: new Date().toISOString(),
+        n,
+        tuningYear: TUNING_YEAR,
+        external: external ? { name: external.name ?? EXTERNAL, ...(external.url ? { url: external.url } : {}) } : null,
+        models: models.map((model) => {
+            const rows = pooled(model);
+            const advance = rows.flatMap((r) => r.score.advance);
+            const losses = finite(rows.map((r) => r.score.logLoss));
+            const picks = pickemRows.filter((r) => r.model === model);
+            return {
+                model,
+                stages: rows.length,
+                logLoss: losses.length ? round(mean(losses)) : null,
+                advanceLogLoss: round(logLoss(advance))!,
+                advanceBrier: round(brier(advance))!,
+                pickem: picks.length ? { stages: picks.length, meanCorrect: round(mean(picks.map((r) => r.coin)), 2)!, coins: picks.filter((r) => r.coin >= 5).length } : null,
+            };
+        }),
+        diffs,
+        majors,
+    };
+    fs.mkdirSync(path.dirname(HISTORY_FILE), { recursive: true });
+    fs.writeFileSync(HISTORY_FILE, `${JSON.stringify(history)}\n`);
+    console.log(`\nWrote ${HISTORY_FILE}`);
+}
+
+interface GapRow {
+    block: string;
+    swiss: boolean;
+    team: string;
+    /** Elo's and the external model's P(advance), or P(title) in playoffs. */
+    a: number;
+    b: number;
+    y: 0 | 1 | null;
+    eloRank: number | null;
+    hltvRank: number | null;
+    vrsRank: number | null;
+    region: number | null;
+    ownShare: number | null;
+    lanShare: number | null;
+    sinceChange: number | null;
+    change90: number | null;
+}
+
+/** `--explain`: where Elo and the external model differ team by team, and which team traits line up with the difference. */
+function explainGap(
+    blocks: Array<{ major: string; stage: string; teams: Array<{ team: string; a: number; b: number; y: 0 | 1 }> }>,
+    liveField: { t: number; teams: Array<{ team: string; a: number; b: number }> } | null
+): void {
+    const hltv = readHltvRanks();
+    const history = new Map<string, Array<{ t: number; rank: number | undefined; maps: number; lan: boolean }>>();
+    for (const m of feed.matches) {
+        const entry = hltv?.get(m.id.slice(m.id.lastIndexOf(":") + 1));
+        m.teams.forEach((team, i) => {
+            const list = history.get(team) ?? [];
+            list.push({ t: m.t, rank: entry?.ranks[i], maps: m.maps.length, lan: m.lan });
+            history.set(team, list);
+        });
+    }
+    /** Rank within the field, 1 best; null where the value is missing. */
+    const fieldRank = (values: Array<number | null>, higherIsBetter: boolean) =>
+        values.map((v) => (v === null || !Number.isFinite(v) ? null : 1 + values.filter((w) => w !== null && Number.isFinite(w) && (higherIsBetter ? w > v : w < v)).length));
+
+    const featuresAt = (field: string[], t: number) => {
+        const engine = engineAt(t);
+        const past = engineAt(t - 90 * DAY);
+        const snapshot = snapshotBefore(snapshots, t);
+        const rows = field.map((team) => {
+            const l = engine.teamLineageOf(team);
+            const before = (history.get(team) ?? []).filter((e) => e.t < t);
+            const recent = before.filter((e) => e.t >= t - 180 * DAY);
+            const recentMaps = recent.reduce((n, e) => n + e.maps, 0);
+            const pastLineage = l ? past.lineages[l.id] : undefined;
+            return {
+                rating: l ? l.rating + engine.regionPrior(l) : null,
+                worldRank: before.filter((e) => e.rank !== undefined).at(-1)?.rank ?? null,
+                vrsPoints: l && snapshot ? (findVrsRoster(snapshot, l.core, nicksOf)?.points ?? null) : null,
+                region: l?.fineRegion ?? null,
+                ownShare: l ? engine.ownRegionShare(l, t) : null,
+                lanShare: recentMaps ? recent.reduce((n, e) => n + (e.lan ? e.maps : 0), 0) / recentMaps : null,
+                sinceChange: l ? l.maps - (l.coreChangeMaps ?? 0) : null,
+                change90: l && pastLineage ? l.rating - pastLineage.rating : null,
+            };
+        });
+        const eloRanks = fieldRank(rows.map((r) => r.rating), true);
+        const hltvRanks = fieldRank(rows.map((r) => r.worldRank), false);
+        const vrsRanks = fieldRank(rows.map((r) => r.vrsPoints), true);
+        return new Map(field.map((team, i) => [team, { ...rows[i], eloRank: eloRanks[i], hltvRank: hltvRanks[i], vrsRank: vrsRanks[i] }]));
+    };
+
+    const rows: GapRow[] = [];
+    for (const { major, stage, teams } of blocks) {
+        const features = featuresAt(teams.map((t) => t.team), details.get(`${major}:${stage}`)!.start);
+        for (const t of teams) rows.push({ block: `${major} ${stage}`, swiss: stage !== "playoffs", ...t, ...features.get(t.team)! });
+    }
+    const liveRows: GapRow[] = liveField
+        ? (() => {
+              const features = featuresAt(liveField.teams.map((t) => t.team), liveField.t);
+              return liveField.teams.map((t) => ({ block: "pgl-major-singapore-2026 stage1 (live)", swiss: true, ...t, y: null, ...features.get(t.team)! }));
+          })()
+        : [];
+
+    const clipP = (p: number) => Math.min(1 - 1e-6, Math.max(1e-6, p));
+    const loss = (p: number, y: 0 | 1) => -Math.log(clipP(y ? p : 1 - p));
+    const scored = rows.map((r) => ({ ...r, delta: loss(r.a, r.y!) - loss(r.b, r.y!) }));
+    const total = scored.reduce((s, r) => s + r.delta, 0);
+    const REGIONS = ["Europe", "Americas", "Asia", "Oceania"];
+    const fmt = (x: number | null, digits = 0) => (x === null || !Number.isFinite(x) ? "—" : x.toFixed(digits));
+
+    console.log(`\n## Elo against ${EXTERNAL}, team by team`);
+    console.log(
+        `Δ is Elo's advance log loss minus ${EXTERNAL}'s (positive: ${EXTERNAL} closer). ${scored.length} team-stages, total Δ ${total.toFixed(3)} (${(total / scored.length).toFixed(4)} per team-stage).`
+    );
+    console.log(`| Block | Team | Elo | ${EXTERNAL} | Result | Δ | Elo rank | HLTV rank | VRS rank | Region | Own-region | Since change | 90-day Elo |`);
+    console.log("| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |");
+    for (const r of [...scored].sort((x, y) => Math.abs(y.delta) - Math.abs(x.delta)).slice(0, 25))
+        console.log(
+            `| ${r.block} | ${r.team} | ${pct(r.a)} | ${pct(r.b)} | ${r.y ? "advanced" : "out"} | ${r.delta.toFixed(3)} | ${fmt(r.eloRank)} | ${fmt(r.hltvRank)} | ${fmt(r.vrsRank)} | ` +
+                `${r.region === null ? "—" : REGIONS[r.region]} | ${r.ownShare === null ? "—" : pct(r.ownShare)} | ${fmt(r.sinceChange)} | ${fmt(r.change90)} |`
+        );
+
+    const buckets: Array<[string, (r: GapRow) => string]> = [
+        ["Higher model and result", (r) => `${r.a > r.b ? "Elo" : EXTERNAL} higher, ${r.y ? "advanced" : "out"}`],
+        ["Stage", (r) => (r.swiss ? "Swiss" : "Playoffs")],
+        ["Elo rank in field", (r) => (r.eloRank === null ? "unrated" : r.eloRank <= 4 ? "1–4" : r.eloRank <= 8 ? "5–8" : r.eloRank <= 12 ? "9–12" : "13–16")],
+        [
+            "HLTV rank against Elo rank",
+            (r) =>
+                r.hltvRank === null || r.eloRank === null
+                    ? "no HLTV rank"
+                    : r.hltvRank < r.eloRank - 2
+                      ? "HLTV 3+ places higher"
+                      : r.hltvRank > r.eloRank + 2
+                        ? "HLTV 3+ places lower"
+                        : "within 2 places",
+        ],
+        [
+            "VRS rank against Elo rank",
+            (r) =>
+                r.vrsRank === null || r.eloRank === null
+                    ? "no VRS rank"
+                    : r.vrsRank < r.eloRank - 2
+                      ? "VRS 3+ places higher"
+                      : r.vrsRank > r.eloRank + 2
+                        ? "VRS 3+ places lower"
+                        : "within 2 places",
+        ],
+        ["Region", (r) => (r.region === null ? "unknown" : REGIONS[r.region])],
+        ["Own-region share, 180 days", (r) => (r.ownShare === null ? "under 10 maps" : r.ownShare < 0.5 ? "< 50%" : r.ownShare < 0.8 ? "50–80%" : "≥ 80%")],
+        ["Maps since core change", (r) => (r.sinceChange === null ? "—" : r.sinceChange < 30 ? "< 30" : r.sinceChange < 100 ? "30–100" : "≥ 100")],
+        ["90-day Elo change", (r) => (r.change90 === null ? "new lineage" : r.change90 < -50 ? "< −50" : r.change90 > 50 ? "> +50" : "−50 to +50")],
+    ];
+    console.log(`\nΔ by bucket (sum over team-stages; positive: ${EXTERNAL} closer):`);
+    console.log("| Split | Bucket | Team-stages | Sum Δ | Mean Δ |");
+    console.log("| --- | --- | --- | --- | --- |");
+    for (const [name, key] of buckets) {
+        const groups = new Map<string, number[]>();
+        for (const r of scored) groups.set(key(r), [...(groups.get(key(r)) ?? []), r.delta]);
+        for (const [bucket, ds] of [...groups].sort((x, y) => x[0].localeCompare(y[0])))
+            console.log(`| ${name} | ${bucket} | ${ds.length} | ${ds.reduce((s, d) => s + d, 0).toFixed(3)} | ${mean(ds).toFixed(4)} |`);
+    }
+
+    // Swiss rows only: P(title) in playoffs isn't on the same scale as P(advance).
+    const logitP = (p: number) => Math.log(clipP(p) / (1 - clipP(p)));
+    const features: Array<[string, (r: GapRow) => number | null]> = [
+        ["Elo rank in field", (r) => r.eloRank],
+        ["HLTV rank − Elo rank", (r) => (r.hltvRank === null || r.eloRank === null ? null : r.hltvRank - r.eloRank)],
+        ["VRS rank − Elo rank", (r) => (r.vrsRank === null || r.eloRank === null ? null : r.vrsRank - r.eloRank)],
+        ["Own-region share", (r) => r.ownShare],
+        ["LAN share, 180 days", (r) => r.lanShare],
+        ["ln(1 + maps since change)", (r) => (r.sinceChange === null ? null : Math.log1p(r.sinceChange))],
+        ["90-day Elo change", (r) => r.change90],
+    ];
+    const swiss = [...rows.filter((r) => r.swiss), ...liveRows].filter((r) => Number.isFinite(r.a) && Number.isFinite(r.b));
+    const disagreement = (r: GapRow) => logitP(r.b) - logitP(r.a);
+    console.log(`\nWhat ${EXTERNAL} sees that Elo doesn't: logit(${EXTERNAL}) − logit(Elo) on Swiss team-stages, including today's Singapore Stage 1 field.`);
+    console.log("| Feature | n | Correlation | OLS coefficient per SD (± SE) |");
+    console.log("| --- | --- | --- | --- |");
+    const complete = swiss.filter((r) => features.every(([, f]) => f(r) !== null));
+    const fit = ols(
+        complete.map((r) => features.map(([, f]) => f(r)!)),
+        complete.map(disagreement)
+    );
+    features.forEach(([name, f], j) => {
+        const pairs = swiss.filter((r) => f(r) !== null);
+        const r = correlation(pairs.map((x) => f(x)!), pairs.map(disagreement));
+        console.log(`| ${name} | ${pairs.length} | ${r.toFixed(2)} | ${fit ? `${fit.beta[j + 1].toFixed(3)} (± ${fit.se[j + 1].toFixed(3)})` : "—"} |`);
+    });
+    if (fit) console.log(`OLS on ${complete.length} complete rows, features standardized: R² ${fit.r2.toFixed(2)}, intercept ${fit.beta[0].toFixed(3)}.`);
+}
+
+/** OLS with an intercept on standardized columns; null if the design is singular. */
+function ols(xs: number[][], ys: number[]): { beta: number[]; se: number[]; r2: number } | null {
+    const n = ys.length;
+    const k = (xs[0]?.length ?? 0) + 1;
+    if (n <= k) return null;
+    const cols = xs[0].map((_, j) => xs.map((row) => row[j]));
+    const stats = cols.map((c) => {
+        const m = c.reduce((s, x) => s + x, 0) / n;
+        const sd = Math.sqrt(c.reduce((s, x) => s + (x - m) ** 2, 0) / (n - 1)) || 1;
+        return { m, sd };
+    });
+    const design = xs.map((row) => [1, ...row.map((x, j) => (x - stats[j].m) / stats[j].sd)]);
+    const xtx = Array.from({ length: k }, (_, i) => Array.from({ length: k }, (_, j) => design.reduce((s, row) => s + row[i] * row[j], 0)));
+    const inv = invert(xtx);
+    if (!inv) return null;
+    const xty = Array.from({ length: k }, (_, i) => design.reduce((s, row, r) => s + row[i] * ys[r], 0));
+    const beta = inv.map((row) => row.reduce((s, v, j) => s + v * xty[j], 0));
+    const fitted = design.map((row) => row.reduce((s, v, j) => s + v * beta[j], 0));
+    const rss = ys.reduce((s, y, i) => s + (y - fitted[i]) ** 2, 0);
+    const yMean = ys.reduce((s, y) => s + y, 0) / n;
+    const tss = ys.reduce((s, y) => s + (y - yMean) ** 2, 0);
+    const sigma2 = rss / (n - k);
+    return { beta, se: inv.map((row, i) => Math.sqrt(sigma2 * row[i])), r2: 1 - rss / tss };
+}
+
+function invert(m: number[][]): number[][] | null {
+    const k = m.length;
+    const a = m.map((row, i) => [...row, ...Array.from({ length: k }, (_, j) => (i === j ? 1 : 0))]);
+    for (let c = 0; c < k; c++) {
+        const pivot = a.slice(c).reduce((best, row, i) => (Math.abs(row[c]) > Math.abs(a[best][c]) ? c + i : best), c);
+        if (Math.abs(a[pivot][c]) < 1e-12) return null;
+        [a[c], a[pivot]] = [a[pivot], a[c]];
+        const p = a[c][c];
+        a[c] = a[c].map((v) => v / p);
+        for (let r = 0; r < k; r++) if (r !== c) a[r] = a[r].map((v, j) => v - a[r][c] * a[c][j]);
+    }
+    return a.map((row) => row.slice(k));
+}

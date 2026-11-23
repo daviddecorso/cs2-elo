@@ -2,15 +2,282 @@
 
 ## Overview
 
-A log of every change tried on the Elo model ([elo-model.md](elo-model.md)), including the ones that didn't help, so nothing is re-run blind. Newest first. Unless an entry says otherwise, the protocol is: tune on 2024–2025 series log loss with `npm run backtest-elo -- --tune`, and judge on the 2026 gate set (8,490 series where both rosters have VRS points).
+A log of every change tried on the Elo model ([elo-model.md](elo-model.md)), including the ones that didn't help, so nothing is re-run blind. From 2026-11-21, each entry names the assumption it tests in [elo-assumptions.md](elo-assumptions.md), and a lever that contradicts a Held assumption meets the higher bar set there. Newest first. Unless an entry says otherwise, the protocol is: tune on 2024–2025 series log loss with `npm run backtest-elo -- --tune`, and judge on the 2026 gate set (8,490 series where both rosters have VRS points).
 
 Calibration columns come from the backtest's calibration block. **Slope** is a logistic fit of outcome on logit(p), where 1 is calibrated and below 1 is overconfident. **ECE** is the size-weighted gap between predicted and actual favourite win rates across ten bins.
 
 An entry is kept only if it lowers gate log loss. Tuning moves of under 0.0005 count as noise. **Region-only changes** (declared 2026-11-19, since cross-region is 8% of the gate and caps any gain there near 0.0002) are judged by `npm run backtest-elo -- --region-walk` instead. That command fits on 2024 and scores 2025, then fits on 2024–25 and scores 2026, and pools the two test years. To pass, the cross-region series gain must have a 90% event CI above 0, and the 2026 gate must be no more than 0.0002 worse. To try one value without retuning, use `npm run backtest-elo -- --set key=value` (repeatable).
 
+**Tier-1 LAN rule** (declared 2026-11-21, before any run under it). Majors are tier-1 LAN, which is about 4% of 2026 test series, so a lever that only acts there can't clear the 0.0005 gate bar. A lever has to be declared Major-relevant before its run to be judged this way. Judge it with `npm run backtest-elo -- --walk key=v1,v2,…`, which fits on 2024 and scores 2025, then fits on 2024–25 and scores 2026. To pass, the pooled gain on tier-1 LAN series (Liquipedia tier 1, LAN) must have a 90% event CI above 0, and the 2026 gate must be no more than 0.0002 worse.
+
 ## Untried ideas
 
 - A temperature scoped to online tier-1 qualifiers (tournament `publishertier` "Tier 1 Qualifier" / `liquipediatiertype` Qualifier or Online Stage) rather than all of tier 2. It's where the 2026 tier-2 overconfidence sits (see the tier-2 entry below), but it can't clear the gate on its own either. It only matters for the simulator's qualifier odds.
+
+## 2026-11-22: Better veto choice model in series odds — rejected for odds, kept for display
+
+**Question:** The veto choice model's play preference now decays and starts new pool maps neutral, with separate ban and pick weights, which lifts 2026 top-choice accuracy from 52% to 64% on Liquipedia inputs. Do series odds that play out the veto now beat pool-averaged Elo? Assumption tested: "Strength is one number per team, plus small map preferences" ([elo-assumptions.md](elo-assumptions.md)), the map half.
+
+**Protocol:** `cs2wp sim-veto`: fit before 2026, scored on every 2026 series, gate "no worse on all series", events resampled.
+
+| Series | n | Current | `hltv` gain (90% CI) | `liquipedia` gain (90% CI) |
+| --- | --- | --- | --- | --- |
+| All | 17,132 | 0.5957 | −0.0001 (−0.0003, +0.0001) | −0.0002 (−0.0004, +0.0001) |
+| Vetoed | 616 | 0.6116 | −0.0001 (−0.0023, +0.0021) | +0.0003 (−0.0014, +0.0020) |
+
+**Rejected for odds:** both fail the gate within noise, and knowing the real maps is no better (−0.0003), as on 2026-11-19. The forecast ships on `/matches` as labels only ([simulator.md](simulator.md#veto-predictions-on-matches)), and win odds don't read it.
+
+## 2026-11-21: Head-to-head persistence (style matchups)
+
+**Question:** Elo is transitive: one number per team, plus map offsets. If teams have styles or pools that suit or don't suit a given opponent, a pair's results against each other should keep missing Elo in the same direction. Do they? Assumption tested: "Strength is one number per team, plus small map preferences" ([elo-assumptions.md](elo-assumptions.md)), the styles half (Open).
+
+**Declared test (written before any run):** `npm run backtest-elo -- --h2h`.
+- **Pair residual, per map.** Sum side A's map residuals (y − p) against this same opponent lineage, from earlier series only, with a 365-day decay. Divide by the decayed map count plus 10.
+- **Control.** Each side's residual against everyone, built as `--residual-lead` does (shrink 40 maps, decay 365 days), taken as A minus B.
+- **Fit.** A logistic regression with offset logit(p) on [pair, control], run separately on 2025 maps (the mechanism year) and 2026 maps (the test year).
+- **Pass:** the pair coefficient is positive in 2025, and positive with z ≥ 2 in 2026. A matchup term then gets built and judged by the gate. Otherwise styles stay Open with this test logged against them. If both years sit near 0 with tight SEs, styles move to Rejected.
+- **For information:**
+  - tier 1;
+  - pairs with 3+ earlier maps;
+  - the same-map pair residual;
+  - the 2026 map log loss gain from applying the 2025 coefficients, with an event-clustered CI.
+
+**Result: fails, not built.** Pair coefficients are on map logit per unit of pair residual. SEs are unclustered, so they flatter the z-scores.
+
+| Slice | 2025 | 2026 |
+| --- | --- | --- |
+| All maps (41,256 / 39,018) | +1.09 ± 0.27 (z 3.98) | +0.50 ± 0.29 (z 1.72) |
+| Same-map pair residual | +0.41 ± 0.47 | +0.59 ± 0.50 |
+| Tier 1 | +0.31 ± 1.08 | −1.16 ± 1.06 |
+| Pairs with 3+ earlier maps | +0.82 ± 0.32 | +0.40 ± 0.34 |
+| Control: each side's form | −2.49 ± 0.36 | −3.14 ± 0.41 |
+
+- **There's a matchup effect, but it's tiny.** It's positive in both years, and 2025 is clearly above 0. 2026 misses z 2. Where a pair has met, their residual has an SD of 0.056, so one SD is worth 0.03–0.06 on the map logit, about 1 point of win probability.
+- **It's worth nothing to predictions.** Applying the 2025 coefficients to 2026 maps gains −0.00001 (90% CI −0.00017 to 0.00015) over form alone.
+- **No effect at tier 1.** The sign flips between years, and the 2026 estimate is negative. This is where teams prepare for specific opponents, and it doesn't show.
+- **Per-map matchups add nothing over the whole pair.** Same-map pair residuals are noisier and no stronger.
+- **Side finding:** the control is strongly negative in both years. A side's recent residual against everyone predicts it will miss the other way next, so Elo still over-reacts a little. `--residual-lead` and burst damping already cover this.
+
+## 2026-11-21: Tier-1 LAN overconfidence by year — not built, diagnostic only
+
+**Question:** At tier-1 LANs the field is closer in level and teams prepare for specific opponents, unlike tier 2–3 teams grinding the same rivals online. Is Elo overconfident there in a way a tier-1 LAN temperature could fix? The Major backtest's series slope is 0.80. Assumption tested: "Preparation decides tier-1 games in ways Elo can see" ([elo-assumptions.md](elo-assumptions.md)).
+
+**Diagnostic** (`npm run backtest-elo` now prints tier-1 LAN series and maps by year):
+
+| Year | Series | Current params: log loss (slope) | A2: log loss (slope) |
+| --- | --- | --- | --- |
+| 2024 | 684 | 0.6387 (0.611) | 0.6487 (0.564) |
+| 2025 | 783 | 0.6141 (0.870) | 0.6122 (0.895) |
+| 2026 | 661 | 0.6021 (0.994) | 0.6042 (1.016) |
+
+- **Not built.** The overconfidence was real in 2024 and 2025 but is gone in 2026. A temperature fit on earlier years would flatten 2026 odds that are already calibrated. The 2026-11-18 tier-1 `TIER_TEMP` fit hit the same thing. The Majors follow the same trend: the 0.80 comes from Copenhagen (0.57) and Austin (0.50), while Cologne is 1.42.
+- **A2 at tier-1 LAN:** calibrated in 2026 but still worse, so its tier-1 loss is in where it puts ratings, not how sharp its odds are. A tier-1 temperature on top wouldn't rescue it. It's also worse on 2024, partly because it sharpens odds that were already overconfident there. 2025 is its tune year.
+
+## 2026-11-21: Round-share target (`roundWeight`) and insularity offset (`insularityPrior`) — neither kept
+
+**Question:** Two levers that might close the Major gap with the Supercomputer haven't been tried.
+- **Round share, all tiers.** Elo learns from the binary map result, and margin only scales K. A 13-11 win and an 11-13 loss move ratings in opposite directions by about the same amount. Does learning from round share (efficiency, as SP+ or KenPom do) help?
+- **Insularity, Asia.** Asian rosters with 50%+ own-region share of maps are overrated against other regions, by 35–59 points (2026-11-19 diagnostic). The gap is larger at LANs. Does an offset scaled by own-region share help where Majors are played?
+
+**Declared tests (written before any run):**
+- **A, `roundWeight` w and `roundSlope` c.** The update target becomes `(1 − w)·y + w·σ(c·signed margin)`. Predictions are unchanged. Run `npm run backtest-elo -- --tune` on 2025 with both free, from w 0 and c 0.25. Keep it if the 2026 gate improves by more than 0.0005 against 0.6090. Tier-1 LAN is reported for information only.
+- **B, `insularityPrior` (points, ≤ 0).** On a cross-region map, a rest-of-Asia roster (not Oceania, which has its own prior) with at least 10 maps in the last 180 days gets `insularityPrior · max(0, share − 0.5) / 0.5` added to its side of the gap. Share counts Valve regions, as the diagnostic did. It's predictions-only (`insularityInUpdate` 0), and in-update is a variant. Judged by the tier-1 LAN rule, with `--walk insularityPrior=0,-10,-20,-30,-40,-50,-60,-80 --walk-fit cross`.
+- **Joint A + B.** One `--walk` with `roundWeight` in {0, A's tuned w} at A's tuned c, crossed with B's grid. The walk fits on all series, and the result is judged by the tier-1 LAN rule. It's run once and logged whatever the result.
+- **Conditional.** A CT/T side split from Liquipedia half scores is built only if A's tuned w is above 0 and A gains on the gate or on tier-1 LAN.
+- **A2, declared after A's run.** A's run showed map-level predictions underconfident on 2025 train (slope 1.26). A2 adds `predictionTemp`, a map-logit multiplier on every prediction (maps, Bo1, series and the simulator's map odds, but not the update's expected score), tuned with A's params. Same protocol as A. Tier-1 LAN and the Major backtest are reported for information.
+
+**A, round share.** The tune drove `roundWeight` to 1, its upper bound, with `roundSlope` 0.4. It also moved `onlineK` 1 → 1.1, `crossRegionK` 0.75 → 1, `otMargin` 1 → 2, `seriesMapTemp` 0.9 → 1.05, `burstDays` 16 → 18 and `mapShrink` 0.01 → 0.02. 2025 train went 0.59936 → 0.59719.
+
+| Run | Gate | 2026 maps (slope) | 2026 tier 1 | 2026 LAN Bo1 slope |
+| --- | --- | --- | --- | --- |
+| Current params | 0.6090 | 0.6247 (1.04) | 0.6057 | – |
+| A, tuned | **0.6077** | 0.6258 (1.26) | 0.6067 | 1.44 |
+| Round share alone, other params current | 0.6093 | – | 0.6068 | – |
+| A's other moves, round share off | 0.6118 | – | 0.6102 | – |
+
+A passes the gate, but only because `seriesMapTemp` sharpens Bo3. Learning from round share compresses rating gaps, so map and Bo1 odds come out underconfident (slope 1.26 and 1.44). Neither half works alone. Not kept in this form, because the simulator prices maps and Bo1 directly.
+
+**A2, round share with `predictionTemp`.** The tune reached `roundWeight` 1, `roundSlope` 0.35 and `predictionTemp` 1.25. It also moved `otMargin` 1 → 2, `onlineK` 1 → 1.1, `crossRegionK` 0.75 → 1, `burstDays` 16 → 18 and `regionPriorOceania` −175 → −150. `seriesMapTemp` stayed at 0.9, and 2025 train went 0.59936 → 0.59613.
+
+| 2026 slice | Series | Before | A2 | Paired gain (90% event CI) |
+| --- | --- | --- | --- | --- |
+| Gate | 9,375 | 0.6090 | **0.6077** | +0.0014 (+0.0005, +0.0023) |
+| All | 18,424 | 0.5926 | 0.5904 | +0.0022 (+0.0015, +0.0029) |
+| Cross-region | 1,002 | – | – | +0.0048 (+0.0015, +0.0083) |
+| Tier-1 LAN | 661 | – | – | −0.0021 (−0.0063, +0.0020) |
+| Maps (slope) | 39,018 | 0.6247 (1.04) | 0.6227 (1.06) | – |
+| Bo1 (slope) | 3,428 | 0.5836 (1.06) | 0.5807 (1.08) | – |
+
+The paired CIs come from `npm run backtest-elo -- --walk` with A2's eight values as a single-point grid; only its 2026 fold is out of sample. The Major backtest (`npm run backtest-majors -- --set …`) gets worse:
+
+| Majors | Before | A2 |
+| --- | --- | --- |
+| Stage log loss (18 blocks) | 1.1307 | 1.1409 |
+| Advance log loss | 0.5309 | 0.5356 |
+| Elo − Supercomputer, 8 blocks | −0.003 | +0.007 (CI −0.031, +0.043) |
+| Major series log loss (slope) | 0.6396 (0.80) | 0.6421 (0.77) |
+
+- **A2 passes the declared gate**, with a CI above zero on the gate and on all series. The gain is broad: online, LAN and cross-region all improve.
+- **Tier-1 LAN and Majors lean worse**, though neither is significant. Round share helps most where results are noisiest, in tier 3–4 and online play. Majors are the opposite.
+
+**B, insularity.** Fails the tier-1 LAN rule in both forms. Both folds pick −80, the edge of the grid, so cross-region training loss wants more, but tier-1 LAN doesn't move.
+
+| Variant | 2025 tier-1 LAN | 2026 tier-1 LAN | Pooled tier-1 LAN (90% CI) | 2026 cross-region | 2026 gate |
+| --- | --- | --- | --- | --- | --- |
+| Predictions only | +0.0001 | −0.0002 | −0.0000 (−0.0012, +0.0012) | +0.0011 (−0.0017, +0.0039) | +0.0001 |
+| In update | −0.0003 | −0.0004 | −0.0004 (−0.0012, +0.0006) | +0.0003 (−0.0020, +0.0027) | −0.0000 |
+
+**Joint A + B** (run once, with A2's values in place of A's): `--set roundSlope=0.35 --walk roundWeight=0,1 --walk predictionTemp=1,1.25 --walk insularityPrior=0,…,−80 --walk-fit all`.
+- **2024 → 2025:** picks w 1, temperature 1, insularity −60. Tier-1 LAN gains +0.0049 (+0.0004, +0.0093), all series −0.0007.
+- **2024–25 → 2026:** picks w 1, temperature 1.25, insularity −40. Tier-1 LAN −0.0018 (−0.0073, +0.0028), gate +0.0014.
+- **Pooled tier-1 LAN:** +0.0018 (−0.0017, +0.0051). **Fails.** The years disagree in sign.
+
+**A3, tier-scaled round share (declared before its run).** A2 isn't kept as it stands, because Majors are the reason for this work. In A3, tier-1 series update with `roundWeight · roundTier1Scale` (0–1, step 0.1) instead of `roundWeight`. A3 is tuned with `npm run backtest-elo -- --tune` on 2025, starting from A2's values with every step free. All three conditions must hold to keep it:
+1. The 2026 gate improves by more than 0.0005 against 0.6090.
+2. The 2026 tier-1 LAN paired gain against current params is ≥ 0.
+3. The Major backtest's stage log loss is no worse than 1.1307.
+
+The tier-1 LAN rule's walk can't be used, because the round values are tuned on 2025 and its first fold would score them in-sample, so condition 2 stands in for it on 2026 alone. If A3 fails, nothing is kept, and the round params leave `--tune`'s steps.
+
+**A3 result: fails, so nothing is kept.** The tune left `roundTier1Scale` at 1, meaning 2025 tier-1 series also want full round share. It moved only `mapShrink` to 0.02 and `kMap` to 12, each worth under 0.00001 on train. So A3 is A2.
+- Condition 1 holds: gate 0.6077, +0.0014 (+0.0005, +0.0023).
+- Condition 2 fails: 2026 tier-1 LAN is −0.0021 (−0.0063, +0.0020) against current params.
+- Condition 3 fails, as for A2.
+
+Tier-1 LAN flips sign between years: +0.0049 on 2025 in the joint walk, −0.0021 on 2026. That looks like noise, but the declared rule doesn't keep a lever that leans worse where Majors are played.
+
+**Left in place:**
+- The engine params (`roundWeight`, `roundSlope`, `roundTier1Scale`, `predictionTemp`, `insularityPrior`, `insularityInUpdate`) stay, off by default, and aren't in `--tune`'s steps.
+- To rerun A2: `npm run backtest-elo -- --set otMargin=2 --set onlineK=1.1 --set crossRegionK=1 --set burstDays=18 --set regionPriorOceania=-150 --set roundWeight=1 --set roundSlope=0.35 --set predictionTemp=1.25`.
+- 2027 is the honest recheck. If A2 holds the gate and stops leaning worse on tier-1 LAN, it's the strongest candidate on file (+0.0022 on all 2026 series).
+- **Half scores (CT/T split): not built.** It needs round share kept first, since a side split refines the same target.
+
+## 2026-11-21: Rating uncertainty (Glicko-style widening) — not built, diagnostic only
+
+**Question:** Luz's Supercomputer is a Bayesian Bradley–Terry model, so it widens odds when a rating rests on thin evidence. Is that where its edge on Vitality, Lynn Vision and changed rosters comes from? Declared beforehand: add a temperature that fades after a core change (`coreChangeTemp`) only if a temperature fit on the slice itself could gain more than 0.0005 on the 2026 gate.
+
+**Already covered** (rerun on today's params, 2026 test series): provisional slope 0.958 against 0.984 for established teams, and idle > 30 days 0.938 against 0.966 for active ones. Both gaps are within noise, as on 2026-10-20. Cross-region staleness had no signal on 2026-11-19.
+
+**Diagnostic** (`npm run backtest-elo -- --core-change`, kept): gate series by the fewer maps either side has played since its last core change. Each slice gets a temperature of its own, fit on 2025 train or on the slice itself (the ceiling). Gain is in gate log loss.
+
+| Slice | n | Slope | Gain, 2025 fit | Ceiling |
+| --- | --- | --- | --- | --- |
+| < 30 maps | 6,571 | 0.965 | 0.00000 | −0.00001 |
+| < 30 maps, cross-region | 447 | 0.908 | −0.00028 | 0.00003 |
+| 30–100 maps | 2,391 | 0.921 | −0.00038 | 0.00010 |
+| 30–100 maps, cross-region | 216 | 0.769 | 0.00003 | 0.00009 |
+| ≥ 100 maps or never changed | 413 | 0.823 | 0.00008 | 0.00008 |
+| ≥ 100 maps or never changed, cross-region | 56 | 0.453 | 0.00010 | 0.00009 |
+
+**Not built.** The best ceiling is 0.0001, a fifth of the bar. Fresh core changes aren't overconfident (0.965, against 0.948 for the whole gate). The slices with low slopes are too small to matter, and their 2025 temperatures don't carry over. Widening for uncertainty has no room left in Elo, so the Supercomputer's edge on those teams is in where it puts their ratings, not in how wide their odds are. See `changeK` below for the bias side of the same question.
+
+## 2026-11-21: Volatility after partial roster changes (`changeK`) — not built, diagnostic only
+
+**Question:** `provisionalK` speeds up learning for new lineages only. A partial core change (3-of-5 overlap) learns at an established team's speed. Is Elo slow to catch up after one? Declared beforehand: build `changeK` (a provisional-style K boost scaled by replaced/5, fading over `provisionalMaps`) only if teams beat or miss Elo early after a change and that fades. If they only look overconfident early, the fix is widening instead. If neither, stop.
+
+**Diagnostic** (scratch script, current params): each side of each series, oriented to that side, binned by maps since its lineage's last partial core change. Residual is wins minus Elo expectation per series. Slope and intercept are a logistic fit of the outcome on logit(p).
+
+| Bin (maps since change) | 2025 all: resid (z) | 2026 all: resid (z) | 2025+ tier 1–2: n, resid (z), slope | 2025+ tier 1, 2+ replaced: n, resid (z) |
+| --- | --- | --- | --- | --- |
+| 0–10 | +0.007 (1.6) | +0.012 (2.5) | 657, −0.011 (−0.6), 0.90 | 78, −0.016 (−0.3) |
+| 10–30 | +0.008 (1.6) | +0.011 (2.2) | 852, +0.006 (0.4), 0.88 | 108, +0.056 (1.3) |
+| 30–60 | +0.020 (3.4) | +0.011 (1.7) | 871, +0.006 (0.4), 0.74 | 132, +0.036 (0.9) |
+| 60–100 | +0.015 (2.0) | +0.007 (0.8) | 800, −0.005 (−0.3), 0.79 | 151, +0.008 (0.2) |
+| No change in 100 maps | −0.023 (−5.8) | −0.023 (−5.5) | 1,394, +0.001 (0.1), 0.86 | – |
+
+**Not built.** Neither pattern shows up where Majors are played:
+- **Tier 1–2:** every bin is within z 0.6 of zero, including 2+ player swaps. The slope sits below 1 in every bin, including no change, so that's the known tier-1–2 overconfidence, not a roster-change effect.
+- **All tiers:** recently changed lineages beat Elo by about 1% per series, and lineages with no change in 100 maps miss it by 2.3% (z −5.8 in both years). The gap doesn't fade over 100 maps, so faster learning (`changeK`) isn't the fix for it.
+
+The all-tier split is a lead, not acted on. The no-change bin also holds new lineages that are under 100 maps old, so it may be a seeding or age effect rather than a roster one. It comes from tier 3 and below, so it doesn't bear on the Supercomputer gap.
+
+## 2026-11-21: WAR-based transfer prior on core changes (prototype) — rejected
+
+**Question:** `transferWeight` (entry below) judges incoming players by their old team's rating, which mixes player and team. Does a player-only measure help? This is the roster-change test in [spec.md](spec.md) in Elo form, using within-team WAA as proposed in [war.md](war.md#war-validation) (follow-up 2).
+
+**Usable changes.** Counted 2025 onward, with every incoming core player having prior demo history in `player-skill.json` duels:
+
+| Changes | All | Any history | All have >0 | All ≥ 600 duels | All ≥ 1,207 duels |
+| --- | --- | --- | --- | --- | --- |
+| 2025+, all tiers | 8,338 | 518 | 308 | 117 | 67 |
+| 2025+, tier 1–2 | 155 | 121 | 113 | 47 | 32 |
+| 2026, tier 1–2 | 73 | 60 | 55 | 31 | 24 |
+
+That clears the spec's 80, though core-vote churn counts some swaps twice (FaZe picks up jcobbb twice). New lineages never qualify, since the demo archive starts in 2025.
+
+**Change (prototype in a scratch script, not engine code):** on a core change, add `warScale · (Σ incoming − Σ outgoing deviation) / 5` to the rating. A player's deviation is their `wpa_opp` round-wins above role baseline minus their teammates' mean rate on the same maps, per 100 rounds, from maps dated before the change, shrunk by k = 1,024 rounds. The per-map rows come from `data/war/role-rounds.parquet`. Players with no history count as 0. Treated series are those within 30 maps after a change where every incoming player has 300+ prior rounds (75 lineages).
+
+**Declared test:** pick `warScale` on 2025 all-series log loss; it fails if 2026 all-series loss doesn't improve by more than 0.0005. The official gate set wasn't scored because the prototype isn't wired into `backtest-elo`.
+
+| `warScale` | 2025 | 2026 | 2026 tier 1 | Treated 2025 (420) | Treated 2026 (1,175) |
+| --- | --- | --- | --- | --- | --- |
+| 0 | 0.59936 | 0.59264 | 0.6057 | 0.5937 | 0.5854 |
+| 40 | 0.59931 | 0.59262 | 0.6060 | 0.5924 | 0.5851 |
+| **80** | 0.59929 | 0.59265 | 0.6067 | 0.5915 | 0.5852 |
+| 160 | 0.59929 | 0.59288 | 0.6092 | 0.5910 | 0.5869 |
+| 320 | 0.59951 | 0.59394 | 0.6191 | 0.5956 | 0.5956 |
+| −20 | 0.59939 | 0.59266 | – | 0.5946 | 0.5857 |
+
+With `transferWeight` 0.1 on top, every row moves by 0.0001 or less.
+
+**Rejected.** 2025 picks 80–160, and at that scale 2026 is flat to worse overall and clearly worse in tier 1, so the 2025 signal on 420 treated series doesn't carry over. The 2026 treated slice gains at most 0.0003, and it's 6% of 2026 series (1,175 of 20,052), so that's worth about 0.00002 overall. This matches `validate-war`'s null on lineup changes. Nothing was added to the engine. Worth revisiting only once WAR covers tier-2 events and has a second season of prior rounds per player.
+
+## 2026-11-21: Elo's Major misses against the Supercomputer, and transfer-aware roster changes (`transferWeight`) — rejected
+
+**Question:** Why does Elo miss Vitality at the Budapest 2025 playoffs and Lynn Vision across Majors, and why does it rate GOSH, 9z and PVISION 14–17 points of Stage 1 advance below Luz's Major Supercomputer at Singapore 2026? Is there a general engine fix?
+
+The prompt's figures predated the CS:GO warmup (entry below). With the warmup:
+
+| Case | Before warmup | Now | Supercomputer |
+| --- | --- | --- | --- |
+| Vitality, Budapest title | 12.8% | 18.9% (won) | 34.4% |
+| Budapest playoff stage log loss | 1.692 | 1.476 (coin 1.224) | 1.452 |
+| Lynn Vision, Budapest / Cologne Stage 1 advance | ~52% / ~52% | 47% / 54% (out both) | – / 35% |
+
+Singapore Stage 1 advance, Elo minus Supercomputer: Lynn Vision +29.8, GOSH −17.2, 9z −15.7, PVISION −14.0, FaZe −13.1, NiP −9.4, HEROIC −8.8.
+
+**Diagnostics** (engine run in memory on the current feed and params):
+
+- **Vitality's drop was earned.** It fell from 296 to 149 between August and the Budapest start while going 28–11 in series against 29.9 expected. Much of the fall came from maps lost by large margins inside series it won. Elo had five teams level for the title (Spirit 12%, Falcons 18%, Vitality 19%, FURIA 21%, MOUZ 22%), while the Supercomputer put FURIA and Vitality at 34% each. Most of the playoff log loss is FaZe reaching the final at 1.3% to win and 4.5% for second (Supercomputer: 1.1% to win).
+- **Elo doesn't underrate teams at the top.** Tier-1 LAN series, wins minus Elo's expectation by rank at the time:
+
+| Rank | 2024 | 2025 | 2026 |
+| --- | --- | --- | --- |
+| Top 3 | −13.7 (z −2.4) | −4.4 (z −0.8) | −4.7 (z −0.8) |
+| 4–8 | −9.4 | −0.6 | +8.2 |
+| 9–16 | −5.1 | −9.3 | −2.7 |
+| 17–32 | +19.8 | +1.5 | −4.1 |
+
+- **No over-reaction to recent form.** The residual on each side's 120-day rating change, in logit per 100 points: −0.053 ± 0.022 (2024), −0.031 ± 0.024 (2025), −0.044 ± 0.026 (2026) over all series. In tier 1 it flips sign (+0.11, −0.19, 0.00, each ±0.1). That's too small to act on.
+- **Lynn Vision isn't systematic at Majors.** It's been one lineage with the same five players since 2022. Its Major Stage 1 and 2 forecasts sum to about 1.9 expected advances, and it advanced twice. Cross-region series: 19 wins against 19.0 expected in 2025, 5 against 7.5 in 2026, with in-region runs adding rating (+69 in March 2026). That's the insularity residual from the 2026-11-19 entries, not a Lynn-specific fault.
+- **9z looks right.** 74% of its last 180 days was tier-1 LAN, and it went 18 wins against 19.3 expected. The Supercomputer just rates it higher.
+- **GOSH, PVISION and FaZe keep their lineage's rating through roster turnover.**
+  - `regress` is tuned to 0, and its target is the tier mean, so a partial core change leaves the rating untouched.
+  - GOSH (BC.Game) is a lineage from 2022. Through 3-of-5 overlaps it went from s1mple with electroNic, MUTiRiS, krazy and aragornN to s1mple, Senzu, Magisk, mzinho and asap, and still carries the old roster's −165.
+  - FaZe's 2022 lineage has none of its original players. PVISION added FL1T and HObbit.
+  - A new lineage is seeded from its players' old ratings, but a partial change ignores the incoming players.
+
+**Change (trial):** `transferWeight`. On a core change, the rating closes `transferWeight · replaced/5` of the gap to the mean of the incoming players' previous-lineage ratings, put on the same region scale.
+- An incoming player counts only if their previous lineage has 30+ maps and played in the last 180 days. Otherwise they count as the lineage's current rating.
+- A first prototype that put unrated players at the tier mean deflated the whole pool and lost on 2025 and 2026, so it was dropped.
+
+**Declared test:** the standard protocol. `npm run backtest-elo -- --tune` on 2025 with `transferWeight` free, then keep it if the 2026 gate improves by more than 0.0005 against 0.6090.
+
+| `transferWeight` | 2025 train | 2026 gate | 2026 tier 1 | 2026 tier-1 LAN | 2026 slope | GOSH − MOUZ |
+| --- | --- | --- | --- | --- | --- | --- |
+| 0 (current) | 0.5994 | 0.6090 | 0.6057 | 0.6021 | 0.964 | −334 |
+| **0.1 (tuned)** | 0.5993 | **0.6088** | 0.6055 | 0.6016 | 0.976 | −326 |
+| 0.3 | 0.5994 | 0.6088 | 0.6058 | 0.6013 | 0.998 | −310 |
+| 0.5 | 0.5999 | 0.6092 | 0.6068 | – | 1.015 | – |
+| 1 | 0.6018 | 0.6115 | 0.6113 | – | 1.045 | – |
+
+- **Rejected.** The tune moved only `transferWeight` (to 0.1; every other param stayed put, so the current set is the control). The gate gains 0.0002.
+- Series where either side is within 30 maps of a core change (12,608 in 2026) don't move: 0.5856 at both 0 and 0.1. Higher weights push the test slope above 1, so ratings end up compressed.
+- **Majors at 0.1** (`backtest-majors --n 10000`): stage log loss 1.1307 → 1.1319, advance 0.5309 → 0.5317, Elo − Supercomputer −0.003 → −0.0026. Slightly worse.
+- **It doesn't fix GOSH.** Even at weight 1, GOSH only moves from −334 to −270 against MOUZ. That's still far below where the Supercomputer has them.
+- The engine code stays, off by default (`transferWeight` 0), and isn't in `--tune`'s steps, so a retune can't switch it on without a gate pass. `--set transferWeight=0.1` reruns it.
+
+**Not run:** an insularity term for Lynn Vision (a cross-region offset scaled by a roster's own-region share of recent maps). The 2026-11-19 entries put the whole region effect at about 0.0002 of the gate, under the region rule's bar, and Lynn Vision's Major record doesn't show a miss to fix.
 
 ## 2026-11-21: CS:GO warmup (2022-01 → 2023-09) — kept with a 2025 retune, 2026 gate 0.6106 → 0.6090
 

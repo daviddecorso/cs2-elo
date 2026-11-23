@@ -4,8 +4,8 @@ import numpy as np
 import polars as pl
 import pytest
 
-from cs2wp.simveto import Play, fit_choice, series_veto_prob
-from cs2wp.veto import State, feature_row, series_prob, value_lost, veto_series_probs
+from cs2wp.simveto import Play, fit_choice, series_veto_prob, veto_distribution
+from cs2wp.veto import DAY, State, feature_row, series_prob, value_lost, veto_series_probs
 
 POOL = [f"m{i}" for i in range(7)]
 FIXTURE_A = dict(u=[0.05, -0.02, 0.1, 0, -0.08, 0.03, 0.01], play=[0.3, -0.2, 0.1, -0.4, 0.2, 0, 0.05],
@@ -23,11 +23,21 @@ def test_matches_the_simulator_fixture():
     # scripts/lib/sim/veto.test.ts asserts the same two numbers.
     coef = {"du": 2.0, "pick": 0.1, "ban_rate": -0.4, "pick_rate": 0.3}
     bo3 = [(2, "ban"), (1, "ban"), (2, "pick"), (1, "pick"), (1, "ban"), (2, "ban")]
-    assert series_veto_prob("hltv", coef, np.array([1.5, 0.8, 1.2]), _snap(), 0.2, 3, bo3, 0.8) == pytest.approx(
+    assert series_veto_prob("hltv", coef, np.array([1.5, 0.8, 1.2] * 2), _snap(), 0.2, 3, bo3, 0.8) == pytest.approx(
         0.5596216069460083, abs=1e-12)
     bo1 = [(2, "ban"), (2, "ban"), (1, "ban"), (1, "ban"), (1, "ban"), (2, "ban")]
-    assert series_veto_prob("liquipedia", {"du": 2.0}, np.array([0.8, 1.2]), _snap(), -0.1, 1, bo1, 0.8) == pytest.approx(
+    assert series_veto_prob("liquipedia", {"du": 2.0}, np.array([0.8, 1.2] * 2), _snap(), -0.1, 1, bo1, 0.8) == pytest.approx(
         0.47812098580749307, abs=1e-12)
+
+
+def test_separate_ban_and_pick_weights_match_the_simulator_fixture():
+    beta = np.array([0.9, 0.4, 1.6, 1.1])
+    bo3 = [(2, "ban"), (1, "ban"), (2, "pick"), (1, "pick"), (2, "ban"), (1, "ban")]
+    assert series_veto_prob("liquipedia", {"du": 2.0}, beta, _snap(), 0.2, 3, bo3, 0.8) == pytest.approx(
+        0.5643720223043276, abs=1e-12)
+    m0 = veto_distribution("liquipedia", {"du": 2.0}, beta, _snap(), 3, 0.7)["m0"]
+    assert [*m0["ban"], *m0["pick"], m0["decider"]] == pytest.approx(
+        [0.19758813094763902, 0.3238315488697666, 0.24518404907363311, 0.09218141966933549, 0.14121485143962584], abs=1e-12)
 
 
 def test_fit_choice_recovers_the_weights():
@@ -42,13 +52,33 @@ def test_fit_choice_recovers_the_weights():
 
 
 def test_play_preference_is_centred_and_shrunk():
-    play = Play()
+    play = Play(prior=5.0)
     for _ in range(5):
-        play.add(0, ["a", "b"])
+        play.add(0, ["a", "b"], list("abcdefz"), 0.0)
     # 10 plays over 7 maps → 10/7 expected per map; "a" played 5 times, over 5 series + 5 prior.
-    assert play.get(0, "a") == pytest.approx((5 - 10 / 7) / 10)
-    assert play.get(0, "z") == pytest.approx(-(10 / 7) / 10)
-    assert play.get(1, "a") == 0.0
+    assert play.get(0, "a", 0.0) == pytest.approx((5 - 10 / 7) / 10)
+    assert play.get(0, "z", 0.0) == pytest.approx(-(10 / 7) / 10)
+    assert play.get(1, "a", 0.0) == 0.0
+
+
+def test_play_decays_and_a_new_map_starts_neutral():
+    # scripts/lib/sim/vetoInputs.test.ts asserts the same values.
+    play = Play(prior=10.0, tau=90.0)
+    play.add(0, ["a", "b"], list("abcdefg"), 0.0)
+    assert play.get(0, "h", 30 * DAY) == 0.0
+    play.add(0, ["h"], list("abcdefh"), 90 * DAY)
+    d = math.exp(-1)
+    assert play.get(0, "a", 90 * DAY) == pytest.approx((d - 2 / 7 * d - 1 / 7) / (d + 1 + 10))
+    assert play.get(0, "h", 90 * DAY) == pytest.approx((1 - 1 / 7) / (1 + 10))
+    assert play.get(0, "g", 180 * DAY) == pytest.approx(-(2 / 7) * d * d / (d * d + 10))
+
+
+def test_veto_distribution_places_every_map_once():
+    out = veto_distribution("liquipedia", {"du": 2.0}, np.array([0.9, 0.4, 1.6, 1.1]), _snap(), 3, 0.7)
+    for d in out.values():
+        assert sum(d["ban"]) + sum(d["pick"]) + d["decider"] == pytest.approx(1.0)
+    assert sum(sum(d["pick"]) + d["decider"] for d in out.values()) == pytest.approx(3.0)
+    assert sum(d["pick"][0] for d in out.values()) == pytest.approx(1.0)
 
 
 def test_centred_u_sums_to_zero_over_the_pool():

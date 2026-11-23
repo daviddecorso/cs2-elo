@@ -6,7 +6,7 @@ import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Players } from "./Players.tsx";
 import { PlayerPage } from "./PlayerPage.tsx";
-import type { ClutchData, PlayerWarData } from "../war/types.ts";
+import type { ClutchData, PlayerWarData, StyleData } from "../war/types.ts";
 
 const warData: PlayerWarData = {
     generatedAt: "2026-11-05T23:00:00Z",
@@ -28,7 +28,7 @@ const warData: PlayerWarData = {
         monthToMonth100: { wpa_waa_r: { r: 0.24, pairs: 598 }, nwpa_mancount_waa_r: { r: 0.304, pairs: 598 }, nwpa_event_waa_r: { r: 0.34, pairs: 598 } },
         monthToMonth200: { wpa_waa_r: { r: 0.375, pairs: 297 }, nwpa_mancount_waa_r: { r: 0.409, pairs: 297 }, nwpa_event_waa_r: { r: 0.409, pairs: 297 } },
         monthToMonth300: { wpa_waa_r: { r: 0.55, pairs: 104 }, nwpa_mancount_waa_r: { r: 0.532, pairs: 104 }, nwpa_event_waa_r: { r: 0.461, pairs: 104 } },
-        splitHalf: { wpa_waa_r: { r: 0.52, spearman_brown: 0.684, players: 194 }, nwpa_mancount_waa_r: { r: 0.55, spearman_brown: 0.71, players: 194 }, nwpa_event_waa_r: { r: 0.56, spearman_brown: 0.718, players: 194 } },
+        splitHalf: { wpa_opp_waa_r: { r: 0.54, spearman_brown: 0.701, players: 194 }, wpa_waa_r: { r: 0.52, spearman_brown: 0.684, players: 194 }, nwpa_mancount_waa_r: { r: 0.55, spearman_brown: 0.71, players: 194 }, nwpa_event_waa_r: { r: 0.56, spearman_brown: 0.718, players: 194 } },
         withKd: { wpa_waa_r: { r: 0.601, players: 194 }, nwpa_mancount_waa_r: { r: 0.676, players: 194 }, nwpa_event_waa_r: { r: 0.736, players: 194 }, rating3: { r: 0.888, players: 194 } },
     },
     source: {
@@ -118,10 +118,46 @@ const clutchData: ClutchData = {
     players: [{ steamid: "1", name: "donk", entries: 73, clutch: { per100: 8.05, p5: 0.69, p95: 16.01 } }],
 };
 
-const renderWith = (data: PlayerWarData, url = "/players", clutch?: ClutchData) => {
+const styleData: StyleData = {
+    generatedAt: "2026-11-21T00:00:00Z",
+    minRounds: 300,
+    window: { from: "2025-01-23", to: "2026-10-31", maps: 3112, events: 53 },
+    splitGate: 0.5,
+    compSize: 5,
+    agreement: 0.61,
+    metrics: {
+        firepower: { label: "Firepower", group: "production", unit: "duel wins above expected per 100 duels", pool: "all", splitHalfR: 0.51 },
+        rating: { label: "Rating", group: "overall", unit: "WAA per 100 rounds", pool: "all", splitHalfR: null },
+        isolation: { label: "Isolation", group: "style", unit: "T side, units to nearest teammate 20 s in", pool: "role", splitHalfR: 0.85 },
+    },
+    archetypes: {
+        starEntry: { label: "Star Entry", description: "Opens rounds and wins the opening duel", roles: ["Entry"] },
+        spacetaker: { label: "Spacetaker", description: "First through the door", roles: ["Entry", "Rifler"] },
+    },
+    source: { demos: "HLTV", attribution: "Liquipedia", liquipedia: "https://liquipedia.net/counterstrike/" },
+    players: [
+        {
+            steamid: "1",
+            archetype: "starEntry",
+            runnerUp: "spacetaker",
+            fit: 9.2,
+            values: { firepower: { value: 4.1, pct: 99 }, rating: { value: 2.19, pct: 97 }, isolation: { value: 312, pct: 12 } },
+            comps: {
+                production: [
+                    { steamid: "2", similarity: 81 },
+                    { steamid: "999", similarity: 73 },
+                ],
+                style: [{ steamid: "2", similarity: 78 }],
+            },
+        },
+    ],
+};
+
+const renderWith = (data: PlayerWarData, url = "/players", clutch?: ClutchData, style?: StyleData) => {
     const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
     queryClient.setQueryData(["war", "players"], data);
     if (clutch) queryClient.setQueryData(["war", "clutch"], clutch);
+    if (style) queryClient.setQueryData(["war", "style"], style);
     return renderToString(
         <QueryClientProvider client={queryClient}>
             <MemoryRouter initialEntries={[url]}>
@@ -149,7 +185,7 @@ describe("Players page", () => {
         expect(html).toContain("Liquipedia");
     });
 
-    it("sorts by per100 descending by default", () => {
+    it("sorts by rate rather than total map wins by default", () => {
         const html = renderWith({
             ...warData,
             players: [
@@ -191,19 +227,43 @@ describe("Players page", () => {
         expect(searchHtml).toContain("No IGLs match “spirit”");
     });
 
-    it("switches credit version and shows empty state when unmatched", () => {
-        const neutralHtml = render("/players?credit=nwpa_mancount");
-        expect(neutralHtml).toContain("+8.10");
-        expect(neutralHtml).toContain("(+5.50, +10.70)");
-
-        const rawHtml = render("/players?credit=wpa");
-        expect(rawHtml).toContain("(+6.10, +12.74)");
-
-        const emptyHtml = render("/players?q=nobody");
-        expect(emptyHtml).toContain("No players match “nobody”");
+    it("ranks a small sample below a slightly lower rate over many more rounds", () => {
+        const at = (steamid: string, name: string, rounds: number, per100: number) => ({
+            ...warData.players[0],
+            steamid,
+            name,
+            rounds,
+            metrics: { ...warData.players[0].metrics, wpa_opp: { ...warData.players[0].metrics.wpa_opp, per100 } },
+        });
+        const html = renderWith({ ...warData, players: [at("5", "hotStreak", 425, 2.65), at("6", "veteran", 6000, 2)] });
+        expect(html.indexOf("veteran")).toBeLessThan(html.indexOf("hotStreak"));
+        expect(html).toContain("+0.80");
+        expect(html).toContain("+1.72");
     });
 
-    it("shows usage and conversion for the selected credit version, and a dash where they're missing", () => {
+    it("shrinks toward replacement level when one is set", () => {
+        const html = renderWith({
+            ...warData,
+            metric: "WAR",
+            replacementRate: 0.01,
+            players: [{ ...warData.players[0], rounds: 984, metrics: { ...warData.players[0].metrics, wpa_opp: { ...warData.players[0].metrics.wpa_opp, per100: 3 } } }],
+        });
+        expect(html).toContain("+2.00");
+    });
+
+    it("lists one rating, ignoring the retired credit parameter", () => {
+        const html = render("/players?credit=wpa");
+        expect(html).toBe(render());
+        expect(html).toContain("+1.62");
+        expect(html).not.toContain("Credit version");
+        expect(html).not.toContain("(+6.10, +12.74)");
+    });
+
+    it("shows empty state when unmatched", () => {
+        expect(render("/players?q=nobody")).toContain("No players match “nobody”");
+    });
+
+    it("shows usage and conversion, and a dash where they're missing", () => {
         const withUsage: PlayerWarData = {
             ...warData,
             players: [
@@ -226,10 +286,9 @@ describe("Players page", () => {
         expect(html).toContain("Conversion");
         expect(html).toContain("(+0.31, +0.35)");
         expect(html).toContain("(+1.40, +2.50)");
-        expect(renderWith(withUsage, "/players?credit=wpa")).not.toContain("(+1.40, +2.50)");
     });
 
-    it("renders vs HLTV gap per credit version, handles nulls, and sorts with nulls last", () => {
+    it("renders vs HLTV gap, handles nulls, and sorts with nulls last", () => {
         const withGap: PlayerWarData = {
             ...warData,
             players: [
@@ -238,7 +297,6 @@ describe("Players page", () => {
                     metrics: {
                         ...warData.players[0].metrics,
                         wpa_opp: { ...warData.players[0].metrics.wpa_opp, hltvGap: { z: -0.45, zP5: -0.92, zP95: 0.02 } },
-                        wpa: { ...warData.players[0].metrics.wpa, hltvGap: { z: -0.71, zP5: -1.1, zP95: -0.3 } },
                     },
                 },
                 {
@@ -247,7 +305,6 @@ describe("Players page", () => {
                     metrics: {
                         ...warData.players[1].metrics,
                         wpa_opp: { ...warData.players[1].metrics.wpa_opp, hltvGap: { z: 0.88, zP5: 0.25, zP95: 1.51 } },
-                        wpa: { ...warData.players[1].metrics.wpa, hltvGap: { z: 0.64, zP5: 0.1, zP95: 1.18 } },
                     },
                 },
                 {
@@ -270,10 +327,6 @@ describe("Players page", () => {
         expect(html).toContain("-0.45");
         expect(html).toContain("+0.88");
 
-        const wpaHtml = renderWith(withGap, "/players?credit=wpa");
-        expect(wpaHtml).toContain("-0.71");
-        expect(wpaHtml).toContain("+0.64");
-
         const descHtml = renderWith(withGap, "/players?sort=hltvGap");
         expect(descHtml.indexOf("apEX")).toBeLessThan(descHtml.indexOf("donk"));
         expect(descHtml.indexOf("donk")).toBeLessThan(descHtml.indexOf("noRating"));
@@ -290,12 +343,12 @@ describe("Players page", () => {
         expect(html).not.toContain("Teams / duel execution");
     });
 
-    it("splits WAR, clutch and validation into views", () => {
+    it("splits WAA, clutch and validation into views", () => {
         expect(render()).not.toContain("Validation diagnostics");
 
-        const validation = render("/players?view=validation&credit=wpa");
+        const validation = render("/players?view=validation");
         expect(validation).toContain("Validation diagnostics");
-        expect(validation).toContain("0.684");
+        expect(validation).toContain("0.701");
         expect(validation).not.toContain("IGLs / separate leaderboard");
 
         const clutch = renderWith(warData, "/players?view=clutch", clutchData);
@@ -319,24 +372,78 @@ describe("Players page", () => {
 });
 
 describe("Player page", () => {
-    it("shows every credit version with ranks, the profile, clutch and teammates", () => {
+    it("shows one WAA rating with its rank, the profile, clutch, teammates and view toggle", () => {
         const html = renderWith(
             { ...warData, players: [...warData.players, { ...warData.players[1], steamid: "4", name: "zont1x", lpTeam: "Team Spirit", isIgl: false }] },
             "/players/donk",
             clutchData
         );
         expect(html).toContain("donk");
-        expect(html).toContain("WPA (team-neutral)");
-        expect(html).toContain("Neutral (event)");
-        expect(html).toContain("(+5.40, +10.40)");
+        expect(html).toContain("Overview");
+        expect(html).toContain("Style");
+        expect(html).toContain("Map tendencies");
+        expect(html).toContain("+1.62");
+        expect(html).toContain("(+1.58, +2.82)");
+        expect(html).toContain("(+8.20, +14.60)");
+        expect(html).not.toContain("Neutral (event)");
+        expect(html).not.toContain("(+5.40, +10.40)");
         expect(html).toContain("1 / 2");
         expect(html).toContain("Profile");
-        expect(html).toContain("mirage (28m)");
+        expect(html).toContain("Mirage");
+        expect(html).toContain("(28m)");
         expect(html).toContain("Clutch conversion");
         expect(html).toContain("Teammates");
         expect(html).toContain('href="/players/zont1x"');
         expect(html).toContain('href="/teams/Team_Spirit"');
         expect(html).toContain("Liquipedia");
+    });
+
+    it("shows archetype summary on overview and full percentile bars and comps on the style view", () => {
+        const overview = renderWith(warData, "/players/donk", undefined, styleData);
+        expect(overview).toContain("Archetype");
+        expect(overview).toContain("Star Entry");
+        expect(overview).not.toContain("Production comps");
+
+        const html = renderWith(warData, "/players/donk?view=style", undefined, styleData);
+        expect(html).toContain("Style");
+        expect(html).toContain("Star Entry");
+        expect(html).toContain("Next closest");
+        expect(html).toContain("Spacetaker");
+        expect(html).toContain("Isolation: 12th percentile");
+        expect(html).toContain("Firepower: 99th percentile");
+        expect(html).not.toContain("Rating: 97th percentile");
+        expect(html).toContain("Style bars compare non-AWPers only");
+        expect(html).toContain("Production comps");
+        expect(html).toContain("Style comps");
+        expect(html).toContain('href="/players/apEX"');
+        expect(html).toContain("Similarity is 100 minus the RMS percentile gap; a random pair scores about 59.");
+        expect(html).not.toContain(">73<");
+        expect(html).not.toContain("Profile");
+
+        expect(renderWith(warData, "/players/apEX", undefined, styleData)).not.toContain("Archetype");
+        expect(render("/players/donk")).not.toContain("Archetype");
+        expect(renderWith(warData, "/players/apEX?view=style", undefined, styleData)).toContain("No style profile available for apEX.");
+    });
+
+    it("switches to the map tendencies view and omits overview sections", () => {
+        const html = renderWith(warData, "/players/donk?view=maps");
+        expect(html).not.toContain("Profile");
+        expect(html).not.toContain("WAA breakdown");
+    });
+
+    it("renders live generated public/data/war/style.json", () => {
+        const filePath = path.resolve(__dirname, "../../public/data/war/style.json");
+        const playersPath = path.resolve(__dirname, "../../public/data/war/players.json");
+        if (!fs.existsSync(filePath) || !fs.existsSync(playersPath)) return;
+        const live = JSON.parse(fs.readFileSync(playersPath, "utf-8")) as PlayerWarData;
+        const style = JSON.parse(fs.readFileSync(filePath, "utf-8")) as StyleData;
+        expect(renderWith(live, "/players/ZywOo", undefined, style)).toContain("Archetype");
+        expect(renderWith(live, "/players/ZywOo?view=style", undefined, style)).toContain("Production comps");
+        const byId = new Map(live.players.map((p) => [p.steamid, p]));
+        const zywoo = live.players.find((p) => p.name === "ZywOo")!;
+        const zywooStyle = style.players.find((p) => p.steamid === zywoo.steamid)!;
+        expect(zywooStyle.comps.style.length).toBeGreaterThan(0);
+        expect(zywooStyle.comps.style.every((c) => byId.get(c.steamid)?.tRole === "AWPer")).toBe(true);
     });
 
     it("matches names case-insensitively and reports unknown players", () => {

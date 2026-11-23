@@ -156,3 +156,54 @@ body {
   background-size: 100% 1.5rem;
   background-position: center 0.75rem;
 }
+
+@property --fade-start {
+  syntax: "<length>";
+  inherits: false;
+  initial-value: 0px;
+}
+
+@property --fade-end {
+  syntax: "<length>";
+  inherits: false;
+  initial-value: 0px;
+}
+
+/* Single-row scrollable tablist with scroll-driven edge fades when tabs overflow. */
+.tab-scroller {
+  scrollbar-width: none;
+  scroll-padding-inline: 2rem;
+  scroll-snap-type: inline proximity;
+}
+
+.flex-wrap-balance {
+  flex-wrap: wrap;
+  flex-wrap: balance;
+}
+.tab-scroller::-webkit-scrollbar {
+  display: none;
+}
+@supports (animation-timeline: scroll()) {
+  .tab-scroller {
+    --fade-size: 2rem;
+    mask:
+      linear-gradient(black, black) no-clip subtract,
+      linear-gradient(to right, black, transparent) 0 0 / var(--fade-start) 100% no-repeat no-clip,
+      linear-gradient(to right, transparent, black) 100% 0 / var(--fade-end) 100% no-repeat no-clip;
+    animation: tab-fade-start linear both, tab-fade-end linear both;
+    animation-timeline: scroll(self inline);
+    animation-range: 0 var(--fade-size), calc(100% - var(--fade-size)) 100%;
+  }
+}
+
+@keyframes tab-fade-start {
+  to {
+    --fade-start: var(--fade-size);
+  }
+}
+
+@keyframes tab-fade-end {
+  from {
+    --fade-end: var(--fade-size);
+  }
+}

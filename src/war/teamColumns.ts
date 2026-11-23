@@ -98,7 +98,8 @@ export const duelColumns = (data: TeamDuelsData): StintColumn<TeamDuelStint>[] =
         ];
     });
 
-const ROUND_ORDER: TeamStatKey[] = ["rwoe_econ", "ct_def", "t_off", "tpv", "conv", "rwoe_war"];
+// `tpv` is published but hidden until it's reworked (docs/war.md, Team round stats).
+const ROUND_ORDER: TeamStatKey[] = ["rwoe_econ", "ct_def", "t_off", "conv", "rwoe_war"];
 const ROUND_LABEL: Record<TeamStatKey, string> = {
     rwoe_econ: "RW over econ",
     ct_def: "Adj. CT",

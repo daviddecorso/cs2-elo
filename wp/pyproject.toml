@@ -6,6 +6,7 @@ requires-python = ">=3.12"
 dependencies = [
     "cs2demos",
     "numpy>=2.0",
+    "pillow>=13.0.0",
     "polars>=2.0",
     "pyarrow>=16",
     "scikit-learn==1.7.2",

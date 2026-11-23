@@ -9,8 +9,8 @@ const file: VetoModelFile = {
     actions: { "1": "bbbbbb", "3": "bbppbb", "5": "bbpppp" },
     orders: { "1": "FFSSSF", "3": "FSFSFS", "5": "FSFSFS" },
     modes: {
-        hltv: { map: { du: 2.0, pick: 0.1, ban_rate: -0.4, pick_rate: 0.3 }, choice: { rate: 1.5, play: 0.8, edge: 1.2 } },
-        liquipedia: { map: { du: 2.0 }, choice: { play: 0.8, edge: 1.2 } },
+        hltv: { map: { du: 2.0, pick: 0.1, ban_rate: -0.4, pick_rate: 0.3 }, choice: { ban: { rate: 1.5, play: 0.8, edge: 1.2 }, pick: { rate: 1.5, play: 0.8, edge: 1.2 } } },
+        liquipedia: { map: { du: 2.0 }, choice: { ban: { play: 0.8, edge: 1.2 }, pick: { play: 0.8, edge: 1.2 } } },
     },
     teams: {
         A: {
@@ -68,6 +68,49 @@ describe("VetoModel", () => {
             if (a === 2) wins++;
         }
         expect(wins / n).toBeCloseTo(model.probability("A", "B", 0.2, 3, 0.8, "FSFSSF"), 2);
+    });
+
+    const split: VetoModelFile = {
+        ...file,
+        modes: { liquipedia: { map: { du: 2.0 }, choice: { ban: { play: 0.9, edge: 0.4 }, pick: { play: 1.6, edge: 1.1 } } } },
+    };
+
+    it("weights bans and picks separately, as the Python model does", () => {
+        const model = new VetoModel(split, "liquipedia");
+        expect(model.probability("A", "B", 0.2, 3, 0.8)).toBeCloseTo(0.5643720223043276, 12);
+        const [m0, , , m3] = model.distribution("A", "B", 3, 0.7);
+        [0.19758813094763902, 0.3238315488697666, 0.24518404907363311, 0.09218141966933549, 0.14121485143962584].forEach((v, i) =>
+            expect([...m0.bans, ...m0.picks, m0.decider][i]).toBeCloseTo(v, 12)
+        );
+        expect(m3.picks[1]).toBeCloseTo(0.20716186203481465, 12);
+    });
+
+    it.each([1, 3, 5])("places every map once and plays %i in all", (bestOf) => {
+        const out = new VetoModel(split, "liquipedia").distribution("A", "B", bestOf, 0.7);
+        for (const o of out) expect(o.bans[0] + o.bans[1] + o.picks[0] + o.picks[1] + o.decider).toBeCloseTo(1, 12);
+        expect(out.reduce((sum, o) => sum + o.picks[0] + o.picks[1] + o.decider, 0)).toBeCloseTo(bestOf, 12);
+    });
+
+    it("samples the same outcomes as the exact distribution, for a custom order", () => {
+        const model = new VetoModel(split, "liquipedia");
+        const exact = model.distribution("A", "B", 3, 1, "FSFSSF");
+        const rng = makeRng(11);
+        const n = 100_000;
+        const picks = [new Array<number>(7).fill(0), new Array<number>(7).fill(0)];
+        const deciders = new Array<number>(7).fill(0);
+        for (let i = 0; i < n; i++) {
+            const { maps, pickers } = model.sample("A", "B", 3, rng, "FSFSSF");
+            maps.forEach((m, j) => {
+                const picker = pickers[j];
+                if (picker === null) deciders[m]++;
+                else picks[picker][m]++;
+            });
+        }
+        exact.forEach((o, m) => {
+            expect(picks[0][m] / n).toBeCloseTo(o.picks[0], 2);
+            expect(picks[1][m] / n).toBeCloseTo(o.picks[1], 2);
+            expect(deciders[m] / n).toBeCloseTo(o.decider, 2);
+        });
     });
 
     it("treats unknown teams as having no map preferences", () => {

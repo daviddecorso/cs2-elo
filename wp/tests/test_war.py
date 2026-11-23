@@ -125,6 +125,12 @@ def test_export_public_blocks_ungated_without_flag_and_marks_provisional(tmp_pat
     val = {"month_to_month": {100: {}, 200: {}, 300: {}}, "split_half": {}, "with_kd": {}}
     lines = report_lines(adjusted, adj, players, val, 5.0, 300, 0.0, None)
     assert any("apEX" in line for line in lines)
+    favoured_by_raw_wpa = players.with_columns(
+        pl.lit(2, pl.UInt64).alias("steamid"), pl.lit("rawFavourite").alias("name"),
+        pl.lit(9.0).alias("wpa_waa"), pl.lit(0.1).alias("wpa_opp_waa"),
+    )
+    text = "\n".join(report_lines(adjusted, adj, pl.concat([favoured_by_raw_wpa, players]), val, 5.0, 300, 0.0, None))
+    assert text.index("apEX") < text.index("rawFavourite")
     out_dir = tmp_path / "pub"
 
     assert export_public(players, {1: []}, adj, val, adjusted, 5.0, 300, 0.0, "m", False, out_dir) == 1
@@ -174,6 +180,7 @@ def test_validation_splits_by_series_and_deduplicates_box_rows():
     assert val["month_to_month"][100]["wpa_waa_r"]["pairs"] == 4
     assert val["month_to_month"][200]["wpa_waa_r"]["pairs"] == 0
     assert val["split_half"]["wpa_waa_r"]["r"] == pytest.approx(1.0)
+    assert "wpa_opp_waa_r" in val["with_kd"]
 
 
 def test_null_role_rows_are_excluded_from_aggregation_and_export(tmp_path, monkeypatch):

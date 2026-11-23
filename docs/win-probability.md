@@ -208,7 +208,7 @@ Credit covers only `events`, minus attribution leaks (trade returns, self, team 
 
 **Own team at average Elo (`wpa_opp`).** Plain WPA uses the model's `elo_diff_ct`, so players on a strong team get little credit for rounds Elo expected them to win, including the part of that strength they're responsible for. `wpa_opp` re-evaluates each event twice: once with the CT team at league-average Elo (the mean pre-map rating over training-window maps) and the T team at its own, and once the other way round. Each player's share is valued with their own team at average, so the opponent's strength still counts. It's no longer zero-sum between the two teams. See [war.md](war.md#war-validation) for why it was added.
 
-All four versions are published. `wpa_opp` is the default on `/war`. `public/data/wpa/players.json` still carries only the original three.
+All four versions are in `public/data/war/players.json`, but `/players` shows only `wpa_opp`, as WAA. The others are diagnostics. `public/data/wpa/players.json` still carries only the original three.
 
 ## Validation (`validate`)
 

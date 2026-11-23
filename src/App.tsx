@@ -3,11 +3,13 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { AppShell } from "./components/AppShell.tsx";
 import { Standings } from "./pages/Standings.tsx";
 import { Rankings } from "./pages/Rankings.tsx";
+import { Matches } from "./pages/Matches.tsx";
 import { TeamPage } from "./pages/TeamPage.tsx";
 import { Model } from "./pages/Model.tsx";
 import { Methodology } from "./pages/Methodology.tsx";
 import { EventList, EventOdds } from "./pages/EventOdds.tsx";
 import { Major } from "./pages/Major.tsx";
+import { MajorHistory } from "./pages/MajorHistory.tsx";
 import { VrsSim } from "./pages/VrsSim.tsx";
 import { Players } from "./pages/Players.tsx";
 import { PlayerPage } from "./pages/PlayerPage.tsx";
@@ -49,10 +51,12 @@ export const App = () => {
                         <Route path="/standings" element={<RedirectKeepingQuery to="/vrs" />} />
                         <Route path="/rankings" element={<Rankings />} />
                         <Route path="/elo" element={<RedirectKeepingQuery to="/rankings" />} />
+                        <Route path="/matches" element={<Matches />} />
                         <Route path="/teams/:team" element={<TeamPage />} />
                         <Route path="/events" element={<EventList />} />
                         <Route path="/events/:slug" element={<EventOdds />} />
                         <Route path="/major" element={<Major />} />
+                        <Route path="/major/history" element={<MajorHistory />} />
                         <Route path="/major/:slug" element={<Major />} />
                         <Route path="/major-invites" element={<MajorInvitesRedirect />} />
                         <Route path="/vrs-sim" element={<VrsSim />} />

@@ -3,6 +3,7 @@ conditional logit for which map a team bans or picks, a series gate against pool
 
 import json
 import math
+from collections import Counter, deque
 from datetime import datetime, timezone
 from functools import lru_cache
 
@@ -11,49 +12,71 @@ import polars as pl
 
 from . import warcheck
 from .paths import DATA, WAR_REPORTS
-from .veto import (PATTERNS, TEST_FROM, State, _ll, elo_params, fit_coefs, load_series, load_vetoes, pattern,
+from .veto import (DAY, PATTERNS, TEST_FROM, State, _ll, elo_params, fit_coefs, load_series, load_vetoes, pattern,
                    series_prob, walk)
 
 # `cs2wp veto`'s tuned shrinkage (maps) and decay (days).
 K, TAU = 40.0, 365.0
-PLAY_PRIOR = 5.0
+# Played-map preference: shrinkage (series) and decay (days), chosen on pre-2026 choice log-likelihood.
+PLAY_PRIOR, PLAY_TAU = 10.0, 90.0
 POOL_SIZE = 7
+BASELINE_DAYS = 90
+# Multiplier on choice scores when forecasting a whole veto, which is overconfident without it; fit before TEST_FROM.
+SHRINK_GRID = (1.0, 0.95, 0.9, 0.85, 0.8, 0.75, 0.7)
+# Lower bounds on P(picked or decider) for the site's labels. Chosen on 2026, so their held-out rates are optimistic.
+BANDS = {"likely": 0.7, "possible": 0.3}
+BO1_SHOWN = 3
 ACTIONS = {1: "bbbbbb", 3: "bbppbb", 5: "bbpppp"}
 # Actors before the decider, F = the team that bans first: each format's most common order in the HLTV vetoes.
 ORDERS = {1: "FFSSSF", 3: "FSFSFS", 5: "FSFSFS"}
 MAP_FEATURES = {"hltv": ("du", "pick", "ban_rate", "pick_rate"), "liquipedia": ("du",)}
 CHOICE_FEATURES = {"hltv": ("rate", "play", "edge"), "liquipedia": ("play", "edge")}
+CHOICE_ACTIONS = ("ban", "pick")
 MODES = tuple(MAP_FEATURES)
 OUT = DATA / "sim" / "veto-model.json"
+# Committed, so it holds fitted weights only: no team values and no HLTV ban or pick rates.
+WEIGHTS_OUT = DATA / "sim" / "veto-weights.json"
 
 
 class Play:
-    """Per-lineage played-map counts from Liquipedia, as a fallback preference for teams without HLTV vetoes."""
+    """Per-lineage decayed played-map counts from Liquipedia, against a uniform share that accrues only while each map
+    is in the pool, so a map that just entered starts neutral."""
 
-    def __init__(self):
-        self.v: dict[int, list] = {}
+    def __init__(self, prior: float = PLAY_PRIOR, tau: float = PLAY_TAU):
+        self.prior, self.tau = prior, tau
+        self.v: dict[int, dict[str, list[float]]] = {}
+        self.last: dict[int, float] = {}
 
-    def get(self, lineage: int, m: str) -> float:
-        """Plays of `m` over the uniform share, per series, shrunk by PLAY_PRIOR series."""
-        v = self.v.get(lineage)
+    def _decay(self, lineage: int, t: float) -> float:
+        return math.exp(-(t - self.last[lineage]) / (self.tau * DAY))
+
+    def get(self, lineage: int, m: str, t: float) -> float:
+        """Plays of `m` over the uniform share, per series with `m` in the pool, shrunk by `prior` series."""
+        v = self.v.get(lineage, {}).get(m)
         if v is None:
             return 0.0
-        n, counts, uniform = v
-        return (counts.get(m, 0) - uniform) / (n + PLAY_PRIOR)
+        plays, uniform, n = v
+        d = self._decay(lineage, t)
+        return (plays - uniform) * d / (n * d + self.prior)
 
-    def add(self, lineage: int, maps: list[str]) -> None:
-        v = self.v.setdefault(lineage, [0, {}, 0.0])
-        v[0] += 1
-        for m in maps:
-            v[1][m] = v[1].get(m, 0) + 1
-        v[2] += len(maps) / POOL_SIZE
+    def add(self, lineage: int, maps: list[str], pool, t: float) -> None:
+        by_map = self.v.setdefault(lineage, {})
+        d = self._decay(lineage, t) if lineage in self.last else 1.0
+        self.last[lineage] = t
+        for v in by_map.values():
+            v[:] = [x * d for x in v]
+        for m in {*pool, *maps}:
+            v = by_map.setdefault(m, [0.0, 0.0, 0.0])
+            v[0] += maps.count(m)
+            v[1] += len(maps) / POOL_SIZE
+            v[2] += 1
 
 
 def team_maps(state: State, play: Play, lineage: int, pool: list[str], t: float) -> dict[str, dict[str, float]]:
     out = {}
     for m in pool:
         ban, pick = state.rates(lineage, m)
-        out[m] = {"u": state.centred_u(lineage, m, t, pool), "ban": ban, "pick": pick, "play": play.get(lineage, m)}
+        out[m] = {"u": state.centred_u(lineage, m, t, pool), "ban": ban, "pick": pick, "play": play.get(lineage, m, t)}
     return out
 
 
@@ -87,8 +110,8 @@ def walk_snaps(series: list[dict], vetoes: dict[str, pl.DataFrame], keep) -> tup
             for opp, lineage in ((1, la), (2, lb)):
                 state.add_veto(lineage, veto.filter(pl.col("opponent") == opp).select("action", "map").rows(), n_pool)
         played = [pm["map"] for pm in s["played"]]
-        play.add(la, played)
-        play.add(lb, played)
+        for lineage in (la, lb):
+            play.add(lineage, played, s["offsets"][0], s["t"])
     return snaps, state, play
 
 
@@ -104,20 +127,25 @@ def edge_a(mode: str, coef: dict[str, float], ta: dict, tb: dict, pool: list[str
     return out
 
 
+def choice_names(mode: str) -> list[tuple[str, str]]:
+    return [(action, f) for action in CHOICE_ACTIONS for f in CHOICE_FEATURES[mode]]
+
+
 def choice_row(mode: str, tx: dict, edge: dict[str, float], actor: int, action: str, m: str) -> list[float]:
-    """Features of `m` for the acting team: positive means more likely to be chosen at a pick, less at a ban."""
+    """Features of `m` for the acting team, in `choice_names` order, so bans and picks get their own weights. Positive
+    means more likely to be chosen."""
     sign = -1.0 if action == "ban" else 1.0
     side = 1.0 if actor == 1 else -1.0
     feats = {"rate": tx[m]["ban" if action == "ban" else "pick"], "play": sign * tx[m]["play"],
              "edge": sign * side * edge[m]}
-    return [feats[f] for f in CHOICE_FEATURES[mode]]
+    return [feats[f] if a == action else 0.0 for a, f in choice_names(mode)]
 
 
-def choice_groups(mode: str, coef: dict, series: list[dict], vetoes: dict, snaps: dict, before: str | None):
-    """One (alternatives × features, chosen index) per real ban or pick."""
-    groups = []
+def choice_steps(mode: str, coef: dict, series: list[dict], vetoes: dict, snaps: dict, before: str | None = None,
+                 since: str | None = None):
+    """One (alternatives × features, chosen index, action, maps left) per real ban or pick."""
     for s in series:
-        if before and s["date"] >= before:
+        if (before and s["date"] >= before) or (since and s["date"] < since):
             continue
         steps = standard_veto(vetoes.get(s["match2id"]))
         snap = snaps.get(s["match2id"])
@@ -129,9 +157,13 @@ def choice_groups(mode: str, coef: dict, series: list[dict], vetoes: dict, snaps
         for actor, action, chosen in steps:
             tx = ta if actor == 1 else tb
             X = np.array([choice_row(mode, tx, edge, actor, action, m) for m in remaining])
-            groups.append((X, remaining.index(chosen)))
+            yield X, remaining.index(chosen), action, list(remaining)
             remaining.remove(chosen)
-    return groups
+
+
+def choice_groups(mode: str, coef: dict, series: list[dict], vetoes: dict, snaps: dict, before: str | None = None,
+                  since: str | None = None) -> list:
+    return [(X, c) for X, c, _, _ in choice_steps(mode, coef, series, vetoes, snaps, before, since)]
 
 
 def fit_choice(groups: list, cols: list[int] | None = None) -> np.ndarray:
@@ -192,19 +224,161 @@ def default_steps(best_of: int, first: int) -> list[tuple[int, str]]:
             for who, a in zip(ORDERS[best_of], ACTIONS[best_of])]
 
 
+def choice_scores(mode: str, beta: np.ndarray, snap: dict,
+                  edge: dict[str, float]) -> dict[tuple[int, str, str], float]:
+    return {(actor, action, m): float(np.dot(beta, choice_row(mode, snap["teams"][actor - 1], edge, actor, action, m)))
+            for actor in (1, 2) for action in CHOICE_ACTIONS for m in snap["pool"]}
+
+
 def series_veto_prob(mode: str, map_coef: dict, beta: np.ndarray, snap: dict, base: float, best_of: int,
                      steps: list[tuple[int, str]], temp: float) -> float:
-    ta, tb = snap["teams"]
     pool = snap["pool"]
-    edge = edge_a(mode, map_coef, ta, tb, pool)
-    score = {}
-    for actor in (1, 2):
-        tx = ta if actor == 1 else tb
-        for action in ("ban", "pick"):
-            for m in pool:
-                score[(actor, action, m)] = float(np.dot(beta, choice_row(mode, tx, edge, actor, action, m)))
+    edge = edge_a(mode, map_coef, *snap["teams"], pool)
+    score = choice_scores(mode, beta, snap, edge)
     gamma = map_coef.get("pick", 0.0)
     return veto_series_prob(pool, base, edge, gamma, temp if best_of > 1 else 1.0, steps, score)
+
+
+def veto_distribution(mode: str, map_coef: dict, beta: np.ndarray, snap: dict, best_of: int,
+                      a_second: float) -> dict[str, dict]:
+    """Where each map ends up, exactly, mixing who bans first; a choice depends only on the maps left."""
+    pool = snap["pool"]
+    score = choice_scores(mode, beta, snap, edge_a(mode, map_coef, *snap["teams"], pool))
+    out = {m: {"ban": [0.0, 0.0], "pick": [0.0, 0.0], "decider": 0.0} for m in pool}
+    for first, weight in ((2, a_second), (1, 1 - a_second)):
+        layer = {frozenset(pool): weight}
+        for actor, action in default_steps(best_of, first):
+            after: dict[frozenset, float] = {}
+            for remaining, reach in layer.items():
+                options = sorted(remaining)
+                x = np.array([score[(actor, action, m)] for m in options])
+                p = np.exp(x - x.max())
+                p /= p.sum()
+                for m, q in zip(options, p):
+                    out[m][action][actor - 1] += reach * q
+                    after[remaining - {m}] = after.get(remaining - {m}, 0.0) + reach * q
+            layer = after
+        for (decider,), reach in layer.items():
+            out[decider]["decider"] += reach
+    return out
+
+
+def favourite_second(series: list[dict], vetoes: dict, before: str | None) -> float:
+    """Share of standard vetoes in which the higher-rated team bans second."""
+    seen = []
+    for s in series:
+        if before and s["date"] >= before:
+            continue
+        steps = standard_veto(vetoes.get(s["match2id"]))
+        if steps and s["base"] != 0:
+            seen.append(steps[0][0] == (2 if s["base"] > 0 else 1))
+    return float(np.mean(seen))
+
+
+def a_second_share(base: float, share: float) -> float:
+    return 0.5 if base == 0 else share if base > 0 else 1 - share
+
+
+def selection_forecasts(series: list[dict], vetoes: dict, snaps: dict, coef: dict, beta: np.ndarray,
+                        share: float, since: str = "", before: str = "9999") -> pl.DataFrame:
+    """Per series from `since` until `before` and pool map: P(picked or decider) beside baselines that know the pool but not the teams,
+    from the previous 90 days of played maps and of vetoes."""
+    played: deque = deque()
+    chosen: deque = deque()
+    rows = []
+    for s in series:
+        for window in (played, chosen):
+            while window and window[0][0] < s["t"] - BASELINE_DAYS * DAY:
+                window.popleft()
+        veto, snap = vetoes.get(s["match2id"]), snaps.get(s["match2id"])
+        steps = standard_veto(veto)
+        if steps and snap:
+            best_of = PATTERNS[pattern(veto)]
+            picker = {m: a for a, act, m in steps if act == "pick"}
+            decider = set(snap["pool"]) - {m for *_, m in steps}
+            selected = set(picker) | decider
+            if since <= s["date"] < before:
+                dist = veto_distribution("liquipedia", coef, beta, snap, best_of, a_second_share(s["base"], share))
+                freq = {}
+                for name, window in (("played_freq", played), ("veto_freq", chosen)):
+                    counts = Counter(m for _, ms in window for m in ms if m in dist)
+                    total = sum(counts.values()) + POOL_SIZE
+                    freq[name] = {m: min(1.0, best_of * (counts[m] + 1) / total) for m in dist}
+                for m, d in dist.items():
+                    rows.append({"match2id": s["match2id"], "event": s["pagename"], "best_of": best_of, "map": m,
+                                 "y": float(m in selected), "model": sum(d["pick"]) + d["decider"],
+                                 "uniform": best_of / POOL_SIZE, **{k: v[m] for k, v in freq.items()},
+                                 "pick_a": d["pick"][0], "pick_b": d["pick"][1], "decider": d["decider"],
+                                 "is_pick_a": float(picker.get(m) == 1), "is_pick_b": float(picker.get(m) == 2),
+                                 "is_decider": float(m in decider)})
+            chosen.append((s["t"], selected))
+        played.append((s["t"], [pm["map"] for pm in s["played"]]))
+    return pl.DataFrame(rows)
+
+
+def fit_shrink(series: list[dict], vetoes: dict, snaps: dict, coef: dict, beta: np.ndarray, share: float) -> float:
+    def loss(scale: float) -> float:
+        f = selection_forecasts(series, vetoes, snaps, coef, beta * scale, share, before=TEST_FROM)
+        return float(_ll(f["y"].to_numpy(), f["model"].to_numpy()).mean())
+
+    return min(SHRINK_GRID, key=loss)
+
+
+def label_lines(fit: pl.DataFrame, held_out: pl.DataFrame) -> list[str]:
+    lines = ["## What the site shows", "", "| Period | Series | Label | Maps | Mean predicted | Selected | Pool frequency |",
+             "| --- | --- | --- | --- | --- | --- | --- |"]
+    periods = ((f"before {TEST_FROM}", fit), ("held out", held_out))
+    for period, f in periods:
+        for best_of in (3, 5):
+            top = 1.01
+            for label, low in (*BANDS.items(), ("unlikely", 0.0)):
+                d = f.filter((pl.col("best_of") == best_of) & (pl.col("model") >= low) & (pl.col("model") < top))
+                if d.height:
+                    lines.append(f"| {period} | Bo{best_of} | {label} | {d.height:,} | {d['model'].mean():.3f} | "
+                                 f"{d['y'].mean():.3f} | {d['veto_freq'].mean():.3f} |")
+                top = low
+    lines += ["", "How often the named map is right:", "",
+              "| Period | Series | Claim | n | Model | Pool frequency |", "| --- | --- | --- | --- | --- | --- |"]
+    claims = ((1, f"one of the top {BO1_SHOWN} is played", "model", "y", BO1_SHOWN), (1, "top map is played", "model", "y", 1),
+              (3, "A's likeliest pick", "pick_a", "is_pick_a", 1), (3, "B's likeliest pick", "pick_b", "is_pick_b", 1),
+              (3, "likeliest decider", "decider", "is_decider", 1))
+    for period, f in periods:
+        for best_of, claim, col, target, k in claims:
+            d = f.filter(pl.col("best_of") == best_of).with_columns(
+                pl.col(col).rank("ordinal", descending=True).over("match2id").alias("by_model"),
+                pl.col("veto_freq").rank("ordinal", descending=True).over("match2id").alias("by_freq"))
+            if d.height:
+                n = d["match2id"].n_unique()
+                hit = lambda r: d.filter(pl.col(r) <= k)[target].sum() / n
+                lines.append(f"| {period} | Bo{best_of} | {claim} | {n:,} | {hit('by_model'):.1%} | {hit('by_freq'):.1%} |")
+    return lines + [""]
+
+
+def selection_lines(f: pl.DataFrame) -> list[str]:
+    brier = lambda d, col: (d[col].to_numpy() - d["y"].to_numpy()) ** 2
+    lines = ["## Map selection forecast: liquipedia, held out", "",
+             "Brier score of P(picked or decider) per map on vetoed series from " + TEST_FROM + ", who bans first "
+             "unknown. Baselines: every map equally likely, and the pool's frequency over the previous "
+             f"{BASELINE_DAYS} days of played maps or of vetoes. Gain is over the better frequency baseline; 90% "
+             "interval resamples events.", "",
+             "| Series | n | Model | Uniform | Played frequency | Veto frequency | Gain | 90% CI |",
+             "| --- | --- | --- | --- | --- | --- | --- | --- |"]
+    for name, d in [("all", f), *((f"Bo{b}", f.filter(pl.col("best_of") == b)) for b in sorted(ACTIONS))]:
+        if d.height == 0:
+            continue
+        scores = {c: brier(d, c) for c in ("model", "uniform", "played_freq", "veto_freq")}
+        rival = min(("played_freq", "veto_freq"), key=lambda c: scores[c].mean())
+        diff = scores[rival] - scores["model"]
+        lo, hi = warcheck.paired_ci(diff, d["event"].to_numpy())
+        lines.append(f"| {name} | {d['match2id'].n_unique():,} | "
+                     + " | ".join(_f(float(x.mean())) for x in scores.values())
+                     + f" | {_f(float(diff.mean()), True)} | ({_f(lo, True)}, {_f(hi, True)}) |")
+    lines += ["", "| Predicted | Maps | Mean predicted | Selected |", "| --- | --- | --- | --- |"]
+    for i in range(10):
+        d = f.filter((pl.col("model") >= i / 10) & (pl.col("model") < (i + 1) / 10 if i < 9 else pl.lit(True)))
+        if d.height:
+            lines.append(f"| {i * 10}–{i * 10 + 10}% | {d.height:,} | {d['model'].mean():.3f} | {d['y'].mean():.3f} |")
+    return lines + [""]
 
 
 def averaged_logit(s: dict) -> float:
@@ -295,7 +469,15 @@ def gate_table(g: pl.DataFrame, sets=SETS, variant: str = "") -> list[dict]:
     return out
 
 
-def export(series, state: State, play: Play, coefs, betas, lp_of: dict[str, str], temp: float) -> None:
+def named_weights(mode: str, beta: np.ndarray) -> dict[str, dict[str, float]]:
+    out: dict[str, dict[str, float]] = {action: {} for action in CHOICE_ACTIONS}
+    for (action, f), b in zip(choice_names(mode), beta):
+        out[action][f] = round(float(b), 5)
+    return out
+
+
+def export(series, state: State, play: Play, coefs, betas, lp_of: dict[str, str], temp: float, share: float,
+           shrink: float) -> None:
     last = series[-1]
     pool = next(sorted(s["offsets"][0]) for s in reversed(series) if len(s["offsets"][0]) == POOL_SIZE)
     now = last["t"]
@@ -313,22 +495,27 @@ def export(series, state: State, play: Play, coefs, betas, lp_of: dict[str, str]
             entry["ban"] = [round(vals[m]["ban"], 5) for m in pool]
             entry["pick"] = [round(vals[m]["pick"], 5) for m in pool]
         teams[team] = entry
+    shared = {"asOf": last["date"], "actions": {str(k): v for k, v in ACTIONS.items()},
+              "orders": {str(k): v for k, v in ORDERS.items()}}
+    modes = {mode: {"map": {k: round(v, 5) for k, v in coefs[mode].items()}, "choice": named_weights(mode, betas[mode])}
+             for mode in MODES}
     payload = {
+        **shared,
         "generatedAt": datetime.now(timezone.utc).isoformat(timespec="seconds"),
-        "asOf": last["date"],
         "source": "Ban and pick rates from HLTV.org veto boxes; played maps from Liquipedia (CC-BY-SA 3.0)",
         "pool": [lp_of[m] for m in pool],
         "temp": temp,
-        "actions": {str(k): v for k, v in ACTIONS.items()},
-        "orders": {str(k): v for k, v in ORDERS.items()},
-        "modes": {mode: {"map": {k: round(v, 5) for k, v in coefs[mode].items()},
-                         "choice": dict(zip(CHOICE_FEATURES[mode], (round(float(b), 5) for b in betas[mode])))}
-                  for mode in MODES},
+        "modes": modes,
         "teams": teams,
     }
     OUT.parent.mkdir(parents=True, exist_ok=True)
     OUT.write_text(json.dumps(payload, separators=(",", ":")) + "\n")
     print(f"wrote {len(teams):,} teams to {OUT}")
+    weights = {**shared, "inputs": {"k": K, "tau": TAU, "playPrior": PLAY_PRIOR, "playTau": PLAY_TAU},
+               "favouriteSecond": round(share, 5), "forecast": {"shrink": shrink, "bands": BANDS, "bo1Shown": BO1_SHOWN},
+               **modes["liquipedia"]}
+    WEIGHTS_OUT.write_text(json.dumps(weights, indent=4) + "\n")
+    print(f"wrote weights to {WEIGHTS_OUT}")
 
 
 def _f(v, signed=False):
@@ -348,24 +535,52 @@ def build(write: bool = False) -> int:
     snaps, state, play = walk_snaps(series, vetoes, keep)
 
     lines = ["# Simulator veto model", "",
-             "Which map a team bans or picks: a conditional logit over the remaining maps, on the team's own ban or pick "
-             "rate (HLTV), its played-map preference (Liquipedia), and the map model's edge for it. Map coefficients and "
-             f"choice weights are fit before {TEST_FROM}; the gate scores series from {TEST_FROM} on.", ""]
+             "Which map a team bans or picks: a conditional logit over the remaining maps, with separate ban and pick "
+             "weights, on the team's own ban or pick rate (HLTV), its recent played-map preference (Liquipedia), and "
+             f"the map model's edge for it. Map coefficients and choice weights are fit before {TEST_FROM}; everything "
+             f"marked held out, and the gate, scores series from {TEST_FROM} on.", ""]
     coefs = map_coefs(df, TEST_FROM)
     betas = {}
     for mode in MODES:
-        groups = choice_groups(mode, coefs[mode], series, vetoes, snaps, TEST_FROM)
-        feats = CHOICE_FEATURES[mode]
+        groups = choice_groups(mode, coefs[mode], series, vetoes, snaps, before=TEST_FROM)
+        test = list(choice_steps(mode, coefs[mode], series, vetoes, snaps, since=TEST_FROM))
+        held_out = [(X, c) for X, c, _, _ in test]
+        names = choice_names(mode)
         betas[mode] = fit_choice(groups)
-        uniform = -sum(math.log(len(X)) for X, _ in groups)
-        habits = [i for i, f in enumerate(feats) if f != "edge"]
+        variants = {"Uniform": np.zeros(len(names)),
+                    "Habits only": fit_choice(groups, [i for i, (_, f) in enumerate(names) if f != "edge"]),
+                    "Edge only": fit_choice(groups, [i for i, (_, f) in enumerate(names) if f == "edge"]),
+                    "Blend": betas[mode]}
         lines += [f"## Choice model: {mode}", "",
-                  f"{len(groups):,} steps. Weights: " + ", ".join(f"{f} {b:+.3f}" for f, b in zip(feats, betas[mode])) + ".",
-                  "", "| Model | Log-likelihood per step |", "| --- | --- |",
-                  f"| Uniform | {uniform / len(groups):.4f} |",
-                  f"| Habits only | {choice_ll(groups, fit_choice(groups, habits)) / len(groups):.4f} |",
-                  f"| Edge only | {choice_ll(groups, fit_choice(groups, [feats.index('edge')])) / len(groups):.4f} |",
-                  f"| Blend | {choice_ll(groups, betas[mode]) / len(groups):.4f} |", ""]
+                  f"{len(groups):,} steps fit, {len(test):,} held out. Weights: "
+                  + ", ".join(f"{a} {f} {b:+.3f}" for (a, f), b in zip(names, betas[mode])) + ".",
+                  "", "| Model | In-sample log-likelihood per step | Held out | Held-out top choice |",
+                  "| --- | --- | --- | --- |"]
+        for name, b in variants.items():
+            top = (np.mean([1 / len(X) for X, _ in held_out]) if name == "Uniform"
+                   else np.mean([(X @ b).argmax() == c for X, c in held_out]))
+            lines.append(f"| {name} | {choice_ll(groups, b) / len(groups):.4f} | "
+                         f"{choice_ll(held_out, b) / len(held_out):.4f} | {top:.1%} |")
+        expected, actual = Counter(), Counter()
+        for X, c, action, options in test:
+            x = X @ betas[mode]
+            p = np.exp(x - x.max())
+            for m, q in zip(options, p / p.sum()):
+                expected[action, m] += q
+            actual[action, options[c]] += 1
+        lines += ["", "Held out, predicted vs actual:", "", "| Map | Bans predicted | Bans | Picks predicted | Picks |",
+                  "| --- | --- | --- | --- | --- |"]
+        for m in sorted({m for _, m in expected}):
+            lines.append(f"| {lp_of.get(m, m)} | {expected['ban', m]:.0f} | {actual['ban', m]} | "
+                         f"{expected['pick', m]:.0f} | {actual['pick', m]} |")
+        lines.append("")
+    share = favourite_second(series, vetoes, TEST_FROM)
+    coef, beta = coefs["liquipedia"], betas["liquipedia"]
+    shrink = fit_shrink(series, vetoes, snaps, coef, beta, share)
+    held = selection_forecasts(series, vetoes, snaps, coef, beta * shrink, share, since=TEST_FROM)
+    lines += [f"Forecast shrink on choice scores, fit before {TEST_FROM}: {shrink:g}.", ""]
+    lines += selection_lines(held)
+    lines += label_lines(selection_forecasts(series, vetoes, snaps, coef, beta * shrink, share, before=TEST_FROM), held)
 
     g = gate(series, vetoes, snaps, coefs, betas, temp)
     table = gate_table(g)
@@ -400,7 +615,8 @@ def build(write: bool = False) -> int:
         all_coefs = map_coefs(df, None)
         all_betas = {mode: fit_choice(choice_groups(mode, all_coefs[mode], series, vetoes, snaps, None))
                      for mode in MODES}
-        export(series, state, play, all_coefs, all_betas, lp_of, temp)
+        export(series, state, play, all_coefs, all_betas, lp_of, temp, favourite_second(series, vetoes, None),
+               shrink)
     WAR_REPORTS.mkdir(parents=True, exist_ok=True)
     (WAR_REPORTS / "sim-veto.md").write_text("\n".join(lines) + "\n")
     print("\n".join(lines))

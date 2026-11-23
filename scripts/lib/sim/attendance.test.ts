@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { Region } from "../../../src/vrs/types.ts";
-import { qualifierList, resolveField, welcomes, type FieldEvent, type FieldSampler, type ListEntry } from "./attendance.ts";
+import { qualifierList, resolveField, shiftedAcceptance, welcomes, type FieldEvent, type FieldSampler, type ListEntry } from "./attendance.ts";
 import { BANDS, bandOf, type EventFieldModel } from "./fieldModel.ts";
 
 const entry = (team: string, globalRank: number, region: Region = "Europe", regionalRank = globalRank, subregion: ListEntry["subregion"] = null): ListEntry => ({
@@ -115,6 +115,14 @@ describe("resolveField with a sampler", () => {
         expect(resolve(event({}), sampler(model({ acceptance }))).field.map((f) => f.team)).toEqual(["T11", "T12", "T13", "T14"]);
     });
 
+    it("moves a team's acceptance by its value shift in log-odds, leaving certain bands alone", () => {
+        const acceptance = new Array<number>(BANDS).fill(0.5);
+        const declines = sampler(model({ acceptance }), { acceptShift: (team) => (team === "T1" || team === "T2" ? -20 : 20) });
+        expect(resolve(event({}), declines).field.map((f) => f.team)).toEqual(["T3", "T4", "T5", "T6"]);
+        expect(shiftedAcceptance(1, -20)).toBe(1);
+        expect(shiftedAcceptance(0.5, Math.log(3))).toBeCloseTo(0.75, 12);
+    });
+
     it("lets a forced team take an offer that reaches it even if its band declines", () => {
         const acceptance = new Array<number>(BANDS).fill(1);
         acceptance[0] = 0;
@@ -159,6 +167,21 @@ describe("resolveField with a sampler", () => {
         expect(reach).toContain(capped);
         expect(reach.filter((t) => !actual.includes(t))).toEqual([capped]);
         expect(actual.filter((t) => !reach.includes(t))).toHaveLength(1);
+    });
+
+    it("keeps the fitted band mix when the bottom band runs out, passing its places to the nearest band up", () => {
+        const wide = [...Array.from({ length: 10 }, (_, i) => entry(`T${i + 1}`, i + 1)), ...Array.from({ length: 10 }, (_, i) => entry(`M${i + 1}`, 41 + i))];
+        const unranked = ["U1", "U2"].map((team) => ({ team, globalRank: null, regionalRank: null, region: "Europe" as const, subregion: null }));
+        const open = new Array<number>(BANDS).fill(0);
+        [open[0], open[bandOf(45)], open[BANDS - 1]] = [0.05, 0.05, 0.9];
+        const e = event({ invites: undefined, teams: 8 });
+        // Top teams are fresh and ahead of pace; the rest are behind it.
+        const pace = (t: string) => (t.startsWith("T") ? 2 : 0.1);
+        const fields = Array.from({ length: 200 }, (_, seed) => resolve(e, sampler(model({ open }), { seed, unranked, pace }), wide).field.map((f) => f.team));
+        const mean = (prefix: string) => fields.reduce((n, f) => n + f.filter((t) => t.startsWith(prefix)).length, 0) / fields.length;
+        expect(mean("U")).toBe(2);
+        expect(mean("T")).toBeLessThan(0.8);
+        expect(mean("M")).toBeGreaterThan(5);
     });
 
     it("draws a team with affinity more often than its cell-mates", () => {

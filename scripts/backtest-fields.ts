@@ -4,12 +4,16 @@ import { ACTIVITY_PRIOR_DAYS, ACTIVITY_WINDOW_DAYS, fitActivity, type ActivityTe
 import { BAND_LABELS, BANDS, bandOf, fitFieldModel } from "./lib/sim/fieldModel.ts";
 import { CATEGORIES, HISTORY_FROM, loadHistory, readHistoryRows } from "./lib/sim/history.ts";
 import { AFFINITY_FEATURES, AffinityIndex, affinityLogLikelihood, affinitySamples, fitAffinity, nickCountries, type AffinityFeature } from "./lib/sim/affinity.ts";
-import { unannouncedCell, unannouncedEvents } from "./lib/sim/unannounced.ts";
+import { DEFAULT_TREND, RATE_DAYS, unannouncedCell, unannouncedEvents } from "./lib/sim/unannounced.ts";
 import { locationOf, parseVrsLabel, qualifierTargets, rankedRules, roleOf } from "./lib/sim/catalog.ts";
 import { qualifierLinks, type LinkEnd } from "./lib/sim/qualifierLinks.ts";
 import { readJson } from "./lib/sim/inputs.ts";
 import { backtestProjections } from "./lib/sim/series.ts";
 import { addDays } from "./lib/liquipedia/rawStore.ts";
+import { EloEngine } from "./lib/elo/engine.ts";
+import { loadFeed } from "./lib/elo/history.ts";
+import { DEFAULT_PARAMS } from "./lib/elo/params.ts";
+import { acceptanceLogLikelihood, CHOICE_FEATURES, choiceLogLikelihood, EloTimeline, fitAcceptance, fitChoice, HABIT_ONLY, valueSamples } from "./lib/sim/value.ts";
 
 /** Leave-future-out gate for the season simulation's field and activity models; see `docs/vrs-simulator.md`, "Field and activity models". */
 
@@ -223,6 +227,37 @@ for (const [category, v] of [...volume].sort()) {
 }
 console.log(`  Poisson deviance per category and region: ${volumeDeviance.model.toFixed(0)} vs ${volumeDeviance.average.toFixed(0)} for the past-year average.`);
 
+// Growth trend on the stand-in rate: same months and cells, deviance and volume ratio per weight and prior.
+const trendMonths = months.filter((m) => addDays(`${m}-01`, PROJECTION_WINDOW) <= lastDay);
+console.log(`  Trend on the ${RATE_DAYS}-day rate (weight / prior: deviance, predicted ÷ actual by category):`);
+for (const weight of [0, 0.5, 1, 1.5]) {
+    for (const prior of weight === 0 ? [DEFAULT_TREND.prior] : [2, 4, 8]) {
+        let dev = 0;
+        const ratio = new Map<string, { p: number; y: number }>();
+        for (const month of trendMonths) {
+            const from = `${month}-01`;
+            const asOf = addDays(from, -1);
+            const to = addDays(from, PROJECTION_WINDOW);
+            const predicted = unannouncedEvents(
+                latestRows.filter((r) => String(r.startdate) <= asOf),
+                countryRegion,
+                { asOf, until: to, rules, trend: { weight, prior } }
+            );
+            const keys = new Set([...predicted.map((e) => `${e.category}|${e.region}`), ...cells.map((c) => `${c.category}|${c.region}`)]);
+            for (const key of keys) {
+                const [category, region] = key.split("|");
+                const p = predicted.filter((e) => e.category === category && e.region === region).reduce((s, e) => s + e.chance, 0);
+                const y = cells.filter((c) => c.category === category && c.region === region && c.start >= from && c.start < to).length;
+                dev += deviance(y, p);
+                const r = ratio.get(category) ?? { p: 0, y: 0 };
+                ratio.set(category, { p: r.p + p, y: r.y + y });
+            }
+        }
+        const byCategory = [...ratio].sort().map(([c, r]) => `${c} ×${(r.p / Math.max(1, r.y)).toFixed(2)}`);
+        console.log(`    ${weight} / ${prior}: ${dev.toFixed(0)}; ${byCategory.join(", ")}`);
+    }
+}
+
 // --- Who attends: which team in its rank band and region cell, held out month by month; reported, features ship on improvement
 
 const affinityIndex = new AffinityIndex(editions);
@@ -247,6 +282,41 @@ const fullBeta = fitAffinity(affinityAll.filter((s) => s.date >= addDays(lastDay
 console.log(`\nWho attends within a band and region cell, ${heldOutN} held-out attendees, mean log-likelihood (higher is better):`);
 for (const [name] of variants) console.log(`  ${name.padEnd(20)} ${(heldOut.get(name)! / heldOutN).toFixed(4)}`);
 console.log(`  Coefficients on the last year: ${AFFINITY_FEATURES.map((f, i) => `${f} ${fullBeta[i].toFixed(2)} (×${Math.exp(fullBeta[i]).toFixed(1)})`).join(", ")}.`);
+
+// --- Value: strength against the field next to habit, in free choices and in VRS offers; gated per month
+
+const feed = loadFeed();
+const timeline = new EloTimeline(new EloEngine(DEFAULT_PARAMS, feed.players).run(feed.matches), (link) => feed.players[link]?.nick ?? link);
+const valueAll = valueSamples(editions, lists, affinityIndex, nickCountries(editions), timeline, { from: addDays(TEST_FROM, -365), to: addDays(lastDay, 1) });
+const VALUE_GAIN = 0.01;
+const valueMonths: Array<{ month: string; choice: [number, number]; offer: [number, number]; n: [number, number] }> = [];
+for (const month of months) {
+    const from = `${month}-01`;
+    const inTrain = (s: { date: string }) => s.date >= addDays(from, -365) && s.date < from;
+    const choiceTest = valueAll.choices.filter((s) => s.date.startsWith(month));
+    const offerTest = valueAll.offers.filter((s) => s.date.startsWith(month));
+    if (choiceTest.length === 0 && offerTest.length === 0) continue;
+    const choiceTrain = valueAll.choices.filter(inTrain);
+    const offerTrain = valueAll.offers.filter(inTrain);
+    const habit = [...HABIT_ONLY, 5];
+    valueMonths.push({
+        month,
+        choice: [choiceLogLikelihood(fitChoice(choiceTrain, habit), choiceTest), choiceLogLikelihood(fitChoice(choiceTrain), choiceTest)],
+        offer: [acceptanceLogLikelihood(fitAcceptance(offerTrain, habit), offerTest), acceptanceLogLikelihood(fitAcceptance(offerTrain), offerTest)],
+        n: [choiceTest.length, offerTest.length],    });
+}
+const pooled = (k: "choice" | "offer", i: 0 | 1, n: 0 | 1) => valueMonths.reduce((s, m) => s + m[k][i] * m.n[n], 0) / Math.max(1, valueMonths.reduce((s, m) => s + m.n[n], 0));
+const improved = (k: "choice" | "offer", n: 0 | 1) => valueMonths.filter((m) => m.n[n] > 0 && m[k][1] - m[k][0] >= VALUE_GAIN).length;
+const tested = (n: 0 | 1) => valueMonths.filter((m) => m.n[n] > 0).length;
+const choiceBeta = fitChoice(valueAll.choices.filter((s) => s.date >= addDays(lastDay, -365)));
+const offerModel = fitAcceptance(valueAll.offers.filter((s) => s.date >= addDays(lastDay, -365)));
+console.log(`\nStrength against the field (${CHOICE_FEATURES.join(", ")}), held out by month, mean log-likelihood, habit (affinity + unrated) → with strength:`);
+console.log(`  free choices in a cell  ${pooled("choice", 0, 0).toFixed(4)} → ${pooled("choice", 1, 0).toFixed(4)}; up ≥ ${VALUE_GAIN} in ${improved("choice", 0)} of ${tested(0)} months`);
+console.log(`  VRS offers accepted     ${pooled("offer", 0, 1).toFixed(4)} → ${pooled("offer", 1, 1).toFixed(4)}; up ≥ ${VALUE_GAIN} in ${improved("offer", 1)} of ${tested(1)} months`);
+console.log(`  Coefficients on the last year: choice ${choiceBeta.map((b) => b.toFixed(2)).join(", ")}; offers ${offerModel.beta.map((b) => b.toFixed(2)).join(", ")}.`);
+const choicePass = improved("choice", 0) * 3 >= tested(0) * 2;
+const offerPass = improved("offer", 1) * 3 >= tested(1) * 2;
+console.log(`  Ships where it passes (strength adds ≥ ${VALUE_GAIN} in 2 of every 3 months): choices ${choicePass ? "yes" : "no"}, offers ${offerPass ? "yes" : "no"}.`);
 
 // --- Qualifier links: do the rules find who filled past qualifier slots? Reported, not gated
 
@@ -348,6 +418,8 @@ for (const [rule, s] of [...linkStats].sort()) {
 }
 
 console.log(`\nBands: ${BAND_LABELS.join(", ")}.`);
-console.log(`Gate: fields ${fieldPass ? "PASS" : "FAIL"} (model < fallback < uniform, model < best remaining); activity ${activityPass ? "PASS" : "FAIL"} (deviance below the band mean in both half years).`);
+console.log(
+    `Gate: fields ${fieldPass ? "PASS" : "FAIL"} (model < fallback < uniform, model < best remaining); activity ${activityPass ? "PASS" : "FAIL"} (deviance below the band mean in both half years); value in offers ${offerPass ? "PASS" : "FAIL"} (strength adds ≥ ${VALUE_GAIN} log-likelihood in 2 of every 3 months).`
+);
 console.log(`Done in ${((Date.now() - started) / 1000).toFixed(1)} s.`);
 if (!fieldPass || !activityPass) process.exit(1);

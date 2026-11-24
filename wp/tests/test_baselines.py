@@ -2,8 +2,24 @@ import numpy as np
 import polars as pl
 import pytest
 
-from cs2wp.baselines import MIN_OTHER_MAPS, TAU2_FLOOR, VERSIONS, assign_roles, fit, shrink_weights, side_rows
+from cs2wp.baselines import (BLENDS, MIN_OTHER_MAPS, TAU2_FLOOR, VERSIONS, assign_roles, fit, shrink_weights, side_rows,
+                             versions_in, with_blends)
 from cs2wp.states import CT, T
+
+
+def test_blends_interpolate_between_neutral_event_and_wpa_opp():
+    credits = pl.DataFrame({"nwpa_event": [0.1, 0.2, -0.3], "wpa_opp": [0.5, None, 0.1]})
+    out = with_blends(credits)
+    assert out["blend_50"][0] == pytest.approx(0.3)
+    assert out["blend_25"][0] == pytest.approx(0.2)
+    assert out["blend_75"][2] == pytest.approx(0.75 * 0.1 + 0.25 * -0.3)
+    assert out["blend_25"][1] is None
+
+
+def test_versions_in_adds_only_blends_present():
+    assert versions_in(["wpa", "wpa_opp"]) == VERSIONS
+    assert versions_in(["blend_50_baseline"]) == (*VERSIONS, "blend_50")
+    assert versions_in([f"{b}_above" for b in BLENDS]) == (*VERSIONS, *BLENDS)
 
 
 def test_side_rows_counts_uncredited_rounds_as_zero():

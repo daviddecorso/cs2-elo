@@ -112,7 +112,7 @@ def cmd_validate_roles(args) -> int:
 def cmd_baselines(args) -> int:
     from .baselines import build
 
-    return build(use_subpositions=not args.no_subpositions, write_sub_copy=args.subpositions)
+    return build(use_subpositions=not args.no_subpositions, write_sub_copy=args.subpositions, blend=args.blend)
 
 
 def cmd_duels(args) -> int:
@@ -304,6 +304,8 @@ def main() -> None:
     group = p.add_mutually_exclusive_group()
     group.add_argument("--no-subpositions", action="store_true", help="Group CT roles by parent position only")
     group.add_argument("--subpositions", action="store_true", help="Write .sub.parquet / .sub.md instead of the default paths")
+    group.add_argument("--blend", action="store_true",
+                       help="Also fit the w·wpa_opp + (1−w)·nwpa_event blends; writes .blend.parquet / .blend.md")
     p = sub.add_parser("duels", help="Expected duel wins from weapons, peeker vs holder, flashes, HP and distance")
     p.add_argument("--ablations", action="store_true", help="Also cross-fit the model without each input group")
     p.add_argument("--device", choices=["auto", "cpu", "cuda"], default="auto", help="XGBoost device")

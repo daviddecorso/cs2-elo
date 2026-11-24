@@ -11,7 +11,7 @@ import { LiquipediaCredit } from "../components/LiquipediaCredit.tsx";
 import { TeamLogo } from "../components/TeamLogo.tsx";
 import { TeamLink } from "../components/TeamLink.tsx";
 import { HltvGapValue, MapWinsValue, PlayerLink, RateValue, WaaRateValue } from "../components/WarValues.tsx";
-import { CONVERSION_LABEL, SHRINK_ROUNDS, USAGE_LABEL, WAA_CREDIT, rankPlayers, signed, type RankedPlayer } from "../war/players.ts";
+import { CONVERSION_LABEL, USAGE_LABEL, WAA_CREDIT, rankPlayers, signed, type RankedPlayer } from "../war/players.ts";
 import { teamPath } from "../utils/teams.ts";
 import { playerWarQuery } from "../data/queries.ts";
 import { PlayerClutch } from "./PlayerClutch.tsx";
@@ -116,7 +116,6 @@ const LeaderboardTable = ({
     sort,
     onSort,
     metric,
-    replacementRate,
     intervalBound,
 }: {
     rows: RankedPlayer[];
@@ -124,7 +123,6 @@ const LeaderboardTable = ({
     sort: { key: SortKey; reversed: boolean };
     onSort: (key: SortKey) => void;
     metric: "WAA" | "WAR";
-    replacementRate: number;
     intervalBound: number;
 }) => (
     <DataTable stickyHeader>
@@ -201,7 +199,7 @@ const LeaderboardTable = ({
                                 {p.rounds.toLocaleString("en-US")}
                             </Td>
                             <Td align="right">
-                                <WaaRateValue player={p} replacementRate={replacementRate} />
+                                <WaaRateValue player={p} />
                             </Td>
                             <Td align="right" className="hidden md:table-cell">
                                 <MapWinsValue est={est} bound={intervalBound} />
@@ -252,7 +250,7 @@ const WarTables = ({ data, role, query }: { data: PlayerWarData; role: RoleFilte
 
     const metric = data.metric;
     const adj = data.iglAdjustmentPer100[WAA_CREDIT];
-    const table = { sort, onSort, metric, replacementRate: data.replacementRate, intervalBound };
+    const table = { sort, onSort, metric, intervalBound };
 
     return (
         <>
@@ -273,7 +271,7 @@ const WarTables = ({ data, role, query }: { data: PlayerWarData; role: RoleFilte
 
             <Section
                 title="Players / round-wins above role average per 100 rounds"
-                subtitle={`Ranked by ${metric} per 100 rounds, shrunk toward the league average for sample size: a player with ${SHRINK_ROUNDS} rounds keeps half their raw rate. Map wins is the unshrunk total. The unshrunk rate splits into team context + usage (what the player's own equipment, utility and drops are worth) + conversion (what they made of them), so receiving resources is never penalized.`}
+                subtitle={`Ranked by ${metric} per 100 rounds, shrunk toward the league average for sample size: a player with ${data.shrinkRounds[WAA_CREDIT]?.toLocaleString("en-US") ?? "n/a"} rounds keeps half their raw rate (split-half reliability, recomputed on every update). Map wins is the unshrunk total. The unshrunk rate splits into team context + usage (what the player's own equipment, utility and drops are worth) + conversion (what they made of them), so receiving resources is never penalized.`}
                 actions={
                     <span className="text-xs font-mono text-muted">
                         {query.trim() || role !== "all" ? `${rows.length} of ${ranked.nonIgls.length} players` : `${rows.length} players`}

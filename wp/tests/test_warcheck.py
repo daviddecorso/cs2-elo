@@ -6,7 +6,41 @@ import pytest
 
 from cs2wp.baselines import VERSIONS
 from cs2wp.data import MapRef
-from cs2wp.warcheck import METRICS, lineup_rows, paired_ci, shrunk_rates, split_half, team_context_maps
+from cs2wp.warcheck import (METRICS, interval_calibration, lineup_rows, map_moments, paired_ci, shrunk_rates,
+                            split_half, split_half_deltas, spot_check_round_se, team_context_maps)
+
+
+def _round_values(map_sd: float, seed: int = 0, players: int = 400, maps: int = 40, rounds: int = 24) -> pl.DataFrame:
+    """Per-round values with a constant true rate per player plus a shared shock per map of size `map_sd`."""
+    rng = np.random.default_rng(seed)
+    sid = np.repeat(np.arange(1, players + 1), maps * rounds)
+    m = np.tile(np.repeat(np.arange(maps), rounds), players)
+    shock = np.repeat(rng.normal(0, map_sd, players * maps), rounds) if map_sd else 0.0
+    vals = np.repeat(rng.normal(0, 0.02, players), maps * rounds) + shock + rng.normal(0, 0.4, len(sid))
+    return pl.DataFrame({"steamid": sid.astype(np.uint64), "key": [f"s{i}/m1" for i in m],
+                         "round_num": np.tile(np.arange(rounds), players * maps),
+                         **{f"{v}_rw": vals for v in VERSIONS}})
+
+
+def _dates(maps: int = 40) -> pl.DataFrame:
+    return pl.DataFrame({"key": [f"s{i}/m1" for i in range(maps)], "date": [f"2026-{1 + i // 4:02d}-{1 + i % 4:02d}" for i in range(maps)]})
+
+
+def test_interval_calibration_round_se_covers_iid_rounds_and_map_se_recovers_map_shocks():
+    iid = interval_calibration(map_moments(_round_values(0.0), _dates()), cutoffs=("2026-06-01",))
+    assert iid["alternating"]["round"]["wpa_opp"]["coverage"] == pytest.approx(0.9, abs=0.05)
+    assert iid["alternating"]["map"]["wpa_opp"]["coverage"] == pytest.approx(0.9, abs=0.06)
+
+    clustered = interval_calibration(map_moments(_round_values(0.15), _dates()), cutoffs=("2026-06-01",))
+    assert clustered["alternating"]["round"]["wpa_opp"]["coverage"] < 0.75
+    assert clustered["alternating"]["round"]["wpa_opp"]["c"] > 1.3
+    assert clustered["alternating"]["map"]["wpa_opp"]["coverage"] == pytest.approx(0.9, abs=0.06)
+    assert clustered["next"]["map"]["wpa_opp"]["players"] == 400
+
+
+def test_spot_check_matches_the_round_bootstrap():
+    rv = _round_values(0.0, players=20, maps=20)
+    assert spot_check_round_se(rv, map_moments(rv, _dates(20))) == pytest.approx(1.0, abs=0.05)
 
 
 def _pm(rows: list[dict]) -> pl.DataFrame:
@@ -28,6 +62,23 @@ def test_split_half_recovers_k_from_signal_and_noise():
     expected_k = noise_sd**2 / signal_sd**2
     assert rel["wpa"]["half_rounds"] == 500
     assert rel["wpa"]["k"] == pytest.approx(expected_k, rel=0.3)
+
+
+def test_split_half_deltas_pair_blends_with_wpa_opp():
+    rng = np.random.default_rng(2)
+    rows = []
+    for sid in range(200):
+        true = rng.normal(0, 0.05)
+        for s in range(12):
+            opp = float(50 * true + rng.normal(0, 2))
+            rows.append({"key": f"{sid * 100 + s}/m1", "series": str(sid * 100 + s), "date": f"2026-01-{1 + s:02d}",
+                         "steamid": sid, "rounds": 50, "num_wpa_opp": opp, "num_blend_50": opp,
+                         "num_blend_75": float(rng.normal(0, 2))})
+    pm = _pm(rows)
+    assert "blend_50" in split_half(pm, min_rounds=300)
+    deltas = split_half_deltas(pm, min_rounds=300, n=200)
+    assert deltas["blend_50"]["d"] == pytest.approx(0.0, abs=1e-12)
+    assert deltas["blend_75"]["hi"] < 0
 
 
 def test_shrunk_rates_pull_small_samples_to_the_mean():

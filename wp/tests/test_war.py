@@ -1,4 +1,5 @@
 import json
+import math
 
 import numpy as np
 import polars as pl
@@ -17,8 +18,12 @@ from cs2wp.war import (
     hltv_gap,
     report_lines,
     role_profiles,
+    shrink_players,
+    shrinkage,
     validation_metrics,
 )
+
+SHRINK = {v: {"k": 1000.0, "mean": 0.0} for v in VERSIONS}
 
 
 def _synthetic_sides() -> pl.DataFrame:
@@ -52,6 +57,16 @@ def test_igl_adjustment_zeros_igl_and_league_means_while_preserving_igl_spread()
     vals = dict(by_player.iter_rows())
     assert vals[1] - vals[2] == pytest.approx(0.40)
     assert vals[1] > 0 > vals[2]
+
+
+def test_igl_adjustment_covers_blend_columns_only_when_present():
+    rows = _synthetic_sides()
+    assert "blend_50_igl_adj" not in fit_igl_adjustment(rows).columns
+    rows = rows.with_columns(pl.col("wpa_opp_above").alias("blend_50_above"))
+    adj = fit_igl_adjustment(rows)
+    out = apply_igl_adjustment(rows, adj)
+    assert adj["blend_50_igl_adj"].to_list() == adj["wpa_opp_igl_adj"].to_list()
+    assert out["blend_50_rw"].to_list() == out["wpa_opp_rw"].to_list()
 
 
 def test_replacement_rate_shifts_war_linearly_by_rounds():
@@ -122,22 +137,41 @@ def test_export_public_blocks_ungated_without_flag_and_marks_provisional(tmp_pat
         **{f"{v}_per100_p5": 0.5 for v in VERSIONS},
         **{f"{v}_per100_p95": 2.5 for v in VERSIONS},
     }], schema_overrides={"steamid": pl.UInt64})
+    shrink = SHRINK
+    players = shrink_players(players, shrink)
     val = {"month_to_month": {100: {}, 200: {}, 300: {}}, "split_half": {}, "with_kd": {}}
-    lines = report_lines(adjusted, adj, players, val, 5.0, 300, 0.0, None)
+    lines = report_lines(adjusted, adj, players, val, 5.0, 300, 0.0, None, shrink)
     assert any("apEX" in line for line in lines)
     favoured_by_raw_wpa = players.with_columns(
         pl.lit(2, pl.UInt64).alias("steamid"), pl.lit("rawFavourite").alias("name"),
-        pl.lit(9.0).alias("wpa_waa"), pl.lit(0.1).alias("wpa_opp_waa"),
+        pl.lit(9.0).alias("wpa_waa"), pl.lit(0.1).alias("wpa_opp_per100_shrunk"),
     )
-    text = "\n".join(report_lines(adjusted, adj, pl.concat([favoured_by_raw_wpa, players]), val, 5.0, 300, 0.0, None))
+    text = "\n".join(report_lines(adjusted, adj, pl.concat([favoured_by_raw_wpa, players]), val, 5.0, 300, 0.0, None, shrink))
     assert text.index("apEX") < text.index("rawFavourite")
     out_dir = tmp_path / "pub"
 
-    assert export_public(players, {1: []}, adj, val, adjusted, 5.0, 300, 0.0, "m", False, out_dir) == 1
+    assert export_public(players, {1: []}, adj, val, adjusted, 5.0, 300, 0.0, "m", False, shrink, out_dir) == 1
     assert not (out_dir / "players.json").exists()
-    assert export_public(players, {1: []}, adj, val, adjusted, 5.0, 300, 0.0, "m", True, out_dir) == 0
+    no_k = {**shrink, "wpa_opp": {"k": None, "mean": 0.0}}
+    assert export_public(players, {1: []}, adj, val, adjusted, 5.0, 300, 0.0, "m", True, no_k, out_dir) == 1
+    assert export_public(players, {1: []}, adj, val, adjusted, 5.0, 300, 0.0, "m", True, shrink, out_dir) == 0
     payload = json.loads((out_dir / "players.json").read_text())
     assert payload["provisional"] is True and payload["metric"] == "WAA" and len(payload["players"]) == 1
+    assert payload["shrinkRounds"]["wpa_opp"] == 1000
+    assert payload["players"][0]["metrics"]["wpa_opp"]["per100Shrunk"] == pytest.approx(1.5 * 400 / 1400, abs=1e-3)
+
+
+def test_shrink_players_pulls_toward_the_league_mean_by_k():
+    rows = _synthetic_sides()
+    adjusted = apply_igl_adjustment(rows, fit_igl_adjustment(rows), replacement_rate=0.01)
+    shrink = shrinkage(adjusted, {"wpa_opp": 400.0, "wpa": math.inf})
+    assert shrink["wpa_opp"]["mean"] == pytest.approx(-0.01)
+    players = shrink_players(pl.DataFrame({"rounds": [400, 4000], **{f"{v}_per100": [3.0, 3.0] for v in VERSIONS}}), shrink)
+    small, big = players["wpa_opp_per100_shrunk"].to_list()
+    assert small == pytest.approx(-1 + 4 * 400 / 800)
+    assert big == pytest.approx(-1 + 4 * 4000 / 4400)
+    assert players["wpa_per100_shrunk"].to_list() == pytest.approx([-1.0, -1.0])
+    assert players["nwpa_event_per100_shrunk"].to_list() == pytest.approx([-1.0, -1.0])
 
 
 def test_validation_splits_by_series_and_deduplicates_box_rows():
@@ -249,7 +283,8 @@ def test_null_role_rows_are_excluded_from_aggregation_and_export(tmp_path, monke
     players = players.join(boot, on="steamid", how="left")
     val = validation_metrics(adjusted, duel_sides, box, players, min_rounds=300)
     out_dir = tmp_path / "pub"
-    assert export_public(players, ct_by_map, adj, val, adjusted, 5.0, 300, 0.0, "m", False, out_dir) == 0
+    assert export_public(shrink_players(players, SHRINK), ct_by_map, adj, val, adjusted, 5.0, 300, 0.0, "m", False,
+                         SHRINK, out_dir) == 0
 
 
 def test_hltv_gap_standardizes_over_qualified_pool_and_handles_nulls(tmp_path, monkeypatch):
@@ -306,7 +341,8 @@ def test_hltv_gap_standardizes_over_qualified_pool_and_handles_nulls(tmp_path, m
         "with_kd": {},
         "with_rating3": {v: {"r": 0.5, "players": 3} for v in VERSIONS},
     }
-    lines = report_lines(adjusted, adj, out, val, 5.0, 300, 0.0, None)
+    out = shrink_players(out, SHRINK)
+    lines = report_lines(adjusted, adj, out, val, 5.0, 300, 0.0, None, SHRINK)
     text = "\n".join(lines)
     assert "## WAA vs HLTV 3.0 (`wpa_opp`)" in text
     assert "IGL flag | IGL" in text
@@ -314,7 +350,7 @@ def test_hltv_gap_standardizes_over_qualified_pool_and_handles_nulls(tmp_path, m
     assert "CT role | Anchor" in text
 
     out_dir = tmp_path / "pub"
-    assert export_public(out, {1: [], 2: [], 3: [], 4: []}, adj, val, adjusted, 5.0, 300, 0.0, "m", False, out_dir) == 0
+    assert export_public(out, {1: [], 2: [], 3: [], 4: []}, adj, val, adjusted, 5.0, 300, 0.0, "m", False, SHRINK, out_dir) == 0
     payload = json.loads((out_dir / "players.json").read_text())
     assert payload["validation"]["withRating3"]["wpa_opp"] == {"r": 0.5, "players": 3}
     by_pub = {p["steamid"]: p for p in payload["players"]}

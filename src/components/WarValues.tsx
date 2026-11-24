@@ -34,7 +34,7 @@ const IntervalBar = ({ p5, point, p95, bound }: { p5: number; point: number; p95
     );
 };
 
-export const WaaRateValue = ({ player, replacementRate }: { player: WarPlayer; replacementRate: number }) => {
+export const WaaRateValue = ({ player }: { player: WarPlayer }) => {
     const est = player.metrics[WAA_CREDIT];
     const tone = est.per100P5 > 0 ? "text-up" : est.per100P95 < 0 ? "text-down" : "text-fg";
     const unshrunk = `${signed(est.per100)} (${signed(est.per100P5)}, ${signed(est.per100P95)})`;
@@ -42,7 +42,7 @@ export const WaaRateValue = ({ player, replacementRate }: { player: WarPlayer; r
         <Tooltip
             content={`Round-wins above average per 100 rounds, shrunk for sample size\nUnshrunk over ${player.rounds.toLocaleString("en-US")} rounds: ${unshrunk}`}
         >
-            <span className={`font-semibold tabular-nums ${tone}`}>{signed(waaRate(player, replacementRate))}</span>
+            <span className={`font-semibold tabular-nums ${tone}`}>{signed(waaRate(player))}</span>
         </Tooltip>
     );
 };

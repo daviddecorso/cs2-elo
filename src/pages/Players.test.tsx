@@ -17,6 +17,8 @@ const warData: PlayerWarData = {
     replacementRate: 0,
     minRounds: 300,
     roundsPerWin: 5.38,
+    shrinkRounds: { wpa_opp: 984, wpa: 1854, nwpa_mancount: 1476, nwpa_event: 1237 },
+    leagueMeanPer100: { wpa_opp: 0, wpa: 0, nwpa_mancount: 0, nwpa_event: 0 },
     iglAdjustmentPer100: {
         wpa_opp: { ct: 0.85, t: 0.66, nonIglCt: -0.2, nonIglT: -0.19 },
         wpa: { ct: 0.9, t: 0.69, nonIglCt: -0.21, nonIglT: -0.2 },
@@ -60,10 +62,10 @@ const warData: PlayerWarData = {
             rating3: 1.41,
             swing: 3.1,
             metrics: {
-                wpa_opp: { waa: 11.35, waaP5: 8.2, waaP95: 14.6, per100: 2.19, per100P5: 1.58, per100P95: 2.82 },
-                wpa: { waa: 9.42, waaP5: 6.1, waaP95: 12.74, per100: 1.82, per100P5: 1.18, per100P95: 2.46 },
-                nwpa_mancount: { waa: 8.1, waaP5: 5.5, waaP95: 10.7, per100: 1.57, per100P5: 1.06, per100P95: 2.07 },
-                nwpa_event: { waa: 7.9, waaP5: 5.4, waaP95: 10.4, per100: 1.53, per100P5: 1.04, per100P95: 2.01 },
+                wpa_opp: { waa: 11.35, waaP5: 8.2, waaP95: 14.6, per100: 2.19, per100Shrunk: 1.6175, per100P5: 1.58, per100P95: 2.82 },
+                wpa: { waa: 9.42, waaP5: 6.1, waaP95: 12.74, per100: 1.82, per100Shrunk: 1.1, per100P5: 1.18, per100P95: 2.46 },
+                nwpa_mancount: { waa: 8.1, waaP5: 5.5, waaP95: 10.7, per100: 1.57, per100Shrunk: 1.03, per100P5: 1.06, per100P95: 2.07 },
+                nwpa_event: { waa: 7.9, waaP5: 5.4, waaP95: 10.4, per100: 1.53, per100Shrunk: 1.06, per100P5: 1.04, per100P95: 2.01 },
             },
         },
         {
@@ -89,10 +91,10 @@ const warData: PlayerWarData = {
             rating3: 1.05,
             swing: 0.6,
             metrics: {
-                wpa_opp: { waa: 3.05, waaP5: 0.1, waaP95: 6.0, per100: 0.51, per100P5: 0.02, per100P95: 1.01 },
-                wpa: { waa: 2.15, waaP5: -0.9, waaP95: 5.2, per100: 0.36, per100P5: -0.15, per100P95: 0.88 },
-                nwpa_mancount: { waa: 2.8, waaP5: 0.1, waaP95: 5.5, per100: 0.47, per100P5: 0.02, per100P95: 0.93 },
-                nwpa_event: { waa: 2.4, waaP5: -0.2, waaP95: 5.0, per100: 0.41, per100P5: -0.03, per100P95: 0.85 },
+                wpa_opp: { waa: 3.05, waaP5: 0.1, waaP95: 6.0, per100: 0.51, per100Shrunk: 0.3895, per100P5: 0.02, per100P95: 1.01 },
+                wpa: { waa: 2.15, waaP5: -0.9, waaP95: 5.2, per100: 0.36, per100Shrunk: 0.23, per100P5: -0.15, per100P95: 0.88 },
+                nwpa_mancount: { waa: 2.8, waaP5: 0.1, waaP95: 5.5, per100: 0.47, per100Shrunk: 0.32, per100P5: 0.02, per100P95: 0.93 },
+                nwpa_event: { waa: 2.4, waaP5: -0.2, waaP95: 5.0, per100: 0.41, per100Shrunk: 0.29, per100P5: -0.03, per100P95: 0.85 },
             },
         },
     ],
@@ -193,7 +195,7 @@ describe("Players page", () => {
                     ...warData.players[0],
                     metrics: {
                         ...warData.players[0].metrics,
-                        wpa_opp: { waa: 12.0, waaP5: 9.0, waaP95: 15.0, per100: 1.1, per100P5: 0.8, per100P95: 1.4 },
+                        wpa_opp: { waa: 12.0, waaP5: 9.0, waaP95: 15.0, per100: 1.1, per100Shrunk: 0.8, per100P5: 0.8, per100P95: 1.4 },
                     },
                 },
                 {
@@ -201,7 +203,7 @@ describe("Players page", () => {
                     isIgl: false,
                     metrics: {
                         ...warData.players[1].metrics,
-                        wpa_opp: { waa: 4.0, waaP5: 1.0, waaP95: 7.0, per100: 2.5, per100P5: 1.0, per100P95: 4.0 },
+                        wpa_opp: { waa: 4.0, waaP5: 1.0, waaP95: 7.0, per100: 2.5, per100Shrunk: 1.5, per100P5: 1.0, per100P95: 4.0 },
                     },
                 },
             ],
@@ -227,28 +229,22 @@ describe("Players page", () => {
         expect(searchHtml).toContain("No IGLs match “spirit”");
     });
 
-    it("ranks a small sample below a slightly lower rate over many more rounds", () => {
-        const at = (steamid: string, name: string, rounds: number, per100: number) => ({
+    it("ranks and shows the published shrunk rate, not the raw one", () => {
+        const at = (steamid: string, name: string, rounds: number, per100: number, per100Shrunk: number) => ({
             ...warData.players[0],
             steamid,
             name,
             rounds,
-            metrics: { ...warData.players[0].metrics, wpa_opp: { ...warData.players[0].metrics.wpa_opp, per100 } },
+            metrics: { ...warData.players[0].metrics, wpa_opp: { ...warData.players[0].metrics.wpa_opp, per100, per100Shrunk } },
         });
-        const html = renderWith({ ...warData, players: [at("5", "hotStreak", 425, 2.65), at("6", "veteran", 6000, 2)] });
+        const html = renderWith({ ...warData, players: [at("5", "hotStreak", 425, 2.65, 0.8), at("6", "veteran", 6000, 2, 1.72)] });
         expect(html.indexOf("veteran")).toBeLessThan(html.indexOf("hotStreak"));
         expect(html).toContain("+0.80");
         expect(html).toContain("+1.72");
     });
 
-    it("shrinks toward replacement level when one is set", () => {
-        const html = renderWith({
-            ...warData,
-            metric: "WAR",
-            replacementRate: 0.01,
-            players: [{ ...warData.players[0], rounds: 984, metrics: { ...warData.players[0].metrics, wpa_opp: { ...warData.players[0].metrics.wpa_opp, per100: 3 } } }],
-        });
-        expect(html).toContain("+2.00");
+    it("states the published k in the subtitle", () => {
+        expect(renderWith({ ...warData, shrinkRounds: { ...warData.shrinkRounds, wpa_opp: 1234 } })).toContain("a player with 1,234 rounds keeps half");
     });
 
     it("lists one rating, ignoring the retired credit parameter", () => {

@@ -943,7 +943,7 @@ Measured on the 267 qualified players (300+ rounds across 53 events), production
 
 `wp/src/cs2wp/warcheck.py`, `cs2wp validate-war [--test-from 2026-03-01]`, writes `data/war/reports/war-validation.md`. These checks don't need roster moves, so they run on the current archive. The roster-change test in [spec.md](spec.md) stays the deciding check. On the current archive it has about 13 usable moves, and the spec's power estimate needs 80–150.
 
-**Split-half reliability.** Each player's series alternate into two halves (players with 300+ rounds). `k` = half rounds × (1 − r) / r is the number of rounds at which reliability reaches 0.5, so reliability at n rounds is n / (n + k). The same `k` sets the shrinkage in the prediction check.
+**Split-half reliability.** Each player's series alternate into two halves (players with 300+ rounds). `k` = half rounds × (1 − r) / r is the number of rounds at which reliability reaches 0.5, so reliability at n rounds is n / (n + k). The same `k` sets the shrinkage in the prediction check and on the site ([Shrinkage](#shrinkage)).
 
 **Does prior lineup WAR add to Elo?** For each test map, each player's rate uses only maps from before the map's event starts, shrunk toward the league mean by `k`. The feature is the difference in the two lineups' summed rates. A no-intercept logistic fit (team order is arbitrary) on the pre-map Elo logit plus that feature is scored by leave-one-event-out log loss against an Elo-only refit. A 90% interval on the gain comes from resampling whole series. HLTV 3.0 and K−D per round go through the same pipeline as comparators.
 
@@ -967,7 +967,11 @@ Measured on the 267 qualified players (300+ rounds across 53 events), production
 
 ### Shrinkage
 
-The site's rating is `waaRate` in `src/war/players.ts`: `mean + (rate − mean) × rounds / (rounds + 984)`, where the mean is 0 for WAA (100 × the replacement rate for WAR). 984 is `wpa_opp`'s split-half k above. Update `SHRINK_ROUNDS` and the Methodology copy if a `validate-war` run moves it materially. Map wins, context, usage, conversion, `vs HLTV` and the style percentiles stay unshrunk.
+`cs2wp war` shrinks every version's rate toward the league mean: `(rw + k·mean) / (rounds + k)`, the formula `shrunk_rates` in `warcheck.py` uses (both call `shrunk_rate` in `war.py`). k is each version's split-half k from `warcheck.split_half`, recomputed on the same rows `cs2wp war` publishes (same window and IGL mode), so it never goes stale. The mean is measured from those rows too: 0 for WAA, and −replacement rate for WAR, since `<v>_rw` subtracts it. (The old TS formula used +replacement rate, which would have been wrong for any WAR publish.)
+
+`players.json` carries `metrics.<v>.per100Shrunk`, `shrinkRounds` (k per version) and `leagueMeanPer100`, and lists players by shrunk `wpa_opp`. The site's `waaRate` in `src/war/players.ts` reads `per100Shrunk`, and the `/players` subtitle reads `shrinkRounds`. `--publish` refuses when `wpa_opp`'s k can't be estimated (fewer than 10 paired players, or r ≤ 0). The `war.md` report prints every k and ranks its tables by the shrunk rate. Map wins, the 90% intervals, context, usage, conversion, `vs HLTV` and the style percentiles stay unshrunk.
+
+On the 2026-11-23 publish (`production` credits, 3,112 maps, 267 players), k is 984 for `wpa_opp`, 1,237 neutral event, 1,476 neutral man-count and 1,854 WPA, the same as `validate-war`.
 
 Out-of-sample check (2026-11-22): rates from before each cutoff predict rates after it, for players with 300+ rounds on both sides. Errors are squared, per 100 rounds, weighted by later rounds. Run on the local `role-rounds.parquet`, which is slightly newer than the published file (rates differ by 0.032 at most).
 
@@ -979,6 +983,31 @@ Out-of-sample check (2026-11-22): rates from before each cutoff predict rates af
 | 2026-06-01 | 132 | 825 | 0.813 | 0.679 | 0.683 | 0.549 | 0.549 |
 
 Shrinkage cuts error by 10–19% at every cutoff without losing rank order, and the fixed k matches a refitted one.
+
+### Interval calibration
+
+`validate-war` checks whether the 90% round-bootstrap intervals are too narrow (the spec's "interval calibration" candidate). Rounds within a map share an opponent, a team and an economy, so they might not be independent. Rerunning a 1,000-draw bootstrap for every split is too slow, so the check uses the SEs the bootstraps converge to: round SE = sd(round values) / √n, and the map-cluster SE of the ratio estimator, √Σ(sₘ − rate·nₘ)² / n. A spot check on 20 players confirms the round SE matches the published bootstrap (median half-width ratio 0.998).
+
+For each player, z = (rate₀ − rate₁) / √(se₀² + se₁²) between two halves of their record, and coverage is the share with |z| < 1.645:
+- **Alternating series** (players with 300+ rounds): the true rate doesn't change between halves, so calibrated intervals cover 90%.
+- **Next period**: 300+ rounds on each side of 2025-10-01, 2026-01-01, 2026-03-01 and 2026-06-01. Real change lowers coverage, so this is context, not the test.
+
+`c` is the 90th percentile of |z| / 1.645, the factor intervals would need to widen by.
+
+Rule set before the run: keep round resampling if `wpa_opp`'s alternating coverage is 85% or more. Otherwise, switch the published bootstrap to whole maps if map-cluster coverage lands in 85–95%.
+
+2026-11-23, `production` credits, 267 players, 557 next-period pairs:
+
+| Metric | Alternating: round | map | c round | c map | Next: round | map | c round | c map |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| **WAA (`wpa_opp`)** | **90%** | 90% | 1.01 | 1.03 | 87% | 85% | 1.09 | 1.12 |
+| WAA (WPA) | 89% | 89% | 1.04 | 1.02 | 85% | 85% | 1.15 | 1.17 |
+| WAA (neutral man-count) | 88% | 87% | 1.07 | 1.06 | 84% | 87% | 1.15 | 1.10 |
+| WAA (neutral event) | 81% | 85% | 1.33 | 1.15 | 83% | 85% | 1.30 | 1.14 |
+
+- **Kept round resampling.** The site's `wpa_opp` intervals cover 90% on alternating series, and resampling whole maps changes nothing. Round credits are mostly win-probability changes, which barely correlate from one round to the next within a map.
+- Next period loses only 3 points (87%), so real change between seasons is small next to sampling noise. That's consistent with k near 1,000.
+- Neutral event's round intervals are about a third too narrow (81%, c 1.33). Its context-average values share more within a map. It's a diagnostic only, so nothing changes, but use map resampling if it's ever published.
 
 **Earlier results (2026-11-06, dry-run credits, 1,312 maps).** These and the two follow-ups are the history behind `wpa_opp`. Current numbers are above.
 
@@ -1036,6 +1065,36 @@ Test set: 1,064 maps (474 series, 19 events) from 2026-03-01. 88% of player slot
 - This is the roster-change test by another name. It needs the 80–150 changes from the power estimate, not more tuning now.
 
 Rerun after the Phase 5 gate (final credits) and after the 2025 backfill. If neutral WAA still adds nothing to Elo with a full season of prior data per player, WAR seeding is unlikely to beat Elo averaging in the roster-change test.
+
+**Follow-up 3: blended event values (2026-11-23). Rejected.** The question was whether a blend of state-specific and context-average values is steadier than either one. The blend is V = w · V(`wpa_opp`) + (1 − w) · V(`nwpa_event` bucket mean). Every version splits an event's value with the same weights, so blending credit rows is exactly blending event values. The blend columns come from the existing credit files, and the WP model doesn't run again. The bucket means are fit on plain `v` (both teams at their real Elo), not on `v_opp`. Averaged over all training events, that's close to Elo-neutral.
+
+```
+cd wp
+uv run cs2wp baselines --blend    # data/war/role-baselines.blend.parquet, role-rounds.blend.parquet (BLENDS in baselines.py)
+uv run cs2wp validate-war --role-rounds ../data/war/role-rounds.blend.parquet   # reports/war-validation.blend.md
+```
+
+Rule set before the run:
+- Pick w by split-half r.
+- Adopt over `wpa_opp` only if the paired Δ split-half r has a 90% interval above 0. The interval resamples players on the same alternating halves.
+- Guards: team share no more than `wpa_opp`'s + 0.05, no team with 5 of the top 20, and the gain-over-Elo lower bound no worse than `wpa_opp`'s by more than 0.001.
+
+`production` credits, 267 players and 310 stints with 300+ rounds, test maps from 2026-03-01. The endpoints match the table above (`wpa_opp` k 984; neutral event 1,237 against 1,234, from refitting baselines on current role inputs).
+
+| w | Split-half k | Δ half r vs `wpa_opp` (90% CI) | Within-team k | Team share | r with team Elo | Top 20: most from one team | Gain over Elo (90% CI) |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| 0 (neutral event) | 1,237 | −0.056 (−0.141, +0.020) | 597 | 0.381 | 0.488 | 4 | −0.0010 (−0.0029, +0.0007) |
+| 0.25 | 1,050 | −0.016 (−0.081, +0.043) | 639 | 0.346 | 0.474 | 4 | −0.0010 (−0.0028, +0.0007) |
+| 0.50 | 954 | +0.008 (−0.036, +0.046) | 741 | 0.313 | 0.451 | 4 | −0.0010 (−0.0027, +0.0007) |
+| 0.625 | 936 | +0.013 (−0.020, +0.041) | 813 | 0.298 | 0.437 | 3 | −0.0009 (−0.0026, +0.0007) |
+| 0.75 | **935** | +0.013 (−0.009, +0.031) | 898 | 0.285 | 0.422 | 3 | −0.0009 (−0.0026, +0.0007) |
+| 0.875 | 952 | +0.008 (−0.002, +0.018) | 995 | 0.273 | 0.405 | 3 | −0.0009 (−0.0025, +0.0006) |
+| 1 (`wpa_opp`) | 984 | — | 1,105 | 0.263 | 0.388 | 3 | −0.0009 (−0.0024, +0.0005) |
+
+- **Not adopted.** The best blend (w ≈ 0.62–0.75) gains about 0.013 in split-half r (k 935 against 984), and every interval covers 0. w = 0.75 passes every guard, so the only failure is the gain being too small to show.
+- **Overall, the state-specific part doesn't add noise.** On current credits, `wpa_opp` is already steadier than neutral event over a player's whole record (k 984 against 1,237). The within-team gap from 2026-11-06 is still there, though: 1,105 for `wpa_opp` against 597.
+- **Blending trades within-team for team strength.** Moving w toward 0 lowers within-team k from 1,105 to 597, and raises team share from 0.26 to 0.38 and r with team Elo from 0.39 to 0.49. Context-average values separate teammates better because they also give players on strong teams more credit. Split-half reliability can't choose between those, so it's not a reason to move off `wpa_opp`.
+- Revisit only with roughly twice the players (the interval is ±0.02 at 267), or if the roster-change test favours within-team separation.
 
 ## WAA vs HLTV 3.0
 

@@ -303,8 +303,10 @@ export const Methodology = () => {
                         </p>
                         <p>
                             The headline rating is WAA per 100 rounds, shrunk toward the league average: the raw rate
-                            times rounds / (rounds + 984), where 984 rounds is the sample at which the rate is half
-                            signal. A 425-round player keeps 30% of their raw rate and a 6,000-round player keeps 86%.
+                            times rounds / (rounds + k), where k is the sample at which the rate is half signal. k comes
+                            from split-half reliability and is recomputed on every update (about 1,000 rounds on current
+                            data), so a 500-round player keeps about a third of their raw rate and a 6,000-round player
+                            about 86%.
                             It measures what a player&apos;s actions were worth. It isn&apos;t a better forecast than
                             box-score ratings, and past WAA hasn&apos;t improved Elo&apos;s match predictions. Map
                             wins, context, usage, conversion and the HLTV gap are all unshrunk.

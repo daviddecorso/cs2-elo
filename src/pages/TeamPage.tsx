@@ -280,9 +280,9 @@ const StintSection = <T extends StintBase>({
         </div>
     );
 
-const PlayersSection = ({ players, replacementRate }: { players: WarPlayer[]; replacementRate: number }) => {
+const PlayersSection = ({ players }: { players: WarPlayer[] }) => {
     if (players.length === 0) return null;
-    const sorted = [...players].sort((a, b) => waaRate(b, replacementRate) - waaRate(a, replacementRate));
+    const sorted = [...players].sort((a, b) => waaRate(b) - waaRate(a));
     return (
         <Section
             title="Players / round-wins above role average"
@@ -321,7 +321,7 @@ const PlayersSection = ({ players, replacementRate }: { players: WarPlayer[]; re
                                 {p.rounds.toLocaleString("en-US")}
                             </Td>
                             <Td align="right">
-                                <WaaRateValue player={p} replacementRate={replacementRate} />
+                                <WaaRateValue player={p} />
                             </Td>
                         </Row>
                     ))}
@@ -484,7 +484,7 @@ export const TeamPage = () => {
                 </Section>
             )}
 
-            <PlayersSection players={players} replacementRate={war.data?.replacementRate ?? 0} />
+            <PlayersSection players={players} />
         </div>
     );
 };

@@ -9,7 +9,7 @@ import sys
 import numpy as np
 import polars as pl
 
-from .baselines import VERSIONS
+from .baselines import VERSIONS, versions_in
 from .data import MapRef, catalog
 from .igls import assign_igls, load_table as load_igl_table
 from .paths import (
@@ -65,7 +65,7 @@ def fit_igl_adjustment(rows: pl.DataFrame) -> pl.DataFrame:
             sub = valid.filter((pl.col("side") == side) & (pl.col("is_igl") == is_igl))
             rds = int(sub["rounds"].sum())
             entry: dict[str, object] = {"side": side, "is_igl": is_igl, "fit_rounds": rds}
-            for v in VERSIONS:
+            for v in versions_in(rows.columns):
                 entry[f"{v}_igl_adj"] = float(-sub[f"{v}_above"].sum() / rds) if rds > 0 else 0.0
             out.append(entry)
     return pl.DataFrame(out, schema_overrides={"side": pl.Int32, "is_igl": pl.Boolean})
@@ -97,7 +97,8 @@ def apply_igl_adjustment(
     rounds-weighted IGL mean stays 0.0, on IGL maps only. With usage joined, also `<v>_conversion_rw`:
     conversion plus the same IGL and replacement terms, so context + usage + conversion_rw = rw.
     """
-    adj_cols = ["side", "is_igl", *(f"{v}_igl_adj" for v in VERSIONS)]
+    versions = versions_in(rows.columns)
+    adj_cols = ["side", "is_igl", *(f"{v}_igl_adj" for v in versions)]
     out = rows.join(adj.select(adj_cols), on=["side", "is_igl"], how="left")
     if igl_calling is not None and not igl_calling.is_empty():
         base = out.filter(pl.col("role").is_not_null()) if "role" in out.columns else out
@@ -126,10 +127,33 @@ def apply_igl_adjustment(
     else:
         shift = lambda v: (pl.col(f"{v}_igl_adj").fill_null(0.0) - replacement_rate) * pl.col("rounds")
 
-    out = out.with_columns((pl.col(f"{v}_above") + shift(v)).alias(f"{v}_rw") for v in VERSIONS)
+    out = out.with_columns((pl.col(f"{v}_above") + shift(v)).alias(f"{v}_rw") for v in versions)
     if "wpa_conversion" in out.columns:
         out = out.with_columns((pl.col(f"{v}_conversion") + shift(v)).alias(f"{v}_conversion_rw") for v in VERSIONS)
     return out
+
+
+def shrunk_rate(num: pl.Expr, rounds: pl.Expr, k: float | None, mean: float) -> pl.Expr:
+    """`num / rounds` pulled toward `mean` by `k` rounds of it; just `mean` when `k` is missing or infinite."""
+    if k is None or not math.isfinite(k):
+        return pl.lit(mean, pl.Float64)
+    return (num + k * mean) / (rounds + k)
+
+
+def shrinkage(adjusted_rows: pl.DataFrame, ks: dict[str, float | None]) -> dict[str, dict]:
+    """Per version: split-half `k` and the league mean of `<v>_rw` per round over role-tagged rows."""
+    rows = adjusted_rows.filter(pl.col("role").is_not_null())
+    rounds = float(rows["rounds"].sum())
+    return {v: {"k": ks.get(v), "mean": float(rows[f"{v}_rw"].sum()) / rounds if rounds else 0.0} for v in VERSIONS}
+
+
+def shrink_players(players: pl.DataFrame, shrink: dict[str, dict]) -> pl.DataFrame:
+    """Adds `<v>_per100_shrunk`: each version's rate per 100 rounds shrunk toward the league mean by its `k`."""
+    return players.with_columns(
+        (100.0 * shrunk_rate(pl.col(f"{v}_per100") * pl.col("rounds") / 100.0, pl.col("rounds"), s["k"], s["mean"]))
+        .alias(f"{v}_per100_shrunk")
+        for v, s in shrink.items()
+    )
 
 
 def map_scores(refs: list[MapRef]) -> pl.DataFrame:
@@ -662,11 +686,13 @@ def report_lines(
     min_rounds: int,
     replacement_rate: float,
     window_from: str | None,
+    shrink: dict[str, dict],
 ) -> list[str]:
     valid = adjusted_rows.filter(pl.col("role").is_not_null())
     dates = valid["date"]
     metric = "WAR" if replacement_rate != 0.0 else "WAA"
-    qual = players.filter(pl.col("rounds") >= min_rounds).sort("wpa_opp_waa", descending=True)
+    qual = players.filter(pl.col("rounds") >= min_rounds).sort("wpa_opp_per100_shrunk", descending=True)
+    kf = lambda k: "n/a" if k is None else ("∞" if not math.isfinite(k) else f"{k:,.0f}")
 
     lines = [
         f"# Player {metric}",
@@ -677,6 +703,10 @@ def report_lines(
         f"{qual.height} players with {min_rounds}+ rounds. "
         f"Empirical conversion: {r_win:.2f} round-wins per map win (analytical MR12 benchmark {analytical_mr12_rounds_per_win():.2f}). "
         f"Replacement rate: {100 * replacement_rate:+.2f} round-wins / 100 rounds.",
+        "",
+        "Shrinkage `k` (split-half rounds at reliability 0.5): "
+        + ", ".join(f"`{v}` {kf(s['k'])}" for v, s in shrink.items())
+        + ". Ranks use `wpa_opp` per 100 rounds shrunk toward the league mean by its `k`.",
         "",
         "## Positional adjustment (`round-wins / 100 rounds`)",
         "",
@@ -733,15 +763,15 @@ def report_lines(
         "",
         f"## Top 20 players by {metric} (WPA, own team at avg Elo, {min_rounds}+ rounds)",
         "",
-        f"| # | Player | Team | Role | Rounds | {metric} (90% CI) | / 100 rds | Kills +/− | HLTV 3.0 | K/D |",
-        "| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |",
+        f"| # | Player | Team | Role | Rounds | Shrunk / 100 | {metric} (90% CI) | / 100 rds | Kills +/− | HLTV 3.0 | K/D |",
+        "| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |",
     ]
     for idx, r in enumerate(qual.head(20).iter_rows(named=True), 1):
         role = ("IGL · " if r["is_igl"] else "") + r["t_role"]
         r3 = f"{r['rating3']:.2f}" if r.get("rating3") is not None else "–"
         kd = f"{r['kd']:.2f}" if r.get("kd") is not None else "–"
         lines.append(
-            f"| {idx} | {r['name']} | {r['lp_team'] or '–'} | {role} | {r['rounds']:,} | "
+            f"| {idx} | {r['name']} | {r['lp_team'] or '–'} | {role} | {r['rounds']:,} | {r['wpa_opp_per100_shrunk']:+.2f} | "
             f"{r['wpa_opp_waa']:+.2f} ({r['wpa_opp_waa_p5']:+.2f}, {r['wpa_opp_waa_p95']:+.2f}) | "
             f"{r['wpa_opp_per100']:+.2f} | {r['kills_above']:+.1f} | {r3} | {kd} |"
         )
@@ -752,14 +782,14 @@ def report_lines(
             "",
             f"## Top and bottom IGLs ({igls_q.height} with {min_rounds}+ rounds)",
             "",
-            f"| Player | Team | Rounds | {metric} (90% CI) | / 100 rds | K/D |",
-            "| --- | --- | --- | --- | --- | --- |",
+            f"| Player | Team | Rounds | Shrunk / 100 | {metric} (90% CI) | / 100 rds | K/D |",
+            "| --- | --- | --- | --- | --- | --- | --- |",
         ]
         shown = pl.concat([igls_q.head(5), igls_q.tail(min(5, max(0, igls_q.height - 5)))]).unique(subset=["steamid"], maintain_order=True)
         for r in shown.iter_rows(named=True):
             kd = f"{r['kd']:.2f}" if r.get("kd") is not None else "–"
             lines.append(
-                f"| {r['name']} | {r['lp_team'] or '–'} | {r['rounds']:,} | "
+                f"| {r['name']} | {r['lp_team'] or '–'} | {r['rounds']:,} | {r['wpa_opp_per100_shrunk']:+.2f} | "
                 f"{r['wpa_opp_waa']:+.2f} ({r['wpa_opp_waa_p5']:+.2f}, {r['wpa_opp_waa_p95']:+.2f}) | "
                 f"{r['wpa_opp_per100']:+.2f} | {kd} |"
             )
@@ -884,8 +914,13 @@ def export_public(
     replacement_rate: float,
     model: str | None,
     allow_ungated: bool,
+    shrink: dict[str, dict],
     out_dir: Path = PUBLIC_WAR,
 ) -> int:
+    k_site = shrink["wpa_opp"]["k"]
+    if k_site is None or not math.isfinite(k_site):
+        print(f"`wpa_opp` split-half k is {k_site}; too few players to shrink, not publishing.")
+        return 1
     gate = None
     provisional = True
     if model:
@@ -909,7 +944,7 @@ def export_public(
             "nonIglT": by_key.get((T, False), 0.0),
         }
 
-    qual = players.filter(pl.col("rounds") >= min_rounds).sort("wpa_waa", descending=True)
+    qual = players.filter(pl.col("rounds") >= min_rounds).sort("wpa_opp_per100_shrunk", descending=True)
     records = []
     for r in qual.iter_rows(named=True):
         sid = int(r["steamid"])
@@ -923,6 +958,7 @@ def export_public(
                 "waaP5": round(float(r[f"{v}_waa_p5"]), 3),
                 "waaP95": round(float(r[f"{v}_waa_p95"]), 3),
                 "per100": round(float(r[f"{v}_per100"]), 3),
+                "per100Shrunk": round(float(r[f"{v}_per100_shrunk"]), 3),
                 "per100P5": round(float(r[f"{v}_per100_p5"]), 3),
                 "per100P95": round(float(r[f"{v}_per100_p95"]), 3),
                 "hltvGap": (
@@ -978,6 +1014,8 @@ def export_public(
         "replacementRate": replacement_rate,
         "minRounds": min_rounds,
         "roundsPerWin": round(r_win, 3),
+        "shrinkRounds": {v: round(s["k"]) if s["k"] is not None and math.isfinite(s["k"]) else None for v, s in shrink.items()},
+        "leagueMeanPer100": {v: round(100.0 * s["mean"], 4) + 0.0 for v, s in shrink.items()},
         "iglAdjustmentPer100": adj_lookup,
         "window": {
             "from": valid["date"].min(),
@@ -1047,6 +1085,14 @@ def build(
     ct_pos = pl.read_parquet(CT_POSITIONS)
     box_per_map = player_rounds(refs)
 
+    from .warcheck import player_maps, split_half
+
+    rel = split_half(player_maps(adjusted, box_per_map), min_rounds)
+    shrink = shrinkage(adjusted, {v: rel[v]["k"] for v in VERSIONS})
+    for v, sh in shrink.items():
+        if sh["k"] is None or not math.isfinite(sh["k"]):
+            print(f"Warning: `{v}` split-half k is {sh['k']}; its shrunk rate is the league mean.", file=sys.stderr)
+
     players, ct_by_map = aggregate_players(adjusted, duel_sides, box_per_map, t_roles, ct_pos, r_win)
     columns = {v: f"{v}_rw" for v in VERSIONS}
     usage_rounds = None
@@ -1069,7 +1115,7 @@ def build(
             if r["f_igl"] > 0 and r["theta_call_se"] > 0
         }
     boot = bootstrap_players(round_vals, players["steamid"].to_list(), r_win, resamples=resamples, columns=columns, call_se=call_se)
-    players = players.join(boot, on="steamid", how="left").sort("wpa_waa", descending=True)
+    players = shrink_players(players.join(boot, on="steamid", how="left"), shrink).sort("wpa_opp_per100_shrunk", descending=True)
     players = hltv_gap(players, min_rounds=min_rounds)
 
     val = validation_metrics(adjusted, duel_sides, box_per_map, players, min_rounds=min_rounds)
@@ -1077,7 +1123,7 @@ def build(
     out_war = PLAYER_WAR if role_rounds == ROLE_ROUNDS else PLAYER_WAR.with_suffix(".sub.parquet")
     out_war.parent.mkdir(parents=True, exist_ok=True)
     players.write_parquet(out_war)
-    lines = report_lines(adjusted, adj, players, val, r_win, min_rounds, replacement_rate, window_from)
+    lines = report_lines(adjusted, adj, players, val, r_win, min_rounds, replacement_rate, window_from, shrink)
     if has_usage:
         lines += usage_lines(adjusted, players, min_rounds)
     resid = side_residuals(adjusted)
@@ -1097,6 +1143,6 @@ def build(
 
     if publish:
         return export_public(
-            players, ct_by_map, adj, val, adjusted, r_win, min_rounds, replacement_rate, model, allow_ungated
+            players, ct_by_map, adj, val, adjusted, r_win, min_rounds, replacement_rate, model, allow_ungated, shrink
         )
     return 0

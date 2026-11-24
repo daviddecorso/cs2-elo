@@ -102,7 +102,7 @@ const HeroStrip = ({
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-x-6 gap-y-5 py-4 border-y border-line">
             <StatTile
                 label={`${data.metric} / 100`}
-                value={<WaaRateValue player={player} replacementRate={data.replacementRate} />}
+                value={<WaaRateValue player={player} />}
                 caption={rank ? `Rank ${rank} / ${of} ${poolLabel}` : `${player.rounds.toLocaleString("en-US")} rounds`}
             />
             <StatTile
@@ -524,7 +524,7 @@ const ClutchSection = ({ steamid }: { steamid: string }) => {
 const TeammatesSection = ({ player, data }: { player: WarPlayer; data: PlayerWarData }) => {
     const mates = data.players
         .filter((p) => p.lpTeam !== null && p.lpTeam === player.lpTeam && p.steamid !== player.steamid)
-        .sort((a, b) => waaRate(b, data.replacementRate) - waaRate(a, data.replacementRate));
+        .sort((a, b) => waaRate(b) - waaRate(a));
     if (!player.lpTeam || mates.length === 0) return null;
     return (
         <Section
@@ -560,7 +560,7 @@ const TeammatesSection = ({ player, data }: { player: WarPlayer; data: PlayerWar
                                 {p.rounds.toLocaleString("en-US")}
                             </Td>
                             <Td align="right">
-                                <WaaRateValue player={p} replacementRate={data.replacementRate} />
+                                <WaaRateValue player={p} />
                             </Td>
                         </Row>
                     ))}

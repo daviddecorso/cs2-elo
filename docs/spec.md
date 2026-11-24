@@ -310,7 +310,7 @@ Built (`cs2wp validate-war`, results in [war.md](war.md#war-validation)):
 Candidates, not built:
 
 - **Movers at the player level.** For every player who changed teams, correlate WAR before and after the move. This uses the same movers as the roster test, without its three-month window or the Elo seeding step. Low correlation means WAR carries team context.
-- **Interval calibration.** Check that the 90% bootstrap intervals cover the player's next-period WAR about 90% of the time, allowing for real change. Intervals that are too narrow mean round resampling ignores dependence between rounds, and resampling whole maps would fix that.
+- **Interval calibration.** *(Done 2026-11-23, in `cs2wp validate-war`.)* The `wpa_opp` round-bootstrap intervals cover 90% between alternating-series halves and 87% across periods, and whole-map resampling gives the same, so the bootstrap stays per round ([war.md](war.md#interval-calibration)).
 - **Comparison with known judgements.** Correlate WAR with HLTV's top-20 rankings and event MVP/EVP awards. This is a face-validity check only, since those lists reward star stats.
 
 **Manual work that remains**

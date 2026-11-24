@@ -14,6 +14,8 @@ export interface HltvGap {
 }
 
 export interface WarEstimate extends WarRate {
+    /** `per100` shrunk toward the league mean by the version's split-half k (`shrinkRounds`). */
+    per100Shrunk: number;
     waa: number;
     waaP5: number;
     waaP95: number;
@@ -281,6 +283,9 @@ export interface PlayerWarData {
     replacementRate: number;
     minRounds: number;
     roundsPerWin: number;
+    /** Split-half k per version: the rounds at which a rate is half signal. Null when too few players to estimate. */
+    shrinkRounds: Record<CreditVersion, number | null>;
+    leagueMeanPer100: Record<CreditVersion, number>;
     iglAdjustmentPer100: Record<CreditVersion, { ct: number; t: number; nonIglCt: number; nonIglT: number }>;
     window: { from: string; to: string; maps: number; events: number };
     validation: {

@@ -112,7 +112,15 @@ export const tactics: TacticsData = {
 };
 
 const metrics = (per100: number) => {
-    const est = { waa: per100 * 5, waaP5: 0, waaP95: per100 * 10, per100, per100P5: per100 - 0.5, per100P95: per100 + 0.5 };
+    const est = {
+        waa: per100 * 5,
+        waaP5: 0,
+        waaP95: per100 * 10,
+        per100,
+        per100Shrunk: (per100 * 2000) / (2000 + 984),
+        per100P5: per100 - 0.5,
+        per100P95: per100 + 0.5,
+    };
     return { wpa_opp: est, wpa: est, nwpa_mancount: est, nwpa_event: est };
 };
 const player = (steamid: string, name: string, lpTeam: string, per100: number, isIgl = false) => ({
@@ -148,6 +156,8 @@ export const warPlayers: PlayerWarData = {
     replacementRate: 0,
     minRounds: 300,
     roundsPerWin: 5.38,
+    shrinkRounds: { wpa_opp: 984, wpa: 1854, nwpa_mancount: 1476, nwpa_event: 1237 },
+    leagueMeanPer100: { wpa_opp: 0, wpa: 0, nwpa_mancount: 0, nwpa_event: 0 },
     iglAdjustmentPer100: {
         wpa_opp: { ct: 0, t: 0, nonIglCt: 0, nonIglT: 0 },
         wpa: { ct: 0, t: 0, nonIglCt: 0, nonIglT: 0 },

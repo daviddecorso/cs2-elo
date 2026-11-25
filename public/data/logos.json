@@ -267,6 +267,10 @@
     "slug": "los-kogutos",
     "hasDark": false
   },
+  "BANGARANGA": {
+    "slug": "bangaranga",
+    "hasDark": false
+  },
   "bankaPEPSI": {
     "slug": "bankapepsi",
     "hasDark": false
@@ -296,7 +300,7 @@
     "hasDark": true
   },
   "BC.Game": {
-    "slug": "bc-game-esports",
+    "slug": "gosh",
     "hasDark": false
   },
   "BC.Game Esports": {
@@ -379,6 +383,10 @@
     "slug": "black-phoenix",
     "hasDark": false
   },
+  "bLight NV": {
+    "slug": "blight-nv",
+    "hasDark": false
+  },
   "BLUEJAYS Talents": {
     "slug": "bluejays-talents",
     "hasDark": false
@@ -446,6 +454,10 @@
   "BTH E-Sports": {
     "slug": "bth-e-sports",
     "hasDark": false
+  },
+  "Bucephalus": {
+    "slug": "bucephalus",
+    "hasDark": true
   },
   "Bushido Wildcats": {
     "slug": "bushido-wildcats",
@@ -1135,6 +1147,10 @@
     "slug": "glore",
     "hasDark": false
   },
+  "GOSH": {
+    "slug": "gosh",
+    "hasDark": false
+  },
   "Gothboiclique": {
     "slug": "gothboiclique",
     "hasDark": false
@@ -1601,6 +1617,10 @@
   },
   "Luminosity Gaming": {
     "slug": "luminosity-gaming",
+    "hasDark": false
+  },
+  "Lunacy Team": {
+    "slug": "lunacy-team",
     "hasDark": false
   },
   "Lynn Vision": {
@@ -2072,7 +2092,7 @@
     "hasDark": false
   },
   "PARIVISION": {
-    "slug": "parivision",
+    "slug": "pvision",
     "hasDark": false
   },
   "PARTIZAN": {
@@ -2192,7 +2212,7 @@
     "hasDark": false
   },
   "PVISION": {
-    "slug": "parivision",
+    "slug": "pvision",
     "hasDark": false
   },
   "QuantumX": {
@@ -2827,6 +2847,10 @@
     "slug": "los-kogutos",
     "hasDark": false
   },
+  "Team BANGARANGA": {
+    "slug": "bangaranga",
+    "hasDark": false
+  },
   "Team bankaPEPSI": {
     "slug": "bankapepsi",
     "hasDark": false
@@ -2856,7 +2880,7 @@
     "hasDark": true
   },
   "Team BC.Game": {
-    "slug": "bc-game-esports",
+    "slug": "gosh",
     "hasDark": false
   },
   "Team BC.Game Esports": {
@@ -2939,6 +2963,10 @@
     "slug": "black-phoenix",
     "hasDark": false
   },
+  "Team bLight NV": {
+    "slug": "blight-nv",
+    "hasDark": false
+  },
   "Team BLUEJAYS Talents": {
     "slug": "bluejays-talents",
     "hasDark": false
@@ -3006,6 +3034,10 @@
   "Team BTH E-Sports": {
     "slug": "bth-e-sports",
     "hasDark": false
+  },
+  "Team Bucephalus": {
+    "slug": "bucephalus",
+    "hasDark": true
   },
   "Team Bushido Wildcats": {
     "slug": "bushido-wildcats",
@@ -3699,6 +3731,10 @@
     "slug": "glore",
     "hasDark": false
   },
+  "Team GOSH": {
+    "slug": "gosh",
+    "hasDark": false
+  },
   "Team Gothboiclique": {
     "slug": "gothboiclique",
     "hasDark": false
@@ -4169,6 +4205,10 @@
   },
   "Team Luminosity Gaming": {
     "slug": "luminosity-gaming",
+    "hasDark": false
+  },
+  "Team Lunacy Team": {
+    "slug": "lunacy-team",
     "hasDark": false
   },
   "Team Lynn Vision": {
@@ -4648,7 +4688,7 @@
     "hasDark": false
   },
   "Team PARIVISION": {
-    "slug": "parivision",
+    "slug": "pvision",
     "hasDark": false
   },
   "Team PARTIZAN": {
@@ -4768,7 +4808,7 @@
     "hasDark": false
   },
   "Team PVISION": {
-    "slug": "parivision",
+    "slug": "pvision",
     "hasDark": false
   },
   "Team QuantumX": {
@@ -5623,6 +5663,10 @@
     "slug": "zotix",
     "hasDark": true
   },
+  "Team Zylic Gaming": {
+    "slug": "zylic-gaming",
+    "hasDark": true
+  },
   "The Chosen Few": {
     "slug": "the-chosen-few",
     "hasDark": true
@@ -6029,6 +6073,10 @@
   },
   "zotix cs2": {
     "slug": "zotix",
+    "hasDark": true
+  },
+  "Zylic Gaming": {
+    "slug": "zylic-gaming",
     "hasDark": true
   }
 }

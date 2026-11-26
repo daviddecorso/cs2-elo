@@ -147,6 +147,10 @@
     "slug": "alliance",
     "hasDark": false
   },
+  "Almost Nuts": {
+    "slug": "almost-nuts",
+    "hasDark": false
+  },
   "ALTAY": {
     "slug": "altay-esports",
     "hasDark": false
@@ -1964,8 +1968,8 @@
     "hasDark": true
   },
   "NuTorious": {
-    "slug": "nutorious",
-    "hasDark": true
+    "slug": "f5-esports",
+    "hasDark": false
   },
   "Oasis Gaming": {
     "slug": "oasis-gaming",
@@ -1998,6 +2002,10 @@
   "OLDBOYS PL": {
     "slug": "oldboys",
     "hasDark": true
+  },
+  "OldFriendsClub": {
+    "slug": "oldfriendsclub",
+    "hasDark": false
   },
   "Omega": {
     "slug": "omega",
@@ -2721,6 +2729,10 @@
   },
   "Team alliance 2024": {
     "slug": "alliance",
+    "hasDark": false
+  },
+  "Team Almost Nuts": {
+    "slug": "almost-nuts",
     "hasDark": false
   },
   "Team ALTAY": {
@@ -4560,8 +4572,8 @@
     "hasDark": true
   },
   "Team NuTorious": {
-    "slug": "nutorious",
-    "hasDark": true
+    "slug": "f5-esports",
+    "hasDark": false
   },
   "Team Oasis Gaming": {
     "slug": "oasis-gaming",
@@ -4594,6 +4606,10 @@
   "Team OLDBOYS PL": {
     "slug": "oldboys",
     "hasDark": true
+  },
+  "Team OldFriendsClub": {
+    "slug": "oldfriendsclub",
+    "hasDark": false
   },
   "Team Omega": {
     "slug": "omega",

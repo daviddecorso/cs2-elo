@@ -35,6 +35,37 @@ An entry is kept only if it lowers gate log loss. Tuning moves of under 0.0005 c
 - A temperature scoped to online tier-1 qualifiers (tournament `publishertier` "Tier 1 Qualifier" / `liquipediatiertype` Qualifier or Online Stage) rather than all of tier 2. It's where the 2026 tier-2 overconfidence sits (see the tier-2 entry below), but it can't clear the gate on its own either. It only matters for the simulator's qualifier odds.
 - A `skillWeight` that grows for new lineups. The live term's gain is largest when the newer side has under 30 maps since its core changed (luck-form entry below). Every tier-1 LAN year has now been seen, so this would have to wait for the tier-2 holdout or 2027.
 
+## 2026-11-27: Registered tier-2 holdout: live term on tier-1 online and tier-2 series — declared, not yet run
+
+**Question:** does the live skill + `value` luck term carry over to tier-1 online and tier-2 series once those maps have demos? Phase 1 of the luck-form work (below) kept nothing, so the live form is the primary. No tier-1 online or tier-2 demo had been downloaded when this was written.
+
+**Already seen, excluded.** Before this was written, the primary command was run once on today's data to check the baseline. It scored 520 series outside tier-1 LAN that are already treated through tier-1 LAN luck maps: gain +0.0039 (−0.0017, +0.0094), λ 1.569 (0.037, 3.158). Their match2ids are frozen in `scripts/lib/elo/frozen/test-t2-seen.json` and dropped from the primary. The same series were also part of the pooled 2024 test and the 2026 checks.
+
+**Test set:** series from 2024-01-01 to 2026-11-27 at Liquipedia tier 1 online or tier 2 (LAN or online). They must be treated under the registered rule (both lineages have 5+ maps with a luck row in the 120 days before) and not be on the seen list. Maps from 2023-10 to 2023-12 count only toward history. Full HLTV coverage would give about 540 series. Real tier-2 online coverage will be lower, so the test is weak, and a fail is weak evidence against the term.
+
+**Baseline:** `scripts/lib/elo/frozen/test-t2-primary.json`, every param as of today (train series 0.5833). The term is frozen as live: `skillWeight` 8,458, `luckWeight` 0.6, variant `value`, teammate-mean rule.
+
+**Primary, the decision.** The gate is the same as in 2024: the encompassing λ 90% CI must be above 0, and the treated-series gain above 0.
+`npm run backtest-elo -- --params-file scripts/lib/elo/frozen/test-t2-primary.json --skill --skill-weight 8458 --luck-weight 0.6 --luck-variant value --scope wide --test-from 2024-01-01 --test-to 2026-11-27 --exclude-file scripts/lib/elo/frozen/test-t2-seen.json`
+
+**Secondaries, not the decision:**
+1. Every treated series outside tier-1 LAN, the seen 520 included: the primary without `--exclude-file`.
+2. Opponent-adjusted luck: the primary with `--luck-variant valueadj`. It was ahead of live on both phase-1 sets but wasn't the tune pick.
+
+**Reading, declared now:**
+- Primary pass: commit `luck-live.jsonl` and `player-skill.json` from the wide `cs2wp luck` run, so the live term reaches these series' own maps.
+- Primary fail: the committed files keep tier-1 LAN maps only, as today.
+- If secondary 2 passes with a larger λ than the primary, opponent-adjusted luck becomes a candidate for a 2027 tier-1 LAN check. It doesn't ship on this test.
+
+**Until the result is read:** `luck-live.jsonl` and `player-skill.json` from wide runs aren't committed. Pipeline fixes and calibration checks of expected duels and WP on the new maps by tier are allowed, each logged here first. The wp chain fits on tier-1 LAN and only scores the new maps (`cross-fit`, `duels`, `baselines`); `cs2wp luck` takes every map.
+
+**Data:**
+1. Run `npm run backfill-hltv-links -- --wide --from 2023-10-01` once.
+2. Run `cs2demos auto --wide`.
+3. On the PC, run the chain: `cross-fit`, `credit`, `duels`, `team-factor`, `duel-stats`, `team-stats`, `luck`.
+
+The run needs a feed through 2026-11-27, and the PC's `data/raw` ended 2026-08-31 on the last run. So either run on the Mac with the PC's `data/elo/luck-maps.jsonl` and `player-skill.json`, or refresh the PC's feed first.
+
 ## 2026-11-27: Luck form, phase 1 (exploratory)
 
 Assumption: the live skill + luck term ([elo-model.md](elo-model.md)) leaves accuracy on the table in how θ is formed and how much luck each map removes. Each change is compared against the live term, not against no adjustment, on the registered treated rule. Tune: 1,722 treated series in 2024–25. Check: 836 in 2026. Every year here has been seen, so nothing is gated, and a change is kept only if it gains on both. Run with `npm run backtest-elo -- --luck-form`. The run confirms its live arm matches the shipped engine.
@@ -53,10 +84,24 @@ By \|skill gap\| tercile: low +0.0019, mid +0.0032, high +0.0054. The term earns
 
 **Skill θ half-life** (`skillHalfLife`, `makeSkillLookup`): each earlier series counts `0.5^(age / h)`. h is 180, 365 or 730 days, and `skillWeight` is rescaled to the live points per SD of the 2024–25 treated gap, times 0.75, 1 or 1.25. Luck stays live. Best on tune: 730 days at 0.75×, gaining +0.0002 (−0.0005, +0.0009) on tune and −0.0001 (−0.0013, +0.0010) on check. **Dropped.** Shorter half-lives are worse on both. Cumulative θ is the better skill estimate, and θ doesn't go stale at this horizon.
 
-**Pending a PC rerun of `cs2wp luck`.** The local `data/war` tables predate the 2024 backfill, with 3,111 maps against 4,780. `cs2wp luck` now writes two more column sets to `luck-maps.jsonl`, and `--luck-form` scores both once the file has them:
+**Families scored after a PC rerun of `cs2wp luck`** (4,780 maps; the Mac's `data/war` tables predate the 2024 backfill). `cs2wp luck` writes three more column sets to `luck-maps.jsonl`:
 - `reliability`: for `luckReliability` (the luck weight times each map's mean `n / (n + k)` over its duel views). Tried at w 0.6, 0.8 and 1.
 - `xMarginValueH180/365/730`: the value variant with θ decayed by the same rule inside `luck.py:player_priors`.
 - `xMarginValueAdj` and the gitignored `data/elo/player-skill-adj.json`: opponent-adjusted θ, below. Tried as luck only, as skill only at 0.75, 1 and 1.25× the live points per SD, and as both.
+
+The PC's `data/raw` ends 2026-08-31, so its check set is 585 series, not 836. Tune is the same 1,722 series and matches the Mac to 0.00001 (live 0.62064). Check gains below are on the 585.
+
+| Family | Best on tune | Tune gain over live | Check gain over live (585) | Verdict |
+| --- | --- | --- | --- | --- |
+| Reliability-scaled luck | w 1 | −0.0002 (−0.0009, +0.0006) | +0.0003 (−0.0007, +0.0013) | dropped |
+| Luck θ half-life | 365 days | +0.0000 (−0.0001, +0.0002) | −0.0008 (−0.0012, −0.0004) | dropped |
+| Opponent-adjusted θ | luck + skill, 0.75× | +0.0002 (−0.0006, +0.0010) | −0.0004 (−0.0019, +0.0011) | dropped |
+
+Scaling luck down where θ is uncertain loses on tune at every w, and most at the live 0.6 (0.62178), so the uncertain part of θ isn't absorbing skill that the live weight over-removes. Decaying the luck θ doesn't help either, which matches the skill side: θ doesn't go stale at this horizon.
+
+Opponent-adjusted luck alone, which isn't the tune pick, is ahead of live on both: tune 0.62054 against 0.62064, check 0.60680 against 0.60730. Choosing it after seeing the check would be a forked path, so it isn't kept. It's the one form worth declaring for the tier-2 holdout, where opponents' strength varies more than on tier-1 LAN.
+
+**Reading:** phase 1 keeps nothing, and the live form stands.
 
 **Tier-aware θ prior: replaced before it was tried.** The plan was to shrink θ toward the mean θ of players at the event's tier rather than toward 0. That doesn't work, because execution is zero-sum within a duel. A tier-2 scene that mostly plays itself averages θ ≈ 0 just as the tier-1 pool does, so the tier means would hold no information. The real gap is that θ measures skill against whoever a player happened to face. On tier-1 LAN today, that flatters a player who farmed the weak teams at a Major opening stage. On tier-2 data, it would put a tier-2 star level with a tier-1 star.
 

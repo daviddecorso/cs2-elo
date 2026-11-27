@@ -706,6 +706,8 @@ function headToHead(): void {
 // Flags `--luck-variant` (docs/war.md, Luck-adjusted Elo) and, with `--skill`, `--luck-weight w` held fixed; the baseline is unadjusted.
 // `--skill-weight w` (with `--skill`) or `--luck-weight w` (with `--luck`) scores that weight with no grid.
 // `--test-from` / `--test-to` / `--test-years 2024,2026` set the scored window; `--simulate n` adds the gate power simulation on 2025 treated series.
+// `--scope wide` scores only tier-1 online and tier-2 treated series, the registered tier-2 holdout. `--exclude-file` drops
+// the listed match2ids from the scored set; `--save-treated` writes the scored set's match2ids.
 /** Series where both lineages have 5+ maps with a luck row in the 120 days before: the registered treated rule. */
 function treatedSeries(preds: SeriesPrediction[], lookup: LuckLookup): Set<string> {
     const WINDOW = 120 * 86400;
@@ -867,7 +869,7 @@ function adjustmentExperiment(key: "luckWeight" | "skillWeight"): void {
     const LUCK_PATH = path.resolve("data/elo/luck-maps.jsonl");
     const SKILL_PATH = path.resolve("data/elo/player-skill.json");
     const MIN_TREATED_MAPS = 5;
-    const SUFFIX: Record<string, string> = { raw: "", skill: "Skill", value: "Value", full: "Full", skillonly: "SkillOnly" };
+    const SUFFIX: Record<string, string> = { raw: "", skill: "Skill", value: "Value", valueadj: "ValueAdj", full: "Full", skillonly: "SkillOnly" };
     const variant = option("luck-variant", "skill");
     if (!(variant in SUFFIX)) throw new Error(`Bad --luck-variant ${variant}`);
     const rows = new Map<string, LuckRow>();
@@ -886,11 +888,19 @@ function adjustmentExperiment(key: "luckWeight" | "skillWeight"): void {
     const treated = treatedSeries(base, lookup);
     const inYear = (year: string) => (p: SeriesPrediction) => treated.has(p.id) && dayOf(p.t).startsWith(year);
     const isTreatedTrain = inYear("2025");
-    const isTreatedTest = (p: SeriesPrediction) => treated.has(p.id) && isTest(p);
+    const scope = option("scope", "all");
+    if (scope !== "all" && scope !== "wide") throw new Error(`Bad --scope ${scope}`);
+    const inScope = (p: SeriesPrediction) => scope === "all" || (p.tier !== null && p.tier <= 2 && !(p.tier === 1 && p.lan));
+    const matchId = (p: SeriesPrediction) => p.id.slice(p.id.lastIndexOf(":") + 1);
+    const excludePath = option("exclude-file", "");
+    const excluded = new Set<string>(excludePath ? (JSON.parse(fs.readFileSync(path.resolve(excludePath), "utf8")) as string[]) : []);
+    const isTreatedTest = (p: SeriesPrediction) => treated.has(p.id) && isTest(p) && inScope(p) && !excluded.has(matchId(p));
+    const savePath = option("save-treated", "");
+    if (savePath) saveJson(path.resolve(savePath), `${JSON.stringify(base.filter(isTreatedTest).map(matchId).sort(), null, 1)}\n`);
 
     const fixedLabel = Object.entries(fixed).filter(([, v]) => v).map(([k, v]) => ` ${k}=${v}`).join("");
     console.log(`\n${key} experiment (luck variant ${variant}${fixedLabel}): ${rows.size} luck maps; treated series (both sides ` +
-        `${MIN_TREATED_MAPS}+ luck maps in 120 days): ${base.filter(isTreatedTrain).length} in 2025, ${base.filter(isTreatedTest).length} from ${testFrom}`);
+        `${MIN_TREATED_MAPS}+ luck maps in 120 days): ${base.filter(isTreatedTrain).length} in 2025, ${base.filter(isTreatedTest).length} from ${testFrom}${scope === "wide" ? " outside tier-1 LAN" : ""}`);
 
     const pinned = key === "skillWeight" ? option("skill-weight", "") : option("luck-weight", "");
     let grid: Array<{ w: number; label: string }>;

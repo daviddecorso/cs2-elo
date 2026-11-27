@@ -69,10 +69,10 @@
     "positions": ["A", "Mid", "Connector", "B"],
     "callouts": {
       "Main": "A", "BombsiteA": "A", "Fountain": "A", "Heaven": "A", "Walkway": "A",
-      "Middle": "Mid", "MidDoors": "Mid", "Bridge": "Mid", "PalaceInterior": "Mid", "Water": "Mid",
+      "Middle": "Mid", "MidDoors": "Mid", "Bridge": "Mid", "PalaceInterior": "Mid",
       "Connector": "Connector",
       "BombsiteB": "B", "BackofB": "B", "Alley": "B", "Bricks": "B", "OutsideLong": "B", "LowerTunnel": "B",
-      "Canal": null, "CTSideUpper": null, "SnipersNest": null, "CTSpawn": null, "Tunnel": null, "TunnelStairs": null,
+      "Canal": null, "Water": null, "CTSideUpper": null, "SnipersNest": null, "CTSpawn": null, "Tunnel": null, "TunnelStairs": null,
       "Ruins": null, "Street": null, "TStairs": null, "TSideUpper": null, "TSpawn": null
     }
   },

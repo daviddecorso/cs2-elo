@@ -1511,6 +1511,10 @@
     "slug": "lazer-cats",
     "hasDark": false
   },
+  "Lebanon": {
+    "slug": "team-lebanon",
+    "hasDark": false
+  },
   "LeeK NXT": {
     "slug": "leek-nxt",
     "hasDark": false
@@ -4101,6 +4105,10 @@
   },
   "Team Lazer Cats": {
     "slug": "lazer-cats",
+    "hasDark": false
+  },
+  "Team Lebanon": {
+    "slug": "team-lebanon",
     "hasDark": false
   },
   "Team LeeK NXT": {

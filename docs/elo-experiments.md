@@ -14,6 +14,27 @@ An entry is kept only if it lowers gate log loss. Tuning moves of under 0.0005 c
 
 - A temperature scoped to online tier-1 qualifiers (tournament `publishertier` "Tier 1 Qualifier" / `liquipediatiertype` Qualifier or Online Stage) rather than all of tier 2. It's where the 2026 tier-2 overconfidence sits (see the tier-2 entry below), but it can't clear the gate on its own either. It only matters for the simulator's qualifier odds.
 
+## 2026-11-26: Registered 2024 test: baseline moved to today's params — declared, not yet run
+
+**Why it changes.** The 2026-11-15 registration scores the skill + `value` luck term against the base params as they stood then, via `--set burstMaps=0`. That no longer holds. Since then the base model gained the retunes, player Elo (`playerBlend` 0.45), `debutOffset`, `newLanOffset` and the CS:GO warmup. A pass would put the term live on today's model, so today's model is the baseline that answers the shipping question. Nothing has read 2024 luck or skill rows: the chain outputs still start 2025-01-23.
+
+**Baselines, frozen in `scripts/lib/elo/frozen/`:**
+- `test-2024-primary.json`: `params.json` as of today, run with the CS:GO warmup on. Check: train series 0.5835, gate 0.6062.
+- `test-2024-registration.json`: `params.json` at 0176598, with every later key off (`gameRegress`, `burstMaps`, `regionPriorOceania`, `debutOffset`, `newLanOffset`, `playerBlend` 0; `oceaniaTemp` 1), run with `--no-csgo`. Check: train series 0.6099, gate 0.6155. The registration logged 0.61138 / 0.61490. The gap is feed and identity changes since then, which can't be rewound, so this is the closest rebuild, not an exact one.
+
+**Known biases, both against a pass.** Player Elo params were tuned on 2024 alone, and the latest retune and `newLanOffset` used 2024–25, so the primary baseline is in sample on the test year. `skillWeight` was frozen against a lineage-only model, and player Elo may already carry part of what it adds.
+
+**Primary, the decision** (unchanged gate: `Encompassing` λ 90% CI above 0 and treated-series gain above 0):
+`npm run backtest-elo -- --params-file scripts/lib/elo/frozen/test-2024-primary.json --skill --skill-weight 8458 --luck-weight 0.6 --luck-variant value --test-from 2024-01-01 --test-years 2024`
+
+**Secondaries, not the decision:**
+1. The same run on the registration rebuild: `--params-file scripts/lib/elo/frozen/test-2024-registration.json --no-csgo`, other flags as above.
+2. Pooled 2024 + 2026 under the old gain gate on the primary baseline: `--test-years 2024,2026`. It carries the caveat that the form was the best of seven variants on 2026.
+
+**Reading, declared now.** If the primary passes, the term goes live as registered. A primary fail parks the term for good. If the primary fails but secondary 1 passes, read that as player Elo covering the gain, not as grounds for a rerun.
+
+**Data** as registered: the `cs2wp` chain rerun over the 2023-10 → 2024 backfill, through `cross-fit` (pre-2026 months are valued by cross-fit models), `credit`, `duels`, `team-factor`, `duel-stats`, `team-stats` and `luck`. Any pipeline bug fix is logged here before the result is read.
+
 ## 2026-11-22: Better veto choice model in series odds — rejected for odds, kept for display
 
 **Question:** The veto choice model's play preference now decays and starts new pool maps neutral, with separate ban and pick weights, which lifts 2026 top-choice accuracy from 52% to 64% on Liquipedia inputs. Do series odds that play out the veto now beat pool-averaged Elo? Assumption tested: "Strength is one number per team, plus small map preferences" ([elo-assumptions.md](elo-assumptions.md)), the map half.
@@ -887,7 +908,7 @@ Each cached HLTV match page carries both teams' pre-match HLTV world ranks (`dat
 
 Elo − HLTV log-loss gain is +0.0124 with a 90% event-resampled CI of (−0.0005, +0.0248). Elo beats HLTV on point estimate across log loss, Brier and accuracy, though at 630 series the 90% interval barely spans zero and cannot settle the edge on its own. HLTV updates weekly while VRS snapshots are roughly monthly, so on this set the VRS baselines are staler than HLTV's. HLTV stays informational on `/model` (`calibration.json` preserves the `hltv` block across CI runs when `ranks.jsonl` is missing) and is never gated.
 
-## 2026-11-15: Encompassing gate and a registered 2024 test — registered, not yet run
+## 2026-11-15: Encompassing gate and a registered 2024 test — registered, baseline amended 2026-11-26
 
 **Question:** The gain gate asks whether the adjustment is at least about half as strong as its frozen weights assume, not whether it carries any signal at all, so it has little power for a nested model. Is there a sharper test, and data no choice was made on?
 

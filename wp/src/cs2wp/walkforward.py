@@ -451,26 +451,45 @@ def cross_fit(out: str, device: str = "auto") -> int:
     maps = sorted(df["map"].unique().to_list())
     months = sorted(m for m in df["date"].str.slice(0, 7).unique().to_list() if m < test_from[:7])
     mc = _monotone_constraints(features)
+    # A saved month newer than every state file and walk-forward fold is reused, so a run that dies partway (each
+    # month's ~5 GB design matrix can exhaust host RAM) resumes instead of retraining.
+    inputs = [*STATES.glob("*/grid.parquet"), *(root / "folds").glob("*.json")]
+    fresh_after = max(f.stat().st_mtime for f in inputs)
     index["crossfit"], preds = {}, []
     for month in months:
         held = pl.col("date").str.starts_with(month)
-        train, test = df.filter(~held), df.filter(held)
-        train_to, train_states = train["date"].max(), train.height
-        w = _weights(train, _month_start(month), half_life, after=_month_end(month))
-        yt = _y(train)
-        qdm_train = _make_qdm(train, features, maps, yt, weight=w)
-        del train, yt, w
-        gc.collect()
-        model = _train_booster(qdm_train, params, n_estimators=trees, monotone_constraints=mc, device=resolved)
-        del qdm_train
-        gc.collect()
+        test = df.filter(held)
+        train_to = df.select(pl.col("date").filter(~held).max()).item()
+        train_states = df.height - test.height
         info = {"half_life": half_life, "trees": trees, "train_to": train_to, "train_states": train_states}
-        index["crossfit"][month] = _save(root, out, "crossfit", month, model, info, features, maps)
+        saved = root / "crossfit" / f"{month}.json"
+        model = None
+        if saved.exists() and saved.stat().st_mtime > fresh_after:
+            model = xgb.Booster(model_file=str(saved))
+            if model.num_boosted_rounds() != trees:
+                model = None
+        if model is not None:
+            rel = f"crossfit/{month}.json"
+            index["crossfit"][month] = {"path": rel, "version": file_version(out, rel, root), "features": features,
+                                        "maps": maps, **info}
+            verb = "reused"
+        else:
+            train = df.filter(~held)
+            w = _weights(train, _month_start(month), half_life, after=_month_end(month))
+            yt = _y(train)
+            qdm_train = _make_qdm(train, features, maps, yt, weight=w)
+            del train, yt, w
+            gc.collect()
+            model = _train_booster(qdm_train, params, n_estimators=trees, monotone_constraints=mc, device=resolved)
+            del qdm_train
+            gc.collect()
+            index["crossfit"][month] = _save(root, out, "crossfit", month, model, info, features, maps)
+            verb = "cross-fit"
         p = _predict_frame(model, test, features, maps)
         del model
         gc.collect()
         preds.append(test.select(ID).with_columns(pl.Series("p", p), pl.lit(month).alias("month")))
-        print(f"{month}: cross-fit on {train_states} states, scored {_rounds(test)} rounds", flush=True)
+        print(f"{month}: {verb} on {train_states} states, scored {_rounds(test)} rounds", flush=True)
     _write_index(root, index)
 
     pred = pl.concat(preds)

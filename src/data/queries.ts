@@ -3,6 +3,7 @@ import { teamSlug } from "../utils/teams.ts";
 import { fetchSimJson } from "../sim/fetch.ts";
 import type { EventIndexEntry, PlanEvents, PlanIndex, PlanTeamFile, SeasonEventFile, SeasonIndex } from "../sim/types.ts";
 import type { HeatmapAverageData, HeatmapIndex, HeatmapMapData } from "../war/heatmapTypes.ts";
+import type { ProtocolLeagueMap, ProtocolTeam } from "../war/protocolTypes.ts";
 import type { ClutchData, PlayerWarData, StyleData, TacticsData, TeamDuelsData, TeamStatsData } from "../war/types.ts";
 
 const fetchJson = async <T>(file: string, what: string): Promise<T> => {
@@ -26,6 +27,10 @@ const fetchOptionalJson = async <T>(
 
 const HEATMAPS_BASE = (
     import.meta.env.VITE_HEATMAPS_URL || `${import.meta.env.BASE_URL}data/war/heatmaps/`
+).replace(/\/?$/, "/");
+
+const PROTOCOLS_BASE = (
+    import.meta.env.VITE_PROTOCOLS_URL || `${import.meta.env.BASE_URL}data/war/protocols/`
 ).replace(/\/?$/, "/");
 
 export const eloRankingsQuery = {
@@ -117,4 +122,15 @@ export const heatmapMapQuery = (steamid: string, map: string) => ({
 export const heatmapAverageQuery = (map: string) => ({
     queryKey: ["war", "heatmaps", "avg", map],
     queryFn: () => fetchOptionalJson<HeatmapAverageData>(`v2/_avg/${map}.json`, `${map} average heatmap`, HEATMAPS_BASE),
+});
+
+export const teamProtocolsQuery = (team: string) => ({
+    queryKey: ["war", "protocols", "team", team],
+    queryFn: () =>
+        fetchOptionalJson<ProtocolTeam>(`v1/teams/${teamSlug(team)}.json`, "team utility protocols", PROTOCOLS_BASE),
+});
+
+export const leagueProtocolsQuery = (map: string) => ({
+    queryKey: ["war", "protocols", "league", map],
+    queryFn: () => fetchOptionalJson<ProtocolLeagueMap>(`v1/_league/${map}.json`, `${map} league protocols`, PROTOCOLS_BASE),
 });

@@ -1,5 +1,6 @@
 import { makeLineupResolver } from "../lineups.ts";
 import type { EloParams } from "./params.ts";
+import { PlayerRatings } from "./playerElo.ts";
 import { lineupRegion } from "./region.ts";
 import { ActivePool, seriesLength, seriesWinProbability } from "./series.ts";
 import type { EloMatch, EloPlayers } from "./types.ts";
@@ -28,6 +29,8 @@ export interface Lineage {
     seed?: number;
     seedsFromMean?: number;
     seedTier?: number;
+    /** Oldest `lastT` among the lineages its rated seed players came from; undefined when every seed was unrated. */
+    seedT?: number;
     /** Rating after its 30th map. */
     rating30?: number;
     /** `maps` at its latest core change; undefined if its core never changed. */
@@ -50,6 +53,8 @@ export interface SeriesPrediction {
     maps: Array<{ map: string; p: number; y: 0 | 1; margin: number; ratings: [number, number] }>;
     crossRegion: boolean;
     regions: [number | null, number | null];
+    /** `regions` with Oceania split out of Asia as 3. */
+    fineRegions: [number | null, number | null];
     /** Days since each side's last cross-region series, or null if it has none. */
     crossGapDays: [number | null, number | null];
     standIn: boolean;
@@ -73,6 +78,16 @@ export interface SeriesPrediction {
     mapsSinceCoreChange: [number | null, number | null];
     /** Each side's share of its maps in the last 180 days against its own Valve region; null under 10 maps. */
     ownRegionShare: [number | null, number | null];
+    /** Maps each side's lineage had rated before this series. */
+    sideMaps: [number, number];
+    /** Days since each side's previous series; null for a lineage's first. */
+    sideIdleDays: [number | null, number | null];
+    /** How many of each lineage's seed players were unrated at its creation. */
+    seedsFromMean: [number, number];
+    /** Days between the stalest seed player's last series and the lineage's creation; null when no seed was rated. */
+    seedAgeDays: [number | null, number | null];
+    /** Player Elo gap of `lineups` before the series (`playerElo.ts`), whatever `playerBlend` is. */
+    playerGap: number;
 }
 
 /** A map's luck-adjusted result from duel expectations, from teams[0]'s view. */
@@ -129,8 +144,11 @@ const DEFAULT_TIER = 4;
 const MIN_SKILL_PLAYERS = 3;
 const BASE_RATING = 1500;
 const OCEANIA = new Set(["au", "nz"]);
-const FINE_OCEANIA = 3;
-const ASIA = 2;
+export const FINE_OCEANIA = 3;
+export const ASIA = 2;
+
+export const isOceaniaInternal = (p: Pick<SeriesPrediction, "fineRegions">): boolean =>
+    p.fineRegions[0] === FINE_OCEANIA && p.fineRegions[1] === FINE_OCEANIA;
 const INSULARITY_WINDOW = 180 * 24 * 3600;
 const INSULARITY_MIN_MAPS = 10;
 
@@ -161,16 +179,32 @@ export class EloEngine {
     private teamLineage = new Map<string, Lineage>();
     private playerLineage = new Map<string, Lineage>();
     private pool = new ActivePool();
-    private tierMeanCache = { day: -1, means: [] as Array<number | null> };    private params: EloParams;
+    private tierMeanCache = { day: -1, means: [] as Array<number | null> };
+    private params: EloParams;
     private players: EloPlayers;
     private luck: LuckLookup | undefined;
     private skill: SkillLookup | undefined;
+    private playerRatings: PlayerRatings;
 
     constructor(params: EloParams, players: EloPlayers, luck?: LuckLookup, skill?: SkillLookup) {
         this.params = params;
         this.players = players;
         this.luck = luck;
         this.skill = skill;
+        this.playerRatings = new PlayerRatings(params);
+    }
+
+    /** Player Elo gap of lineup `a` over `b`, without rating anyone new; `tier` seeds unrated players. */
+    playerGap(a: string[], b: string[], tier: number | null): number {
+        const t = clampTier(tier);
+        return this.playerRatings.teamRating(a, t) - this.playerRatings.teamRating(b, t);
+    }
+
+    /** A lineage rating gap blended with a player Elo gap by `playerBlend`; the lineage gap alone when `playerGap` is undefined or the blend is off. */
+    blendGap(lineageGap: number, playerGap: number | undefined): number {
+        const { playerBlend, playerTemp } = this.params;
+        if (playerGap === undefined || !playerBlend) return lineageGap;
+        return (1 - playerBlend) * lineageGap + playerBlend * playerTemp * playerGap;
     }
 
     /** Runs every series in order and returns one prediction per non-forfeit series, made before its result. */
@@ -205,15 +239,16 @@ export class EloEngine {
         return this.teamLineage.get(team);
     }
 
-    /** Map win probability for `a` over `b`, with `extraGap` added to their rating gap; with no map, averaged over the pool active at `t`. */
-    mapProbability(a: Lineage, b: Lineage, map: string | null, t: number, extraGap = 0): number {
+    /** Map win probability for `a` over `b`, with `extraGap` added to their rating gap; with no map, averaged over the pool active at `t`. A `playerGap` blends in player Elo (`blendGap`). */
+    mapProbability(a: Lineage, b: Lineage, map: string | null, t: number, extraGap = 0, playerGap?: number): number {
         const { scale } = this.params;
         const diff = a.rating - b.rating + extraGap + this.regionGap(a, b);
-        if (map) return expectedScore(diff + (a.mapOffsets.get(map) ?? 0) - (b.mapOffsets.get(map) ?? 0), scale);
+        const onMap = (m: string) => expectedScore(this.blendGap(diff + (a.mapOffsets.get(m) ?? 0) - (b.mapOffsets.get(m) ?? 0), playerGap), scale);
+        if (map) return onMap(map);
         const pool = this.pool.at(t);
-        if (pool.length === 0) return expectedScore(diff, scale);
+        if (pool.length === 0) return expectedScore(this.blendGap(diff, playerGap), scale);
         let total = 0;
-        for (const m of pool) total += expectedScore(diff + (a.mapOffsets.get(m) ?? 0) - (b.mapOffsets.get(m) ?? 0), scale);
+        for (const m of pool) total += onMap(m);
         return total / pool.length;
     }
 
@@ -224,6 +259,7 @@ export class EloEngine {
         if (!a || !b || a.lineage === b.lineage) return null;
         const A = a.lineage;
         const B = b.lineage;
+        const sideIdleDays = [A, B].map((l) => (l.maps === 0 ? null : (m.t - l.lastT) / 86400)) as [number | null, number | null];
 
         const bestOf = seriesLength(m.bestOf);
         const sideLineups: [string[], string[]] = [lineups[0] ?? A.core, lineups[1] ?? B.core];
@@ -233,7 +269,11 @@ export class EloEngine {
         const ownRegionShare: [number | null, number | null] = [this.ownRegionShare(A, m.t), this.ownRegionShare(B, m.t)];
         const insular = this.insularityGap(A, B, ownRegionShare);
         const bothOceania = A.fineRegion === FINE_OCEANIA && B.fineRegion === FINE_OCEANIA;
-        const rawMap = this.mapProbability(A, B, null, m.t, shift + insular);
+        // Predictions only: the update keeps the unshifted expectation, so the offset never moves rating points.
+        const debut = this.debutGap(A, B) + this.newLanGap(A, B, m.lan);
+        let playerGap = this.playerRatings.seed(sideLineups[0], tier) - this.playerRatings.seed(sideLineups[1], tier);
+        const blended = this.params.playerBlend !== 0;
+        const rawMap = this.mapProbability(A, B, null, m.t, shift + insular + debut, playerGap);
         const mapTemp = this.mapTemp(A, B);
         const pMap = mapTemp !== 1 ? 1 / (1 + (rawMap / (1 - rawMap)) ** -mapTemp) : rawMap;
         const [ra, rb] = this.params.oceaniaCross ? [A.fineRegion ?? null, B.fineRegion ?? null] : [A.region, B.region];
@@ -252,6 +292,7 @@ export class EloEngine {
             maps: [],
             crossRegion,
             regions: [A.region, B.region],
+            fineRegions: [A.fineRegion ?? null, B.fineRegion ?? null],
             crossGapDays: [crossGapDays(A, m.t), crossGapDays(B, m.t)],
             standIn,
             tier,
@@ -266,6 +307,11 @@ export class EloEngine {
             skillGap,
             mapsSinceCoreChange: [A, B].map((l) => (l.coreChangeMaps === undefined ? null : l.maps - l.coreChangeMaps)) as [number | null, number | null],
             ownRegionShare,
+            sideMaps: [A.maps, B.maps],
+            sideIdleDays,
+            seedsFromMean: [A.seedsFromMean ?? 0, B.seedsFromMean ?? 0],
+            seedAgeDays: [A, B].map((l) => (l.seedT === undefined ? null : (l.firstT - l.seedT) / 86400)) as [number | null, number | null],
+            playerGap,
         };
 
         const p = this.params;
@@ -280,8 +326,12 @@ export class EloEngine {
             ];
             let margin = mapMargin(map.rounds, p.otMargin, m.game === "csgo") * (y ? 1 : -1);
             const predictionTemp = p.predictionTemp;
-            const mapP = predictionTemp !== 1 ? 1 / (1 + (expected / (1 - expected)) ** -predictionTemp) : expected;
+            const predicted = debut || blended ? this.mapProbability(A, B, map.map, m.t, shift + insular + debut, playerGap) : expected;
+            const mapP = predictionTemp !== 1 ? 1 / (1 + (predicted / (1 - predicted)) ** -predictionTemp) : predicted;
             prediction.maps.push({ map: map.map, p: mapP, y, margin, ratings });
+            // Player Elo learns from the real result and margin, never the luck- or round-adjusted target below.
+            this.playerRatings.update(sideLineups, tier, playerGap, margin, y);
+            playerGap = this.playerRatings.teamRating(sideLineups[0], tier) - this.playerRatings.teamRating(sideLineups[1], tier);
 
             // Updates use a blend of the real result and the luck-adjusted one; predictions above always use the real y and margin.
             let target: number = y;
@@ -466,12 +516,14 @@ export class EloEngine {
                 const total = recent.reduce((n, e) => n + e.maps, 0);
                 return total < INSULARITY_MIN_MAPS ? null : recent.reduce((n, e) => n + (e.same ? e.maps : 0), 0) / total;
             };
-            const insular = this.insularityGap(la, lb, [shareOf(la), shareOf(lb)]);
+            const gap = this.insularityGap(la, lb, [shareOf(la), shareOf(lb)]) + this.debutGap(la, lb) + this.newLanGap(la, lb, opts.lan);
+            const lineupOf = (i: 0 | 1, l: Lineage) => (opts.lineups && opts.lineups[i].length >= 3 ? opts.lineups[i] : l.core);
+            const playerGap = this.playerGap(lineupOf(0, la), lineupOf(1, lb), tier);
             const temp = this.mapTemp(la, lb);
-            pMap = applyTemp(this.mapProbability(la, lb, null, opts.t, insular), temp);
+            pMap = applyTemp(this.mapProbability(la, lb, null, opts.t, gap, playerGap), temp);
             maps = pool.map((map) => ({
                 map,
-                p: applyTemp(this.mapProbability(la, lb, map, opts.t, insular), temp),
+                p: applyTemp(this.mapProbability(la, lb, map, opts.t, gap, playerGap), temp),
                 offsets: [la.mapOffsets.get(map) ?? 0, lb.mapOffsets.get(map) ?? 0],
             }));
         } else {
@@ -515,6 +567,21 @@ export class EloEngine {
         const offset = (l: Lineage, share: number | null) =>
             l.fineRegion === ASIA && share !== null ? (prior * Math.max(0, share - 0.5)) / 0.5 : 0;
         return offset(a, shares[0]) - offset(b, shares[1]);
+    }
+
+    /** `debutOffset` for lineages seeded from unrated players, scaled by their share of the seed and fading over `debutMaps`, as a gap for `a` over `b`. */
+    debutGap(a: Lineage, b: Lineage): number {
+        const { debutOffset, debutMaps } = this.params;
+        if (!debutOffset) return 0;
+        const offset = (l: Lineage) => (debutOffset * (l.seedsFromMean ?? 0) * Math.max(0, 1 - l.maps / debutMaps)) / 5;
+        return offset(b) - offset(a);
+    }
+
+    newLanGap(a: Lineage, b: Lineage, lan: boolean): number {
+        const { newLanOffset, newLanMaps } = this.params;
+        if (!lan || !newLanOffset) return 0;
+        const offset = (l: Lineage) => newLanOffset * Math.max(0, 1 - l.maps / newLanMaps);
+        return offset(b) - offset(a);
     }
 
     /** Multiplier on the map logit for predictions: `predictionTemp`, times `oceaniaTemp` for Oceania v Oceania. */
@@ -573,8 +640,10 @@ export class EloEngine {
             lineage.team = team;
         } else {
             const mean = this.tierMean(tier, t);
-            const seeds = lineup.map((player) => this.playerLineage.get(player)?.rating ?? mean);
+            const sources = lineup.map((player) => this.playerLineage.get(player));
+            const seeds = sources.map((l) => l?.rating ?? mean - p.unratedSeedOffset);
             const seed = seeds.reduce((sum, r) => sum + r, 0) / seeds.length;
+            const rated = sources.filter((l) => l !== undefined);
             lineage = {
                 id: this.lineages.length,
                 team,
@@ -583,6 +652,7 @@ export class EloEngine {
                 seed: seed + p.newRosterRegress * (mean - seed),
                 seedsFromMean: lineup.filter((player) => !this.playerLineage.has(player)).length,
                 seedTier: tier,
+                seedT: rated.length ? Math.min(...rated.map((l) => l.lastT)) : undefined,
                 mapOffsets: new Map(),
                 region: this.regionOf(lineup),
                 fineRegion: this.fineRegionOf(lineup),

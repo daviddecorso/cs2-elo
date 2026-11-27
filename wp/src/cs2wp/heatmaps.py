@@ -13,6 +13,8 @@ from pathlib import Path
 import numpy as np
 import polars as pl
 from cs2demos.store import R2
+from scipy.sparse import csr_matrix
+from scipy.spatial import cKDTree
 
 from .data import MapRef, catalog
 from .paths import (HEATMAPS_CALLOUTS, HEATMAPS_LINEUPS, HEATMAPS_RAW, HEATMAPS_ROUNDS, PUBLIC_HEATMAPS, RADAR_META)
@@ -173,20 +175,26 @@ def decode_grid(grid: dict, size: int = GRID_SIZE * GRID_SIZE) -> np.ndarray:
     return arr
 
 
-def _greedy_clusters(xs: np.ndarray, ys: np.ndarray, radius: float) -> list[np.ndarray]:
+def _greedy_clusters(xs: np.ndarray, ys: np.ndarray, radius: float, weights: np.ndarray | None = None) -> list[np.ndarray]:
     m = len(xs)
     if m == 0:
         return []
-    dx = xs[:, None] - xs[None, :]
-    dy = ys[:, None] - ys[None, :]
-    within = (dx * dx + dy * dy) <= (radius * radius)
+    w = np.ones(m) if weights is None else np.asarray(weights, dtype=np.float64)
+    pairs = cKDTree(np.column_stack([xs, ys])).query_pairs(radius * (1 + 1e-9), output_type="ndarray")
+    pairs = pairs[(xs[pairs[:, 0]] - xs[pairs[:, 1]]) ** 2 + (ys[pairs[:, 0]] - ys[pairs[:, 1]]) ** 2 <= radius * radius]
+    diag = np.arange(m)
+    within = csr_matrix(
+        (np.ones(2 * len(pairs) + m), (np.r_[pairs[:, 0], pairs[:, 1], diag], np.r_[pairs[:, 1], pairs[:, 0], diag])),
+        shape=(m, m),
+    )
     assigned = np.zeros(m, dtype=bool)
     clusters: list[np.ndarray] = []
     while not assigned.all():
-        counts = (within & (~assigned)[None, :]).sum(axis=1)
+        counts = within @ np.where(assigned, 0.0, w)
         counts[assigned] = -1
         seed = int(np.argmax(counts))
-        members = np.flatnonzero(within[seed] & ~assigned)
+        row = np.sort(within.indices[within.indptr[seed]:within.indptr[seed + 1]])
+        members = row[~assigned[row]]
         assigned[members] = True
         clusters.append(members)
     return clusters
@@ -288,6 +296,43 @@ def resolve_scope(
         pl.when(use_team).then(pl.lit("team")).otherwise(pl.lit("all")).alias("scope_type"),
         pl.when(use_team).then(pl.col("current_team")).otherwise(pl.lit(None, pl.String)).alias("scope_team"),
         pl.when(use_team).then(pl.col("team_maps")).otherwise(pl.col("all_maps")).alias("maps"),
+    )
+
+
+def round_nades(ref: MapRef, entry: dict, ticks_raw: pl.DataFrame, rctx: pl.DataFrame,
+                attributed_only: bool = True) -> pl.DataFrame | None:
+    """Grenades thrown in live play, with radar coordinates; None when the map has no grenades table.
+
+    `ticks_raw` is `TICK_COLS` with `steamid` cast to UInt64; `rctx` has `round_num`, `fe`, `end_tick`. Rows carry
+    `round_num`, `steamid`, `side_str`, `gtype`, `throw_t` (seconds from freeze end), world `x, y, z` / `x0, y0, z0`,
+    and radar `land_px/py`, `cell`, `level`, `throw_px/py`, `throw_cell`, `land_cell`. With `attributed_only=False`,
+    grenades with no inferred thrower stay in with null `steamid` and `side_str`.
+    """
+    gpath = ref.dir / "grenades.parquet"
+    if not gpath.exists():
+        return None
+    g_raw = pl.read_parquet(gpath, columns=[*GRENADE_COLUMNS, "z"])
+    attributed = pl.col("thrower").is_not_null() & pl.col("side").is_in([CT, T])
+    nades = (
+        thrower_grenades(g_raw, ticks_raw, types=tuple(GRENADE_COUNT), with_origin=True)
+        .filter(attributed if attributed_only else attributed | pl.col("thrower").is_null())
+        .join(rctx, on="round_num", how="inner")
+        .filter((pl.col("t0") >= pl.col("fe")) & (pl.col("end_tick").is_null() | (pl.col("t0") <= pl.col("end_tick"))))
+        .with_columns(
+            pl.col("thrower").cast(pl.UInt64).alias("steamid"),
+            pl.col("side").replace_strict(SIDE_STR).alias("side_str"),
+            pl.col("type").replace_strict(GRENADE_LABEL).alias("gtype"),
+            ((pl.col("t0") - pl.col("fe")) / float(TICK_RATE)).cast(pl.Float32).alias("throw_t"),
+        )
+    )
+    if nades.is_empty():
+        return nades
+    lpx, lpy, lcell64, llevel = _coords_exprs(entry, "x", "y", "z", GRID_SIZE)
+    tpx, tpy, tcell32, _ = _coords_exprs(entry, "x0", "y0", "z0", LINEUP_GRID)
+    _, _, lcell32, _ = _coords_exprs(entry, "x", "y", "z", LINEUP_GRID)
+    return nades.with_columns(
+        lpx.alias("land_px"), lpy.alias("land_py"), lcell64.alias("cell"), llevel.alias("level"),
+        tpx.alias("throw_px"), tpy.alias("throw_py"), tcell32.alias("throw_cell"), lcell32.alias("land_cell"),
     )
 
 
@@ -527,51 +572,30 @@ def map_layers(
 
     # Utility landings and lineups
     lineup_df = pl.DataFrame(schema=LINEUP_SCHEMA)
-    gpath = ref.dir / "grenades.parquet"
-    if gpath.exists():
-        g_raw = pl.read_parquet(gpath, columns=[*GRENADE_COLUMNS, "z"])
-        nades = thrower_grenades(g_raw, ticks_raw, types=tuple(GRENADE_COUNT), with_origin=True)
-        nades = (
-            nades.filter(pl.col("thrower").is_not_null() & pl.col("side").is_in([CT, T]))
-            .join(rctx, on="round_num", how="inner")
-            .filter((pl.col("t0") >= pl.col("fe")) & (pl.col("end_tick").is_null() | (pl.col("t0") <= pl.col("end_tick"))))
-            .with_columns(
-                pl.col("thrower").cast(pl.UInt64).alias("steamid"),
-                pl.col("side").replace_strict(SIDE_STR).alias("side_str"),
-                pl.col("type").replace_strict(GRENADE_LABEL).alias("gtype"),
-                ((pl.col("t0") - pl.col("fe")) / float(TICK_RATE)).cast(pl.Float32).alias("throw_t"),
-            )
-        )
-        if not nades.is_empty():
-            lpx, lpy, lcell64, llevel = _coords_exprs(entry, "x", "y", "z", GRID_SIZE)
-            tpx, tpy, tcell32, _ = _coords_exprs(entry, "x0", "y0", "z0", LINEUP_GRID)
-            _, _, lcell32, _ = _coords_exprs(entry, "x", "y", "z", LINEUP_GRID)
-            nades_c = nades.with_columns(
-                lpx.alias("land_px"), lpy.alias("land_py"), lcell64.alias("cell"), llevel.alias("level"),
-                tpx.alias("throw_px"), tpy.alias("throw_py"), tcell32.alias("throw_cell"), lcell32.alias("land_cell"),
-            )
-            land_ok = nades_c.filter(_on_radar("land_px", "land_py"))
-            if not land_ok.is_empty():
-                grid_parts.append(
-                    land_ok.group_by("steamid", pl.col("side_str").alias("side"), "gtype", "level", "cell")
-                    .agg(pl.len().cast(pl.UInt32).alias("value"))
-                    .with_columns(
-                        (pl.lit("util_land:") + pl.col("gtype")).alias("layer"),
-                        pl.lit("all").alias("phase"),
-                    )
-                    .drop("gtype")
+    nades_c = round_nades(ref, entry, ticks_raw, rctx)
+    if nades_c is not None and not nades_c.is_empty():
+        land_ok = nades_c.filter(_on_radar("land_px", "land_py"))
+        if not land_ok.is_empty():
+            grid_parts.append(
+                land_ok.group_by("steamid", pl.col("side_str").alias("side"), "gtype", "level", "cell")
+                .agg(pl.len().cast(pl.UInt32).alias("value"))
+                .with_columns(
+                    (pl.lit("util_land:") + pl.col("gtype")).alias("layer"),
+                    pl.lit("all").alias("phase"),
                 )
-            both_ok = land_ok.filter(_on_radar("throw_px", "throw_py"))
-            if not both_ok.is_empty():
-                lineup_df = add_meta(
-                    both_ok.select(
-                        "steamid", pl.col("side_str").alias("side"), pl.col("gtype").alias("type"), "level",
-                        "throw_cell", "land_cell", pl.col("throw_px").cast(pl.Float32),
-                        pl.col("throw_py").cast(pl.Float32), pl.col("land_px").cast(pl.Float32),
-                        pl.col("land_py").cast(pl.Float32), "throw_t",
-                    ),
-                    LINEUP_SCHEMA,
-                )
+                .drop("gtype")
+            )
+        both_ok = land_ok.filter(_on_radar("throw_px", "throw_py"))
+        if not both_ok.is_empty():
+            lineup_df = add_meta(
+                both_ok.select(
+                    "steamid", pl.col("side_str").alias("side"), pl.col("gtype").alias("type"), "level",
+                    "throw_cell", "land_cell", pl.col("throw_px").cast(pl.Float32),
+                    pl.col("throw_py").cast(pl.Float32), pl.col("land_px").cast(pl.Float32),
+                    pl.col("land_py").cast(pl.Float32), "throw_t",
+                ),
+                LINEUP_SCHEMA,
+            )
 
     grid_cols = ["steamid", "side", "layer", "phase", "level", "cell", "value"]
     grids = pl.concat([p.select(grid_cols) for p in grid_parts if not p.is_empty()], how="vertical") if grid_parts else pl.DataFrame()

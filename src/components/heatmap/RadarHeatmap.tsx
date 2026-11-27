@@ -1,16 +1,9 @@
 import { useEffect, useId, useRef, useState } from "react";
 import type { GrenadeType, HeatmapLevel, HeatmapUtilZone } from "../../war/heatmapTypes.ts";
-import { GRID_SIZE } from "../../war/heatmap.ts";
+import { GRENADE_COLOR, GRID_SIZE } from "../../war/heatmap.ts";
 
 const RADAR_PX = 1024;
 const CANVAS_PX = 512;
-
-const GRENADE_COLOR: Record<GrenadeType, string> = {
-    smoke: "#e4e4e7",
-    flash: "#fde047",
-    he: "#f87171",
-    molotov: "#fb923c",
-};
 
 const GRENADE_NAME: Record<GrenadeType, string> = {
     smoke: "smoke",
@@ -19,16 +12,28 @@ const GRENADE_NAME: Record<GrenadeType, string> = {
     molotov: "molotov",
 };
 
+/** A landing zone with optional display overrides; without them the ring shows `n` in the `grenadeType` colour. */
+export interface RadarZone extends HeatmapUtilZone {
+    color?: string;
+    /** 0–1 ring and arrow thickness; defaults to `n` over the largest `n`. */
+    weight?: number;
+    label?: string;
+    description?: string;
+}
+
 export interface RadarHeatmapProps {
     map: string;
     level: HeatmapLevel;
     rgba: Uint8ClampedArray | null;
     gridSize?: number;
-    lineups?: HeatmapUtilZone[];
+    lineups?: RadarZone[];
     grenadeType?: GrenadeType;
     ariaLabel: string;
     loading?: boolean;
     legend?: React.ReactNode;
+    /** Controls the highlighted zone (an index into `lineups`) from outside, e.g. a linked table. */
+    activeIndex?: number | null;
+    onActiveIndexChange?: (idx: number | null) => void;
 }
 
 export const RadarHeatmap = ({
@@ -41,13 +46,23 @@ export const RadarHeatmap = ({
     ariaLabel,
     loading = false,
     legend,
+    activeIndex,
+    onActiveIndexChange,
 }: RadarHeatmapProps) => {
     const canvasRef = useRef<HTMLCanvasElement>(null);
-    const [activeIdx, setActiveIdx] = useState<number | null>(null);
+    const [localIdx, setLocalIdx] = useState<number | null>(null);
     const markerId = useId();
+    const activeIdx = activeIndex !== undefined ? activeIndex : localIdx;
+    const setActiveIdx = (idx: number | null) => {
+        setLocalIdx(idx);
+        onActiveIndexChange?.(idx);
+    };
+    const leave = (idx: number) => {
+        if (activeIdx === idx) setActiveIdx(null);
+    };
 
     useEffect(() => {
-        setActiveIdx(null);
+        setLocalIdx(null);
     }, [map, level, grenadeType]);
 
     useEffect(() => {
@@ -73,9 +88,16 @@ export const RadarHeatmap = ({
     }, [rgba, gridSize]);
 
     const radarSrc = `${import.meta.env.BASE_URL}radar/${level === "lower" ? `${map}_lower` : map}.webp`;
-    const color = GRENADE_COLOR[grenadeType];
+    const defaultColor = GRENADE_COLOR[grenadeType];
+    const colors = [...new Set(lineups.map((z) => z.color ?? defaultColor))];
+    const markerFor = (color: string) => `${markerId}-${colors.indexOf(color)}`;
     const maxN = lineups.reduce((m, z) => Math.max(m, z.n), 1);
     const hovered = activeIdx !== null ? lineups[activeIdx] : undefined;
+    const describe = (z: RadarZone) =>
+        z.description ??
+        `${z.n}× ${GRENADE_NAME[grenadeType]} (${Math.round(z.share * 100)}%) · ${z.from.length} ${
+            z.from.length === 1 ? "spot" : "spots"
+        } · median ${z.tMed.toFixed(1)}s`;
 
     return (
         <div className="space-y-2">
@@ -98,31 +120,37 @@ export const RadarHeatmap = ({
                     <svg
                         viewBox={`0 0 ${RADAR_PX} ${RADAR_PX}`}
                         className="absolute inset-0 w-full h-full"
-                        aria-label={`${GRENADE_NAME[grenadeType]} landing zones`}
+                        aria-label={lineups.some((z) => z.color) ? "Utility landing zones" : `${GRENADE_NAME[grenadeType]} landing zones`}
                     >
                         <defs>
-                            <marker
-                                id={markerId}
-                                viewBox="0 0 10 10"
-                                refX="7.5"
-                                refY="5"
-                                markerWidth="5"
-                                markerHeight="5"
-                                orient="auto-start-reverse"
-                            >
-                                <path d="M 0 1.5 L 8.5 5 L 0 8.5 z" fill={color} stroke="#09090b" strokeWidth="1" />
-                            </marker>
+                            {colors.map((c) => (
+                                <marker
+                                    key={c}
+                                    id={markerFor(c)}
+                                    viewBox="0 0 10 10"
+                                    refX="7.5"
+                                    refY="5"
+                                    markerWidth="5"
+                                    markerHeight="5"
+                                    orient="auto-start-reverse"
+                                >
+                                    <path d="M 0 1.5 L 8.5 5 L 0 8.5 z" fill={c} stroke="#09090b" strokeWidth="1" />
+                                </marker>
+                            ))}
                         </defs>
                         {lineups.map((z, idx) => {
                             const [lx, ly] = z.land;
+                            const color = z.color ?? defaultColor;
                             const isHot = activeIdx === idx;
                             const opacity = activeIdx === null ? 0.9 : isHot ? 1 : 0.2;
-                            const weight = z.n / maxN;
+                            const weight = z.weight ?? z.n / maxN;
                             const ringStroke = (2 + 3.5 * weight) * (isHot ? 1.2 : 1);
                             const arrowStroke = (2.2 + 3.8 * weight) * (isHot ? 1.2 : 1);
                             const primary = z.from[0];
                             const spotCount = z.from.length;
-                            const label = `${z.n} ${GRENADE_NAME[grenadeType]}s (${Math.round(z.share * 100)}%), ${spotCount} ${spotCount === 1 ? "spot" : "spots"}, median ${z.tMed.toFixed(1)}s`;
+                            const label =
+                                z.description ??
+                                `${z.n} ${GRENADE_NAME[grenadeType]}s (${Math.round(z.share * 100)}%), ${spotCount} ${spotCount === 1 ? "spot" : "spots"}, median ${z.tMed.toFixed(1)}s`;
 
                             let primaryLine: { x1: number; y1: number; ex: number; ey: number } | null = null;
                             if (primary) {
@@ -144,9 +172,9 @@ export const RadarHeatmap = ({
                                     aria-label={label}
                                     style={{ opacity, cursor: "pointer" }}
                                     onMouseEnter={() => setActiveIdx(idx)}
-                                    onMouseLeave={() => setActiveIdx((cur) => (cur === idx ? null : cur))}
+                                    onMouseLeave={() => leave(idx)}
                                     onFocus={() => setActiveIdx(idx)}
-                                    onBlur={() => setActiveIdx((cur) => (cur === idx ? null : cur))}
+                                    onBlur={() => leave(idx)}
                                     className="outline-none"
                                 >
                                     {isHot &&
@@ -201,7 +229,7 @@ export const RadarHeatmap = ({
                                                 stroke={color}
                                                 strokeWidth={arrowStroke}
                                                 strokeLinecap="round"
-                                                markerEnd={`url(#${markerId})`}
+                                                markerEnd={`url(#${markerFor(color)})`}
                                             />
                                             <line
                                                 x1={primaryLine.x1}
@@ -269,7 +297,7 @@ export const RadarHeatmap = ({
                                         fontFamily="ui-monospace, SFMono-Regular, Menlo, monospace"
                                         className="pointer-events-none"
                                     >
-                                        {z.n}
+                                        {z.label ?? z.n}
                                     </text>
                                 </g>
                             );
@@ -283,11 +311,9 @@ export const RadarHeatmap = ({
                             left: `${Math.min(72, Math.max(28, (hovered.land[0] / RADAR_PX) * 100))}%`,
                             top: `${Math.min(84, Math.max(12, (hovered.land[1] / RADAR_PX) * 100))}%`,
                         }}
-                        className="absolute -translate-x-1/2 -translate-y-full -mt-2 z-20 pointer-events-none bg-surface border border-line rounded-sm px-2 py-1 text-[11px] font-mono text-fg shadow-md whitespace-nowrap"
+                        className="absolute -translate-x-1/2 -translate-y-full -mt-2 z-20 pointer-events-none bg-surface border border-line rounded-sm px-2 py-1 text-[11px] font-mono text-fg shadow-md w-max max-w-[56%]"
                     >
-                        {hovered.n}× {GRENADE_NAME[grenadeType]} ({Math.round(hovered.share * 100)}%) ·{" "}
-                        {hovered.from.length} {hovered.from.length === 1 ? "spot" : "spots"} · median{" "}
-                        {hovered.tMed.toFixed(1)}s
+                        {describe(hovered)}
                     </div>
                 )}
                 {loading && (

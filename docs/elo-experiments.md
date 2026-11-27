@@ -10,9 +10,48 @@ An entry is kept only if it lowers gate log loss. Tuning moves of under 0.0005 c
 
 **Tier-1 LAN rule** (declared 2026-11-21, before any run under it). Majors are tier-1 LAN, which is about 4% of 2026 test series, so a lever that only acts there can't clear the 0.0005 gate bar. A lever has to be declared Major-relevant before its run to be judged this way. Judge it with `npm run backtest-elo -- --walk key=v1,v2,…`, which fits on 2024 and scores 2025, then fits on 2024–25 and scores 2026. To pass, the pooled gain on tier-1 LAN series (Liquipedia tier 1, LAN) must have a 90% event CI above 0, and the 2026 gate must be no more than 0.0002 worse.
 
+**Oceania rule** (declared 2026-11-24, before any run under it). Oceania-internal series (both rosters Oceania, `SeriesPrediction.fineRegions` 3) follow their own dynamics and have their own knobs. So they don't decide shared-param experiments:
+- The tuner and `--walk` leave them out of the fit objective. The engine still plays them, so ratings are unchanged. `--train-include-oceania` restores the old objective.
+- The decision set for shared params is **gate ex-Oceania**: the gate minus Oceania-internal series. The full gate still prints, for continuity with older entries.
+- Oceania-internal series are judged only for Oceania-scoped levers, under the region rule.
+- Cross-region series involving Oceania stay in every set.
+
+`npm run backtest-elo -- --compare [--params-file f.json] [--set …]` reports the standard slices against `params.json`, with event-clustered CIs:
+- gate ex-Oceania
+- gate
+- tier-1 LAN
+- all test series
+- unranked
+- Oceania-internal
+- Oceania cross-region
+- Asia ex-Oceania
+- the fit objective
+
+`SeriesPrediction.regions` is Valve's region, where Oceania sits inside Asia, so slice Oceania on `fineRegions`.
+
 ## Untried ideas
 
+- A tier-1 K multiplier. Tier-1 rating changes from the last 90 days revert at tier-1 LANs (β −0.21 ± 0.09 on 2024–25, from the tier-1 diagnostics entry below). Declare it under the tier-1 LAN rule before any 2026 read.
 - A temperature scoped to online tier-1 qualifiers (tournament `publishertier` "Tier 1 Qualifier" / `liquipediatiertype` Qualifier or Online Stage) rather than all of tier 2. It's where the 2026 tier-2 overconfidence sits (see the tier-2 entry below), but it can't clear the gate on its own either. It only matters for the simulator's qualifier odds.
+
+## 2026-11-27: Registered 2024 test: result — primary passes
+
+The 2026-11-26 declaration, run as written. Baseline checks hold: primary train series 0.5835, gate 0.6062; registration rebuild train series 0.6099. Luck rows now cover 4,780 demo maps, with 833 treated 2024 series (both sides 5+ luck maps in 120 days).
+
+| Run | Treated series | None | Skill + luck | Gain (90% CI) | Encompassing λ (90% CI) | Verdict |
+| --- | --- | --- | --- | --- | --- | --- |
+| Primary (today's params, 2024) | 833 | 0.6352 | 0.6332 | +0.0020 (−0.0014, +0.0056) | 1.126 (0.088, 2.386) | **pass** |
+| Secondary 1 (registration rebuild, `--no-csgo`, 2024) | 833 | 0.6601 | 0.6554 | +0.0047 (−0.0017, +0.0117) | 0.969 (0.329, 1.683) | pass |
+| Secondary 2 (primary, 2024 + 2026, old gain gate) | 1,669 | 0.6284 | 0.6255 | +0.0030 (−0.0001, +0.0061) | 1.235 (0.479, 2.047) | fails the gain gate, passes encompassing |
+
+The gate set and all-series scores barely move (primary gate 0.6248 → 0.6250, all series 0.5842 → 0.5842), as expected for a term that touches only treated series. The exploratory margin score is flat on the primary (−0.14%, CI spans 0) and worse on the registration rebuild (−1.92%).
+
+**Reading, as declared:** the primary passes, so the term goes live as registered (`skillWeight` 8458, `luckWeight` 0.6, `luck-variant value`). Live, on the default backtest: gate 0.60618 vs 0.60616 without it on 9,375 series (flat, since most 2026 gate series have no demos), train 0.5833 vs 0.5835, HLTV-set tier-1 LAN series 0.5961 vs 0.5983.
+
+**Pipeline fixes made during the chain rerun.** These were committed before the result was read, but logged here only after it. None touch the Elo side or the luck formula:
+- `b81e2b9`: `cross-fit` resumes from saved monthly models after an out-of-memory crash.
+- `b4227d3` / `f7010c8`: `positions` skips maps with no CT position table (158 Vertigo, 1 Thera) and maps Cache TYard, Inferno Bridge and Anubis Water to no position.
+- `9ca508b`: the IGL table adds the 29 teams seen in 2024; 27 of them have no IGL listed.
 
 ## 2026-11-26: Registered 2024 test: baseline moved to today's params — declared, not yet run
 
@@ -34,6 +73,455 @@ An entry is kept only if it lowers gate log loss. Tuning moves of under 0.0005 c
 **Reading, declared now.** If the primary passes, the term goes live as registered. A primary fail parks the term for good. If the primary fails but secondary 1 passes, read that as player Elo covering the gain, not as grounds for a rerun.
 
 **Data** as registered: the `cs2wp` chain rerun over the 2023-10 → 2024 backfill, through `cross-fit` (pre-2026 months are valued by cross-fit models), `credit`, `duels`, `team-factor`, `duel-stats`, `team-stats` and `luck`. Any pipeline bug fix is logged here before the result is read.
+
+## 2026-11-24: Tier-1 diagnostics: turnover, below-tier results, rematches, stage
+
+**Question:** Four tier-1 angles that no lever has tried yet. Each starts as a diagnostic on today's params, and a lever gets built only where its declared bar is met. Run with `npm run backtest-elo -- --turnover`, `--below-tier`, `--rematch` and `--stage`.
+
+**Declared before any run:**
+
+1. **Turnover-scaled player blend.** Assumption: "Team identity is the core players, not the org", its known weakness (long 3-of-5 chains).
+   - A side's core share is the share of its lineage's last 100 maps before the series that were played by this series' lineup: Σ maps × |overlap| / 5 over Σ maps. A series' turnover bin uses the lower share of its two sides. Series where either side has under 30 maps are left out.
+   - Bins: share ≥ 0.9, 0.7–0.9, < 0.7.
+   - λ is fit in `logit p = logit p_now + λ · (logit p_player − logit p_now)`. `p_player` is the same run at `playerBlend` 1, so ratings are identical. λ above 0 means that bin wants more player weight than today's blend gives it.
+   - Read on 2024 and 2025 only. 2026 isn't read.
+   - **Build** `blendTurnover` only if λ(< 0.7) − λ(≥ 0.9) has a 90% event-bootstrap CI above 0 in both years, on all tiers. Tier-1 LAN λ by bin is printed for information.
+2. **Below-tier results of top teams.** Assumption: none yet; it would be a new Open one, "a team's results at lower-tier events carry forward like its tier-1 results".
+   - Target series: tier-1 LAN, 2024 and 2025. For each side, sum its lineage's rating changes over the 90 days before the series, split by tier of event: tier 1 ("at") against tier 2+ ("below").
+   - Logistic fit with offset logit(p) on the A − B differences of both sums, per 100 points: β_at and β_below. CIs come from an event bootstrap.
+   - **Build** `belowTierK` only if β_below − β_at has a 90% CI below 0 pooled over 2024–25, and the point estimate is negative in each year. 2026 isn't read.
+3. **Rematches within an event.** Assumption: "Preparation decides tier-1 games in ways Elo can see" (Lean against).
+   - Target series: tier-1 LAN series where the two lineages already met at the same tournament (Liquipedia `parent`, else the page). The side that lost their latest meeting is the earlier loser, and its residual is y − p.
+   - Control: tier-1 LAN sides whose previous series at the same tournament was a loss to a different opponent.
+   - Excess is the mean rematch residual minus the mean control residual, with z against binomial noise.
+   - Earlier-loser residuals are also printed by days since the pair last met (any event: ≤ 14, 15–90, 91–365), for information.
+   - **Build** a prediction-only `rematchOffset` only if the 2024–25 excess has |z| ≥ 2 and 2026 has the same sign. It would then be judged by the tier-1 LAN rule.
+4. **Stage: final bracket against earlier stages.** Assumption: under "Stakes" in Untested.
+   - Tier-1 LAN series are split by stage. The final bracket is the bracket that holds the tournament's last match, with `parent` grouping a Major's stages. Earlier stages split into bracket groups and matchlists (Swiss, GSL).
+   - Each slice prints log loss, slope and the favourite's residual for 2024, 2025 and 2026.
+   - **Diagnostic only.** Nothing gets built unless the final bracket's slope sits on the same side of the earlier stages' slope in all three years. Even then it goes to its own declared test under the tier-1 LAN rule.
+
+**Result: none clears its bar, so nothing is built.** All four ran once, on today's params.
+
+**1. Turnover: fails.** λ(< 0.7) − λ(≥ 0.9):
+
+| Scope | 2024 | 2025 |
+| --- | --- | --- |
+| All tiers (decision) | +0.08 (−0.39 to +0.61) | +0.40 (−0.39 to +1.12) |
+| Tier-1 LAN (information) | +0.49 (−0.94 to +1.26) | +0.67 (−1.09 to +2.14) |
+
+- The difference leans the expected way but stays well inside noise.
+- Per-bin λ has no trend on all tiers. In 2024 it's +0.07 at ≥ 0.9, −0.18 at 0.7–0.9 and +0.15 below 0.7. In 2025 it's −0.54, −0.13 and −0.14.
+- At tier-1 LAN, low-share series lean toward more player weight (λ +1.03 on 80 series in 2024, +0.67 on 123 in 2025), with CIs from about −0.4.
+- Today's single blend weight stands.
+
+**2. Below-tier results: fails, and the sign runs the other way.**
+
+| Year | n | β_at | β_below | β_below − β_at (90% CI) |
+| --- | --- | --- | --- | --- |
+| 2024 | 684 | −0.244 ± 0.123 | +0.008 ± 0.141 | +0.252 (−0.005 to +0.516) |
+| 2025 | 783 | −0.174 ± 0.127 | −0.277 ± 0.203 | −0.103 (−0.615 to +0.308) |
+| **2024–25 (decision)** | 1,467 | −0.214 ± 0.088 | −0.083 ± 0.115 | **+0.131 (−0.117 to +0.359)** |
+| 2024–25, both sides tier-1 regulars | 685 | −0.199 ± 0.112 | +0.196 ± 0.249 | +0.395 (−0.044 to +0.835) |
+
+- Results below tier 1 don't revert more than tier-1 results. If anything, they carry forward better.
+- The years disagree in sign, so `belowTierK` isn't built.
+- **Side finding (not a declared test):** β_at is negative in both years, −0.214 ± 0.088 pooled (z −2.4).
+  - Tier-1 rating changes from the last 90 days partly revert at tier-1 LANs, at about −0.2 logit per 100 points. A typical side's 90-day tier-1 change is 36 points, so that's worth about 2 points of win probability.
+  - This is the over-reaction lead (2026-11-18) showing at tier 1 after burst damping.
+  - A lever here would be a tier-1 K multiplier. It needs its own declared test, judged by the tier-1 LAN rule, and 2026 hasn't been read for it.
+
+**3. Rematches: fails.**
+
+| Scope | Years | Rematch n | Rematch residual | Control n | Control residual | Excess (z) |
+| --- | --- | --- | --- | --- | --- | --- |
+| Tier-1 LAN | 2024–25 (decision) | 86 | +0.004 | 814 | −0.018 | **+0.022 (z 0.4)** |
+| Tier-1 LAN | 2026 | 25 | −0.115 | 362 | +0.002 | −0.117 (z −1.2) |
+| Tier 1–2 LAN | 2024–25 | 117 | −0.065 | 1,110 | −0.013 | −0.052 (z −1.2) |
+
+- Earlier losers do no better in the rematch than other sides coming off a loss at the same event, and the 2026 sign flips.
+- By days since the pair last met, no bin clears z 2 in more than one year. 15–90 days is +0.071 (z 2.2) in 2025, −0.019 in 2024 and −0.031 in 2026.
+
+**4. Stage: diagnostic only, no lever.** Tier-1 LAN series calibration slope by stage:
+
+| Stage | 2024 | 2025 | 2026 |
+| --- | --- | --- | --- |
+| Final bracket (n 118 / 131 / 138) | 1.249 | 0.885 | 1.015 |
+| Earlier, bracket (370 / 175 / 266) | 0.672 | 1.471 | 1.032 |
+| Earlier, matchlist (196 / 477 / 257) | 0.787 | 0.889 | 1.420 |
+
+- The final bracket sits above the earlier stages in 2024 and below or level in 2025 and 2026, so the declared condition fails.
+- Every slice's slope swings by 0.3 to 0.8 between years, the same drift as tier-1 LAN overall (2026-11-21).
+- The only favourite residual with a CI clear of 0 is 2024's earlier brackets: −0.055 (−0.095 to −0.019), the 2024 overconfidence already on file.
+- Every tier-1 LAN series had a raw row.
+
+## 2026-11-24: New-roster LAN offset (`newLanOffset`)
+
+**Assumption tested:** a new roster's online-built rating carries over to LAN at face value.
+
+**Declared before any run:**
+- **Lever:** `newLanOffset`, in rating points, comes off a lineage's predictions at LAN. It fades linearly to 0 over the lineage's first `newLanMaps` maps. It applies to predictions only, never to the update (the same as `debutOffset`), and Elo never sees VRS rank.
+- **Fit:** `--tune --tune-keys newLanOffset,newLanMaps` on the 2024–25 fit objective, starting from today's `params.json`.
+- **Decision set:** unranked 2026 test series (the test set minus the gate), from the `--compare` "unranked" row.
+- **Pass:**
+  - the gain on unranked series has a 90% event CI above 0;
+  - gate ex-Oceania is no more than 0.0002 worse;
+  - tier-1 LAN is no more than 0.0002 worse.
+
+**Tune:** `newLanOffset` 160, `newLanMaps` 10 (the lower search bound). Fit loss went from 0.58391 to 0.58345.
+
+**Result** (`npm run backtest-elo -- --set newLanOffset=160 --set newLanMaps=10 --compare`, 90% event CIs):
+
+| Slice | n | Gain |
+| --- | --- | --- |
+| Unranked (decision) | 9,049 | +0.00156 (+0.00074 to +0.00238) |
+| Gate ex-Oceania | 9,152 | −0.00000 (−0.00005 to +0.00004) |
+| Tier-1 LAN | 661 | +0.00013 (+0.00000 to +0.00032) |
+| All test series | 18,424 | +0.00078 (+0.00037 to +0.00120) |
+| Oceania-internal | 422 | +0.00064 |
+| Oceania cross-region | 145 | −0.00185 (−0.00646 to +0.00157) |
+| Asia ex-Oceania involved | 1,628 | +0.00196 |
+| Fit objective (2025) | 20,513 | +0.00046 (+0.00014 to +0.00081) |
+
+**Kept.** It passes all three conditions. Gate log loss is unchanged at 0.6062, and `latest.json` is unchanged because the offset never moves a rating. `past-majors.json` was regenerated. `newLanMaps` sits on its lower bound: the offset is gone after about three series. A shorter fade wasn't tried, and trying one would be a new experiment under this rule.
+
+## 2026-11-24: Ranked vs unranked rosters — diagnostic only, not built
+
+**Question:** Every lineage retune so far gains about +0.004 on series outside the gate and nothing inside it. Where does Elo miss on rosters Valve doesn't rank?
+
+**Diagnostic** (`npm run backtest-elo -- --ranked`, kept): series split by how many sides the last VRS snapshot ranks. Where exactly one side is ranked, the residual is the ranked side's wins minus Elo's expectation, with event-clustered 90% CIs, on today's params.
+
+| Slice | Train 2024–25 n | Train | Test 2026 n | Test |
+| --- | --- | --- | --- | --- |
+| Both ranked (logloss) | 8,293 | 0.5982 | 9,375 | 0.6062 |
+| One ranked (logloss) | 5,295 | 0.5497 | 4,200 | 0.4892 |
+| Neither ranked (logloss) | 7,346 | 0.5847 | 4,849 | 0.5895 |
+| One ranked, residual | 5,295 | +0.022 (+0.012 to +0.031) | 4,200 | +0.026 (+0.015 to +0.036) |
+| ranked side is teams[0] | 3,316 | +0.023 | 2,851 | +0.031 |
+| ranked side is teams[1] | 1,979 | +0.019 | 1,349 | +0.016 |
+| LAN, unranked side < 30 maps | 355 | +0.059 (+0.027 to +0.091) | 845 | +0.070 (+0.053 to +0.086) |
+| LAN, unranked side 30+ maps | 264 | +0.045 | 329 | +0.020 |
+| online, unranked side < 30 maps | 2,106 | +0.031 | 1,888 | +0.014 |
+| online, unranked side 30+ maps | 2,570 | +0.006 | 1,138 | +0.017 |
+
+**Finding:** Elo overrates the unranked side of a mixed series by about 2.5 points of win probability, in both periods and in both orientations, so it isn't the teams[0] intercept. Most of it is new unranked rosters (under 30 maps) at LAN: +0.06 to +0.07, about 60 Elo points. The rest is spread thin and only clears zero in some cells. Neither-ranked series show no comparable miss (slope 1.03 train, 0.98 test).
+
+**Follow-up:** built as `newLanOffset` (entry above), under a declared rule for unranked series.
+
+**Why it wasn't built at first:** any fix for this pocket barely touches the gate, since both gate sides are ranked. A ceiling estimate (a 60-point shift on the 845 test series) is worth about +0.01 per series there, which is about +0.0005 across all test series and about zero on the gate. A lever here can't pass under the current decision rule, and the retunes that chased it (`debutOffset`, `provisionalMaps`) paid for it on tier-1 LAN. If we want to act on it, it needs a scoped lever, such as an offset for provisional rosters at LAN, and its own declared decision set: unranked test series, with gate ex-Oceania and tier-1 LAN as no-harm checks.
+
+## 2026-11-24: Oceania rule, retro-check and lineage retune without Oceania
+
+**Question:** Under the Oceania rule (header), do the player-blend and lineage-retune verdicts below change? And does a lineage retune fit without Oceania-internal series do better than the one below?
+
+**Declared test (written before any run):**
+1. Retro-check with `--compare`, logged whatever it shows: the player blend against `--set playerBlend=0`, and the rejected retune (`--params-file`) against today's params.
+2. Fresh retune: the same keys, 2024–25 window and start as the retune below, under the new fit objective (`--tune --tune-keys … --compare`). Pass: gate ex-Oceania improves by more than 0.0005, with a 90% event CI above 0, and 2026 tier-1 LAN is no worse than −0.0005. Same single bound-widening rerun as below.
+
+**How much Oceania there is.** 895 of 42,106 training series in 2024–25 (2.1%), 223 of the 9,375 gate series (2.4%) and 422 of 18,424 test series in 2026.
+
+**Paired 2026 gains over today's params (90% event CIs):**
+
+| Set | n | Blend on over off | Rejected retune (below) | Fresh retune, Oceania left out |
+| --- | --- | --- | --- | --- |
+| Gate ex-Oceania (decision) | 9,152 | **+0.0033 (+0.0018 to +0.0049)** | −0.0001 (−0.0007 to +0.0005) | **−0.0000 (−0.0005 to +0.0004)** |
+| Gate | 9,375 | +0.0030 (+0.0014 to +0.0046) | −0.0002 (−0.0007 to +0.0004) | −0.0000 (−0.0005 to +0.0004) |
+| Tier-1 LAN | 661 | +0.0038 (−0.0012 to +0.0102) | −0.0010 (−0.0037 to +0.0014) | −0.0014 (−0.0038 to +0.0007) |
+| All test series | 18,424 | +0.0035 (+0.0021 to +0.0050) | +0.0021 (+0.0013 to +0.0029) | +0.0021 (+0.0012 to +0.0030) |
+| Unranked (not gate) | 9,049 | +0.0041 (+0.0015 to +0.0067) | +0.0045 (+0.0029 to +0.0060) | +0.0043 (+0.0024 to +0.0061) |
+| Oceania-internal | 422 | −0.0043 (−0.0160 to +0.0064) | +0.0006 (−0.0045 to +0.0063) | +0.0013 (−0.0045 to +0.0073) |
+| Oceania cross-region | 145 | +0.0321 (+0.0024 to +0.0633) | +0.0071 (+0.0009 to +0.0153) | +0.0050 (−0.0020 to +0.0140) |
+| Asia ex-Oceania involved | 1,628 | +0.0041 (−0.0019 to +0.0102) | +0.0041 (+0.0013 to +0.0071) | +0.0040 (+0.0008 to +0.0075) |
+
+The blend column is `--set playerBlend=0` with its sign flipped.
+
+**Retro-check: no verdict changes.** The blend passes on gate ex-Oceania by more than on the full gate, and the rejected retune stays flat.
+
+**Fresh retune: rejected.** 2024–25 fit loss fell 0.58554 → 0.58343, with no key on a bound. It landed close to the retune below: `otMargin` 0, `tierK` 0.85, `provisionalK` 1.5, `provisionalMaps` 220, `debutOffset` 550, `debutMaps` 20, `standInK` 1, `mapShrink` 0.02, `playerTierGap` 900. Leaving Oceania out didn't change where the tuner goes.
+
+What splits experiments isn't Oceania; it's ranked against unranked rosters. Lineage retunes keep buying +0.004 on unranked series and nothing on the gate.
+
+## 2026-11-24: Lineage retune around the player blend
+
+**Question:** With the player blend carrying part of the odds, do the lineage params want to move? The held joint retune in the entry below suggests they do (`kMap` and `provisionalMaps` at their bounds), but it was fit on one year and moved the Oceania values. This retune changes published ratings and rankings.
+
+**Declared test (written before any run):**
+1. Widen the two bounds the held retune hit: `kMap` max 30 → 80, `provisionalMaps` max 200 → 400.
+2. `--tune --tune-keys` over every step except `regionPriorOceania` and `oceaniaTemp`, which wait on 2027 ([elo-assumptions.md](elo-assumptions.md)). Fit on 2024–25 (`--train-from 2024-01-01 --train-to 2025-12-31`), starting from today's `params.json` (blend on). If a key ends on a bound, widen that bound and rerun the tune from the result, once.
+3. Pass: the 2026 gate improves by more than 0.0005 over today's params, with a 90% event-clustered CI on the paired gain above 0. The 2026 tier-1 LAN paired gain must be no worse than −0.0005 (the noise bar), since Majors feed the simulator.
+4. Reported, not gating: `backtest-majors`, `backtest-sim` and the `fit-sim-noise` tier-1 τ, before and after.
+
+**Tune.** 2024–25 train loss fell 0.58285 → 0.58082. Moves: `otMargin` 0, `onlineK` 0.9, `tierK` 0.85, `crossRegionK` 1.25, `provisionalK` 1.5, `provisionalMaps` 300, `debutOffset` 500, `debutMaps` 20, `kMap` 10, `mapShrink` 0.02, `tierGap` 825, `standInK` 1, `playerTierGap` 950, and `playerProvisionalK` 6, which was at its bound. That bound went to 12 and the tune reran from the result. `playerProvisionalK` stayed at 6. `provisionalMaps` went to 400, its new bound, on a flat loss (0.58078 from 370 up), along with `kMap` 12, `crossRegionK` 1 and `burstDays` 20. Train loss was 0.58077. The declared single rerun was used up, so the tune stopped there.
+
+**Paired 2026 gains over today's params (90% event CIs):**
+
+| Set | n | First tune | After the rerun |
+| --- | --- | --- | --- |
+| Gate | 9,375 | −0.0003 (−0.0009 to +0.0003) | **−0.0002 (−0.0007 to +0.0004)** |
+| Tier-1 LAN | 661 | −0.0026 (−0.0058 to +0.0001) | −0.0010 (−0.0036 to +0.0013) |
+| All series | 18,424 | +0.0020 (+0.0012 to +0.0028) | +0.0021 (+0.0013 to +0.0029) |
+| Asia incl. Oceania series | 2,094 | +0.0035 (+0.0010 to +0.0060) | +0.0034 (+0.0008 to +0.0059) |
+
+**Rejected.** The gate gets slightly worse (0.6062 → 0.6063) and tier-1 LAN leans worse. The real gain is on series outside the gate, through a longer provisional period and a larger debut offset. That helps teams Valve doesn't rank, not the field that plays Majors. The last row was first labelled "Oceania"; it's Valve's Asia region, which includes Oceania. Asia carries under a fifth of the all-series gain. The simulator checks (4) weren't run, since nothing ships. Today's `params.json` stays; the widened bounds stay in `STEPS`. This retune supersedes the held 2025 joint retune below.
+
+Tooling note: the first rerun passed the tuned values with `--set` and retraced the first tune exactly. A short `--set` run through `npm run` worked, so the cause is unknown. The rerun that counts started from the values written into `params.json`, which was then restored.
+
+## 2026-11-24: Player Elo blend in the engine
+
+**Question:** Does the prototype's gain hold once the player model is in the engine and blended at map level, where `predictMatchup` and the simulator price maps? Same assumption as the prototype entry below.
+
+**Port.** `scripts/lib/elo/playerElo.ts` runs the prototype's player Elo inside `playSeries` on the same resolved lineups. Predictions use the map gap `(1 − playerBlend) · lineage gap + playerBlend · playerTemp · player gap`. The lineage update keeps its unblended expectation, so lineage ratings and rankings don't change. With `playerBlend` 0, every prediction and `calibration.json` are byte-identical to before. Rebuilt from `SeriesPrediction.playerGap` at temperature 0.7, player odds alone score 0.5957, 0.5948 and 0.5882 on 2024–26, matching the prototype exactly.
+
+**Declared test (written before any run):**
+1. `--tune --tune-keys` over `playerBlend`, `playerTemp` and the six player params on 2024 (`--train-from 2024-01-01 --train-to 2024-12-31`), starting at the prototype's values with lineage params held at today's. That keeps 2025 out of sample for the player model.
+2. Pass: the 2026 gate improves by more than 0.0005 against today's 0.6092, with a 90% event-clustered CI on the paired gain above 0.
+3. Tier-1 LAN check: `--walk playerBlend=0,0.2,0.3,0.4,0.5` with the tuned player params. The pooled tier-1 LAN gain's CI must not be below 0, and the walk's 2026 gate gain must agree with (2).
+4. Follow-up, logged whatever the result: a joint `--tune` on 2025 over every step from the passing params. Its lineage values are kept only if the gate improves by a further 0.0005.
+
+**1. Tune on 2024.** `playerBlend` 0.45, `playerTemp` 0.65, `playerK` 18, `playerTierGap` 850, `playerProvisionalK` 5.5 over 110 maps; `playerMarginWeight` 0.5 and `playerTierK` 0.9 didn't move. 2024 train loss went 0.58543 → 0.58450 (the start already had the blend at 0.3 and temperature 0.7).
+
+**2. Paired gains over today's params, 90% event CIs.**
+
+| Set | 2025 (out of sample for the player model) | 2026 | Slope, 2026 |
+| --- | --- | --- | --- |
+| Gate | – | **0.6092 → 0.6062, +0.0030 (+0.0015 to +0.0045)** | 0.943 → 1.023 |
+| All series | +0.0036 (+0.0022 to +0.0049) | +0.0035 (+0.0021 to +0.0050) | 0.937 → 1.032 |
+| Tier-1 LAN | +0.0046 (−0.0022 to +0.0108) | +0.0038 (−0.0009 to +0.0093) | 0.994 → 1.132 |
+| Tier 1–2 | +0.0034 (−0.0017 to +0.0081) | +0.0018 (−0.0020 to +0.0059) | 0.847 → 0.932 |
+| Tier 3+ | +0.0036 (+0.0022 to +0.0050) | +0.0036 (+0.0021 to +0.0052) | 0.941 → 1.037 |
+| Cross-region | +0.0007 (−0.0041 to +0.0058) | +0.0033 (−0.0016 to +0.0081) | 0.873 → 0.958 |
+
+Passes. The blend leaves odds a little soft overall (slope just above 1), most of all at tier-1 LAN.
+
+**3. Tier-1 LAN walk.** Fit on 2024, the walk picks `playerBlend` 0.45 for 2025. Fit on 2024–25, it picks 0.4 for 2026, where the gate gains +0.0030 (+0.0016 to +0.0044). The pooled tier-1 LAN gain is **+0.0041 on 1,444 series (+0.0001 to +0.0085): passes**.
+
+**4. Joint 2025 retune.** Over every step, 2025 train loss fell 0.58118 → 0.57770. Over the blend-only params on 2026: gate +0.0007 (−0.0002 to +0.0015), all series +0.0025 (+0.0016 to +0.0035), tier-1 LAN +0.0001 (−0.0043 to +0.0037), Asia and Oceania series +0.0053 (+0.0015 to +0.0089). It meets the declared +0.0005 by point estimate only. It moves lineage params, which changes published ratings: `k` 8, `marginWeight` 1, `crossRegionK` 1, `provisionalK` 1, `provisionalMaps` 200 (bound), `debutOffset` 500, `debutMaps` 20, `kMap` 30 (bound), `tierGap` 950, `burstMaps` 24, `regionPriorOceania` −375 and `oceaniaTemp` 1.3. The Oceania prior falls under the region rule, so **held, not applied**, pending a decision on changing the rankings. Superseded by the 2024–25 lineage retune above, which was rejected.
+
+**Simulator, blend off → on** (not part of the declared test):
+
+| Check | Off | On |
+| --- | --- | --- |
+| `backtest-majors`, 18 Major stages, placement log loss | 1.1307 | 1.1415 |
+| Elo − Supercomputer, 8 blocks (90% CI) | −0.0031 (−0.0287 to +0.0222) | +0.0169 (−0.0189 to +0.0513) |
+| `backtest-sim`, IEM Cologne 2026 placement log loss | 1.9314 | 1.9442 |
+| `fit-sim-noise` tier-1 τ (fit 2025) | 0.820 | 0.941 |
+
+Four of the five Majors get worse; Budapest 2025 is the exception. The series-level tier-1 LAN gain (+0.0041 over 1,444 series) disagrees with the stage-level loss over 18 blocks. Both CIs are wide, but the direction fits the blend's softer odds: tier-1 LAN slope 1.13 with the blend. The simulator softens again with drift, and `TIER_TEMP` was fit before the blend. Drift (`q` 43.4) doesn't change with the blend.
+
+**Simulator follow-up: no fix, because the regression isn't in the odds.**
+- **Played Major series, priced by the simulator's `Predictor`:** log loss is 0.6396 off and 0.6389 on (464 series). Slope goes 0.80 (0.62 to 1.01) → 0.90 (0.70 to 1.13). Major odds were overconfident and the blend moves them toward calibrated. Sharpening the tier-1 temperature, the fix proposed for the stage loss, would go the wrong way, so it wasn't run.
+- **Stage placement, paired over 18 stages:** +0.0108 (90% CI −0.0011 to +0.0227, ignoring within-Major correlation, which widens it). All of it is in playoffs: +0.065, +0.037, −0.009, +0.048, +0.046. The 13 other stages are flat (+0.0006). The actual champion's odds fell in all five playoffs, by 0.3 to 2.3 points.
+- **Do strong favourites get underrated?** No, across every tier-1 LAN series in 2025–26 (1,444). Binned by the blend-off favourite's odds, blend off / on / actual: 0.5–0.6 at 0.551 / 0.545 / 0.539, 0.6–0.7 at 0.649 / 0.633 / 0.637, 0.7–0.8 at 0.749 / 0.723 / 0.743, 0.8+ at 0.869 / 0.844 / 0.843. The blend is closer in three of four bins, and in the 0.8+ bin it removes the old overconfidence.
+- So the playoff loss is five events, not a mechanism. Recheck it when the next Major is played.
+
+**Kept:** the blend-only params from (1), in `params.json`, in match odds and the simulator. Lineage ratings are unchanged (`latest.json` byte-identical).
+
+## 2026-11-24: Player-level Elo blended with lineage Elo — passes, prototype only (not wired in)
+
+**Question:** Every lever so far tunes one lineage Elo. Does a different model family carry information it lacks? Assumption tested: "Star players matter, but team results already carry them" ([elo-assumptions.md](elo-assumptions.md)), and the known weakness of long 3-of-5 chains under "Team identity is the core players".
+
+**Declared test (written before any run):** build a player-level Elo from results only, tune it on 2024, and fit the encompassing λ of player Elo over lineage Elo on 2025 (`lambdaCi`, events resampled). Go on to 2026 only if λ's 90% CI is above 0 on 2025. Then score a blend `logit p = logit p_elo + λ·(logit p_player − logit p_elo)`, with λ fit on 2025, on the 2026 gate once; keep it if the gain clears 0.0005 with a CI above 0.
+
+**Model (scratch script, not engine code).** Each player has a rating, and a side's strength is the mean of its five (the engine's resolved lineups). Every map moves each player by `K · tierK^(tier−1) · (1 + marginWeight·ln(1 + |margin|)) · provisional · (y − p)`, with per-player provisional K. Unrated players seed at the mean of 2+ rated teammates, else `−tierGap·(tier−1)`. Series odds use the same binomial with a map-logit temperature. Tuned on 2024: K 16, `tierGap` 450, `provK` 3 over 120 maps, `marginWeight` 0.5, `tierK` 0.9, temperature 0.7, new-player offset 0.
+
+| | 2024 | 2025 | 2026 |
+| --- | --- | --- | --- |
+| Lineage Elo, all series | 0.5895 | 0.5847 | 0.5786 |
+| Player Elo, all series | 0.5957 | 0.5948 | 0.5882 |
+| λ(player \| lineage), 90% CI | – | 0.33 (0.28 to 0.38) | 0.35 (0.29 to 0.40) |
+
+Alone it's 0.010 worse, but it carries information lineage Elo doesn't, and that holds in both years. Lineage Elo was tuned on 2025, so the 2025 λ is conservative.
+
+**2026, blend at λ 0.329 (fit on 2025):**
+
+| Set | n | Gain, λ blend (90% CI) | Free two-weight blend | Temperature only (control, 0.973) |
+| --- | --- | --- | --- | --- |
+| Gate | 9,375 | **+0.0026 (+0.0015 to +0.0037)** | +0.0025 | +0.0001 (−0.0001 to +0.0003) |
+| All series | 18,424 | +0.0034 (+0.0024 to +0.0044) | +0.0033 | +0.0002 |
+| Tier-1 LAN | 661 | +0.0037 (+0.0005 to +0.0075) | +0.0039 | +0.0000 |
+| Tier 1–2 | 1,139 | +0.0018 (−0.0010 to +0.0048) | – | – |
+
+- **Passes the declared test.** The gate gain is five times the bar, and the temperature control shows it isn't the player model's softer odds. Tier-1 LAN gains too, on one fold.
+- **Since wired in** (the "Player Elo blend in the engine" entry above). At the time: shipping it meant a player-rating pass in the engine, the blend in series odds, `predictMatchup` and the simulator's `Predictor`, and a decision on what the rankings show (ratings stay lineage Elo; only odds change). Next: move the prototype into `scripts/lib/elo/`, tune both models with the blend in `--tune`, and run the tier-1 LAN rule's `--walk` before making it live.
+
+## 2026-11-24: Recency-weighted tuning (`--train-halflife`) — rejected
+
+**Question:** Tuning on the latest year beat tuning on all history (2026-11-19), but weights between the two were never tried. Does weighting training series by age, with a half-life in days back from `--train-to`, beat both? Assumption tested: "Strategic edges spread fast and don't last" ([elo-assumptions.md](elo-assumptions.md)), via the drift it implies.
+
+**Declared test (written before any run).** Selection never touches 2026.
+1. Five tunes, each scored on 2025 H2 (`--test-from 2025-07-01 --test-to 2025-12-31`): 2025 H1 unweighted (the current protocol's analogue), 2024-01 to 2025-06 unweighted, and 2024-01 to 2025-06 at half-lives 90, 180 and 365 days. All start from the same `params.json` (which saw 2025 H2 in its own tune, so the arms share that bias) with the widened bounds below.
+2. Pick the half-life with the best 2025 H2 gate-set log loss. It goes forward only if it beats 2025 H1 unweighted there by more than 0.0005.
+3. If it goes forward: tune on 2024-01 to 2025-12 at that half-life and score the 2026 gate once. Keep it if the gate improves by more than 0.0005 against the plain 2025 tune's result (the entry below).
+
+**Result** (scored on 2025 H2):
+
+| Training | Gate set (4,139) | All series (10,438) | Slope |
+| --- | --- | --- | --- |
+| 2025 H1 only | 0.5996 | 0.5790 | 1.035 |
+| 2024–2025 H1, half-life 90 days | **0.5995** | 0.5793 | 1.045 |
+| half-life 180 days | 0.6005 | 0.5800 | 1.048 |
+| half-life 365 days | 0.6007 | 0.5805 | 1.043 |
+| 2024–2025 H1, unweighted | 0.6017 | 0.5809 | 1.104 |
+
+**Rejected at step 2.** The shorter the half-life, the closer the tune gets to recent-only, and the best one beats 2025 H1 alone by 0.0001. Older years add nothing once recent data is in the train set, which confirms the 2026-11-19 rule. No 2026 read was taken. `--train-halflife` stays in `backtest-elo`.
+
+## 2026-11-24: Search bounds for `tierGap` and `provisionalMaps` widened — rejected
+
+**Question:** The 2025 tune left `tierGap` at 800 and `provisionalMaps` at 100, both upper bounds in `STEPS`. Does the optimum sit past them? Raising `tierGap`'s ceiling from 400 to 800 helped on 2026-10-20. Assumption tested: none directly; `tierGap` is soft.
+
+**Declared test (written before the run):** bounds raised to 1,200 and 200, then `npm run backtest-elo -- --tune` on 2025 from the current `params.json`. Keep the tuned set if the 2026 gate improves by more than 0.0005 against 0.6092 and all 2026 series don't get worse than 0.5786.
+
+**Result.** The tune went past the old bounds: `tierGap` 1,025 and `provisionalMaps` 120. It also moved `provisionalK` 2 → 1, `kMap` 8 → 22, `debutOffset` 300 → 350, `debutMaps` 25 → 20, `seriesMapTemp` (both) 0.9 → 0.85, `burstMaps` 16 → 32, `burstDays` 16 → 20, `regionPriorOceania` −175 → −225 and `oceaniaTemp` 1.4 → 1.3. 2025 train went 0.58475 → 0.58311.
+
+| 2026 | Current | Tuned, wide bounds |
+| --- | --- | --- |
+| Gate (9,375) | 0.6092 | 0.6091 |
+| All series (18,424) | 0.5786 | 0.5773 |
+| Cross-region (719) | 0.6273 | 0.6265 |
+| Tier-1 LAN series (661) | 0.6021 | 0.6033 |
+| Test series slope | 0.937 | 0.965 |
+
+**Rejected:** the gate moves 0.0001, under the bar. Most of the 0.0016 train gain is a dozen small moves that don't reach the gate, and tier-1 LAN gets worse. The wider bounds stay in `STEPS`, so the next yearly retune can use them and is judged as usual.
+
+## 2026-11-24: Stakes (elimination vs safety net) and same-day load — diagnostic only, not built
+
+**Question:** Two untested assumptions in [elo-assumptions.md](elo-assumptions.md): does Elo misprice games by what's at stake for the loser, and does a side that has already played that day underperform? Declared beforehand: build a temperature only if a fit on 2024–25 gains on 2026 with a ceiling above 0.0005 of all 2026 series.
+
+**Stakes.** Classified from each raw match's `match2bracketdata` in the local store (scratch script, no API calls). A bracket with any lower-section match is double elimination. Its upper matches with an `upperMatchId` are safety-net games, and lower-bracket, final and single-elimination games are eliminations. Matchlists split into GSL elimination or decider, GSL opening or winners, and everything else (leagues, round robins, Swiss). 40 of 18,464 2026 series had no raw row. Series calibration slope:
+
+| Stakes | 2024 | 2025 | 2026 |
+| --- | --- | --- | --- |
+| Elimination (10,078 / 9,461 / 9,388) | 0.86 | 0.95 | 0.93 |
+| Safety net (3,854 / 3,922 / 4,258) | 0.77 | 0.94 | 0.88 |
+| League, round robin, Swiss (7,054 / 7,350 / 4,436) | 0.97 | 1.00 | 1.00 |
+
+- **The loser's stakes don't matter.** Elimination and safety-net games calibrate alike.
+- **Bracket games run slightly overconfident; league games don't.** A 2024–25 temperature carries over: elimination 0.901 gains +0.00010 on all 2026 series, safety net 0.852 gains +0.00009, together about 0.0002 (ceilings 0.00016 and 0.00015). Under the bar. Not built.
+- At tier 1–2 the slopes swing year to year (bracket games 0.62, 0.96, 0.73), like the tier-1 LAN drift on 2026-11-21.
+
+**Same-day load.** Maps each side's lineage played in the 16 hours before the series; wins minus Elo for the side that played more:
+
+| Load difference | 2024 | 2025 | 2026 |
+| --- | --- | --- | --- |
+| +1–2 maps | +0.016 (z 2.0) | +0.001 (0.1) | −0.002 (−0.2) |
+| +3 or more | +0.007 (0.6) | −0.008 (−0.6) | −0.007 (−0.5) |
+
+No fatigue effect: the sign flips and nothing clears noise. Dead rubbers weren't separated, since league games as a whole are calibrated.
+
+## 2026-11-24: Stale cores and debut farming — diagnostic only, not built
+
+**Question:** The 2026-11-21 `changeK` entry found lineages with no core change in 100 maps missing Elo by 2.3% per series (z −5.8 in 2025 and 2026), and [elo-assumptions.md](elo-assumptions.md) listed it as untested. One mechanism would tie it to the debut bias: debut lineages are seeded at the tier mean but play far below it, and `debutOffset` only shifts predictions, so incumbents still collect unearned rating when they beat debuts. If that's the cause, a `debutInUpdate` switch (the debut offset in the update's expected score too) would fix both. Declared beforehand: build that switch only if, on 2025, established lineages with a high share of recent series against debuts are overrated against other opponents.
+
+**Diagnostic** (`npm run backtest-elo -- --debuts`, now with a stale-core table): wins minus Elo's expectation per side, z against binomial noise, on today's params. Stale is 100+ maps with no core change in the last 100. Debut is under 30 maps with 3+ unrated seeds. Debut share is the share of the side's last 20 series against debuts.
+
+| Slice | 2025 | 2026 |
+| --- | --- | --- |
+| Stale core | +0.007 (z 1.0, 4,609) | −0.006 (−0.8, 3,946) |
+| Changed in last 100 maps (100+ maps) | +0.004 (1.2) | +0.007 (2.1) |
+| Stale, lineage 1,000+ maps | −0.017 (−0.7) | −0.018 (−0.8) |
+| 100+ maps v non-debut, debut share 0 | +0.005 (1.5) | +0.006 (1.5) |
+| 100+ maps v non-debut, debut share 20%+ | −0.015 (−0.6, 344) | −0.013 (−0.5, 271) |
+| Return after 180+ idle days | +0.103 (3.6, 201) | +0.075 (2.4, 171) |
+
+- **The stale-core miss is gone.** The old bin counted lineages under 100 maps old as "no change in 100", so it held the debut lineages that `debutOffset` now prices. Measured on 100+ map lineages only, stale and changed cores both sit within noise.
+- **No debut farming.** Lineages that played many debuts recently aren't overrated against everyone else. Few lineages reach a 20% debut share, and their residual is within noise. `debutInUpdate` wasn't built.
+- **180+ day returners now clear the debut entry's sign-and-z bar in both years** (z was 1.9 in 2026 before `debutOffset`). It's about 190 sides a year; a bias of 0.09 on that many is worth roughly 0.0002 of all-series log loss even if priced exactly, under the 0.0005 bar. Not built.
+
+## 2026-11-24: Debut offset for lineages seeded from unrated players (`debutOffset`) — kept by user decision over the declared gate bar
+
+**Question:** The market diagnosis (next entry) found new rosters winning 36.2% against Elo's 39.0%. Where exactly is that bias, and can seeding fix it? Declared beforehand: build a lever only for slices where 2025 and 2026 residuals agree in sign with |z| ≥ 2. Keep it only if the gate gain's 90% CI is above 0 and all 2026 series don't get worse.
+
+**Diagnostic** (`npm run backtest-elo -- --debuts`, kept): wins minus Elo's expectation per side, z against binomial noise. Almost every new lineage is tier 3+ (tier 1–2 has under 25 per year).
+
+| Slice | 2025 | 2026 |
+| --- | --- | --- |
+| New lineage, maps 0–10 | −0.041 (z −7.9) | −0.042 (z −7.4) |
+| New lineage, maps 10–30 | +0.009 (1.4) | +0.001 (0.2) |
+| < 30 maps, 0 unrated seeds | +0.021 (3.4) | +0.025 (3.5) |
+| < 30 maps, 1–2 unrated seeds | −0.010 (−1.4) | −0.016 (−2.2) |
+| < 30 maps, 3–5 unrated seeds | **−0.116 (−13.6)** | **−0.118 (−13.2)** |
+| < 30 maps, stalest rated seed idle 180+ days | −0.010 (−1.7) | −0.021 (−3.4) |
+| Return after 60–179 idle days | −0.003 (−0.1) | −0.004 (−0.2) |
+| Return after 180+ idle days | +0.130 (4.1) | +0.064 (1.9) |
+| Series 2–5 after a 60+ day return | +0.006 (0.5) | +0.002 (0.2) |
+
+The bias is in lineages made of unknown players, whose seeds sit at the event tier's mean. It's gone within about 10 maps, because `provisionalK` corrects it fast. Returning rosters aren't overrated (180+ day returners are, if anything, underrated), and stale seeds don't pass in 2025, so neither got a lever.
+
+**Lever 1, `unratedSeedOffset` (rejected):** unrated players seed at tier mean − offset. On 2025 the best was 150 (train +0.0131). On 2026: all series +0.0113 (+0.0091 to +0.0136), but the **gate −0.0030 (−0.0048 to −0.0013)**. Lower seeds take rating points out of the pool and drag down the tier means that later seeds and established rosters sit against. Left in the engine, off, and out of `--tune`.
+
+**Lever 2, `debutOffset` (prediction only):** take `debutOffset × unrated seeds / 5` points off a new lineage's odds, fading linearly to 0 over `debutMaps` maps. The update keeps the unshifted expectation, so no rating points move. Grid on 2025 (`--compare`): best `debutOffset` 300 and `debutMaps` 25, with train +0.0146 (+0.0121 to +0.0171).
+
+| Set (2026) | Current | With 300 / 25 | Gain (90% CI) |
+| --- | --- | --- | --- |
+| Gate (9,375) | 0.6090 | 0.6092 | −0.00015 (−0.00035 to +0.00004) |
+| All test series (18,424) | 0.5926 | 0.5786 | **+0.0140 (+0.0118 to +0.0162)** |
+
+Every young-lineage slice in `--debuts` falls inside |z| < 2. On the market benchmark, Elo's gap to the close goes from −0.0080 to −0.0070, and under $10k from +0.0008 to +0.0082. Few markets involve debut rosters, so the market gap barely moves.
+
+**Decision: kept** (`debutOffset` 300, `debutMaps` 25 in `params.json`, both in `--tune`'s steps). By the declared bar it fails, because the gate CI straddles 0. The gate is VRS-ranked rosters only, and the lever almost never touches them, so the bar can't see the gain. The user chose to keep it for the largest all-series gain on file, which the simulator's lower-tier qualifier odds also use. Ratings don't change (`latest.json` is identical); match odds, game-log probabilities and `calibration.json` do. After: gate 0.6092, every 2026 series 0.5786, every 2026 map 0.6165, test series slope 0.937. The slope fell from 0.964 and ECE held at 0.009, so test series are slightly more overconfident overall even though log loss improved.
+
+## 2026-11-24: Matches after a player break — diagnostic only, not built
+
+**Question:** Are there more upsets right after the summer and winter player breaks, and is that tunable? Bootcamp information (who practised and who didn't) isn't in the feed, but the market may have it.
+
+**Breaks** (`scripts/lib/elo/breaks.ts`): tier-1 LAN gaps of 25+ days starting in June, July or December. That gives nine since 2022 (e.g. 2025-12-14 → 2026-01-22 and 2026-06-21 → 2026-07-30), which fits the 2026 calendar: the Cologne Major ended 21 June and BLAST Bounty Summer qualifiers started around 20 July. A side counts as post-break for its first 3 series if it sat the break out (14+ days idle before its first series in the window). `npm run backtest-elo -- --breaks`.
+
+| Series | n | Slope | Upsets vs Elo's expectation |
+| --- | --- | --- | --- |
+| 2022–2025 post-break | 5,336 | 0.778 | 32.1% vs 29.3% |
+| 2022–2025 same weeks, others | 15,257 | 0.845 | 33.0% vs 31.8% |
+| 2022–2025 tier 1–2 post-break | 361 | 0.554 | 32.7% vs 24.4% |
+| 2022–2025 tier 1–2 others | 640 | 0.417 | 35.6% vs 26.2% |
+| 2026 post-break | 1,313 | 1.085 | 26.7% vs 29.4% |
+| 2026 tier 1–2 post-break | 114 | 0.645 | 36.8% vs 30.6% |
+| 2026 tier 1–2 others | 218 | 0.917 | 36.2% vs 34.9% |
+
+- Post-break series have an upset excess of +1.8 points (+0.2 to +3.3, resampling the nine breaks). The same weeks' other series run +1.2 points in 2022–2025, so the break itself adds about 1.6 points. It's real but small, and it reversed in 2026 overall.
+- The user's hunch shows most at the top: in 2026 tier 1–2, post-break series ran 6 points above Elo's upset rate against 1 point for other series. That's 114 series over two breaks, too few to fit.
+- A post-break temperature fit on 2022–2025 (slope 0.778) **loses** 0.0006 on all 2026 series and 0.0001 on the gate. The 2026 ceiling is about 0. Not built, under the 0.0005 bar.
+- **Market:** the close beats Elo by 0.024 (−0.043 to −0.006) on 527 post-break series, against 0.008 overall. For tier 1–2 post-break, the 24h-out price is no better than Elo (−0.004), and the open-to-close move has slope 0.01. So the market's edge there arrives in the last day and doesn't come from Elo's direction. That fits late news about lineups and bootcamps, which Elo can't see.
+
+## 2026-11-24: Where the gap to the market close comes from — diagnostic, no model change
+
+**Question:** The close beats Elo by 0.019 since July but not before (entry below). Is that shift real, what drives it, and does it point at an Elo lever?
+
+**Method.** `npm run backtest-market -- --diagnose` on the same 8,331 matched 2026 series, split at 2026-07-01. Event-resampled 90% CIs. `--close-lead 60` repeats the report with the price an hour before the scheduled start.
+
+- **The shift is real, and it's the market that moved.** Elo's gain vs the close fell by 0.024 (−0.033 to −0.015) from H1 (+0.004) to H2 (−0.019). Reweighting H2 to H1's volume × tier mix leaves the gap at −0.018, so it isn't the mix. On that like-for-like mix Elo's log loss is flat (0.5862 → 0.5856) while the close's drops from 0.5906 to 0.5672. By month, July–September are each about −0.03, October is level (+0.003), November −0.019.
+- **It isn't late or in-play news.** Feed and Polymarket start times agree to the minute at the median (16% of feed times are 10+ minutes earlier). The price 60 minutes out still beats Elo by 0.015 (−0.022 to −0.009) on H2, and even 4 hours out it's ahead by about 0.008. The last hour is worth about a fifth of the gap, which fits lineup and stand-in news.
+- **Elo has no systematic bias the market corrects.** Orienting each series to the side carrying a feature (recent core change, stand-in, idle, newer roster, region pair, stale cross-region, 5-series form, Elo favourite by confidence), Elo's mean p(A) matches A's win rate to within about 0.01 in almost every bucket, and the close rarely sits nearer. The close beats Elo in nearly every bucket by a similar 0.01–0.03. That's resolution (sorting matches within a bucket), not calibration. Two exceptions:
+  - Americas vs Europe (424 series): Americas won 0.448, Elo said 0.478, close 0.464; gain −0.016 (−0.031 to −0.002). Earlier region-offset levers didn't clear the gate (2026-11-19 entries).
+  - Newer rosters (< `provisionalMaps` maps, 2,252) won 0.362 against 0.390 from Elo and 0.393 from the close, and sides idle 60+ days or in their first series won 0.220 against 0.273 / 0.289. Both models overrate them, so it doesn't show as a market gap, but it's an Elo bias worth a seeding test.
+- **Heavy favourites are the market's weak spot.** Where Elo says 75%+, the close says 0.778 and the favourite wins 0.843, exactly Elo's 0.843; Elo gains +0.013 there over the year.
+- **The gap is spread thin.** 353 of 604 teams are net negative in H2; the worst 10 teams account for 23% of it. The worst events are tier-4 online European cups (ESEA Advanced, ESL Challenger League cups, Fiesta Series, CCT Contenders), plus EPL S24 and the EWC qualifier.
+- **Elo isn't slow.** If the market's disagreement were lasting strength, each side's rating over its next 5 series would move about 65 points per logit of disagreement. It moves 2.5 (1.7 to 3.4) overall, 4.7 (3.7 to 5.7) in H2, and 3.2 after a recent core change vs 1.8 for settled cores. Most of what the market knows is match-specific and gone by the next series, so raising K wouldn't capture it.
+
+**Decision:** no model change. The H2 gap is the market getting sharper on match-day information (lineups, stand-ins, motivation in low-tier online cups) that Elo doesn't see, not an Elo parameter drifting. Candidate tests from this, each to be judged on the gate with the market gap as a secondary line: a lower seed or slower start for new and returning rosters, and an Americas offset against Europe. `backtest-market` now takes `--set key=value` and prints a one-line `Market gap` summary for those entries.
+
+## 2026-11-24: Prediction-market benchmark (Polymarket closing prices) — informational, not gated
+
+**Question:** How close is Elo to a market's closing price, does Elo carry information the close lacks, and does the market move toward Elo before the match?
+
+**Method.** `npm run backtest-market` (see [elo-model.md](elo-model.md#market-benchmark)). Polymarket CS2 series-winner markets with volume ≥ $500, matched to 2026 feed series by team names and start time: 8,610 of 10,448 markets matched, 8,331 scored series with prices (2 dropped for a result disagreeing with the feed). The close is the last 5-minute price before the scheduled start (median 5 minutes out). The open is the price 24h out, kept only when the market was already trading off its 0.5 seed (2,768 series). Elo is the current `params.json`, fit on 2025, so 2026 is out of sample for Elo. CIs resample events (90%).
+
+| Set | Series | Elo | Close | Elo − close gain | λ(Elo \| close) |
+| --- | --- | --- | --- | --- | --- |
+| All 2026 | 8,331 | 0.5933 | 0.5854 | −0.0080 (−0.0128 to −0.0032) | 0.37 (0.30 to 0.44) |
+| Jul–Nov 2026 | 4,354 | 0.5999 | 0.5806 | −0.0193 (−0.0257 to −0.0129) | 0.17 (0.07 to 0.27) |
+| Volume < $10k | 2,611 | 0.5114 | 0.5122 | +0.0008 (−0.0090 to +0.0104) | 0.49 (0.39 to 0.59) |
+| Volume $10k–100k | 3,958 | 0.6173 | 0.6065 | −0.0108 (−0.0168 to −0.0045) | 0.30 (0.19 to 0.42) |
+| Volume ≥ $100k | 1,762 | 0.6610 | 0.6464 | −0.0146 (−0.0214 to −0.0080) | 0.06 (−0.13 to 0.26) |
+| Tier 1 | 653 | 0.6029 | 0.5941 | −0.0088 (−0.0193 to +0.0011) | 0.20 (−0.20 to 0.58) |
+| LAN | 2,564 | 0.5529 | 0.5521 | −0.0008 (−0.0081 to +0.0071) | 0.48 (0.36 to 0.60) |
+| Online | 5,767 | 0.6113 | 0.6002 | −0.0112 (−0.0171 to −0.0053) | 0.33 (0.24 to 0.41) |
+
+- **The close beats Elo**, by 0.008 over the year and 0.019 since July. Elo was about level with it in January–June. The market got sharper over the year while Elo didn't.
+- **Thin markets are where Elo holds up.** Under $10k and at LANs Elo ties the close. In markets of $100k+, λ(Elo | close) is 0.06: the close already holds everything Elo knows.
+- **Elo is better calibrated than the market.** Calibration slope is 0.99 for Elo and 1.13 for the close, so the close is underconfident overall, mostly in thin markets (1.60 under $10k). In $100k+ markets both are overconfident: Elo 0.69, close 0.80. Those are the hardest matchups, with a 61% favourite hit rate.
+- **No usable blend.** The full-year λ(Elo | close) of 0.37 doesn't hold up out of sample. λ fit on January–June (0.56) loses 0.0036 (−0.0072 to −0.0000) to the bare close on July–November, because λ fell to 0.17 as the market sharpened.
+- **Elo beats the early line.** On the 2,768 markets priced 24h out, Elo beats the open by +0.0174 (+0.0104 to +0.0246). The open-to-close move has slope 0.41 (0.37 to 0.46) on Elo's disagreement with the open, so the market closes about 40% of the gap toward Elo before the match. Tier 1 is the exception: the open beats Elo by 0.012 (−0.028 to +0.001) and the slope is only 0.13.
+
+**Decision:** no model change. Elo is a fair early line but not a closing line, and the gap to the close is about as big as the gap between the close and the 24h-out price. The roughly 0.019 Elo − close gap since July is a ceiling on what Elo-side changes can recover. The worst slice is high-volume, overconfident matchups between close teams. Market prices stay offline: nothing goes to the site or `calibration.json` (Liquipedia never approves betting-related projects, see `docs/spec.md`).
 
 ## 2026-11-22: Better veto choice model in series odds — rejected for odds, kept for display
 

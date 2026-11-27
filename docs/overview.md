@@ -27,7 +27,7 @@ Win probability ([win-probability.md](win-probability.md)), local only:
 
 13. `npm run export-map-elo` writes each played map's pre-map Elo to `data/wp/elo-maps.jsonl`.
 14. In `wp/`, `cs2wp sync`, `states`, `train`, `credit`, `validate` and `publish` take the demo tables in R2 to round win probability, WPA and `public/data/wpa/players.json`.
-15. `cs2wp positions` assigns each player's CT position per map from callouts, `cs2wp roles` their T role from opening duels and AWP buys, `cs2wp validate-roles` checks both against NER0cs's labels, `cs2wp baselines` computes each map, side and role's partially pooled WPA per round, `cs2wp duels` gives every kill an expected win probability for kills above expected, `cs2wp igls` tags per-map IGLs from `data/war/igls.json`, `cs2wp usage` splits each player's credit into team context, resource usage and conversion, `cs2wp war` computes player Wins Above Average (with round-bootstrap intervals) and writes `public/data/war/players.json` for `/war`, `cs2wp style` writes each player's style percentiles and archetype to `public/data/war/style.json`, `cs2wp radars` exports Valve radar WebPs (`public/radar/`) and coordinate metadata (`data/war/radar.json`), `cs2wp heatmaps` builds per-player positional grids, utility lineups and callout summaries (`public/data/war/heatmaps/v1/` or `R2_PUBLIC_BUCKET` with `--upload`), and `cs2wp validate-war` checks WAA's split-half reliability, whether prior lineup WAA adds to Elo, and team-context leakage ([war.md](war.md)).
+15. `cs2wp positions` assigns each player's CT position per map from callouts, `cs2wp roles` their T role from opening duels and AWP buys, `cs2wp validate-roles` checks both against NER0cs's labels, `cs2wp baselines` computes each map, side and role's partially pooled WPA per round, `cs2wp duels` gives every kill an expected win probability for kills above expected, `cs2wp igls` tags per-map IGLs from `data/war/igls.json`, `cs2wp usage` splits each player's credit into team context, resource usage and conversion, `cs2wp war` computes player Wins Above Average (with round-bootstrap intervals) and writes `public/data/war/players.json` for `/war`, `cs2wp style` writes each player's style percentiles and archetype to `public/data/war/style.json`, `cs2wp radars` exports Valve radar WebPs (`public/radar/`) and coordinate metadata (`data/war/radar.json`), `cs2wp heatmaps` builds per-player positional grids, utility lineups and callout summaries (`public/data/war/heatmaps/v1/` or `R2_PUBLIC_BUCKET` with `--upload`), `cs2wp protocols` builds each team's utility protocols against the league (`public/data/war/protocols/v1/` or `R2_PUBLIC_BUCKET` with `--upload`), and `cs2wp validate-war` checks WAA's split-half reliability, whether prior lineup WAA adds to Elo, and team-context leakage ([war.md](war.md)).
 
 The nightly `Update data` workflow runs steps 1, 2, 5, 7, 8 (without tuning), 9, 10 and 11. The weekly `Plan schedules` workflow runs step 2 on the nightly's cached store, then step 12.
 
@@ -64,7 +64,7 @@ Team names in every table link to `/teams/:team`, and player names to `/players/
 | [demo-pipeline.md](demo-pipeline.md) | HLTV demos → validated Parquet in R2 (`demos/`, Python) |
 | [win-probability.md](win-probability.md) | Round win-probability model, WPA credit rules, gate and validation (`wp/`, Python) |
 | [wp-experiments.md](wp-experiments.md) | Log of every win-probability change tried, kept or rejected |
-| [war.md](war.md) | Player WAR: CT positions, T roles, role validation, role baselines, expected duels, IGL adjustment, WAA, usage and conversion, style and archetypes, map tendencies (`wp/`, `cs2wp positions`, `cs2wp roles`, `cs2wp validate-roles`, `cs2wp baselines`, `cs2wp duels`, `cs2wp igls`, `cs2wp usage`, `cs2wp war`, `cs2wp validate-war`, `cs2wp style`, `cs2wp radars`, `cs2wp heatmaps`) |
+| [war.md](war.md) | Player WAR: CT positions, T roles, role validation, role baselines, expected duels, IGL adjustment, WAA, usage and conversion, style and archetypes, map tendencies, team utility protocols (`wp/`, `cs2wp positions`, `cs2wp roles`, `cs2wp validate-roles`, `cs2wp baselines`, `cs2wp duels`, `cs2wp igls`, `cs2wp usage`, `cs2wp war`, `cs2wp validate-war`, `cs2wp style`, `cs2wp radars`, `cs2wp heatmaps`, `cs2wp protocols`) |
 | [roadmap.md](roadmap.md) | Next steps for VRS and Elo |
 
 Liquipedia's usage terms (API key handling, attribution, no scraping) are in `AGENTS.md`.
@@ -84,7 +84,10 @@ npm run diff-details -- --date 2026-10-05 --matchdata data/matchdata.json [--tea
 npm run backfill-liquipedia -- --max-requests 30 [--game csgo]
 npm run freeze-history -- [--game csgo]
 npm run backtest-elo -- [--tune --write] [--gate] [--set key=value ...] [--luck] [--no-csgo]
+npm run backtest-elo -- --compare|--debuts|--breaks|--turnover|--below-tier|--rematch|--stage [--set key=value ...]
 npm run build-elo -- [--update-team-map]
+npm run fetch-polymarket -- [--min-volume 500] [--limit N] [--full]
+npm run backtest-market -- [--test-from 2026-01-01] [--min-volume 500] [--blend-split 2026-07-01] [--close-lead 0] [--set key=value ...] [--diagnose]
 npm run fetch-upcoming
 npm run catalog
 npm run simulate -- [--events slug,...] [--n 10000] [--vrs-n 5000] [--no-vrs]

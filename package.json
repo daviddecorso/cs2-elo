@@ -29,6 +29,8 @@
         "freeze-history": "vite-node scripts/freeze-history.ts",
         "freeze-sim-history": "vite-node scripts/freeze-sim-history.ts",
         "backtest-elo": "vite-node scripts/backtest-elo.ts",
+        "backtest-market": "vite-node scripts/backtest-market.ts",
+        "fetch-polymarket": "vite-node scripts/fetch-polymarket.ts",
         "build-elo": "vite-node scripts/build-elo.ts",
         "fetch-upcoming": "vite-node scripts/fetch-upcoming.ts",
         "simulate": "vite-node scripts/simulate.ts",

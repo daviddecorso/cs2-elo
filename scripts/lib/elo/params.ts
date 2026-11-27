@@ -32,6 +32,14 @@ export interface EloParams {
     transferWeight: number;
     /** Fraction of the gap to the tier mean closed when seeding a new lineage from its players' old ratings. */
     newRosterRegress: number;
+    /** Rating points below the tier mean that an unrated player seeds a new lineage at. */
+    unratedSeedOffset: number;
+    /** Rating points taken off a new lineage's predictions when all 5 seeds were unrated (scaled by unrated/5), fading to 0 over `debutMaps`; never in the update. */
+    debutOffset: number;
+    debutMaps: number;
+    /** Rating points taken off a lineage's predictions at LAN, fading to 0 over its first `newLanMaps` maps; never in the update. */
+    newLanOffset: number;
+    newLanMaps: number;
     /** Rating points per map moved into the per-map offsets. */
     kMap: number;
     /** Fraction of every map offset removed after each update. */
@@ -73,6 +81,18 @@ export interface EloParams {
     insularityPrior: number;
     /** 1 puts `insularityPrior` in the update's expected score too; 0 applies it to predictions only. */
     insularityInUpdate: number;
+    /** Player Elo (`playerElo.ts`): points per map at full surprise, before its tier and margin multipliers. */
+    playerK: number;
+    /** Points between adjacent tiers for a lineup with fewer than 2 rated players. */
+    playerTierGap: number;
+    /** Extra K fraction for a player's first maps, fading to 0 over `playerProvisionalMaps`. */
+    playerProvisionalK: number;
+    playerProvisionalMaps: number;
+    playerMarginWeight: number;
+    playerTierK: number;
+    /** Prediction gap = (1 − playerBlend) · lineage gap + playerBlend · playerTemp · player gap; 0 is lineage Elo alone. Never in the lineage update. */
+    playerBlend: number;
+    playerTemp: number;
 }
 
 /** Values before tuning; `npm run backtest-elo -- --tune --write` saves the tuned set to `params.json`, which overrides these. */
@@ -90,6 +110,11 @@ export const STARTING_PARAMS: EloParams = {
     gameRegress: 0.3,
     transferWeight: 0,
     newRosterRegress: 0.3,
+    unratedSeedOffset: 0,
+    debutOffset: 0,
+    debutMaps: 10,
+    newLanOffset: 0,
+    newLanMaps: 30,
     kMap: 6,
     mapShrink: 0.01,
     coreWindow: 5,
@@ -114,6 +139,14 @@ export const STARTING_PARAMS: EloParams = {
     predictionTemp: 1,
     insularityPrior: 0,
     insularityInUpdate: 0,
+    playerK: 16,
+    playerTierGap: 450,
+    playerProvisionalK: 3,
+    playerProvisionalMaps: 120,
+    playerMarginWeight: 0.5,
+    playerTierK: 0.9,
+    playerBlend: 0,
+    playerTemp: 1,
 };
 
 const tuned = JSON.parse(fs.readFileSync(TUNED_PARAMS_PATH, "utf8")) as Partial<EloParams>;
@@ -121,4 +154,28 @@ export const DEFAULT_PARAMS: EloParams = {
     ...STARTING_PARAMS,
     ...tuned,
     seriesMapTempOnline: tuned.seriesMapTempOnline ?? tuned.seriesMapTemp ?? STARTING_PARAMS.seriesMapTempOnline,
+};
+
+/** `--params-file` applies before `--set`; `seriesMapTemp` carries to `seriesMapTempOnline` unless that's set too, as before the split. */
+export const applySets = (args: string[], base: EloParams): EloParams => {
+    let params = { ...base };
+    const keys = new Set<string>();
+    const fileAt = args.indexOf("--params-file");
+    if (fileAt >= 0) {
+        const file = JSON.parse(fs.readFileSync(args[fileAt + 1] ?? "", "utf8")) as Record<string, unknown>;
+        for (const [key, value] of Object.entries(file)) {
+            if (!(key in params) || typeof value !== "number") throw new Error(`Bad --params-file key ${key}`);
+            params = { ...params, [key]: value };
+            keys.add(key);
+        }
+    }
+    args.forEach((arg, i) => {
+        if (arg !== "--set") return;
+        const [key, value] = (args[i + 1] ?? "").split("=");
+        if (!(key in params) || value === undefined || Number.isNaN(Number(value))) throw new Error(`Bad --set ${args[i + 1]}`);
+        params = { ...params, [key]: Number(value) };
+        keys.add(key);
+    });
+    if (keys.has("seriesMapTemp") && !keys.has("seriesMapTempOnline")) params.seriesMapTempOnline = params.seriesMapTemp;
+    return params;
 };

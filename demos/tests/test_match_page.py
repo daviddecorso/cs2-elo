@@ -138,6 +138,7 @@ RANKING_PAGE = (
     '</div></div></div><div class="lineup-con hidden"><div class="more">'
     '<a href="/team/4494/mouz" class="moreLink">HLTV Team profile</a>'
     '</div></div></div></div>'
+    '<footer></footer>'
 )
 
 
@@ -167,6 +168,6 @@ def test_write_ranks_joins_points_and_warns_on_mismatch(tmp_path, capsys):
     assert row["points"] is None
     assert "ranking mismatch" in capsys.readouterr().out
 
-    ranking_file.write_text('<div class="ranked-team' + RANKING_PAGE.split('<div class="ranked-team')[1])
+    ranking_file.write_text('<div class="ranked-team' + RANKING_PAGE.split('<div class="ranked-team')[1] + "<footer></footer>")
     row = json.loads(write_ranks(tmp_path, cache=cache).read_text().splitlines()[0])
     assert row["points"] is None

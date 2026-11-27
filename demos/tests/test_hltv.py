@@ -6,7 +6,9 @@ def test_server_error_page_is_not_a_match_page(tmp_path):
     error = "<html><head><title>hltv.org | 520: Web server is returning an unknown error</title>"
     assert is_server_error(error)
     assert is_server_error("<title>www.hltv.org</title><div id='main-frame-error'></div>")
-    assert not is_server_error("<title>Falcons vs. M80 at CS Asia Championships 2026 | HLTV.org</title>")
+    page = "<title>Falcons vs. M80 at CS Asia Championships 2026 | HLTV.org</title><div class='lineups'>"
+    assert is_server_error(page)
+    assert not is_server_error(page + "</div><footer></footer>")
 
     hltv = Hltv(max_pages=0, profile=tmp_path / "profile", cache=tmp_path / "cache")
     (tmp_path / "cache").mkdir()
@@ -18,9 +20,9 @@ def test_server_error_page_is_not_a_match_page(tmp_path):
 def test_ranking_page_uses_cache_and_formats_url(tmp_path):
     cache = tmp_path / "cache"
     cache.mkdir()
-    (cache / "ranking-2026-11-09.html").write_text("<html>ok</html>")
+    (cache / "ranking-2026-11-09.html").write_text("<html>ok<footer></footer></html>")
     hltv = Hltv(max_pages=0, profile=tmp_path / "profile", cache=cache)
-    assert hltv.ranking_page("2026-11-09") == "<html>ok</html>"
+    assert hltv.ranking_page("2026-11-09") == "<html>ok<footer></footer></html>"
     with pytest.raises(PageBudgetExhausted):
         hltv.ranking_page("2026-11-02")
 

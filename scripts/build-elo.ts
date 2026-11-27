@@ -3,7 +3,7 @@ import path from "node:path";
 import type { EloGame, EloGameLog, EloRankings, EloRoster } from "../src/elo/types.ts";
 import { teamSlug } from "../src/utils/teams.ts";
 import type { Region } from "../src/vrs/types.ts";
-import { EloEngine } from "./lib/elo/engine.ts";
+import { liveEngine } from "./lib/elo/adjustments.ts";
 import { loadFeed } from "./lib/elo/history.ts";
 import { buildMatches } from "./lib/elo/matches.ts";
 import type { RawRow } from "./lib/elo/normalize.ts";
@@ -28,7 +28,7 @@ type TeamMap = Record<string, { vrsTeam: string; reason: string }>;
 const updateTeamMap = process.argv.includes("--update-team-map");
 
 const feed = loadFeed();
-const engine = new EloEngine(DEFAULT_PARAMS, feed.players);
+const engine = liveEngine(DEFAULT_PARAMS, feed.players);
 const predictions = engine.run(feed.matches);
 const matchById = new Map(feed.matches.map((m) => [m.id, m]));
 

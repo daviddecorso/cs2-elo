@@ -1,6 +1,6 @@
 import fs from "node:fs";
 import path from "node:path";
-import { EloEngine } from "./lib/elo/engine.ts";
+import { liveEngine } from "./lib/elo/adjustments.ts";
 import { loadFeed } from "./lib/elo/history.ts";
 import { DEFAULT_PARAMS } from "./lib/elo/params.ts";
 import { readMatchHistory } from "./lib/sim/history.ts";
@@ -53,7 +53,7 @@ const started = Date.now();
 
 // --- Pre-event Elo per event and lineup, from each team's first series there.
 const feed = loadFeed();
-const predictions = new EloEngine(DEFAULT_PARAMS, feed.players).run(feed.matches);
+const predictions = liveEngine(DEFAULT_PARAMS, feed.players).run(feed.matches);
 interface Entrant {
     players: Set<string>;
     rating: number;

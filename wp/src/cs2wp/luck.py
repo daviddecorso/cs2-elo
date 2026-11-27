@@ -11,8 +11,8 @@ from sklearn.linear_model import LogisticRegression
 from . import credit, data, warcheck
 from .duels import FOLDS, event_folds
 from .duelstats import _mults, _z_ci, duel_values
-from .paths import (CREDITS, DUEL_PLAYERS, DUEL_TEAM_MAPS, DUELS, ELO_LUCK, LUCK_MAPS, PLAYER_SKILL, ROLE_ROUNDS,
-                    STATES, TEAM_MAP_RESIDUALS, TEAM_STAT_MAPS, WAR_REPORTS)
+from .paths import (CREDITS, DUEL_PLAYERS, DUEL_TEAM_MAPS, DUELS, ELO_LUCK, ELO_LUCK_LIVE, LUCK_MAPS, PLAYER_SKILL,
+                    ROLE_ROUNDS, STATES, TEAM_MAP_RESIDUALS, TEAM_STAT_MAPS, WAR_REPORTS)
 from .states import CT, T
 
 RESAMPLES = 1000
@@ -485,6 +485,10 @@ def build(resamples: int = RESAMPLES) -> int:
                                 "yHatFull": round(r["y_hat_full"], 4),
                                 "xMarginSkillOnly": round(r["x_margin_skillonly"], 3),
                                 "yHatSkillOnly": round(r["y_hat_skillonly"], 4)}) + "\n")
+    with ELO_LUCK_LIVE.open("w", encoding="utf-8", newline="\n") as f:
+        for r in rows.iter_rows(named=True):
+            f.write(json.dumps({"match2id": r["match2id"], "index": r["index"], "xMargin": round(r["x_margin_value"], 3),
+                                "yHat": round(r["y_hat_value"], 4)}) + "\n")
     PLAYER_SKILL.write_text(json.dumps({"k": k, "players": timeline}, separators=(",", ":")))
 
     lines = report_lines(rows, beta_full, r2, ll, hh, verdict, skill, carry, value, full, carry_2025)
@@ -493,5 +497,5 @@ def build(resamples: int = RESAMPLES) -> int:
     print("\n".join(lines))
     print(f"\nPlayer skill: {len(timeline):,} players; {100 * dropped['unmapped']:.1f}% of duel views have no Liquipedia "
           f"page (θ = 0 in Elo), {100 * dropped['untimed']:.1f}% of the rest have no Elo row.")
-    print(f"wrote {LUCK_MAPS}, {ELO_LUCK}, {PLAYER_SKILL}")
+    print(f"wrote {LUCK_MAPS}, {ELO_LUCK}, {ELO_LUCK_LIVE}, {PLAYER_SKILL}")
     return 0

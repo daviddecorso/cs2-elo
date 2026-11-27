@@ -52,18 +52,21 @@ These come out of the experiment log and apply to every lever.
 
 **Would change it.** Bo3 calibrating without the temperature.
 
-### Star players matter, but team results already carry them (Lean)
+### Star players matter, but team results already carry them (Held, player-level form)
 
 **Belief.** As in basketball, a star carries a large share of a team's strength.
 
-**In the model.** Players enter only through who's on the roster. A rating belongs to a 3-of-5 core lineage, and a new lineage is seeded from its players' old ratings. There's no player rating.
+**In the model.** A rating belongs to a 3-of-5 core lineage, and a new lineage is seeded from its players' old ratings. Odds also blend in a results-only player Elo (`playerElo.ts`): a side is the mean of its five players' ratings. The lineage rating never sees the player ratings, so rankings are lineage-only.
 
 **Evidence.**
 - For a stable roster, no player stat adds to Elo. WAA, HLTV 3.0 and K−D all have gains whose CIs cover 0 ([war.md](war.md#war-validation)). Elo already carries what a lineup's past output says.
 - Roster changes are where stars should show, and nothing has yet. The WAR transfer prior and `transferWeight` were both rejected, and the prior-skill term gained +0.0008, not significant (2026-11-21, 2026-11-14).
 - A team effect beyond its five players isn't measurable either. Round wins beyond what the players' WAR expects have split-half 0.24, CI including 0 ([war.md](war.md#team-factor)).
 
-**Would change it.** The roster-change test passing once WAR covers tier 2 and has a second season of prior rounds per player. Roster changes are also where player-based models beat team ratings in basketball. CS rosters change less often mid-season, so the ceiling here is lower.
+- A results-only player Elo, blended with lineage Elo, gains +0.0026 on the 2026 gate (CI +0.0015 to +0.0037), with λ 0.33 in both 2025 and 2026 (2026-11-24). Player identity carries information the lineage rating loses, even without demo stats.
+- In the engine, tuned on 2024: gate +0.0030 (+0.0015 to +0.0045), and the tier-1 LAN walk passes at +0.0041 pooled (2026-11-24). Live.
+
+**Would change it.** Held for player-level results, not for demo stats: those still add nothing. The demo-stat half would move if the roster-change test passes once WAR covers tier 2 and has a second season of prior rounds per player. Roster changes are also where player-based models beat team ratings in basketball. CS rosters change less often mid-season, so the ceiling here is lower.
 
 ### Team identity is the core players, not the org (Held)
 
@@ -71,7 +74,9 @@ These come out of the experiment log and apply to every lever.
 
 **Evidence.** Regressing a changed roster toward the tier mean tuned to 0, and stand-in series score like the rest (2026-10-20).
 
-**Known weakness.** A chain of 3-of-5 changes can carry a rating long after every original player has left (GOSH, FaZe). `transferWeight` didn't fix it (2026-11-21).
+**Known weakness.** A chain of 3-of-5 changes can carry a rating long after every original player has left (GOSH, FaZe).
+- `transferWeight` didn't fix it (2026-11-21).
+- Neither would more player-Elo weight where a lineage's recent maps were played by other players. λ(low share) − λ(high share) is +0.08 and +0.40 in 2024 and 2025, both CIs spanning 0 (2026-11-24).
 
 **Would change it.** A fix for long chains that passes the gate.
 
@@ -105,10 +110,11 @@ These come out of the experiment log and apply to every lever.
 - A team's own T-side history (site, timing, execute) predicts its next round barely better than the league average does. Predictable teams don't lose more to opponents who played them in the last 60 days ([war.md](war.md#t-side-predictability), fails).
 - There's no home advantage at LANs (2026-11-19).
 - Tier-1 LANs show no fixed parity effect. Their calibration slope went 0.61 (2024), 0.87 (2025), 0.99 (2026) (2026-11-21).
+- Rematches at the same tournament show no adaptation. The earlier loser beats Elo by +0.022 more than other sides coming off a loss there (z 0.4 on 2024–25), and 2026 flips sign. No days-since-last-meeting bin holds across years (2026-11-24).
 
 **Reading.** Preparation matters, but every tier-1 team does it, so it may cancel. Nothing we can measure shows it moving results away from Elo.
 
-**Would change it.** A preparation measure that predicts the residual, such as days since the pair last met, or scouting volume.
+**Would change it.** A preparation measure that predicts the residual, such as scouting volume. Days since the pair last met doesn't (2026-11-24).
 
 ### Strategic edges spread fast and don't last (Lean)
 
@@ -153,8 +159,19 @@ These come out of the experiment log and apply to every lever.
 - Oceania sits 126–129 points overrated against the rest. Its travellers are underrated at home by 110–150 points, so the pool's internal gaps are compressed (2026-11-19, 2026-11-20).
 - The rest of Asia is about 13 points overrated: steady, but too small to price. Insular Asian rosters are 35–59 points overrated, but pricing that doesn't help at tier-1 LANs (2026-11-21).
 - Americas against Europe flips sign every year (2026-11-19).
+- Oceania-internal series are 2% of the gate and of training, and are left out of shared-param fits and decisions. Leaving them out changed neither the player-blend verdict nor the lineage-retune verdict (2026-11-24).
 
 **Would change it.** The 2027 recheck of the Oceania values, which were picked after a look at 2026.
+
+### A team's results below its tier count like its tier-1 results (Lean)
+
+**In the model.** `tierK` scales K by event tier for both sides alike. A tier-1 roster at a tier-3 cup isn't treated differently.
+
+**Evidence.**
+- At tier-1 LANs, rating changes a side picked up below tier 1 in the last 90 days don't revert more than its tier-1 changes. β_below − β_at is +0.13 (−0.12 to +0.36) on 2024–25, and the years disagree in sign (2026-11-24).
+- Tier-1 changes themselves revert there: β_at −0.21 ± 0.09, about 2 points of win probability for a typical side. That's the over-reaction lead at tier 1, and it's untested as a lever.
+
+**Would change it.** β_below falling clearly below β_at in a later year.
 
 ### LAN and online are the same game (Held)
 
@@ -172,7 +189,8 @@ These come out of the experiment log and apply to every lever.
 
 ## Untested
 
-- **Stakes.** Dead rubbers, already-qualified teams and VRS point chases. Elo assumes every match is played to win.
+- **Stakes** (partly tested). Elimination and safety-net games calibrate alike, so the loser's stakes don't move results. Bracket games run slightly overconfident against calibrated league games, worth about 0.0002 (2026-11-24). At tier-1 LANs, the final bracket's calibration doesn't differ in a steady direction from earlier stages: slopes swing 0.3 to 0.8 a year in every stage (2026-11-24). Dead rubbers, already-qualified teams and VRS point chases are still untested.
 - **Sides.** CT/T balance by map, and half scores. A side split gets built only if round share is kept.
-- **Schedule and travel load** beyond what burst damping covers.
-- **Stale cores.** Lineages with no core change in 100 maps miss Elo by 2.3% per series in both 2025 and 2026 (z −5.8), mostly in tier 3 and below. That fits "teams that stand still get figured out", but it may be a seeding or age effect (2026-11-21).
+- **Schedule and travel load.** Same-day load has no effect (2026-11-24). Travel is untested.
+- **New rosters at LAN** (tested, kept). A new lineage's rating doesn't carry over to LAN at face value. Where Valve ranks one side and not the other, Elo overrated a new unranked side at LAN by about 0.06 of win probability in both 2024–25 and 2026. `newLanOffset` (160 points, fading over 10 maps) gains +0.0016 on unranked 2026 series, with the gate flat (2026-11-24).
+- **Stale cores** (resolved, no effect). The 2.3% miss (2026-11-21) was young lineages in the "no change in 100 maps" bin. Measured on 100+ map lineages after `debutOffset`, stale cores sit within noise in both years, and lineages that recently played many debuts aren't overrated (2026-11-24).

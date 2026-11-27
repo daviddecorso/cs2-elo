@@ -10,7 +10,7 @@ import { qualifierLinks, type LinkEnd } from "./lib/sim/qualifierLinks.ts";
 import { readJson } from "./lib/sim/inputs.ts";
 import { backtestProjections } from "./lib/sim/series.ts";
 import { addDays } from "./lib/liquipedia/rawStore.ts";
-import { EloEngine } from "./lib/elo/engine.ts";
+import { liveEngine } from "./lib/elo/adjustments.ts";
 import { loadFeed } from "./lib/elo/history.ts";
 import { DEFAULT_PARAMS } from "./lib/elo/params.ts";
 import { acceptanceLogLikelihood, CHOICE_FEATURES, choiceLogLikelihood, EloTimeline, fitAcceptance, fitChoice, HABIT_ONLY, valueSamples } from "./lib/sim/value.ts";
@@ -286,7 +286,7 @@ console.log(`  Coefficients on the last year: ${AFFINITY_FEATURES.map((f, i) => 
 // --- Value: strength against the field next to habit, in free choices and in VRS offers; gated per month
 
 const feed = loadFeed();
-const timeline = new EloTimeline(new EloEngine(DEFAULT_PARAMS, feed.players).run(feed.matches), (link) => feed.players[link]?.nick ?? link);
+const timeline = new EloTimeline(liveEngine(DEFAULT_PARAMS, feed.players).run(feed.matches), (link) => feed.players[link]?.nick ?? link);
 const valueAll = valueSamples(editions, lists, affinityIndex, nickCountries(editions), timeline, { from: addDays(TEST_FROM, -365), to: addDays(lastDay, 1) });
 const VALUE_GAIN = 0.01;
 const valueMonths: Array<{ month: string; choice: [number, number]; offer: [number, number]; n: [number, number] }> = [];

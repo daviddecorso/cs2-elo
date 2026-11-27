@@ -800,7 +800,7 @@ Two follow-ups to the value variant, both exploratory.
 
 **Reading.** Prior skill on its own adds little to Elo, which already tracks team strength from results. It helps once luck is taken out of the updates: the two are separate effects, and the combined form is the best scored so far. Neither passes the gate, so both weights stay 0. Unknown players first counted as θ = 0 (the tier-1 LAN average), which cost a little outside the treated set; the teammate-mean rule removed that on 2025. Wider demo coverage in 2025–26 wouldn't add enough treated series, so the combined form gets one registered test on backfilled 2023-10 to 2024 demos, judged by an encompassing λ gate ([roadmap.md](roadmap.md), [elo-experiments.md](elo-experiments.md)).
 
-Nothing in the nightly build reads `luck-maps.jsonl` or `player-skill.json`. All seven runs are logged in [elo-experiments.md](elo-experiments.md).
+**Registered 2024 test (2026-11-27): pass.** Encompassing λ 1.126 (CI 0.088 to 2.386), treated-series gain +0.0020 on 833 series, so `skillWeight` 8,458 and `luckWeight` 0.6 with the `value` variant are live ([elo-model.md](elo-model.md)). `cs2wp luck` also writes `data/elo/luck-live.jsonl`, the `value` columns only. Commit it and `player-skill.json` after each rerun; the nightly build reads them and doesn't run the chain. `luck-maps.jsonl` keeps every variant for backtest experiments and stays local. All runs are logged in [elo-experiments.md](elo-experiments.md).
 
 ## Veto value lost
 
@@ -1284,3 +1284,59 @@ Budget enforced on every run: ≤30 KB gzipped per player-map file and ≤15 MB 
 **R2 and env vars.** `--upload` uses `R2.public()` (`R2_PUBLIC_BUCKET` in `.env`, keeping `R2_BUCKET` private for the HLTV cache), uploads deterministic gzip (`mtime=0`) with `ContentType: application/json`, `ContentEncoding: gzip`, `Cache-Control: public, max-age=3600`, skips unchanged keys by matching MD5 against the remote ETag, and deletes stale keys under `heatmaps/v2/`. The frontend reads `VITE_HEATMAPS_URL` (e.g. `https://<public-r2-origin>/heatmaps`, falling back to `${BASE_URL}data/war/heatmaps/` in local dev).
 
 **Frontend.** `src/components/heatmap/MapTendencies.tsx` (lazy-loaded in `PlayerPage.tsx` after `ProfileSection`), `RadarHeatmap.tsx`, `CalloutList.tsx`, `src/war/heatmap.ts`, `src/war/heatmapTypes.ts`. Decodes sparse grids, normalizes per round, applies separable Gaussian blur (`σ = 1` cell), colorizes with a perceptually uniform sequential ramp (or blue–orange diverging ramp for "vs average", emerald/rose overlay for opening duels), and upscales onto the radar `<canvas>` with SVG utility landing-zone rings, dominant arrows and throw-spot overlays on top.
+
+## Team utility protocols (`cs2wp protocols`)
+
+`wp/src/cs2wp/protocols.py`. How often each team lands utility in each of the league's landing zones on a map and side, how early, and who throws it, against every team on the same map, side and round type. It's shown on team pages (Utility protocols) and, per player, under Map tendencies.
+
+```bash
+cd wp
+uv run cs2wp protocols [--months 6] [--rebuild] [--resamples 1000] [--publish] [--upload] [--allow-stale-overrides]
+```
+
+It needs the demo mirror, `resource-rounds.parquet` (`cs2wp usage`, for buys), `tactics-raw.parquet` (`cs2wp tactics`, for group entries) and `team-map-residuals.parquet` (`cs2wp team-factor`, for IGL stints). It runs on CPU: extraction takes a few minutes on 6 workers the first time and is incremental after, and the stats take about 15 s.
+
+**Extraction.** `map_rows` reuses the heatmaps grenade path (`heatmaps.round_nades`: `resources.thrower_grenades` with origins, live play only, radar coordinates), keeps attributed grenades that land and start on the radar, and takes the team from the round's `ct_lp_team` / `t_lp_team` for the thrower's side. Each landing gets `land_place`, the `last_place_name` of the nearest player tick sample on that map (3D), so zones get callouts without a nav place table. The caches are `data/war/protocols-raw.parquet` (one row per grenade, with `round_num`), `protocols-rounds-raw.parquet` (player-rounds, for denominators) and `protocols-attribution-raw.parquet` (grenades and attributed grenades per map and type). The heatmaps lineup cache has no `round_num`, so it can't give per-round rates.
+
+**Round classes.** `gun` (full buy, not a pistol round; the default view), `pistol`, and `light` (eco or force), from `resource-rounds.parquet`'s `team_buy` and `pistol`. A T round is a fast hit when tactics' group entry (3+ Ts in the site within 5 s) comes before 30 s. That's 1–10% of gun T rounds per map, too few for a per-team class, so it's published only as each team's round mix next to the league's. Single-player first entries were the first candidate, but their timing has no fast/slow split to cut at, and on Nuke they fire at 10–15 s on B in about 2,000 rounds without a plant (a site-geometry quirk in `tactics`, see below).
+
+**League zones.** Per (map, side, grenade type, radar level), over every attributed throw in the window: landings are binned to 8 px cells and clustered with the heatmaps greedy density clustering, weighted by throws per cell, at the heatmaps landing radius (smoke 32, molotov 36, HE 40, flash 56 px). `_greedy_clusters` now builds its neighbour matrix sparsely (`cKDTree`), which gives identical clusters to the dense version and scales to league-wide counts. A zone is kept when the league lands that grenade type in it on 5%+ of the side's gun rounds; every throw then goes to the nearest kept centre within the radius. Zone ids are unique per map, ordered by side and then the league's median first-throw time on gun rounds.
+
+**Zone overrides and merging (`data/war/protocol-zones.json`).** Committed JSON (`{ version: 1, maps: { <mapSlug>: [{ side, type, level, match: [[px, py], ...], name, description?, source, confidence, reviewed, note }] } }`) keyed by geometry because zone ids renumber with league timing.
+- **Matching:** each `match` point claims the nearest kept zone of that `(map, side, type, level)` whose `land` centre is within `max(r, 30 px)`. Unmatched zones keep their default `"<Type> <formatted place>"` label. Any point matching nothing or claiming an already-claimed zone fails the run with the map and point unless `--allow-stale-overrides` is passed.
+- **Merging:** runs after the 5% kept-zone threshold and throw assignment, and before round hits, rates, timing, throwers, the bootstrap and the gate. Multi-point entries merge their parts into one zone: `land` is the throw-weighted centre, `r` encloses every part's ring, `from` is the combined top 3 throw spots (re-clustered at `ORIGIN_RADIUS_PX`), and `assigned` throws remap to the merged zone so a round counts once even if it hits multiple parts. `name`, `description` and `reviewed` are published on the league zone.
+
+**Stats.** A round counts for a zone when the team lands at least one grenade of the zone's type in it.
+
+- `rate`: share of the team's rounds in the class with a hit. `league`: the same over every team's rounds in the 6-month window (the team included).
+- `diff = rate − league`, with a 90% interval from resampling the team's series (1,000 draws; rounds in a series share opponents and economy).
+- Timing: per hit round, the first throw's seconds from freeze end. Median, and counts in `0–5, 5–10, 10–20, 20–35, 35–50, 50+` s.
+- Throwers: per player, the share of the team's hit rounds they threw into the zone, and their own per-round rate. A player page lists gun-round zones at 20%+ of the player's own rounds.
+
+**Window.** The last 6 months, cut at the start of the team's current IGL stint (its latest `stint_id` in `team-map-residuals.parquet`) when that began later. A team-map needs 5+ maps in the window; under 10 is flagged low sample. Demo coverage, not the stint cut, limits the team count: the cut costs 1 team (29 → 28).
+
+**Gate (stability, since this is descriptive).** Split-half over alternating series per team and map: the correlation of `rate − league` between halves, pooled over every (team, map, side, zone) cell on gun rounds with 30+ rounds a half, with a 90% interval resampling teams. It publishes when the lower bound is above 0.5. Per-zone reliability, `1 − mean bootstrap variance / variance of team rates` over 5+ teams, is report-only. Hiding the league comparison on low-reliability zones was tried and dropped: Mirage's T window smoke has reliability 0.13 because nearly every team throws it (league 91%), so the rule hid exactly the comparison this exists for. The interval already shows how sure each difference is.
+
+**Attribution.** Flashes are attributed about 69% of the time, smokes 95%, HEs and molotovs 98%. A uniform miss cancels in `diff` but lowers every flash `rate`. The report flags team-types 10+ points off the league; both teams on a map share its rate, so only large gaps show.
+
+**Results (2026-11-26, window 2026-05-11 → 2026-11-11).** 942 maps, 40,666 team-side rounds (27,980 gun), 705 zones (down from 767 raw zones after 58 merges absorbing 62 duplicates via `data/war/protocol-zones.json`), 28 teams on 130 team-maps.
+
+| Check | Result |
+| --- | --- |
+| Split-half r, pooled (6,470 cells, 147 team-map-sides, 22 teams) | **0.601** (0.558, 0.633): passes (pre-merge 767 zones: 0.612 (0.578, 0.640)) |
+| Per map | Ancient 0.635, Nuke 0.630, Inferno 0.604, Anubis 0.599, Mirage 0.594, Dust2 0.577, Cache 0.504 |
+| Zone reliability (705 zones) | median 0.603, quartiles 0.365 / 0.742 |
+| Attribution flags | NRG smokes 0.81 against 0.95 |
+
+Findings:
+
+- **Protocols are stable team habits.** A team's deviation from the league in one half of its series predicts the other half at r 0.61.
+- **The league defaults show up as expected.** Mirage T: window smoke (`SnipersNest`) on 91% of gun rounds at a median 0.4 s, top-mid smoke 69% at 0.5 s, then a mid molotov 37% at 8 s. Ancient T: top-mid smoke 82% at 0.5 s.
+- **Example.** Vitality smoke window on 96% of Mirage T gun rounds, +4.9 points (+1.7, +7.6) over the league, mostly thrown by ZywOo (38%).
+
+**Outputs.** Schema `v1`, written under `public/data/war/protocols/` (gitignored) with `--publish`, synced to R2 `protocols/v1/` with `--upload` (as heatmaps). Publishing refuses when the gate fails or a file is over budget (40 KB gzipped per team, 8 MB total; the 2026-11-26 run is 0.76 MB, largest 38 KB).
+
+- `v1/_league/<map>.json`: zones (side, type, level, radar `land`, `r`, `place`, optional `name`, `description`, `reviewed`, top 3 throw spots), league `rate`, `tMed`, `bins` per class, reliability, rounds per class and the league fast-hit share.
+- `v1/teams/<teamSlug>.json`: window and stint, player names, and per map and side the round mix, fast-hit share and per class the zone rows (`rate`, `diff`, `lo`, `hi`, `tMed`, `bins`, up to 3 throwers with 10%+ share). Zones the team never used are kept only on gun rounds and only when the league uses them on 10%+ of rounds.
+
+**Frontend.** `src/components/protocols/TeamProtocols.tsx` (lazy-loaded on `TeamPage.tsx`) shows a map picker, side, round type and radar level, a radar with rings coloured by grenade type and labelled with the team's rate, and a timeline table (median first throw, zone, team-vs-league dot plot with rates and difference, timing histogram, top thrower). The dot plot puts the team's rate (dot) and the league's (tick) on one 0–100% scale; the interval is in its tooltip. A zone is an outlier, with a coloured line and ▲/▼ (blue more, orange less) and a chip in the "Stands out" line above the table, when the 90% interval excludes zero, the gap is at least 10 points, the team or league uses the zone on 10%+ of rounds, and the team has 30+ rounds of that type. Hovering a row highlights its zone and the reverse; `RadarHeatmap` takes per-zone colour, weight, label and description plus a controlled active index for this. Rows under 10% are hidden unless the team clearly over- or under-uses a common zone, or "Show all zones" is on. `src/components/protocols/PlayerProtocols.tsx` adds the player list under Map tendencies. Helpers live in `src/war/protocols.ts`. The site reads `VITE_PROTOCOLS_URL` (e.g. `https://<public-r2-origin>/protocols`), falling back to `${BASE_URL}data/war/protocols/`.

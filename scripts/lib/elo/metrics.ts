@@ -73,6 +73,47 @@ export const logit = (p: number): number => {
     return Math.log(q / (1 - q));
 };
 
+/** Logistic regression with offset logit(p) and no intercept, by Newton steps on a small design; `weights` are per-row multiplicities. */
+export function fitOffsetLogit(
+    rs: Array<{ offset: number; y: 0 | 1 }>,
+    xs: number[][],
+    weights?: ArrayLike<number>,
+): { beta: number[]; se: number[] } {
+    const invert = (m: number[][]) => {
+        const n = m.length;
+        const a = m.map((row, i) => [...row, ...row.map((_, j) => (i === j ? 1 : 0))]);
+        for (let c = 0; c < n; c++) {
+            const pivot = a.slice(c).reduce((best, row, i) => (Math.abs(row[c]) > Math.abs(a[best][c]) ? c + i : best), c);
+            [a[c], a[pivot]] = [a[pivot], a[c]];
+            const d = a[c][c];
+            a[c] = a[c].map((v) => v / d);
+            for (let r = 0; r < n; r++) if (r !== c) a[r] = a[r].map((v, j) => v - a[r][c] * a[c][j]);
+        }
+        return a.map((row) => row.slice(n));
+    };
+    const kf = xs[0]?.length ?? 0;
+    const beta = new Array<number>(kf).fill(0);
+    let H: number[][] = [];
+    for (let iter = 0; iter < 25; iter++) {
+        const g = new Array<number>(kf).fill(0);
+        H = Array.from({ length: kf }, () => new Array<number>(kf).fill(0));
+        rs.forEach((r, i) => {
+            const w = weights ? weights[i] : 1;
+            if (!w) return;
+            const x = xs[i];
+            const q = 1 / (1 + Math.exp(-(r.offset + x.reduce((s, v, j) => s + v * beta[j], 0))));
+            for (let j = 0; j < kf; j++) {
+                g[j] += w * (r.y - q) * x[j];
+                for (let l = 0; l < kf; l++) H[j][l] += w * q * (1 - q) * x[j] * x[l];
+            }
+        });
+        const inv = invert(H);
+        for (let j = 0; j < kf; j++) beta[j] += inv[j].reduce((s, v, l) => s + v * g[l], 0);
+    }
+    const inv = invert(H);
+    return { beta, se: beta.map((_, j) => Math.sqrt(inv[j][j])) };
+}
+
 /** Logistic fit of y on logit(p) by Newton's method: slope below 1 means overconfident. */
 export const calibrationSlope = (forecasts: Forecast[]): { slope: number; intercept: number } => {
     let a = 0;

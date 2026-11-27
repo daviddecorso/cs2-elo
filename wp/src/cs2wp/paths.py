@@ -9,7 +9,9 @@ ELO_MAPS = WP / "elo-maps.jsonl"
 ELO_SERIES = WP / "elo-series.jsonl"
 # Read by `npm run backtest-elo -- --luck`.
 ELO_LUCK = DATA / "elo" / "luck-maps.jsonl"
-# Read by `npm run backtest-elo -- --skill`.
+# Committed; the `value` luck variant the live Elo reads (scripts/lib/elo/adjustments.ts).
+ELO_LUCK_LIVE = DATA / "elo" / "luck-live.jsonl"
+# Committed; read by the live Elo and `npm run backtest-elo -- --skill`.
 PLAYER_SKILL = DATA / "elo" / "player-skill.json"
 VETOES = DATA / "demos" / "hltv" / "veto"
 STATES = WP / "states"
@@ -74,6 +76,11 @@ HEATMAPS_RAW = WAR / "heatmaps-raw.parquet"
 HEATMAPS_LINEUPS = WAR / "heatmaps-lineups-raw.parquet"
 HEATMAPS_CALLOUTS = WAR / "heatmaps-callouts-raw.parquet"
 HEATMAPS_ROUNDS = WAR / "heatmaps-rounds-raw.parquet"
+PROTOCOLS_RAW = WAR / "protocols-raw.parquet"
+PROTOCOLS_ROUNDS = WAR / "protocols-rounds-raw.parquet"
+PROTOCOLS_ATTRIBUTION = WAR / "protocols-attribution-raw.parquet"
+PROTOCOL_ZONES = WAR / "protocol-zones.json"
+PUBLIC_PROTOCOLS = PUBLIC_WAR / "protocols"
 RAW_SQUADS = DATA / "raw" / "squads.json"
 RAW_PLAYERS = DATA / "raw" / "players.json"
 WAR_REPORTS = WAR / "reports"

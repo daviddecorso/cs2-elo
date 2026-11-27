@@ -1,4 +1,5 @@
-import { EloEngine, expectedScore } from "./lib/elo/engine.ts";
+import { liveEngine } from "./lib/elo/adjustments.ts";
+import { expectedScore } from "./lib/elo/engine.ts";
 import { loadFeed } from "./lib/elo/history.ts";
 import { DEFAULT_PARAMS } from "./lib/elo/params.ts";
 import { seriesLength, seriesWinProbability } from "./lib/elo/series.ts";
@@ -25,7 +26,7 @@ export const gapFor = (p: number, bo: number): number => {
 
 const feed = loadFeed();
 const eventOf = new Map(feed.matches.map((m) => [m.id, m.event]));
-const predictions = new EloEngine(DEFAULT_PARAMS, feed.players).run(feed.matches);
+const predictions = liveEngine(DEFAULT_PARAMS, feed.players).run(feed.matches);
 
 const estimate = (from: string, to: string) => {
     const groups = new Map<string, Array<{ r: number; g: number }>>();

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { EloEngine, expectedScore, makeSkillLookup, mapMargin, marginMultiplier } from "./engine.ts";
+import { ASIA, EloEngine, expectedScore, FINE_OCEANIA, isOceaniaInternal, makeSkillLookup, mapMargin, marginMultiplier } from "./engine.ts";
 import { STARTING_PARAMS, type EloParams } from "./params.ts";
 import type { EloMatch, EloPlayers } from "./types.ts";
 
@@ -253,6 +253,19 @@ describe("EloEngine", () => {
         expect(sameRegion.map((p) => p.p)).toEqual(new EloEngine(params, players).run(series.slice(0, 4)).map((p) => p.p));
     });
 
+    it("splits Oceania out of Asia in fineRegions and flags Oceania-internal series", () => {
+        const [au, au2, cn] = [roster("oa", "au"), roster("ob", "nz"), roster("oc", "cn")];
+        const [internal, cross] = new EloEngine(params, players).run([
+            match(0, ["A", "B"], [au, au2], 0),
+            match(DAY, ["A", "C"], [au, cn], 0),
+        ]);
+        expect(internal.regions).toEqual([ASIA, ASIA]);
+        expect(internal.fineRegions).toEqual([FINE_OCEANIA, FINE_OCEANIA]);
+        expect(isOceaniaInternal(internal)).toBe(true);
+        expect(cross.fineRegions).toEqual([FINE_OCEANIA, ASIA]);
+        expect(isOceaniaInternal(cross)).toBe(false);
+    });
+
     it("takes θ at a series only from series with an earlier t", () => {
         const a = roster("v");
         const b = roster("w");
@@ -297,5 +310,63 @@ describe("EloEngine", () => {
         const engine = new EloEngine(params, players);
         const m = { ...match(0, ["A", "B"], [roster("l"), roster("m")], 0), forfeit: true };
         expect(engine.run([m])).toHaveLength(0);
+    });
+
+    it("takes debutOffset off an unrated debut's odds without moving any rating", () => {
+        const a = roster("da");
+        const b = roster("db");
+        const c = roster("dc");
+        const feed = [match(0, ["A", "B"], [a, b], 0), match(DAY, ["A", "C"], [a, c], 1), match(2 * DAY, ["A", "C"], [a, c], 1)];
+        const plain = new EloEngine(params, players);
+        const shifted = new EloEngine({ ...params, debutOffset: 200, debutMaps: 1 }, players);
+        const [, p1, p2] = plain.run(feed);
+        const [, s1, s2] = shifted.run(feed);
+        expect(s1.seedsFromMean).toEqual([5, 5]);
+        expect(s1.p).toBeGreaterThan(p1.p);
+        expect(s2.p).toBeCloseTo(p2.p, 10);
+        expect(shifted.teamLineageOf("C")!.rating).toBeCloseTo(plain.teamLineageOf("C")!.rating, 10);
+    });
+
+    it("takes newLanOffset off a new lineage's LAN odds only, without moving any rating", () => {
+        const a = roster("na");
+        const b = roster("nb");
+        const c = roster("nc");
+        const lanFeed = [match(0, ["A", "B"], [a, b], 0), match(DAY, ["A", "C"], [a, c], 1)];
+        const onlineFeed = lanFeed.map((m) => ({ ...m, lan: false }));
+        const shiftedParams = { ...params, newLanOffset: 200, newLanMaps: 2 };
+        const [, lanPlain] = new EloEngine(params, players).run(lanFeed);
+        const shifted = new EloEngine(shiftedParams, players);
+        const [, lanShifted] = shifted.run(lanFeed);
+        expect(lanShifted.p).toBeGreaterThan(lanPlain.p);
+        const [, onlinePlain] = new EloEngine(params, players).run(onlineFeed);
+        const [, onlineShifted] = new EloEngine(shiftedParams, players).run(onlineFeed);
+        expect(onlineShifted.p).toBeCloseTo(onlinePlain.p, 10);
+        expect(lanShifted.after).toEqual(lanPlain.after);
+    });
+
+    it("moves every player by the provisional-scaled player Elo update", () => {
+        const a = roster("pa");
+        const b = roster("pb");
+        const [first, second] = new EloEngine(params, players).run([match(0, ["A", "B"], [a, b], 0), match(DAY, ["A", "B"], [a, b], 0)]);
+        expect(first.playerGap).toBe(0);
+        const delta = 16 * (1 + 0.5 * Math.log(7)) * 0.5 * (1 + 3);
+        expect(second.playerGap).toBeCloseTo(2 * delta, 10);
+    });
+
+    it("blends player Elo into odds by playerBlend, never into lineage ratings", () => {
+        const a = roster("qa");
+        const b = roster("qb");
+        const feed = [match(0, ["A", "B"], [a, b], 0), match(DAY, ["A", "B"], [a, b], 1)];
+        const plain = new EloEngine(params, players);
+        const ignored = new EloEngine({ ...params, playerK: 100 }, players);
+        const blended = new EloEngine({ ...params, playerBlend: 1 }, players);
+        const [, p] = plain.run(feed);
+        const [, i] = ignored.run(feed);
+        const [, s] = blended.run(feed);
+        expect(i.p).toBe(p.p);
+        expect(s.maps[0].p).toBeCloseTo(expectedScore(s.playerGap, params.scale), 10);
+        expect(s.after).toEqual(p.after);
+        const upcoming = blended.predictMatchup(["A", "B"], { t: 2 * DAY, bestOf: 1, lan: true, tier: 1 });
+        expect(upcoming.maps[0].p).toBeCloseTo(expectedScore(blended.playerGap(a, b, 1), params.scale), 10);
     });
 });

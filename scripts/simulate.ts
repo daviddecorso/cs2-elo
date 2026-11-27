@@ -12,7 +12,7 @@ import type {
 } from "../src/sim/types.ts";
 import { seriesWinProbability } from "./lib/elo/series.ts";
 import { getRosterKey, type Region } from "../src/vrs/types.ts";
-import { EloEngine } from "./lib/elo/engine.ts";
+import { liveEngine } from "./lib/elo/adjustments.ts";
 import { loadFeed } from "./lib/elo/history.ts";
 import type { RawRow } from "./lib/elo/normalize.ts";
 import { DEFAULT_PARAMS } from "./lib/elo/params.ts";
@@ -82,7 +82,7 @@ const placementOrder = (a: string, b: string) => Number(/^\d+/.exec(a)?.[0] ?? 9
 // --- Inputs
 
 const feed = loadFeed();
-const engine = new EloEngine(DEFAULT_PARAMS, feed.players);
+const engine = liveEngine(DEFAULT_PARAMS, feed.players);
 engine.run(feed.matches);
 const lastT = feed.matches.at(-1)!.t;
 const asOf = dayOf(lastT);

@@ -1,6 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
-import { EloEngine, makeSkillLookup, type LuckLookup, type LuckRow, type PlayerSkill, type SeriesPrediction } from "./lib/elo/engine.ts";
+import { ASIA, EloEngine, FINE_OCEANIA, isOceaniaInternal, makeSkillLookup, type LuckLookup, type LuckRow, type PlayerSkill, type SeriesPrediction } from "./lib/elo/engine.ts";
+import { liveEngine } from "./lib/elo/adjustments.ts";
 import { clusterCi, clusterWeights, lambdaCi, lcg } from "./lib/elo/encompassing.ts";
 import { loadFeed } from "./lib/elo/history.ts";
 import { countryRegion } from "./lib/elo/region.ts";
@@ -17,13 +18,17 @@ import {
     calibration,
     calibrationSlope,
     expectedCalibrationError,
+    fitOffsetLogit,
     logit,
     score,
     type CalibrationBin,
     type Forecast,
     type Score,
 } from "./lib/elo/metrics.ts";
-import { DEFAULT_PARAMS, TUNED_PARAMS_PATH, type EloParams } from "./lib/elo/params.ts";
+import { applySets, DEFAULT_PARAMS, TUNED_PARAMS_PATH, type EloParams } from "./lib/elo/params.ts";
+import { playerBreaks } from "./lib/elo/breaks.ts";
+import { breaksReport, compareReport, debutsReport, rankedReport, type VrsRanks } from "./lib/elo/rosterDiagnostics.ts";
+import { belowTierReport, readBracketIndex, rematchReport, stageReport, turnoverReport } from "./lib/elo/tier1Diagnostics.ts";
 import { findVrsRoster, makeNickLookup, readGlobalSnapshots, snapshotBefore, vrsProbability } from "./lib/elo/vrsBaseline.ts";
 import type { Overrides } from "./lib/vrs/buildMatchdata.ts";
 import { saveJson } from "./lib/writeJson.ts";
@@ -49,8 +54,27 @@ const isTest = (p: SeriesPrediction) =>
 const feed = loadFeed(undefined, { csgo: !flag("no-csgo") });
 console.log(`Feed: ${feed.matches.length} series, ${dayOf(feed.matches[0]?.t ?? 0)} to ${dayOf(feed.matches.at(-1)?.t ?? 0)}.`);
 
-const run = (params: EloParams) => new EloEngine(params, feed.players).run(feed.matches);
-const trainLoss = (params: EloParams) => score(run(params).filter(isTrain)).logLoss;
+const run = (params: EloParams) => liveEngine(params, feed.players).run(feed.matches);
+// `--train-halflife <days>`: weight each training series by its age back from `--train-to` (0 = unweighted).
+const trainHalflife = Number(option("train-halflife", "0"));
+const trainEnd = Date.parse(`${trainTo}T23:59:59Z`) / 1000;
+// Oceania-internal series are played but left out of the fit objective unless `--train-include-oceania` (2026-11-24 rule in elo-experiments.md).
+const includeOceania = flag("train-include-oceania");
+const isFit = (p: SeriesPrediction) => isTrain(p) && (includeOceania || !isOceaniaInternal(p));
+const trainLoss = (params: EloParams) => fitLoss(run(params));
+const fitLoss = (predictions: SeriesPrediction[]) => {
+    const train = predictions.filter(isFit);
+    if (!trainHalflife) return score(train).logLoss;
+    let total = 0;
+    let weight = 0;
+    for (const { p, y, t } of train) {
+        const w = 0.5 ** ((trainEnd - t) / 86400 / trainHalflife);
+        const q = Math.min(1 - 1e-9, Math.max(1e-9, y ? p : 1 - p));
+        total -= w * Math.log(q);
+        weight += w;
+    }
+    return total / weight;
+};
 
 interface Step {
     key: keyof EloParams;
@@ -69,14 +93,18 @@ const STEPS: Step[] = [
     { key: "tierK", step: 0.05, min: 0.5, max: 1.2 },
     { key: "crossRegionK", step: 0.25, min: 0.5, max: 4 },
     { key: "provisionalK", step: 0.5, min: 0, max: 5 },
-    { key: "provisionalMaps", step: 10, min: 5, max: 100, integer: true },
+    { key: "provisionalMaps", step: 10, min: 5, max: 400, integer: true },
     { key: "regress", step: 0.1, min: 0, max: 1 },
     { key: "gameRegress", step: 0.1, min: 0, max: 1 },
     { key: "newRosterRegress", step: 0.1, min: 0, max: 1 },
-    { key: "kMap", step: 2, min: 0, max: 30 },
+    { key: "debutOffset", step: 50, min: 0, max: 600 },
+    { key: "debutMaps", step: 5, min: 5, max: 60, integer: true },
+    { key: "newLanOffset", step: 20, min: 0, max: 300 },
+    { key: "newLanMaps", step: 10, min: 10, max: 150, integer: true },
+    { key: "kMap", step: 2, min: 0, max: 80 },
     { key: "mapShrink", step: 0.01, min: 0, max: 0.2 },
     { key: "coreWindow", step: 1, min: 3, max: 12, integer: true },
-    { key: "tierGap", step: 25, min: 0, max: 800 },
+    { key: "tierGap", step: 25, min: 0, max: 1200 },
     { key: "standInK", step: 0.2, min: 0.2, max: 1.6 },
     { key: "seriesMapTemp", step: 0.05, min: 0.5, max: 1.2 },
     { key: "seriesMapTempOnline", step: 0.05, min: 0.5, max: 1.2 },
@@ -84,15 +112,30 @@ const STEPS: Step[] = [
     { key: "burstDays", step: 2, min: 1, max: 30 },
     { key: "regionPriorOceania", step: 25, min: -500, max: 0 },
     { key: "oceaniaTemp", step: 0.1, min: 0.5, max: 3 },
+    { key: "playerBlend", step: 0.05, min: 0, max: 0.8 },
+    { key: "playerTemp", step: 0.05, min: 0.4, max: 1.2 },
+    { key: "playerK", step: 2, min: 2, max: 40 },
+    { key: "playerTierGap", step: 50, min: 0, max: 1200 },
+    { key: "playerProvisionalK", step: 0.5, min: 0, max: 12 },
+    { key: "playerProvisionalMaps", step: 10, min: 10, max: 200, integer: true },
+    { key: "playerMarginWeight", step: 0.25, min: 0, max: 2 },
+    { key: "playerTierK", step: 0.05, min: 0.6, max: 1.2 },
 ];
+
+// `--tune-keys k1,k2,…` tunes only those keys; the rest hold their starting values.
+const tuneKeys = option("tune-keys", "").split(",").filter(Boolean);
+for (const key of tuneKeys) if (!STEPS.some((s) => s.key === key)) throw new Error(`--tune-keys: ${key} isn't a tuning step`);
+const tuneSteps = tuneKeys.length ? STEPS.filter((s) => tuneKeys.includes(s.key)) : STEPS;
 
 const tune = (start: EloParams): EloParams => {
     let best = { ...start };
-    let bestLoss = trainLoss(best);
-    console.log(`Tuning on ${trainFrom} to ${trainTo}; start log loss ${bestLoss.toFixed(5)}`);
+    const startRun = run(best);
+    let bestLoss = fitLoss(startRun);
+    const skipped = startRun.filter((p) => isTrain(p) && !isFit(p)).length;
+    console.log(`Tuning on ${trainFrom} to ${trainTo} (${skipped} Oceania-internal series left out); start log loss ${bestLoss.toFixed(5)}`);
     for (let pass = 1; pass <= 4; pass++) {
         let improved = false;
-        for (const s of STEPS) {
+        for (const s of tuneSteps) {
             for (const dir of [1, -1]) {
                 let moved = false;
                 while (true) {
@@ -116,17 +159,7 @@ const tune = (start: EloParams): EloParams => {
 };
 
 // `--set key=value` (repeatable) overrides a parameter for one run, before any tuning.
-// `seriesMapTemp` carries to `seriesMapTempOnline` unless that's set too, so commands from before the split behave as they did.
-let params: EloParams = { ...DEFAULT_PARAMS };
-const setKeys = new Set<string>();
-args.forEach((arg, i) => {
-    if (arg !== "--set") return;
-    const [key, value] = (args[i + 1] ?? "").split("=");
-    if (!(key in params) || value === undefined || Number.isNaN(Number(value))) throw new Error(`Bad --set ${args[i + 1]}`);
-    params = { ...params, [key]: Number(value) };
-    setKeys.add(key);
-});
-if (setKeys.has("seriesMapTemp") && !setKeys.has("seriesMapTempOnline")) params.seriesMapTempOnline = params.seriesMapTemp;
+let params: EloParams = applySets(args, DEFAULT_PARAMS);
 if (flag("tune")) {
     params = tune(params);
     if (flag("write")) {
@@ -143,11 +176,13 @@ const snapshots = readGlobalSnapshots();
 const nicksOf = makeNickLookup(feed.players, overrides.playerAliases);
 const vrsDiff = new Map<string, number>();
 const vrsRanks = new Map<string, [number, number]>();
+const sideRanks: VrsRanks = new Map();
 for (const p of predictions) {
     const snapshot = snapshotBefore(snapshots, p.t);
     if (!snapshot) continue;
     const a = findVrsRoster(snapshot, p.lineups[0], nicksOf);
     const b = findVrsRoster(snapshot, p.lineups[1], nicksOf);
+    if (a !== b || !a) sideRanks.set(p.id, [a?.rank ?? null, b?.rank ?? null]);
     if (a && b && a !== b) {
         vrsDiff.set(p.id, a.points - b.points);
         vrsRanks.set(p.id, [a.rank, b.rank]);
@@ -172,9 +207,13 @@ const maps = (ps: SeriesPrediction[]): Forecast[] => ps.flatMap((p) => p.maps);
 const fmt = (label: string, s: Score) =>
     `  ${label.padEnd(28)} n=${String(s.n).padStart(6)}  logloss=${s.logLoss.toFixed(4)}  brier=${s.brier.toFixed(4)}  acc=${(s.accuracy * 100).toFixed(1)}%`;
 
-const train = predictions.filter(isTrain);
+const train = predictions.filter(isFit);
 const test = predictions.filter(isTest);
 const gateSet = test.filter((p) => vrsDiff.has(p.id));
+/** The decision set for shared-param levers: the gate without Oceania-internal series. */
+const gateExOceania = gateSet.filter((p) => !isOceaniaInternal(p));
+// `--dump-gate <path>`: gate series ids, for offline challengers scored against the same set.
+if (flag("dump-gate")) fs.writeFileSync(option("dump-gate", ""), JSON.stringify(gateSet.map((p) => p.id)));
 const crossGate = gateSet.filter((p) => p.crossRegion);
 
 console.log(`\nParams: ${JSON.stringify(params)}`);
@@ -188,6 +227,7 @@ console.log(fmt("Elo maps, all", score(maps(test))));
 console.log(fmt("Elo series, stand-in", score(elo(test.filter((p) => p.standIn)))));
 console.log(fmt("Elo series, gate set", score(elo(gateSet))));
 console.log(fmt("VRS series, gate set", score(vrs(gateSet))));
+console.log(fmt("Elo series, gate ex-Oceania", score(elo(gateExOceania))));
 console.log(fmt("Elo series, cross-region", score(elo(crossGate))));
 console.log(fmt("VRS series, cross-region", score(vrs(crossGate))));
 
@@ -261,7 +301,53 @@ const eloGate = score(elo(gateSet));
 const vrsGate = score(vrs(gateSet));
 const passed = gateSet.length > 0 && eloGate.logLoss < vrsGate.logLoss;
 console.log(`\nGate: Elo ${eloGate.logLoss.toFixed(4)} vs VRS ${vrsGate.logLoss.toFixed(4)} on ${gateSet.length} series → ${passed ? "PASS" : "FAIL"}`);
+console.log(
+    `Gate ex-Oceania (decision set for shared params): Elo ${score(elo(gateExOceania)).logLoss.toFixed(4)} vs VRS ${score(vrs(gateExOceania)).logLoss.toFixed(4)} on ${gateExOceania.length} series`
+);
 
+if (flag("debuts")) {
+    debutsReport(predictions);
+    process.exit(0);
+}
+if (flag("breaks")) {
+    breaksReport(predictions, playerBreaks(feed.matches), new Set(gateSet.map((p) => p.id)));
+    process.exit(0);
+}
+if (flag("compare")) {
+    const gateIds = new Set(gateSet.map((p) => p.id));
+    compareReport(
+        run(DEFAULT_PARAMS),
+        predictions,
+        [
+            ["gate ex-Oceania (decision)", (p) => gateIds.has(p.id) && !isOceaniaInternal(p)],
+            ["gate", (p) => gateIds.has(p.id)],
+            ["tier-1 LAN", (p) => isTest(p) && p.tier === 1 && p.lan],
+            ["all test series", isTest],
+            ["unranked (test, not gate)", (p) => isTest(p) && !gateIds.has(p.id)],
+            ["Oceania-internal", (p) => isTest(p) && isOceaniaInternal(p)],
+            ["Oceania cross-region", (p) => isTest(p) && p.fineRegions.includes(FINE_OCEANIA) && !isOceaniaInternal(p)],
+            ["Asia ex-Oceania involved", (p) => isTest(p) && p.fineRegions.includes(ASIA)],
+            ["train series (fit objective)", isFit],
+        ],
+        new Map(feed.matches.map((m) => [m.id, m.event])),
+    );
+    process.exit(0);
+}
+if (flag("turnover") || flag("below-tier") || flag("rematch") || flag("stage")) {
+    const eventOf = new Map(feed.matches.map((m) => [m.id, m.event]));
+    if (flag("turnover")) turnoverReport(predictions, run({ ...params, playerBlend: 1 }), eventOf);
+    if (flag("below-tier")) belowTierReport(predictions, eventOf);
+    if (flag("rematch")) rematchReport(predictions, eventOf);
+    if (flag("stage")) stageReport(predictions, eventOf, readBracketIndex());
+    process.exit(0);
+}
+if (flag("ranked")) {
+    rankedReport(predictions, sideRanks, new Map(feed.matches.map((m) => [m.id, m.event])), [
+        ["Train", isTrain],
+        ["Test", isTest],
+    ]);
+    process.exit(0);
+}
 if (flag("residual-lead")) {
     residualLead();
     process.exit(0);
@@ -759,41 +845,6 @@ function adjustmentExperiment(key: "luckWeight" | "skillWeight"): void {
     }
 }
 
-/** Logistic regression with offset logit(p) and no intercept, by Newton steps on a 1- or 2-feature design. */
-function fitOffsetLogit(rs: Array<{ offset: number; y: 0 | 1 }>, xs: number[][]): { beta: number[]; se: number[] } {
-    const invert = (m: number[][]) => {
-        const n = m.length;
-        const a = m.map((row, i) => [...row, ...row.map((_, j) => (i === j ? 1 : 0))]);
-        for (let c = 0; c < n; c++) {
-            const pivot = a.slice(c).reduce((best, row, i) => (Math.abs(row[c]) > Math.abs(a[best][c]) ? c + i : best), c);
-            [a[c], a[pivot]] = [a[pivot], a[c]];
-            const d = a[c][c];
-            a[c] = a[c].map((v) => v / d);
-            for (let r = 0; r < n; r++) if (r !== c) a[r] = a[r].map((v, j) => v - a[r][c] * a[c][j]);
-        }
-        return a.map((row) => row.slice(n));
-    };
-    const kf = xs[0]?.length ?? 0;
-    const beta = new Array<number>(kf).fill(0);
-    let H: number[][] = [];
-    for (let iter = 0; iter < 25; iter++) {
-        const g = new Array<number>(kf).fill(0);
-        H = Array.from({ length: kf }, () => new Array<number>(kf).fill(0));
-        rs.forEach((r, i) => {
-            const x = xs[i];
-            const q = 1 / (1 + Math.exp(-(r.offset + x.reduce((s, v, j) => s + v * beta[j], 0))));
-            for (let j = 0; j < kf; j++) {
-                g[j] += (r.y - q) * x[j];
-                for (let l = 0; l < kf; l++) H[j][l] += q * (1 - q) * x[j] * x[l];
-            }
-        });
-        const inv = invert(H);
-        for (let j = 0; j < kf; j++) beta[j] += inv[j].reduce((s, v, l) => s + v * g[l], 0);
-    }
-    const inv = invert(H);
-    return { beta, se: beta.map((_, j) => Math.sqrt(inv[j][j])) };
-}
-
 // `--region-residual`: on cross-region maps, does one Valve region beat its ratings against another (a closed-pool
 // level error), and are favourites overconfident when a side's last cross-region series is old?
 function regionResidual(): void {
@@ -998,7 +1049,7 @@ function regionResidual(): void {
     }
 
     // Seeding too high in a closed pool hands the excess to that pool's incumbents as the newcomer loses it.
-    const engine = new EloEngine(params, feed.players);
+    const engine = liveEngine(params, feed.players);
     engine.run(feed.matches);
     const born = engine.lineages.filter((l) => l.seed !== undefined && l.rating30 !== undefined && l.region !== null);
     const SEED_GROUPS: Array<[string, (n: number) => boolean]> = [
@@ -1142,6 +1193,8 @@ function regionWalk(): void {
             const gateIds = new Set(gateSet.map((s) => s.id));
             const g = test.filter((s) => gateIds.has(s.id));
             console.log(`  2026 gate: ${g.length}, log loss ${mean(g.map((s) => loss(baseById.get(s.id)!.p, s.y))).toFixed(4)} → ${mean(g.map((s) => loss(s.p, s.y))).toFixed(4)}`);
+            const gx = g.filter((s) => !isOceaniaInternal(baseById.get(s.id)!));
+            console.log(`  2026 gate ex-Oceania: ${gx.length}, log loss ${mean(gx.map((s) => loss(baseById.get(s.id)!.p, s.y))).toFixed(4)} → ${mean(gx.map((s) => loss(s.p, s.y))).toFixed(4)}`);
             const oce = (ss: SeriesPrediction[]) => ss.filter((s) => fine(s).includes(3));
             const gateGain = (keep: (s: SeriesPrediction) => boolean) => {
                 const ss = g.filter((s) => keep(baseById.get(s.id)!));
@@ -1193,8 +1246,12 @@ function walkForward(): void {
     for (const combo of combos) {
         const preds = run({ ...params, ...combo });
         folds.forEach(([trainYears, testYear], f) => {
-            const fitLoss = mean(preds.filter((s) => trainYears.includes(yearOf(s)) && slices[fitSlice](s)).map((s) => loss(s.p, s.y)));
-            if (fitLoss < best[f].loss) best[f] = { loss: fitLoss, combo, test: preds.filter((s) => yearOf(s) === testYear && baseById.has(s.id)) };
+            const foldLoss = mean(
+                preds
+                    .filter((s) => trainYears.includes(yearOf(s)) && slices[fitSlice](s) && (includeOceania || !isOceaniaInternal(s)))
+                    .map((s) => loss(s.p, s.y))
+            );
+            if (foldLoss < best[f].loss) best[f] = { loss: foldLoss, combo, test: preds.filter((s) => yearOf(s) === testYear && baseById.has(s.id)) };
         });
     }
     const t1Gains: number[] = [];
@@ -1217,15 +1274,15 @@ function walkForward(): void {
         t1Events.push(...t1.map((s) => eventOfId.get(s.id)!));
         if (testYear === "2026") {
             const gate = test.filter((s) => gateIds.has(s.id));
-            const gains = report("gate", gate);
-            gate2026 = mean(gains);
+            report("gate", gate);
+            gate2026 = mean(report("gate ex-Oceania", gate.filter((s) => !isOceaniaInternal(baseById.get(s.id)!))));
         }
     }
     const [lo, hi] = clusterCi(t1Gains, t1Events);
     const pass = lo > 0 && gate2026 >= -0.0002;
     console.log(
         `\nPooled tier-1 LAN gain ${mean(t1Gains).toFixed(4)} on ${t1Gains.length} series (90% CI ${lo.toFixed(4)} to ${hi.toFixed(4)}); ` +
-            `2026 gate ${gate2026.toFixed(4)} → ${pass ? "PASS" : "FAIL"}`
+            `2026 gate ex-Oceania ${gate2026.toFixed(4)} → ${pass ? "PASS" : "FAIL"}`
     );
 }
 

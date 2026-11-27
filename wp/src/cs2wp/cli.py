@@ -246,6 +246,13 @@ def cmd_heatmaps(args) -> int:
     )
 
 
+def cmd_protocols(args) -> int:
+    from .protocols import build
+
+    return build(months=args.months, rebuild=args.rebuild, resamples=args.resamples, publish=args.publish,
+                 upload=args.upload, allow_stale_overrides=args.allow_stale_overrides)
+
+
 def main() -> None:
     ap = argparse.ArgumentParser(prog="cs2wp")
     sub = ap.add_subparsers(dest="cmd", required=True)
@@ -378,6 +385,14 @@ def main() -> None:
     p.add_argument("--rebuild", action="store_true", help="Re-extract all maps instead of reusing heatmaps-raw.parquet")
     p.add_argument("--publish", action="store_true", help="Write public/data/war/heatmaps/v2/")
     p.add_argument("--upload", action="store_true", help="Gzip and sync heatmaps/v2/ to R2_PUBLIC_BUCKET")
+    p = sub.add_parser("protocols", help="Team utility protocols: zone rates, timing and throwers against the league")
+    p.add_argument("--months", type=int, default=6, help="Window length in months (default: 6)")
+    p.add_argument("--rebuild", action="store_true", help="Re-extract all maps instead of reusing protocols-raw.parquet")
+    p.add_argument("--resamples", type=int, default=1000)
+    p.add_argument("--publish", action="store_true", help="Write public/data/war/protocols/v1/ if the gate passes")
+    p.add_argument("--upload", action="store_true", help="Gzip and sync protocols/v1/ to R2_PUBLIC_BUCKET")
+    p.add_argument("--allow-stale-overrides", action="store_true",
+                   help="Warn instead of failing when data/war/protocol-zones.json has unmatched or conflicting entries")
 
     args = ap.parse_args()
     handlers = {"sync": cmd_sync, "states": cmd_states, "train": cmd_train, "credit": cmd_credit,
@@ -388,7 +403,7 @@ def main() -> None:
                 "usage": cmd_usage, "igls": cmd_igls, "war": cmd_war, "validate-war": cmd_validate_war,
                 "team-factor": cmd_team_factor, "duel-stats": cmd_duel_stats, "team-stats": cmd_team_stats, "tactics": cmd_tactics,
                 "predictability": cmd_predictability, "clutch": cmd_clutch, "style": cmd_style, "luck": cmd_luck, "veto": cmd_veto,
-                "sim-veto": cmd_sim_veto, "radars": cmd_radars, "heatmaps": cmd_heatmaps}
+                "sim-veto": cmd_sim_veto, "radars": cmd_radars, "heatmaps": cmd_heatmaps, "protocols": cmd_protocols}
     sys.exit(handlers[args.cmd](args))
 
 

@@ -1,6 +1,6 @@
 import fs from "node:fs";
 import path from "node:path";
-import { EloEngine } from "./lib/elo/engine.ts";
+import { liveEngine } from "./lib/elo/adjustments.ts";
 import { loadFeed } from "./lib/elo/history.ts";
 import type { RawRow } from "./lib/elo/normalize.ts";
 import { DEFAULT_PARAMS } from "./lib/elo/params.ts";
@@ -32,7 +32,7 @@ const known = new Map(config.stages.map((s) => [s.id, knownMatches(rows, s.page)
 const start = Date.parse(`${config.startDate}T00:00:00Z`) / 1000;
 
 const feed = loadFeed();
-const engine = new EloEngine(DEFAULT_PARAMS, feed.players);
+const engine = liveEngine(DEFAULT_PARAMS, feed.players);
 engine.run(feed.matches.filter((m) => m.t < start));
 const predictor = new Predictor(engine, DEFAULT_PARAMS, start, { driftPerDay: 0, horizons: [0], fallbackRating: engine.tierMean(2, start) });
 const coinFlip: SeriesModel = { resample: () => {}, setHorizon: () => {}, seriesProbability: () => 0.5 };

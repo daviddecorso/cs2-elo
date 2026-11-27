@@ -236,6 +236,12 @@ export const Methodology = () => {
                             or Bo5 series probabilities.
                         </p>
                         <p>
+                            Forecasts also draw on a second, player-level rating. Every player carries their own Elo
+                            from match results, and a lineup&apos;s strength is the average of its five players. Each map
+                            forecast blends the roster gap with the player gap. Rankings still show the roster rating
+                            alone.
+                        </p>
+                        <p>
                             Because maps within a single match share momentum and psychological conditions, a series
                             temperature parameter (0.8) softens the compound probabilities. Without this correction,
                             Bo3 forecasts become overconfident despite calibrated individual maps.

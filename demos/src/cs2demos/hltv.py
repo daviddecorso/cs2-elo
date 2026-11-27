@@ -51,8 +51,10 @@ class ServerError(Exception):
 
 
 def is_server_error(html: str) -> bool:
-    """Cloudflare's 5xx pages or browser network error pages."""
-    return bool(SERVER_ERROR_TITLE.search(html)) or "main-frame-error" in html or "<title>www.hltv.org</title>" in html
+    """Cloudflare's 5xx pages, browser network error pages, or a page cut off before HLTV's footer
+    (a dropped proxy connection still leaves the browser a parseable partial document)."""
+    return (bool(SERVER_ERROR_TITLE.search(html)) or "main-frame-error" in html
+            or "<title>www.hltv.org</title>" in html or "<footer" not in html)
 
 
 def demo_path_from_html(html: str) -> str | None:

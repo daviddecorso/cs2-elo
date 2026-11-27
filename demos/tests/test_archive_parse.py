@@ -4,7 +4,11 @@ import polars as pl
 
 from cs2demos.archive import group_by_map
 from cs2demos.liquipedia import LpMap
-from cs2demos.parse import SIDE_CT, SIDE_T, _side_code, _to_polars, assign_rounds, fill_round_starts, rounds_from_events
+from cs2demos.parse import (
+    SIDE_CT, SIDE_T, Part, _align_team_names, _side_code, _to_polars, assign_rounds, fill_round_starts, read_round_ends,
+    rounds_from_events,
+)
+from cs2demos.rounds import RoundEnd
 
 
 def lp(n, name, demo):
@@ -141,3 +145,65 @@ def test_rounds_from_events_null_winner_float_column():
         "round_officially_ended": pl.DataFrame(),
     }
     assert rounds_from_events(events).is_empty()
+
+
+class FakeParser:
+    """parse_ticks for a recording that skipped some ticks."""
+
+    def __init__(self, scores_by_tick: dict[int, tuple[int, int]]):
+        self.scores_by_tick = scores_by_tick
+
+    def parse_ticks(self, fields, ticks):
+        rows = [
+            {"tick": t, "team_num": num, "team_clan_name": name, "team_rounds_total": score}
+            for t in ticks if t in self.scores_by_tick
+            for num, name, score in ((SIDE_CT, "a", self.scores_by_tick[t][0]), (SIDE_T, "b", self.scores_by_tick[t][1]))
+        ]
+        return pl.DataFrame(rows, schema={"tick": pl.Int64, "team_num": pl.Int64, "team_clan_name": pl.Utf8,
+                                          "team_rounds_total": pl.Int64})
+
+
+def test_read_round_ends_falls_back_when_the_read_tick_was_skipped():
+    rounds = pl.DataFrame({"start_tick": [0, 1000], "end_tick": [500, 1500]})
+    parser = FakeParser({532: (1, 0), 1516: (1, 1), 1564: (1, 1)})
+    ends = read_round_ends(rounds, parser, None)
+    assert [e.scores for e in ends] == [{"a": 1, "b": 0}, {"a": 1, "b": 1}]
+
+
+class UnnamedParser:
+    """parse_ticks for a recording with empty clan names: CT players 1-3, T players 4-6."""
+
+    def parse_ticks(self, fields, ticks):
+        rows = [
+            {"tick": t, "team_num": num, "team_clan_name": "", "team_rounds_total": score, "steamid": str(sid)}
+            for t in ticks
+            for num, score, ids in ((SIDE_CT, 2, (1, 2, 3)), (SIDE_T, 4, (4, 5, 6)))
+            for sid in ids
+        ]
+        return pl.DataFrame(rows)
+
+
+def test_read_round_ends_names_unnamed_sides_by_their_players():
+    rounds = pl.DataFrame({"start_tick": [0], "end_tick": [500]})
+    team_of = {1: "FURIA", 2: "FURIA", 3: "BIG", 4: "BIG", 5: "BIG", 6: "BIG"}
+    [end] = read_round_ends(rounds, UnnamedParser(), None, team_of)
+    assert (end.ct_team, end.t_team, end.scores) == ("FURIA", "BIG", {"FURIA": 2, "BIG": 4})
+    [end] = read_round_ends(rounds, UnnamedParser(), None)
+    assert (end.ct_team, end.t_team) == ("team3", "team2")
+
+
+def part(roster: dict[str, list[int]], ends: list[RoundEnd]) -> Part:
+    rows = [{"steamid": sid, "team_clan_name": name} for name, ids in roster.items() for sid in ids]
+    empty = pl.DataFrame()
+    return Part("de_nuke", ends, empty, pl.DataFrame(rows), empty, {}, 0, False)
+
+
+def test_align_team_names_swaps_back_a_restarted_part():
+    first = part({"A": [1, 2, 3], "B": [4, 5, 6]}, [RoundEnd(0, 10, "B", "A", {"A": 13, "B": 7})])
+    swapped = part({"B": [1, 2, 3], "A": [4, 5, 6]}, [RoundEnd(20, 30, "A", "B", {"B": 13, "A": 7})])
+    kept = part({"A": [1, 2], "B": [4, 5, 6]}, [RoundEnd(40, 50, "B", "A", {"A": 14, "B": 7})])
+    assert _align_team_names([first, swapped, kept]) == [1]
+    assert swapped.ends == [RoundEnd(20, 30, "B", "A", {"A": 13, "B": 7})]
+    roster = dict(swapped.roster.select("steamid", "team_clan_name").iter_rows())
+    assert roster == {1: "A", 2: "A", 3: "A", 4: "B", 5: "B", 6: "B"}
+    assert kept.ends == [RoundEnd(40, 50, "B", "A", {"A": 14, "B": 7})]

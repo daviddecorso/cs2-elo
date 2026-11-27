@@ -1,6 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
-import { EloEngine } from "./lib/elo/engine.ts";
+import { liveEngine } from "./lib/elo/adjustments.ts";
+import type { EloEngine } from "./lib/elo/engine.ts";
 import { readHltvRanks } from "./lib/elo/hltvBaseline.ts";
 import { loadFeed } from "./lib/elo/history.ts";
 import type { RawRow } from "./lib/elo/normalize.ts";
@@ -81,7 +82,7 @@ const feed = loadFeed(undefined, { csgo: !args.includes("--no-csgo") });
 const engines = new Map<number, EloEngine>();
 const engineAt = (t: number) => {
     if (!engines.has(t)) {
-        const engine = new EloEngine(params, feed.players);
+        const engine = liveEngine(params, feed.players);
         engine.run(feed.matches.filter((m) => m.t < t));
         engines.set(t, engine);
     }

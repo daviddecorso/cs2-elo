@@ -2,6 +2,7 @@
 
 import os
 import re
+from collections import Counter
 from dataclasses import dataclass, field
 from importlib.metadata import version
 from pathlib import Path
@@ -10,6 +11,7 @@ import awpy
 import polars as pl
 from demoparser2 import DemoParser
 
+from .demofile import trim_capped_packets
 from .identity import IdentityTable, match_opponent
 from .liquipedia import LpMap, LpMatch
 from .match_page import cached_page, map_score
@@ -18,10 +20,14 @@ from .validate import validate_map
 
 # Bump when the stored columns change, so maps parsed under the old layout count as stale.
 SCHEMA_VERSION = 2
-PARSER_VERSION = f"awpy{version('awpy')}-dp{version('demoparser2')}-s{SCHEMA_VERSION}"
+# The demoparser2 release whose output the stored maps match. A newer release that only reads new game
+# builds keeps it, since bumping it requeues every stored map for HLTV downloads.
+DEMOPARSER_OUTPUT_VERSION = "0.42.0"
+PARSER_VERSION = f"awpy{version('awpy')}-dp{DEMOPARSER_OUTPUT_VERSION}-s{SCHEMA_VERSION}"
 SNAPSHOT_EVERY_TICKS = 16
-# Scores update on the round-end tick; read them a little later but well inside the post-round delay.
-SCORE_READ_DELAY_TICKS = 32
+# Scores update on the round-end tick; read them a little later but well inside the post-round delay,
+# falling back through these when a server hitch skips the preferred tick.
+SCORE_READ_DELAYS_TICKS = (32, 16, 48, 8, 64, 1, 0)
 SIDE_T, SIDE_CT = 2, 3
 ROUND_TICK_COLUMNS = ("start_tick", "freeze_end_tick", "end_tick", "official_end_tick")
 EVENT_TABLES = {"kills": "kills", "damages": "damages", "grenades": "grenades", "flashes": "blinds", "bomb": "bomb"}
@@ -39,6 +45,7 @@ WINNER_BY_TEAM_NUM = {"3": "CT", "2": "T"}
 ROUND_EVENTS = ("round_start", "round_freeze_end", "round_end", "round_officially_ended")
 # awpy's error when a recording stops mid-command, e.g. after a server crash.
 TRUNCATED = re.compile(r"command at byte (\d+) .*unexpected end of data")
+CAPPED_PACKET = re.compile(r"packet message at bit (\d+) .*unexpected end of data")
 
 SNAPSHOT_COLUMNS = [
     "tick", "steamid", "name", "side", "x", "y", "z", "pitch", "yaw", "velocity",
@@ -69,6 +76,7 @@ class Part:
     events: dict[str, pl.DataFrame]
     last_tick: int
     truncated: bool
+    trimmed_packets: int = 0
     rounds_from_events: bool = False
     # Rebuilt from raw events, for when awpy's rounds don't rebuild.
     event_rounds: pl.DataFrame | None = None
@@ -98,40 +106,57 @@ def _side_code(col: str) -> pl.Expr:
     )
 
 
-def open_demo(path: Path) -> tuple[awpy.Demo, bool]:
-    """Opens a demo, cutting a truncated final command off the (work-dir) file. Returns whether it was cut."""
-    demo = awpy.Demo(path)
-    try:
-        demo.rounds
-        return demo, False
-    except awpy.InvalidDemoError as e:
-        m = TRUNCATED.search(str(e))
-        if not m:
-            raise
-        os.truncate(path, int(m.group(1)))
-    demo = awpy.Demo(path)
-    demo.rounds
-    return demo, True
+def open_demo(path: Path) -> tuple[awpy.Demo, bool, int]:
+    """Opens a demo, repairing the (work-dir) file in place. Returns whether its truncated final
+    command was cut and how many capped packets were trimmed."""
+    cut, trimmed = False, 0
+    while True:
+        demo = awpy.Demo(path)
+        try:
+            demo.rounds
+            return demo, cut, trimmed
+        except awpy.InvalidDemoError as e:
+            if not cut and (m := TRUNCATED.search(str(e))):
+                os.truncate(path, int(m.group(1)))
+                cut = True
+            elif not trimmed and (m := CAPPED_PACKET.search(str(e))):
+                trimmed = trim_capped_packets(path, int(m.group(1)))
+                if not trimmed:
+                    raise
+            else:
+                raise
 
 
-def read_round_ends(rounds: pl.DataFrame, parser: DemoParser, last_tick: int | None) -> list[RoundEnd]:
-    read_ticks = [int(t) + SCORE_READ_DELAY_TICKS for t in rounds["end_tick"]]
+def _majority_team(steamids: list[int], team_of: dict[int, str]) -> str | None:
+    votes = Counter(team_of[s] for s in steamids if s in team_of).most_common(1)
+    return votes[0][0] if votes and 2 * votes[0][1] > len(steamids) else None
+
+
+def read_round_ends(rounds: pl.DataFrame, parser: DemoParser, last_tick: int | None,
+                    team_of: dict[int, str] | None = None) -> list[RoundEnd]:
+    """`team_of` (SteamID → clan name) names a side the recording left unnamed, by most of its players."""
+    candidates = [[int(t) + d for d in SCORE_READ_DELAYS_TICKS] for t in rounds["end_tick"]]
     if last_tick:
-        read_ticks = [min(t, last_tick) for t in read_ticks]
+        candidates = [[min(t, last_tick) for t in ticks] for ticks in candidates]
+    read_ticks = sorted({t for ticks in candidates for t in ticks})
     teams = _to_polars(parser.parse_ticks(["team_num", "team_clan_name", "team_rounds_total"], ticks=read_ticks))
-    teams = teams.filter(pl.col("team_num").cast(pl.Int64).is_in([SIDE_T, SIDE_CT])).unique(["tick", "team_num"])
+    teams = teams.filter(pl.col("team_num").cast(pl.Int64).is_in([SIDE_T, SIDE_CT]))
+    players: dict[tuple[int, int], list[int]] = {}
+    if team_of and "steamid" in teams.columns:
+        for tick, num, sid in teams.select("tick", "team_num", _steamid()).iter_rows():
+            players.setdefault((int(tick), int(num)), []).append(sid)
+    teams = teams.unique(["tick", "team_num"])
 
     by_tick: dict[int, dict[int, tuple[str, int]]] = {}
     for row in teams.iter_rows(named=True):
-        by_tick.setdefault(int(row["tick"]), {})[int(row["team_num"])] = (
-            str(row["team_clan_name"] or f"team{row['team_num']}"),
-            int(row["team_rounds_total"] or 0),
-        )
+        tick, num = int(row["tick"]), int(row["team_num"])
+        name = row["team_clan_name"] or (team_of and _majority_team(players.get((tick, num), []), team_of))
+        by_tick.setdefault(tick, {})[num] = (str(name or f"team{num}"), int(row["team_rounds_total"] or 0))
 
     ends = []
-    for row, tick in zip(rounds.iter_rows(named=True), read_ticks):
-        sides = by_tick.get(tick, {})
-        if SIDE_CT not in sides or SIDE_T not in sides:
+    for row, ticks in zip(rounds.iter_rows(named=True), candidates):
+        sides = next((s for t in ticks if SIDE_CT in (s := by_tick.get(t, {})) and SIDE_T in s), None)
+        if sides is None:
             continue
         (ct, ct_score), (t, t_score) = sides[SIDE_CT], sides[SIDE_T]
         ends.append(RoundEnd(int(row["start_tick"]), int(row["end_tick"]), ct, t, {ct: ct_score, t: t_score}))
@@ -215,15 +240,25 @@ def _shift(df: pl.DataFrame, offset: int, part: int, columns=("tick",)) -> pl.Da
     return df.with_columns(*(pl.col(c).cast(pl.Int64) + offset for c in present), pl.lit(part, pl.Int32).alias("part"))
 
 
-def _shifted_ends(rounds: pl.DataFrame, parser: DemoParser, playback: int | None, offset: int) -> list[RoundEnd]:
+def _shifted_ends(rounds: pl.DataFrame, parser: DemoParser, playback: int | None, offset: int,
+                  team_of: dict[int, str] | None) -> list[RoundEnd]:
     return [
         RoundEnd(e.start_tick + offset, e.end_tick + offset, e.ct_team, e.t_team, e.scores)
-        for e in read_round_ends(rounds, parser, playback)
+        for e in read_round_ends(rounds, parser, playback, team_of)
     ]
 
 
-def read_part(path: Path, part: int, offset: int) -> Part:
-    demo, cut = open_demo(path)
+def _named_roster(roster: pl.DataFrame, team_of: dict[int, str] | None) -> pl.DataFrame:
+    if not team_of:
+        return roster
+    clan = pl.col("team_clan_name")
+    known = pl.col("steamid").replace_strict(team_of, default=None, return_dtype=pl.Utf8)
+    return roster.with_columns(pl.when(clan.is_null() | (clan == "")).then(known).otherwise(clan).alias("team_clan_name"))
+
+
+def read_part(path: Path, part: int, offset: int, team_of: dict[int, str] | None = None) -> Part:
+    """`team_of` (SteamID → clan name, from an earlier part) names teams this recording left unnamed."""
+    demo, cut, trimmed = open_demo(path)
     parser = DemoParser(str(path))
     playback = None if cut else demo.header.get("playback_ticks")
     playback = int(playback) if playback else None
@@ -235,16 +270,17 @@ def read_part(path: Path, part: int, offset: int) -> Part:
     last_tick = max(int(snaps["tick"].max() or 0), int(rounds["end_tick"].max() or 0))
     return Part(
         demo_map=str(demo.header.get("map_name", "")),
-        ends=_shifted_ends(rounds, parser, playback, offset),
+        ends=_shifted_ends(rounds, parser, playback, offset, team_of),
         rounds=_shift(rounds, offset, part, ROUND_TICK_COLUMNS),
-        roster=demo.players.with_columns(_steamid()),
+        roster=_named_roster(demo.players.with_columns(_steamid()), team_of),
         snaps=_shift(snaps, offset, part),
         events={name: _shift(getattr(demo, attr), offset, part) for name, attr in EVENT_TABLES.items()},
         last_tick=offset + last_tick,
         truncated=cut,
+        trimmed_packets=trimmed,
         rounds_from_events=only_events and not rounds.is_empty(),
         event_rounds=_shift(event_rounds, offset, part, ROUND_TICK_COLUMNS) if has_alt else None,
-        event_ends=_shifted_ends(event_rounds, parser, playback, offset) if has_alt else None,
+        event_ends=_shifted_ends(event_rounds, parser, playback, offset, team_of) if has_alt else None,
     )
 
 
@@ -280,16 +316,54 @@ def _players_per_side(snaps: pl.DataFrame, kept: list[Round], freeze_end: dict[i
     return out
 
 
+def _team_players(roster: pl.DataFrame) -> dict[str, set[int]]:
+    named = roster.filter(pl.col("team_clan_name").is_not_null() & (pl.col("steamid") > 0))
+    return {name: set(ids) for name, ids in named.group_by("team_clan_name").agg("steamid").iter_rows()}
+
+
+def _renamed(ends: list[RoundEnd], rename: dict[str, str]) -> list[RoundEnd]:
+    return [
+        RoundEnd(e.start_tick, e.end_tick, rename.get(e.ct_team, e.ct_team), rename.get(e.t_team, e.t_team),
+                 {rename.get(k, k): v for k, v in e.scores.items()})
+        for e in ends
+    ]
+
+
+def _align_team_names(parts: list[Part]) -> list[int]:
+    """A restarted server can bring the teams back under each other's names. Renames each later part's
+    teams after the first part's team with most of the same players; returns the parts renamed."""
+    first = _team_players(parts[0].roster)
+    renamed = []
+    for i, p in enumerate(parts[1:], start=1):
+        rename = {}
+        for name, players in _team_players(p.roster).items():
+            match = max(first, key=lambda n: len(first[n] & players), default=None)
+            if match is not None and 2 * len(first[match] & players) > len(players):
+                rename[name] = match
+        if len(set(rename.values())) != len(rename) or all(k == v for k, v in rename.items()):
+            continue
+        p.ends = _renamed(p.ends, rename)
+        if p.event_ends is not None:
+            p.event_ends = _renamed(p.event_ends, rename)
+        p.roster = p.roster.with_columns(pl.col("team_clan_name").replace(rename))
+        renamed.append(i)
+    return renamed
+
+
 def parse_map(dem_paths: list[Path], lp_match: LpMatch, lp_map: LpMap, identity: IdentityTable) -> ParsedMap:
     """`dem_paths` are the map's recordings in order; a server restart splits a map into several."""
     parts: list[Part] = []
     offset = 0
+    team_of: dict[int, str] | None = None
     for i, path in enumerate(dem_paths):
-        parts.append(read_part(path, i, offset))
+        parts.append(read_part(path, i, offset, team_of))
         offset = parts[-1].last_tick + 1
+        if team_of is None:
+            team_of = {sid: name for name, ids in _team_players(parts[0].roster).items() if name for sid in ids}
     demo_maps = {p.demo_map for p in parts}
     demo_map = parts[0].demo_map if len(demo_maps) == 1 else "/".join(sorted(demo_maps))
     context = f"{lp_match.pagename} {lp_match.match2id} m{lp_map.number}"
+    renamed_parts = _align_team_names(parts)
 
     try:
         kept = rebuild_rounds([e for p in parts for e in p.ends])
@@ -365,6 +439,11 @@ def parse_map(dem_paths: list[Path], lp_match: LpMatch, lp_map: LpMap, identity:
     }
     tables = {name: df.with_columns(*(pl.lit(v).alias(k) for k, v in meta.items())) for name, df in tables.items()}
     notes += [f"part {i + 1} of {len(parts)} cut at its truncated final command" for i, p in enumerate(parts) if p.truncated]
+    notes += [
+        f"part {i + 1} of {len(parts)} had {p.trimmed_packets} capped packet(s) trimmed of a half-written message"
+        for i, p in enumerate(parts) if p.trimmed_packets
+    ]
+    notes += [f"part {i + 1} of {len(parts)} team names swapped back to match part 1's players" for i in renamed_parts]
     notes += [
         f"part {i + 1} of {len(parts)} rounds rebuilt from raw events; awpy found none"
         for i, p in enumerate(parts) if p.rounds_from_events

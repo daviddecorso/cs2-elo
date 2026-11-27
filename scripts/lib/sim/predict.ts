@@ -78,7 +78,7 @@ export class Predictor implements SeriesModel {
             if (!la) this.unrated.add(a);
             if (!lb) this.unrated.add(b);
             if (la && lb) {
-                p = this.engine.mapProbability(la, lb, null, this.t);
+                p = this.engine.mapProbability(la, lb, null, this.t, 0, this.engine.playerGap(la.core, lb.core, null));
                 const temp = this.engine.mapTemp(la, lb);
                 if (temp !== 1) p = 1 / (1 + (p / (1 - p)) ** -temp);
             } else {
@@ -139,8 +139,8 @@ export class Predictor implements SeriesModel {
         const la = lineage(a);
         const lb = lineage(b);
         const gap = (la?.rating ?? this.options.fallbackRating) - (lb?.rating ?? this.options.fallbackRating);
-        const region = la && lb ? this.engine.regionGap(la, lb) : 0;
-        return ((gap + region + this.shift(a, b)) * Math.LN10) / this.params.scale;
+        const blendedGap = la && lb ? this.engine.blendGap(gap + this.engine.regionGap(la, lb), this.engine.playerGap(la.core, lb.core, null)) : gap;
+        return ((blendedGap + this.shift(a, b)) * Math.LN10) / this.params.scale;
     }
 
     private pairTemp(a: TeamId, b: TeamId): number {

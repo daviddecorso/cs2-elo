@@ -3,6 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Link, useParams } from "react-router-dom";
 
 const MapTendencies = lazy(() => import("../components/heatmap/MapTendencies.tsx"));
+const PlayerProtocols = lazy(() => import("../components/protocols/PlayerProtocols.tsx"));
 import { DataTable, Row, TableBody, TableHead, Td, Th } from "../components/DataTable.tsx";
 import { Badge, EmptyState, Inset, Label, LoadingBar, PageHeader, Section, Segmented, StatTile, Tooltip } from "../components/ui.tsx";
 import { LiquipediaCredit } from "../components/LiquipediaCredit.tsx";
@@ -709,12 +710,15 @@ export const PlayerPage = () => {
 
             {view === "maps" && (
                 <Suspense fallback={<LoadingBar label="Loading map tendencies…" />}>
-                    <MapTendencies
-                        steamid={player.steamid}
-                        selectedMap={selectedMap}
-                        onSelectMap={(map) => setQueryParams({ view: "maps", map })}
-                        showEmpty
-                    />
+                    <div className="space-y-10">
+                        <MapTendencies
+                            steamid={player.steamid}
+                            selectedMap={selectedMap}
+                            onSelectMap={(map) => setQueryParams({ view: "maps", map })}
+                            showEmpty
+                        />
+                        {player.lpTeam && <PlayerProtocols steamid={player.steamid} team={player.lpTeam} />}
+                    </div>
                 </Suspense>
             )}
 

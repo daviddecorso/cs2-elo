@@ -10,6 +10,8 @@ const makeEngine = (mapTemp = 1) =>
         mapProbability: (a: { rating: number }, b: { rating: number }) => expectedScore(a.rating - b.rating, DEFAULT_PARAMS.scale),
         mapTemp: () => mapTemp,
         regionGap: () => 0,
+        playerGap: () => 0,
+        blendGap: (gap: number) => gap,
     }) as unknown as EloEngine;
 const predictor = (tierTemp?: Record<number, number>, mapTemp?: number) =>
     new Predictor(makeEngine(mapTemp), DEFAULT_PARAMS, 0, { driftPerDay: 0, horizons: [0], fallbackRating: 1500, ...(tierTemp ? { tierTemp } : {}) });

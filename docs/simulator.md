@@ -99,7 +99,7 @@ A pairing at 99% or more is drawn as a fixed match.
 
 ## Match odds and noise
 
-`predict.ts` uses the same series odds as Elo: the map probability averaged over the active pool, then `seriesWinProbability` with `seriesMapTemp`. Teams with no lineage get the tier 2 mean.
+`predict.ts` uses the same series odds as Elo: the map probability averaged over the active pool, then `seriesWinProbability` with `seriesMapTemp`. The map gap blends in player Elo over each lineage's core, as in the engine, and so does `baseLogit` for the veto path ([elo-model.md](elo-model.md), player Elo blend). On played Major series the blend moved log loss 0.6396 → 0.6389 and slope 0.80 → 0.90 (elo-experiments.md, 2026-11-24). Teams with no lineage get the tier 2 mean.
 
 Ratings carry no per-event noise. A team's rating drifts as a random walk of `DRIFT_PER_DAY` (58 Elo²/day) from the ratings' as-of date to each event's start, shared across events within a simulation. That's about σ 50 per team for an event six weeks out.
 

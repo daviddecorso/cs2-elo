@@ -26,6 +26,9 @@ A map-level team Elo built on the normalized Liquipedia feed. It has to pass one
 - **Lineages.** A rating belongs to a lineage. The lineage's core is the 5 players seen most often in its last `coreWindow` series, with ties going to current core members, so a one-off stand-in doesn't change it. A lineup joins whichever candidate lineage (the team's current one, or any player's) it shares 3+ core players with. This follows a roster across org changes.
 - **Partial changes.** When the core changes by k players, the rating moves `regress · k/5` of the way to the tier mean. The tier mean is the mean rating of rosters active in the last 120 days whose median tier of their last 10 series matches. With fewer than 5 such rosters, it falls back to `1500 − tierGap·(tier−1)`.
 - **New lineages.** The seed is the mean of each player's last core lineage rating (unrated players get the tier mean), then regressed by `newRosterRegress`. `provisionalK` boosts K for a new lineage's first `provisionalMaps` maps.
+- **Debut offset.** Lineages made of unknown players lose far more than their tier-mean seed implies. So `debutOffset × unrated seeds / 5` points (300 at five unrated) come off a new lineage's odds, fading linearly to 0 over `debutMaps` (25) maps. It applies to predictions only, including `predictMatchup`. The update keeps the unshifted expectation, so ratings and the tier means are untouched. Lowering the seed itself instead hurt the gate (elo-experiments.md, 2026-11-24).
+- **Player Elo blend** (`playerElo.ts`). Each player also has a results-only rating. A side's player strength is the mean of its lineup, with unrated players at the mean of 2+ rated teammates (else `−playerTierGap · (tier − 1)`). Every map moves each player by `playerK · playerTierK^(tier−1) · (1 + playerMarginWeight · ln(1 + |margin|)) · provisional · (y − p)`, from the real result and margin. Predictions use the map gap `(1 − playerBlend) · lineage gap + playerBlend · playerTemp · player gap` (0.45 and 0.65, tuned on 2024). That covers `predictMatchup` (listed lineup when it has 3+ players, else the lineage core) and the simulator's `Predictor` (lineage cores). The lineage update never sees it, so ratings and rankings are lineage-only. `SeriesPrediction.playerGap` keeps the pre-series player gap for diagnostics (elo-experiments.md, 2026-11-24).
+- **Duel skill and luck** (`adjustments.ts`, live since 2026-11-27 after the registered 2024 test passed). Only maps with demos are affected. `skillWeight` 8,458 adds `skillWeight · skillGap` to the rating gap, where `skillGap` is the lineups' mean prior duel skill θ difference (`data/elo/player-skill.json`). `luckWeight` 0.6 blends the update target toward the map result had every duel gone at its skill-adjusted expected rate, weighted by its stake (the `value` variant, `data/elo/luck-live.jsonl`). Both files come from `cs2wp luck` on the GPU machine and are committed by hand, so maps played since the last demo run take no luck term ([war.md](war.md#luck-adjusted-elo)). Every production engine is built through `liveEngine`.
 - **Oceania.** A lineage with 3+ AU/NZ core players is Oceania, split out of Valve's Asia.
   - Against other regions, Oceania's rating gap gets `regionPriorOceania`, in both predictions and the update's expected score.
   - Oceania v Oceania series odds multiply the map logit by `oceaniaTemp`.
@@ -46,7 +49,21 @@ The Liquipedia API has no veto data, but HLTV vetoes parse for about 1,400 tier-
 - Round share (`roundWeight`, `roundSlope`, `roundTier1Scale`, `predictionTemp`) and insularity (`insularityPrior`) are in the engine but off. Round share passed the gate but leaned worse at tier-1 LAN and Majors, so it wasn't kept (elo-experiments.md, 2026-11-21).
 - **VRS baseline** (`vrsBaseline.ts`): uses the latest Valve global snapshot published strictly before the series' UTC day, from the `invitation/` and `live/` tables. Each side's roster is found by 3+ of 5 player overlap, matching Liquipedia page name, display nick or VRS alias nick against Valve's nicks. `p = 1/(1+10^(−Δpoints/s))`, with `s` fit on training series. Snapshots start 2024-08-06.
 - **HLTV baseline** (`hltvBaseline.ts`): uses pre-match HLTV world ranks and points exported from cached match pages and weekly ranking pages (`data/demos/hltv/ranks.jsonl`, via `cs2demos match-pages` and `cs2demos rankings`). `write_ranks` verifies each team's ranking-page position against its match-page badge rank (`points: null` on missing or mismatched teams). Joined by `match2id` on tier-1 LAN series where both HLTV ranks, HLTV points (when any are present) and a VRS points difference exist. Fits one-parameter logistic links on the training series in that set for HLTV rank (`ln rank_b − ln rank_a`), VRS rank, and HLTV points (selecting between `ln pts_a − ln pts_b` and `(pts_a − pts_b) / 100` by training log loss). Reported with event-resampled 90% CIs and a calibration curve on `/model` (`calibration.json` preserves the `hltv` block across CI runs when `ranks.jsonl` is absent) and never gated.
-- **Gate**: 2026 series where both rosters have VRS points; Elo series log loss must be below VRS. `--gate` exits non-zero on failure. The report also covers Brier, accuracy, all 2026 series, map log loss, stand-in series and cross-region series. `public/data/elo/calibration.json` holds the scores and calibration bins for the methodology page.
+- **Gate**: 2026 series where both rosters have VRS points; Elo series log loss must be below VRS. `--gate` exits non-zero on failure. Shared-param experiments are fit and judged without Oceania-internal series, on **gate ex-Oceania** (9,152 series), under the Oceania rule in [elo-experiments.md](elo-experiments.md). `--compare` prints the standard slices against `params.json`. The report also covers Brier, accuracy, all 2026 series, map log loss, stand-in series and cross-region series. `public/data/elo/calibration.json` holds the scores and calibration bins for the methodology page.
+
+## Market benchmark
+
+An offline check of Elo against Polymarket's CS2 series-winner prices (gamma series id 10310, from 2025-09-24). It's never gated and never published. Prices stay in gitignored `data/markets/polymarket/`, and nothing reaches the site or `calibration.json`, because Liquipedia never approves betting-related projects (`docs/spec.md`).
+
+- `npm run fetch-polymarket` caches closed match events, then the 5-minute price history from 48h before to 1h after each moneyline market's `gameStartTime`. Only markets with $500+ volume are fetched (`--min-volume`). It's incremental: events ending in the last 14 days are refetched, and cached price files are skipped. Gamma rejects offsets past about 2,000, so paging restarts from the last `startDate`.
+- `npm run backtest-market` matches markets to feed series by normalized team names (`scripts/lib/markets/match.ts`), plus Valve names from `data/elo/vrsTeamMap.json` and hand aliases in `data/markets/polymarketAliases.json`, within 36h of the series. It drops markets where two series of the pair fall within 6h, and markets whose resolution disagrees with the feed. When several markets map to one series, the highest-volume one is kept. It prints the names that match no feed team, which go into the aliases file.
+- **Close** is the last price before the scheduled start. **Open** is the price 24h out, used only when the market was trading off its 0.5 seed by then.
+- It reports log loss, Brier, accuracy and calibration slope for Elo, the close and the open, with event-CI gains. It also prints encompassing λ both ways, a blend fit before `--blend-split` (default 2026-07-01) and scored after it, and the slope of the open-to-close move on Elo's disagreement with the open. Slices are volume, tier, LAN, best-of and provisional.
+
+- `--set key=value` runs Elo with overridden parameters, as in `backtest-elo`, and the last line (`Market gap`) gives the gain and λ after `--blend-split`, for experiment entries. `--close-lead <minutes>` takes the close that many minutes before the start.
+- `--diagnose` adds the gap by month, a before/after test with a volume × tier mix control, a bias table orienting each series to the side carrying a feature (core change, stand-in, idle, newer roster, region pair, form, Elo favourite), the worst teams and events, and a catch-up test: whether the market's disagreement predicts each side's rating change over its next 5 series (`scripts/lib/markets/diagnose.ts`).
+
+On 2026 the close beats Elo by 0.008 (0.019 since July) before the debut offset and 0.007 after it, and Elo beats the 24h-out price by 0.017. The July shift is the market sharpening on match-day information, not Elo drifting. Details are in [elo-experiments.md](elo-experiments.md) (2026-11-24).
 
 ## Rankings output (`scripts/build-elo.ts`)
 
@@ -62,12 +79,12 @@ It also writes a game log per ranked team to `public/data/elo/games/<teamSlug>.j
 
 | Set | Series | Elo log loss | VRS log loss |
 | --- | --- | --- | --- |
-| Both rosters VRS-ranked (gate) | 9,375 | **0.6090** | 0.6491 |
-| Cross-region | 719 | 0.6274 | 0.6506 |
-| Every 2026 series | 18,424 | 0.5926 | – |
-| Every 2026 map | 39,018 | 0.6247 | – |
+| Both rosters VRS-ranked (gate) | 9,375 | **0.6062** | 0.6491 |
+| Cross-region | 719 | 0.6206 | 0.6506 |
+| Every 2026 series | 18,424 | 0.5751 | – |
+| Every 2026 map | 39,018 | 0.6154 | – |
 
-These figures are after the CS:GO warmup and its retune (2026-11-21). Test series calibration slope is 0.964 and ECE is 0.009. The VRS baseline's fitted scale is 880 points for 10:1 odds. The HLTV table below predates the warmup.
+These figures are after the CS:GO warmup and its retune (2026-11-21), the debut offset and the player Elo blend (both 2026-11-24). Before the blend, the gate was 0.6092 and every 2026 series 0.5786. Test series calibration slope is 1.032 and ECE is 0.014, so the blend leaves odds slightly soft (0.937 and 0.009 before it). The VRS baseline's fitted scale is 880 points for 10:1 odds. The HLTV table below predates the warmup.
 
 Tier-1 LAN series with both teams ranked in HLTV's weekly table (with points) and VRS (651 test series through 2026-11-12, fit on 776 training series; HLTV points `(pts_a − pts_b) / 100` `β = 0.26`, HLTV rank `β = 0.70`, VRS rank `β = 0.67`):
 
@@ -90,6 +107,7 @@ Current parameters (`scripts/lib/elo/params.json`):
 - `regress`, `newRosterRegress` and `gameRegress` are 0.
 - `tierGap` is 800 (the search bound), and `provisionalK` 2 applies over 100 maps (the search bound).
 - `burstMaps` is 16 and `burstDays` is 16.
+- `newLanOffset` takes 160 points off a lineage's LAN predictions, fading to 0 over its first 10 maps (`newLanMaps`). It applies to predictions only. It's judged on unranked series (2026-11-24).
 - `kMap` is 8, `mapShrink` is 0.01 and `coreWindow` is 7.
 - `regionPriorOceania` is −175 and `oceaniaTemp` is 1.4 (tuned on 2025 alone; 2026 had already been looked at, so they need a recheck on 2027).
 

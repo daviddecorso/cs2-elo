@@ -1,6 +1,13 @@
-import type { SparseGrid } from "./heatmapTypes.ts";
+import type { GrenadeType, SparseGrid } from "./heatmapTypes.ts";
 
 export const GRID_SIZE = 64;
+
+export const GRENADE_COLOR: Record<GrenadeType, string> = {
+    smoke: "#e4e4e7",
+    flash: "#fde047",
+    he: "#f87171",
+    molotov: "#fb923c",
+};
 
 /** Decode delta-coded sparse grid into a dense row-major Float32Array of length `size * size`. */
 export const decodeGrid = (grid: SparseGrid | undefined, size = GRID_SIZE): Float32Array => {

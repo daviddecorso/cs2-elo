@@ -1,6 +1,6 @@
 import path from "node:path";
 import type { Region, Roster, Standings } from "../../../src/vrs/types.ts";
-import { EloEngine } from "../elo/engine.ts";
+import { liveEngine } from "../elo/adjustments.ts";
 import { loadFeed } from "../elo/history.ts";
 import type { RawRow } from "../elo/normalize.ts";
 import { DEFAULT_PARAMS } from "../elo/params.ts";
@@ -156,7 +156,7 @@ export const loadSeasonSetup = ({
     const cutoff = hindcast ? Date.parse(`${hindcastAsOf}T23:59:59Z`) / 1000 : Infinity;
     const feed = loadFeed();
     const feedMatches = feed.matches.filter((m) => m.t <= cutoff);
-    const engine = new EloEngine(DEFAULT_PARAMS, feed.players);
+    const engine = liveEngine(DEFAULT_PARAMS, feed.players);
     const predictions = engine.run(feedMatches);
     const lastT = feedMatches.at(-1)!.t;
     const asOf = dayOf(lastT);

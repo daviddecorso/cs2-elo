@@ -1,4 +1,4 @@
-import React, { useMemo } from "react";
+import React, { Suspense, lazy, useMemo } from "react";
 import { useQueries, useQuery } from "@tanstack/react-query";
 import { Link, useParams } from "react-router-dom";
 import { DataTable, Row, TableBody, TableHead, Td, Th } from "../components/DataTable.tsx";
@@ -28,6 +28,8 @@ import type { EloGameLog, EloRoster } from "../elo/types.ts";
 import { TeamLink } from "../components/TeamLink.tsx";
 import type { EventIndexEntry, EventOdds, InviteIndexEntry, InviteOdds, InviteOddsRoster, SeasonIndex } from "../sim/types.ts";
 import type { WarPlayer } from "../war/types.ts";
+
+const TeamProtocols = lazy(() => import("../components/protocols/TeamProtocols.tsx"));
 
 
 const signed = (n: number, digits = 0) => (n > 0 ? `+${n.toFixed(digits)}` : n.toFixed(digits));
@@ -483,6 +485,10 @@ export const TeamPage = () => {
                     </div>
                 </Section>
             )}
+
+            <Suspense fallback={null}>
+                <TeamProtocols team={team} />
+            </Suspense>
 
             <PlayersSection players={players} />
         </div>

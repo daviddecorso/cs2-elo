@@ -161,25 +161,26 @@ def load_event(event: str, raw_dir: Path = LP_RAW, lan_series: Path = LAN_SERIES
 EXCLUDED_EVENTS = frozenset({"Match_of_LeGGends/Double_Down"})
 
 
-def is_tier1_lan(row: dict, since: str = LAN_SINCE) -> bool:
+def in_scope(row: dict, since: str = LAN_SINCE, wide: bool = False) -> bool:
+    """Tier-1 LAN; `wide` adds tier-1 online and tier 2, LAN or online."""
     return (
         row.get("game") == "cs2"
-        and str(row.get("liquipediatier", "")) == "1"
+        and str(row.get("liquipediatier", "")) in (("1", "2") if wide else ("1",))
         and row.get("liquipediatiertype") != "Showmatch"
-        and row.get("type") == "Offline"
+        and (wide or row.get("type") == "Offline")
         and event_of(row) not in EXCLUDED_EVENTS
         and str(row.get("date", "")) >= since
     )
 
 
-def load_lan_events(since: str = LAN_SINCE, raw_dir: Path = LP_RAW, lan_series: Path = LAN_SERIES,
-                    links: Path = HLTV_LINKS) -> dict[str, list[LpMatch]]:
-    """Every tier-1 LAN event since `since`, keyed by parent page."""
+def load_events(since: str = LAN_SINCE, wide: bool = False, raw_dir: Path = LP_RAW, lan_series: Path = LAN_SERIES,
+                links: Path = HLTV_LINKS) -> dict[str, list[LpMatch]]:
+    """Every in-scope event since `since`, keyed by parent page."""
     events: dict[str, list[LpMatch]] = {}
     pages: dict[str, str] = {}
 
     def keep(row: dict) -> bool:
-        if is_tier1_lan(row, since):
+        if in_scope(row, since, wide):
             pages[row["match2id"]] = event_of(row)
             return True
         return False

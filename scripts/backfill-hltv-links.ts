@@ -11,6 +11,9 @@ const option = (name: string) => {
     return i >= 0 ? args[i + 1] : undefined;
 };
 const FROM = option("from") ?? "2025-01-01";
+// `--wide` matches `cs2demos auto --wide`: tier 1 and 2, LAN and online.
+const WIDE = args.includes("--wide");
+const SCOPE = WIDE ? "([[liquipediatier::1]] OR [[liquipediatier::2]])" : "[[liquipediatier::1]] AND [[type::Offline]]";
 
 interface LinkRow {
     match2id?: string;
@@ -34,9 +37,9 @@ const main = async () => {
     const outPath = path.resolve(process.cwd(), "data/demos/hltv-links.json");
     const store: LinkStore = fs.existsSync(outPath) ? JSON.parse(fs.readFileSync(outPath, "utf8")) : {};
 
-    console.log(`Fetching tier-1 offline match links ${FROM} to ${hotFrom}...`);
+    console.log(`Fetching ${WIDE ? "tier-1 and tier-2" : "tier-1 offline"} match links ${FROM} to ${hotFrom}...`);
     const rows = await fetchLiquipediaAll<LinkRow>("match", {
-        conditions: `[[game::cs2]] AND [[finished::1]] AND [[liquipediatier::1]] AND [[type::Offline]] AND [[date::>${addDays(FROM, -1)} 23:59:59]] AND [[date::<${hotFrom} 00:00:00]]`,
+        conditions: `[[game::cs2]] AND [[finished::1]] AND ${SCOPE} AND [[date::>${addDays(FROM, -1)} 23:59:59]] AND [[date::<${hotFrom} 00:00:00]]`,
         query: "pagename,objectname,match2id,links",
         order: "objectname ASC",
         limit: 500,

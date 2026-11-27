@@ -17,7 +17,7 @@ from .archive import extract, group_by_map
 from .backlog import build_queue, is_done, is_map_done
 from .hltv import ChallengeError, Hltv, PageBudgetExhausted, ServerError, demo_path_from_html, is_server_error
 from .identity import IdentityTable
-from .liquipedia import AUTO_SINCE, LpMatch,load_event, load_lan_events, load_steam_ids, resolve_from_results, save_link
+from .liquipedia import AUTO_SINCE, LpMatch, load_event, load_events, load_steam_ids, resolve_from_results, save_link
 from .parse import PARSER_VERSION, parse_map
 from .paths import AUTO_LOCK, LAN_SERIES, PARQUET, RAW_DEMOS, REPO_ROOT, STEAM_PLAYERS, UNRESOLVED_PLAYERS, HLTV_TABLES, WORK
 from .store import R2, Manifest, backup_hltv_cache, map_key, object_prefix, restore_hltv_cache, write_tables
@@ -363,7 +363,7 @@ def cmd_auto(args) -> int:
         refresh_lan_series()
         r2 = None if args.no_upload else R2()
         manifest = Manifest(r2)
-        queue = build_queue(load_lan_events(AUTO_SINCE), manifest)
+        queue = build_queue(load_events(AUTO_SINCE, args.wide), manifest)
         pending = sum(not is_done(manifest, m) for e in queue for m in e.matches)
         print(f"{len(queue)} events, {pending} series pending; budget {args.max_pages} HLTV requests")
         if args.dry_run:
@@ -389,7 +389,8 @@ def cmd_auto(args) -> int:
 def cmd_status(args) -> int:
     manifest = Manifest(None)
     totals = {"parsed": 0, "quarantined": 0, "missing": 0, "unlinked": 0}
-    for e in build_queue(load_lan_events(), manifest, include_done=True):
+    events = load_events(AUTO_SINCE, wide=True) if args.wide else load_events()
+    for e in build_queue(events, manifest, include_done=True):
         c = _event_counts(manifest, e.matches)
         totals = {k: totals[k] + c[k] for k in totals}
         maps = sum(c.values())
@@ -426,7 +427,7 @@ def cmd_match_pages(args) -> int:
     if args.event:
         matches = load_event(args.event)
     else:
-        matches = [m for ms in load_lan_events().values() for m in ms]
+        matches = [m for ms in load_events().values() for m in ms]
     r2 = None if args.no_upload else R2()
     stored = [name for m in matches if m.hltv_id for name in store_match_page(m, r2)]
     write_ranks()
@@ -496,8 +497,11 @@ def main() -> None:
     p.add_argument("--max-pages", type=int, default=AUTO_MAX_PAGES, help="HLTV requests allowed this run")
     p.add_argument("--dry-run", action="store_true", help="Print the queue without opening a browser")
     p.add_argument("--no-upload", action="store_true", help="Keep Parquet locally in data/demos/parquet/")
+    p.add_argument("--wide", action="store_true",
+                   help="Add tier-1 online and tier 2 after tier-1 LAN; off until the tier-2 Elo test is registered")
     _add_proxy_args(p)
-    sub.add_parser("status", help="Per-event map counts for every tier-1 LAN since 2025, from the local manifest")
+    p = sub.add_parser("status", help="Per-event map counts for every tier-1 LAN since 2025, from the local manifest")
+    p.add_argument("--wide", action="store_true", help="Every tier-1 and tier-2 event since the auto backfill start")
     p = sub.add_parser("prune", help="Delete parsed raw demos older than --days or beyond --max-gb, oldest first")
     p.add_argument("--days", type=int, default=RAW_RETENTION_DAYS)
     p.add_argument("--max-gb", type=float, default=RAW_CAP_GB)

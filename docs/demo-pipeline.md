@@ -50,7 +50,7 @@ Decision: HLTV has no API for demos, and its terms don't allow automated access.
   - A page without HLTV's `<footer>` counts as a server error: it's not cached, and a cached one is refetched. A proxy 502 mid-load still leaves the browser a parseable partial page. FURIA vs NiP (YaLLa Compass 2024) was cut inside the first lineup, so its series table had one team.
 - **Liquipedia supplies the HLTV match ID** (`links.hltv`).
   - The hot store has it on every row.
-  - The archive (`data/raw/archive/`) was fetched without `links`. `npm run backfill-hltv-links` fills that gap once, with one links-only `/match` query for tier-1 offline matches from 2025-01 to the hot store's start (2 requests). It writes the committed `data/demos/hltv-links.json`. On 2026-10-22 it linked 919/919 series, so every tier-1 LAN map since 2025 has an ID.
+  - The archive (`data/raw/archive/`) was fetched without `links`. `npm run backfill-hltv-links` fills that gap once, with one links-only `/match` query for tier-1 offline matches from 2025-01 to the hot store's start (2 requests). It writes the committed `data/demos/hltv-links.json`. On 2026-10-22 it linked 919/919 series, so every tier-1 LAN map since 2025 has an ID. `--wide` queries tier 1 and 2, LAN and online, for `auto --wide`.
 - **Fallback for a series without a link:** HLTV's results for its day, then the days either side (`/results?startDate=D&endDate=D`, 1–3 pages per day, cached once the day is two days old).
   - It picks the one result where both team names match the opponent's name, short name or page (case and punctuation ignored, a leading "Team" dropped) and the score matches. The score is maps won, or rounds for a Bo1.
   - Zero or several candidates skip the series.
@@ -68,7 +68,7 @@ Local, gitignored, under `data/demos/`:
 | `hltv-cache/` | HLTV match pages (`match-*.html`), weekly rankings (`ranking-*.html`) and per-day results. |
 | `hltv/{veto,series}/<hltvMatchId>.parquet` | Tables from the match page (see Match page data). |
 | `hltv/ranks.jsonl` | Pre-match HLTV ranks exported from `series/` for the Elo backtest. |
-| `lp/lan-series.json` | Recent tier-1 LAN rows from the nightly CI artifact. |
+| `lp/lan-series.json` | Recent tier-1 and tier-2 rows from the nightly CI artifact. |
 | `manifest.json` | Mirror of the R2 manifest. |
 
 Committed:
@@ -178,11 +178,13 @@ The parser version also carries `SCHEMA_VERSION` from `parse.py` (`awpy3.1.1-dp0
 
 ## Scheduling and backfill
 
-`cs2demos auto` is the scheduled entry point. Its scope is every tier-1 (`liquipediatier` 1) offline event since 2025-01-01, grouped by parent page: 38 events, 1,360 series and 3,043 maps as of 2026-10-22. Once those were done, the scope was extended back to 2024-01-01 (`AUTO_SINCE`): another 19 events and 684 series, 682 of them already linked in `hltv-links.json`. On 2026-11-26 it moved back to 2023-10-01, adding the 4 Q4 2023 events (about 72 series) that the registered 2024 Elo test needs as history ([roadmap.md](roadmap.md)). Ordering newest first keeps 2024 behind any newer event. `status` and `match-pages` still start at 2025. Each run:
+`cs2demos auto` is the scheduled entry point. Its scope is every tier-1 (`liquipediatier` 1) offline event since 2025-01-01, grouped by parent page: 38 events, 1,360 series and 3,043 maps as of 2026-10-22. Once those were done, the scope was extended back to 2024-01-01 (`AUTO_SINCE`): another 19 events and 684 series, 682 of them already linked in `hltv-links.json`. On 2026-11-26 it moved back to 2023-10-01, adding the 4 Q4 2023 events (about 72 series) that the registered 2024 Elo test needs as history ([roadmap.md](roadmap.md)). Ordering newest first keeps 2024 behind any newer event. `status` and `match-pages` still start at 2025.
+
+`auto --wide` adds tier-1 online and tier-2 events, LAN or online, from the same start (`liquipedia.in_scope`). That's 8,437 maps in all, 4,805 of them already parsed, as of 2026-11-27. These maps feed the tier-2 Elo holdout ([elo-experiments.md](elo-experiments.md)), so `--wide` stays off until that test is registered. wp fits and publishes on tier-1 LAN only: `catalog()` drops the other maps unless asked for them with `wide=True`. `status --wide` counts the wide scope. The archive has no HLTV links for these rows, so run `npm run backfill-hltv-links -- --wide --from 2023-10-01` once before the first `--wide` run. Each run:
 
 1. Takes a lock (`data/demos/auto.lock`). A second run exits.
-2. Pulls the `lan-series` artifact from the latest successful `Update data` run on main with `gh`. CI's `export-lan-series` step writes it from `data/raw/matches.json`: tier-1 offline rows from the last 30 days, with no extra API calls. This machine has no fresh `data/raw/`, so new events reach it this way. If the pull fails, it uses the copy on disk.
-3. Orders events newest first, dropping events with every map parsed at the current parser version. A just-finished event goes ahead of the backfill.
+2. Pulls the `lan-series` artifact from the latest successful `Update data` run on main with `gh`. CI's `export-lan-series` step writes it from `data/raw/matches.json`: tier-1 and tier-2 rows from the last 30 days, with no extra API calls. Without `--wide`, the loader drops everything but tier-1 LAN. This machine has no fresh `data/raw/`, so new events reach it this way. If the pull fails, it uses the copy on disk.
+3. Orders events tier 1 first, then newest first, dropping events with every map parsed at the current parser version. A just-finished event goes ahead of the backfill.
 4. Works through them in one browser session with a 60-request budget, about 30 series a night. That puts the full backfill at about 45 nights.
 5. Stops on the budget, low disk or a challenge, prunes raw demos, and prints maps parsed and quarantined, requests used and series left.
 

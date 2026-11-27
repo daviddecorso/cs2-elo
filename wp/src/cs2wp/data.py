@@ -28,6 +28,8 @@ class MapRef:
     date: str
     # Liquipedia opponent page -> rating plus map offset, before this map was played.
     elo: tuple[tuple[str, float], ...]
+    tier: int = 1
+    lan: bool = True
 
     @property
     def dir(self) -> Path:
@@ -102,11 +104,11 @@ def elo_rows(elo_path: Path = ELO_MAPS) -> list[tuple[str, dict, dict]]:
     return out
 
 
-def catalog(elo_path: Path = ELO_MAPS) -> list[MapRef]:
-    """Every mirrored map with an Elo row."""
+def catalog(elo_path: Path = ELO_MAPS, wide: bool = False) -> list[MapRef]:
+    """Every mirrored tier-1 LAN map with an Elo row; `wide` adds the tier-1 online and tier-2 maps."""
     refs = []
     for key, e, row in elo_rows(elo_path):
-        if (MIRROR / e["prefix"] / "rounds.parquet").exists():
+        if (wide or (row["tier"] == 1 and row["lan"])) and (MIRROR / e["prefix"] / "rounds.parquet").exists():
             hltv_id = int(key.split("/")[0])
             refs.append(
                 MapRef(
@@ -119,6 +121,8 @@ def catalog(elo_path: Path = ELO_MAPS) -> list[MapRef]:
                     prefix=e["prefix"],
                     date=datetime.fromtimestamp(row["t"], timezone.utc).date().isoformat(),
                     elo=tuple(zip(row["teams"], row["ratings"])),
+                    tier=row["tier"],
+                    lan=row["lan"],
                 )
             )
     return sorted(refs, key=lambda r: (r.date, r.key))

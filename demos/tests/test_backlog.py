@@ -4,7 +4,7 @@ import time
 
 from cs2demos.backlog import build_queue, is_done
 from cs2demos.cli import prune_raw
-from cs2demos.liquipedia import LpMap, LpMatch, LpOpponent, load_event, load_lan_events, resolve_from_results
+from cs2demos.liquipedia import LpMap, LpMatch, LpOpponent, load_event, load_events, resolve_from_results
 from cs2demos.parse import PARSER_VERSION
 from cs2demos.store import Manifest
 
@@ -57,7 +57,7 @@ def test_load_event_by_parent_with_links_overlay_and_newest_row(tmp_path):
     assert matches[1].maps[0].scores == (13, 7)
 
 
-def test_load_lan_events_filters_tier_type_and_date(tmp_path):
+def test_load_events_filters_tier_type_and_date(tmp_path):
     paths = write_store(
         tmp_path,
         archive_rows=[
@@ -65,19 +65,21 @@ def test_load_lan_events_filters_tier_type_and_date(tmp_path):
             row("old", "Old", "Old", "2024-12-30"),
             row("online", "On", "On", "2025-06-03", type_="Online"),
             row("t2", "T2", "T2", "2025-06-03", tier="2"),
+            row("t2on", "T2On", "T2On", "2025-06-03", tier="2", type_="Online"),
+            row("t3", "T3", "T3", "2025-06-03", tier="3"),
             row("show", "S", "S", "2025-06-03", tiertype="Showmatch"),
             row("excl", "Match_of_LeGGends/Double_Down", "Match_of_LeGGends/Double_Down", "2025-06-03"),
         ],
         hot_rows=[row("c", "F", "F", "2026-05-01", hltv=5)],
     )
-    events = load_lan_events(**paths)
-    assert sorted(events) == ["E", "F"]
+    assert sorted(load_events(**paths)) == ["E", "F"]
+    assert sorted(load_events(wide=True, **paths)) == ["E", "F", "On", "T2", "T2On"]
 
 
-def lp_match(match2id, date, hltv_id=None, scores=((13, 7),)):
+def lp_match(match2id, date, hltv_id=None, scores=((13, 7),), tier="1"):
     ops = (LpOpponent("Team_Vitality", "Team Vitality", "Vitality", []), LpOpponent("FaZe_Clan", "FaZe Clan", "FaZe", []))
     maps = [LpMap(i + 1, "Mirage", "de_mirage", s, ([], []), ("", "")) for i, s in enumerate(scores)]
-    return LpMatch(match2id, "E", "1", date, hltv_id, ops, maps)
+    return LpMatch(match2id, "E", tier, date, hltv_id, ops, maps)
 
 
 def test_resolve_from_results():
@@ -109,6 +111,16 @@ def test_build_queue_newest_first_and_drops_done(tmp_path):
     queue = build_queue(events, manifest)
     assert [(e.page, e.start, e.end) for e in queue] == [("New", "2026-10-15", "2026-10-18"), ("Old", "2025-02-01", "2025-02-01")]
     assert [e.page for e in build_queue(events, manifest, include_done=True)] == ["New", "Done", "Old"]
+
+
+def test_build_queue_puts_tier_1_before_newer_tier_2(tmp_path):
+    manifest = manifest_with(tmp_path, {})
+    events = {
+        "T2New": [lp_match("a", "2026-10-15", tier="2")],
+        "T1Old": [lp_match("b", "2025-02-01")],
+        "T2Old": [lp_match("c", "2025-03-01", tier="2")],
+    }
+    assert [e.page for e in build_queue(events, manifest)] == ["T1Old", "T2New", "T2Old"]
 
 
 def test_quarantined_series_is_done_until_retried(tmp_path):

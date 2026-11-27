@@ -28,7 +28,7 @@
       "TopofMid": "Mid", "Arch": "Mid", "Middle": "Mid", "SecondMid": "Mid", "Underpass": "Mid",
       "Banana": "Banana", "TRamp": "Banana",
       "BombsiteB": "B", "Ruins": "B",
-      "CTSpawn": null, "LowerMid": null
+      "CTSpawn": null, "LowerMid": null, "Bridge": null
     }
   },
   "de_ancient": {
@@ -69,7 +69,7 @@
     "positions": ["A", "Mid", "Connector", "B"],
     "callouts": {
       "Main": "A", "BombsiteA": "A", "Fountain": "A", "Heaven": "A", "Walkway": "A",
-      "Middle": "Mid", "MidDoors": "Mid", "Bridge": "Mid", "PalaceInterior": "Mid",
+      "Middle": "Mid", "MidDoors": "Mid", "Bridge": "Mid", "PalaceInterior": "Mid", "Water": "Mid",
       "Connector": "Connector",
       "BombsiteB": "B", "BackofB": "B", "Alley": "B", "Bricks": "B", "OutsideLong": "B", "LowerTunnel": "B",
       "Canal": null, "CTSideUpper": null, "SnipersNest": null, "CTSpawn": null, "Tunnel": null, "TunnelStairs": null,
@@ -88,7 +88,7 @@
       "BombsiteB": "B", "BMain": "B", "TreeRoom": "B", "Headshot": "B", "Rafters": "B", "Heaven": "B", "Bear": "B",
       "BHalls": "B", "SunRoom": "B", "Useless": "B", "Atrium": "B", "BackofB": "B",
       "Connector": null, "CTLane": null, "BusStop": null, "CTSpawn": null,
-      "TopofMid": null, "FrontRoom": null, "Hell": null, "Outside": null
+      "TopofMid": null, "FrontRoom": null, "Hell": null, "Outside": null, "TYard": null
     }
   },
   "de_train": {

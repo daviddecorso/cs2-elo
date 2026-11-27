@@ -465,9 +465,10 @@ def build(only: str | None = None) -> int:
     subpositions = load_subpositions(table=table)
     rows, missing = [], {}
     coverage: dict[str, Counter] = {}
+    untabled: Counter = Counter()
     for ref in _refs(only):
         if ref.map not in table:
-            missing.setdefault(ref.map, {})["(map not in table)"] = 1
+            untabled[ref.map] += 1
             continue
         callouts = table[ref.map]["callouts"]
         df, samples = map_positions(ref, callouts, subpositions.get(ref.map))
@@ -482,6 +483,9 @@ def build(only: str | None = None) -> int:
         rows.append(df)
     if missing:
         raise UnmappedCallouts(missing)
+    if untabled:
+        print("skipped maps with no CT position table: "
+              + ", ".join(f"{m} ({n} maps)" for m, n in untabled.most_common()))
 
     df = pl.concat(rows)
     CT_POSITIONS.parent.mkdir(parents=True, exist_ok=True)

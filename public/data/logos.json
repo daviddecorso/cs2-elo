@@ -1,7 +1,7 @@
 {
   "33": {
     "slug": "33",
-    "hasDark": false
+    "hasDark": true
   },
   "100 thieves": {
     "slug": "100-thieves",
@@ -147,6 +147,10 @@
     "slug": "alliance",
     "hasDark": false
   },
+  "Almost Nuts": {
+    "slug": "almost-nuts",
+    "hasDark": false
+  },
   "ALTAY": {
     "slug": "altay-esports",
     "hasDark": false
@@ -190,6 +194,10 @@
   "astralis 2020": {
     "slug": "astralis",
     "hasDark": false
+  },
+  "ASTRON": {
+    "slug": "astron",
+    "hasDark": true
   },
   "Ataks": {
     "slug": "ataks",
@@ -263,6 +271,10 @@
     "slug": "los-kogutos",
     "hasDark": false
   },
+  "BANGARANGA": {
+    "slug": "bangaranga",
+    "hasDark": false
+  },
   "bankaPEPSI": {
     "slug": "bankapepsi",
     "hasDark": false
@@ -292,7 +304,7 @@
     "hasDark": true
   },
   "BC.Game": {
-    "slug": "bc-game-esports",
+    "slug": "gosh",
     "hasDark": false
   },
   "BC.Game Esports": {
@@ -329,7 +341,7 @@
   },
   "BET-M": {
     "slug": "33",
-    "hasDark": false
+    "hasDark": true
   },
   "BETBOOM": {
     "slug": "betboom-team",
@@ -373,6 +385,10 @@
   },
   "black phoenix orig": {
     "slug": "black-phoenix",
+    "hasDark": false
+  },
+  "bLight NV": {
+    "slug": "blight-nv",
     "hasDark": false
   },
   "BLUEJAYS Talents": {
@@ -442,6 +458,10 @@
   "BTH E-Sports": {
     "slug": "bth-e-sports",
     "hasDark": false
+  },
+  "Bucephalus": {
+    "slug": "bucephalus",
+    "hasDark": true
   },
   "Bushido Wildcats": {
     "slug": "bushido-wildcats",
@@ -594,6 +614,10 @@
   "Diamant Esports": {
     "slug": "diamant-esports",
     "hasDark": false
+  },
+  "DimoniX Esports": {
+    "slug": "dimonix-esports",
+    "hasDark": true
   },
   "DNK": {
     "slug": "dnk",
@@ -1127,6 +1151,10 @@
     "slug": "glore",
     "hasDark": false
   },
+  "GOSH": {
+    "slug": "gosh",
+    "hasDark": false
+  },
   "Gothboiclique": {
     "slug": "gothboiclique",
     "hasDark": false
@@ -1407,6 +1435,10 @@
     "slug": "k27",
     "hasDark": false
   },
+  "K27 Female": {
+    "slug": "k27-female",
+    "hasDark": false
+  },
   "Kaleido": {
     "slug": "kaleido-gaming",
     "hasDark": false
@@ -1591,6 +1623,10 @@
     "slug": "luminosity-gaming",
     "hasDark": false
   },
+  "Lunacy Team": {
+    "slug": "lunacy-team",
+    "hasDark": false
+  },
   "Lynn Vision": {
     "slug": "lynn-vision-gaming",
     "hasDark": false
@@ -1773,6 +1809,10 @@
   },
   "mouz nxt 2021": {
     "slug": "mouz-nxt",
+    "hasDark": false
+  },
+  "mYinsanity": {
+    "slug": "myinsanity",
     "hasDark": false
   },
   "Nas": {
@@ -1963,6 +2003,10 @@
     "slug": "oldboys",
     "hasDark": true
   },
+  "OldFriendsClub": {
+    "slug": "oldfriendsclub",
+    "hasDark": false
+  },
   "Omega": {
     "slug": "omega",
     "hasDark": true
@@ -2056,7 +2100,7 @@
     "hasDark": false
   },
   "PARIVISION": {
-    "slug": "parivision",
+    "slug": "pvision",
     "hasDark": false
   },
   "PARTIZAN": {
@@ -2176,7 +2220,7 @@
     "hasDark": false
   },
   "PVISION": {
-    "slug": "parivision",
+    "slug": "pvision",
     "hasDark": false
   },
   "QuantumX": {
@@ -2379,6 +2423,14 @@
     "slug": "sekinlo",
     "hasDark": true
   },
+  "SemperFi": {
+    "slug": "semperfi-esports",
+    "hasDark": false
+  },
+  "SemperFi Esports": {
+    "slug": "semperfi-esports",
+    "hasDark": false
+  },
   "Shimmer": {
     "slug": "shimmer",
     "hasDark": false
@@ -2483,6 +2535,10 @@
     "slug": "sportsbetexpert",
     "hasDark": false
   },
+  "spray'n'pray": {
+    "slug": "spray-n-pray",
+    "hasDark": false
+  },
   "Stallions": {
     "slug": "stallions",
     "hasDark": false
@@ -2515,6 +2571,10 @@
     "slug": "team-strogo",
     "hasDark": true
   },
+  "Swole Patrol": {
+    "slug": "swole-patrol",
+    "hasDark": false
+  },
   "T.Beast": {
     "slug": "t-beast",
     "hasDark": false
@@ -2541,7 +2601,7 @@
   },
   "Team 33": {
     "slug": "33",
-    "hasDark": false
+    "hasDark": true
   },
   "Team 3DMAX": {
     "slug": "envy",
@@ -2671,6 +2731,10 @@
     "slug": "alliance",
     "hasDark": false
   },
+  "Team Almost Nuts": {
+    "slug": "almost-nuts",
+    "hasDark": false
+  },
   "Team ALTAY": {
     "slug": "altay-esports",
     "hasDark": false
@@ -2718,6 +2782,10 @@
   "Team astralis 2020": {
     "slug": "astralis",
     "hasDark": false
+  },
+  "Team ASTRON": {
+    "slug": "astron",
+    "hasDark": true
   },
   "Team Ataks": {
     "slug": "ataks",
@@ -2791,6 +2859,10 @@
     "slug": "los-kogutos",
     "hasDark": false
   },
+  "Team BANGARANGA": {
+    "slug": "bangaranga",
+    "hasDark": false
+  },
   "Team bankaPEPSI": {
     "slug": "bankapepsi",
     "hasDark": false
@@ -2820,7 +2892,7 @@
     "hasDark": true
   },
   "Team BC.Game": {
-    "slug": "bc-game-esports",
+    "slug": "gosh",
     "hasDark": false
   },
   "Team BC.Game Esports": {
@@ -2857,7 +2929,7 @@
   },
   "Team BET-M": {
     "slug": "33",
-    "hasDark": false
+    "hasDark": true
   },
   "Team BETBOOM": {
     "slug": "betboom-team",
@@ -2901,6 +2973,10 @@
   },
   "Team black phoenix orig": {
     "slug": "black-phoenix",
+    "hasDark": false
+  },
+  "Team bLight NV": {
+    "slug": "blight-nv",
     "hasDark": false
   },
   "Team BLUEJAYS Talents": {
@@ -2970,6 +3046,10 @@
   "Team BTH E-Sports": {
     "slug": "bth-e-sports",
     "hasDark": false
+  },
+  "Team Bucephalus": {
+    "slug": "bucephalus",
+    "hasDark": true
   },
   "Team Bushido Wildcats": {
     "slug": "bushido-wildcats",
@@ -3122,6 +3202,10 @@
   "Team Diamant Esports": {
     "slug": "diamant-esports",
     "hasDark": false
+  },
+  "Team DimoniX Esports": {
+    "slug": "dimonix-esports",
+    "hasDark": true
   },
   "Team DNK": {
     "slug": "dnk",
@@ -3659,6 +3743,10 @@
     "slug": "glore",
     "hasDark": false
   },
+  "Team GOSH": {
+    "slug": "gosh",
+    "hasDark": false
+  },
   "Team Gothboiclique": {
     "slug": "gothboiclique",
     "hasDark": false
@@ -3939,6 +4027,10 @@
     "slug": "k27",
     "hasDark": false
   },
+  "Team K27 Female": {
+    "slug": "k27-female",
+    "hasDark": false
+  },
   "Team Kaleido": {
     "slug": "kaleido-gaming",
     "hasDark": false
@@ -4127,6 +4219,10 @@
     "slug": "luminosity-gaming",
     "hasDark": false
   },
+  "Team Lunacy Team": {
+    "slug": "lunacy-team",
+    "hasDark": false
+  },
   "Team Lynn Vision": {
     "slug": "lynn-vision-gaming",
     "hasDark": false
@@ -4313,6 +4409,10 @@
   },
   "Team mouz nxt 2021": {
     "slug": "mouz-nxt",
+    "hasDark": false
+  },
+  "Team mYinsanity": {
+    "slug": "myinsanity",
     "hasDark": false
   },
   "Team Nas": {
@@ -4507,6 +4607,10 @@
     "slug": "oldboys",
     "hasDark": true
   },
+  "Team OldFriendsClub": {
+    "slug": "oldfriendsclub",
+    "hasDark": false
+  },
   "Team Omega": {
     "slug": "omega",
     "hasDark": true
@@ -4600,7 +4704,7 @@
     "hasDark": false
   },
   "Team PARIVISION": {
-    "slug": "parivision",
+    "slug": "pvision",
     "hasDark": false
   },
   "Team PARTIZAN": {
@@ -4720,7 +4824,7 @@
     "hasDark": false
   },
   "Team PVISION": {
-    "slug": "parivision",
+    "slug": "pvision",
     "hasDark": false
   },
   "Team QuantumX": {
@@ -4923,6 +5027,14 @@
     "slug": "sekinlo",
     "hasDark": true
   },
+  "Team SemperFi": {
+    "slug": "semperfi-esports",
+    "hasDark": false
+  },
+  "Team SemperFi Esports": {
+    "slug": "semperfi-esports",
+    "hasDark": false
+  },
   "Team Shimmer": {
     "slug": "shimmer",
     "hasDark": false
@@ -5039,6 +5151,10 @@
     "slug": "sportsbetexpert",
     "hasDark": false
   },
+  "Team spray'n'pray": {
+    "slug": "spray-n-pray",
+    "hasDark": false
+  },
   "Team Stallions": {
     "slug": "stallions",
     "hasDark": false
@@ -5070,6 +5186,10 @@
   "Team StRoGo Team": {
     "slug": "team-strogo",
     "hasDark": true
+  },
+  "Team Swole Patrol": {
+    "slug": "swole-patrol",
+    "hasDark": false
   },
   "Team T.Beast": {
     "slug": "t-beast",
@@ -5239,6 +5359,14 @@
     "slug": "ttg-esports",
     "hasDark": true
   },
+  "Team TulpaR": {
+    "slug": "tulpar-kazakh-team",
+    "hasDark": false
+  },
+  "Team TulpaR (Kazakh team)": {
+    "slug": "tulpar-kazakh-team",
+    "hasDark": false
+  },
   "Team turma do pagode": {
     "slug": "turma-do-pagode",
     "hasDark": false
@@ -5343,6 +5471,10 @@
     "slug": "team-voca",
     "hasDark": true
   },
+  "Team VoFoxen Esport": {
+    "slug": "vofoxen-esport",
+    "hasDark": false
+  },
   "Team VP.Future": {
     "slug": "vp-future",
     "hasDark": false
@@ -5365,6 +5497,10 @@
   },
   "Team Wanted Goons": {
     "slug": "wanted-goons",
+    "hasDark": true
+  },
+  "Team Wanted Goons Outlaws": {
+    "slug": "wanted-goons-outlaws",
     "hasDark": true
   },
   "Team wazabi": {
@@ -5483,6 +5619,10 @@
     "slug": "xi-esport",
     "hasDark": true
   },
+  "Team XMETA": {
+    "slug": "xmeta",
+    "hasDark": true
+  },
   "Team Y27": {
     "slug": "young27",
     "hasDark": false
@@ -5537,6 +5677,10 @@
   },
   "Team zotix cs2": {
     "slug": "zotix",
+    "hasDark": true
+  },
+  "Team Zylic Gaming": {
+    "slug": "zylic-gaming",
     "hasDark": true
   },
   "The Chosen Few": {
@@ -5643,6 +5787,14 @@
     "slug": "ttg-esports",
     "hasDark": true
   },
+  "TulpaR": {
+    "slug": "tulpar-kazakh-team",
+    "hasDark": false
+  },
+  "TulpaR (Kazakh team)": {
+    "slug": "tulpar-kazakh-team",
+    "hasDark": false
+  },
   "turma do pagode": {
     "slug": "turma-do-pagode",
     "hasDark": false
@@ -5739,6 +5891,10 @@
     "slug": "team-voca",
     "hasDark": true
   },
+  "VoFoxen Esport": {
+    "slug": "vofoxen-esport",
+    "hasDark": false
+  },
   "VP.Future": {
     "slug": "vp-future",
     "hasDark": false
@@ -5761,6 +5917,10 @@
   },
   "Wanted Goons": {
     "slug": "wanted-goons",
+    "hasDark": true
+  },
+  "Wanted Goons Outlaws": {
+    "slug": "wanted-goons-outlaws",
     "hasDark": true
   },
   "wazabi": {
@@ -5871,6 +6031,10 @@
     "slug": "xi-esport",
     "hasDark": true
   },
+  "XMETA": {
+    "slug": "xmeta",
+    "hasDark": true
+  },
   "Y27": {
     "slug": "young27",
     "hasDark": false
@@ -5925,6 +6089,10 @@
   },
   "zotix cs2": {
     "slug": "zotix",
+    "hasDark": true
+  },
+  "Zylic Gaming": {
+    "slug": "zylic-gaming",
     "hasDark": true
   }
 }

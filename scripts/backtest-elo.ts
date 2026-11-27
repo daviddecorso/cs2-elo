@@ -1,6 +1,6 @@
 import fs from "node:fs";
 import path from "node:path";
-import { ASIA, EloEngine, FINE_OCEANIA, isOceaniaInternal, makeSkillLookup, type LuckLookup, type LuckRow, type PlayerSkill, type SeriesPrediction } from "./lib/elo/engine.ts";
+import { ASIA, EloEngine, FINE_OCEANIA, isOceaniaInternal, makeSkillLookup, type LuckLookup, type LuckRow, type PlayerSkill, type SeriesPrediction, type SkillLookup } from "./lib/elo/engine.ts";
 import { liveEngine } from "./lib/elo/adjustments.ts";
 import { clusterCi, clusterWeights, lambdaCi, lcg } from "./lib/elo/encompassing.ts";
 import { loadFeed } from "./lib/elo/history.ts";
@@ -371,6 +371,10 @@ if (flag("walk")) {
 
 const eventOf = new Map(feed.matches.map((m) => [m.id, m.event]));
 
+if (flag("luck-form")) {
+    luckFormExperiment();
+    process.exit(0);
+}
 if (flag("luck") || flag("skill")) {
     adjustmentExperiment(flag("skill") ? "skillWeight" : "luckWeight");
     process.exit(0);
@@ -702,11 +706,167 @@ function headToHead(): void {
 // Flags `--luck-variant` (docs/war.md, Luck-adjusted Elo) and, with `--skill`, `--luck-weight w` held fixed; the baseline is unadjusted.
 // `--skill-weight w` (with `--skill`) or `--luck-weight w` (with `--luck`) scores that weight with no grid.
 // `--test-from` / `--test-to` / `--test-years 2024,2026` set the scored window; `--simulate n` adds the gate power simulation on 2025 treated series.
+/** Series where both lineages have 5+ maps with a luck row in the 120 days before: the registered treated rule. */
+function treatedSeries(preds: SeriesPrediction[], lookup: LuckLookup): Set<string> {
+    const WINDOW = 120 * 86400;
+    const history = new Map<number, number[]>();
+    const treated = new Set<string>();
+    for (const p of preds) {
+        const recent = (l: number) => (history.get(l) ?? []).filter((t) => t >= p.t - WINDOW && t < p.t).length;
+        if (p.lineages.every((l) => recent(l) >= 5)) treated.add(p.id);
+        p.maps.forEach((_, index) => {
+            if (!lookup(p.id, index)) return;
+            for (const l of p.lineages) history.set(l, [...(history.get(l) ?? []), p.t]);
+        });
+    }
+    return treated;
+}
+
+function seriesLoss(p: SeriesPrediction): number {
+    return -Math.log(Math.min(1 - 1e-6, Math.max(1e-6, p.y ? p.p : 1 - p.p)));
+}
+
+// `--luck-form` (exploratory): changes to the live skill + luck term, each scored against it on treated series,
+// tuned on 2024–25 and checked on 2026. Needs luck-maps.jsonl from `cs2wp luck`; variants whose columns are missing are skipped.
+function luckFormExperiment(): void {
+    const raw = new Map<string, Record<string, number>>();
+    for (const line of fs.readFileSync(path.resolve("data/elo/luck-maps.jsonl"), "utf8").split("\n")) {
+        if (!line) continue;
+        const r = JSON.parse(line) as { match2id: string; index: number } & Record<string, number>;
+        raw.set(`${r.match2id}:${r.index}`, r);
+    }
+    const columns = new Set(Object.keys(raw.values().next().value ?? {}));
+    const lookups = new Map<string, LuckLookup>();
+    const lookupFor = (suffix: string): LuckLookup => {
+        let lookup = lookups.get(suffix);
+        if (!lookup) {
+            const rows = new Map([...raw].map(([k, r]) => [k, { xMargin: r[`xMargin${suffix}`], yHat: r[`yHat${suffix}`], reliability: r.reliability }]));
+            lookups.set(suffix, (lookup = (id, index) => rows.get(`${id.slice(id.lastIndexOf(":") + 1)}:${index}`)));
+        }
+        return lookup;
+    };
+    const skillData = JSON.parse(fs.readFileSync(path.resolve("data/elo/player-skill.json"), "utf8")) as PlayerSkill;
+    const skills = new Map<number, SkillLookup>();
+    const skillFor = (h: number) => {
+        if (!skills.has(h)) skills.set(h, makeSkillLookup(skillData, h));
+        return skills.get(h)!;
+    };
+    const runWith = (adjust: Partial<EloParams>, suffix = "Value", skill?: SkillLookup) => {
+        const p = { ...params, ...adjust };
+        return new EloEngine(p, feed.players, lookupFor(suffix), skill ?? skillFor(p.skillHalfLife)).run(feed.matches);
+    };
+
+    const none = runWith({ luckWeight: 0, skillWeight: 0 });
+    const live = runWith({});
+    const shipped = predictions.every((p, i) => p.p === live[i].p);
+    const treated = treatedSeries(none, lookupFor("Value"));
+    const year = (p: SeriesPrediction) => dayOf(p.t).slice(0, 4);
+    const isTune = (p: SeriesPrediction) => treated.has(p.id) && (year(p) === "2024" || year(p) === "2025");
+    const isCheck = (p: SeriesPrediction) => treated.has(p.id) && year(p) === "2026";
+    const meanLoss = (preds: SeriesPrediction[], keep: (p: SeriesPrediction) => boolean) => {
+        const kept = preds.filter(keep);
+        return kept.reduce((s, p) => s + seriesLoss(p), 0) / Math.max(1, kept.length);
+    };
+    const gainCi = (from: SeriesPrediction[], to: SeriesPrediction[], keep: (i: number) => boolean) => {
+        const idx = from.map((_, i) => i).filter(keep);
+        const gains = idx.map((i) => seriesLoss(from[i]) - seriesLoss(to[i]));
+        const [lo, hi] = clusterCi(gains, idx.map((i) => eventOf.get(from[i].id)!));
+        return { n: idx.length, gain: gains.reduce((s, g) => s + g, 0) / Math.max(1, gains.length), lo, hi };
+    };
+    const fmtGain = (g: { n: number; gain: number; lo: number; hi: number }) =>
+        `${g.gain >= 0 ? "+" : ""}${g.gain.toFixed(4)} (${g.lo.toFixed(4)}, ${g.hi.toFixed(4)}) on ${g.n}`;
+
+    console.log(`\nLuck form (exploratory): ${raw.size} luck maps; live run matches the shipped engine: ${shipped ? "yes" : "NO"}`);
+    console.log(`Treated series: ${none.filter(isTune).length} in 2024–25 (tune), ${none.filter(isCheck).length} in 2026 (check)`);
+    console.log(`  none  tune ${meanLoss(none, isTune).toFixed(5)}  check ${meanLoss(none, isCheck).toFixed(5)}`);
+    console.log(`  live  tune ${meanLoss(live, isTune).toFixed(5)}  check ${meanLoss(live, isCheck).toFixed(5)}`);
+
+    // Where the live gain sits, on every treated series 2024–26.
+    const isTreated = (i: number) => treated.has(none[i].id) && year(none[i]) >= "2024";
+    const newest = (p: SeriesPrediction) => Math.min(...p.mapsSinceCoreChange.map((m) => m ?? Infinity));
+    const ages: Array<[string, (p: SeriesPrediction) => boolean]> = [
+        ["under 30 maps", (p) => newest(p) < 30],
+        ["30–99 maps", (p) => newest(p) >= 30 && newest(p) < 100],
+        ["100+ maps or never", (p) => newest(p) >= 100],
+    ];
+    console.log(`\nLive gain over none by the newer side's maps since its core changed (treated 2024–26):`);
+    for (const [label, keep] of ages) console.log(`  ${label.padEnd(20)} ${fmtGain(gainCi(none, live, (i) => isTreated(i) && keep(none[i])))}`);
+    const gaps = none.filter((_, i) => isTreated(i)).map((p) => Math.abs(p.skillGap)).sort((a, b) => a - b);
+    const [q1, q2] = [gaps[Math.floor(gaps.length / 3)], gaps[Math.floor((2 * gaps.length) / 3)]];
+    console.log(`By |skill gap| tercile (cuts ${q1.toFixed(4)}, ${q2.toFixed(4)} θ):`);
+    const terciles: Array<[string, (g: number) => boolean]> = [["low", (g) => g < q1], ["mid", (g) => g >= q1 && g < q2], ["high", (g) => g >= q2]];
+    for (const [label, keep] of terciles) console.log(`  ${label.padEnd(20)} ${fmtGain(gainCi(none, live, (i) => isTreated(i) && keep(Math.abs(none[i].skillGap))))}`);
+
+    // Each family: pick on tune, report the check against live.
+    const family = (title: string, candidates: Array<{ label: string; adjust: Partial<EloParams>; suffix?: string; skill?: SkillLookup }>) => {
+        console.log(`\n${title}`);
+        let best: { label: string; preds: SeriesPrediction[]; loss: number } | undefined;
+        for (const c of candidates) {
+            const preds = runWith(c.adjust, c.suffix, c.skill);
+            const loss = meanLoss(preds, isTune);
+            console.log(`  ${c.label.padEnd(34)} tune ${loss.toFixed(5)}  check ${meanLoss(preds, isCheck).toFixed(5)}`);
+            if (!best || loss < best.loss) best = { label: c.label, preds, loss };
+        }
+        if (!best) return;
+        const tuneGain = gainCi(live, best.preds, (i) => isTune(live[i]));
+        const checkGain = gainCi(live, best.preds, (i) => isCheck(live[i]));
+        const keep = tuneGain.gain > 0 && checkGain.gain > 0;
+        console.log(`  best on tune: ${best.label}; gain over live, tune ${fmtGain(tuneGain)}, check ${fmtGain(checkGain)} → ${keep ? "KEEP" : "drop"}`);
+    };
+
+    // A decayed θ has a different spread, so each half-life gets the live weight in points per SD of the 2024–25 treated gap, times 0.75–1.25.
+    const sdOf = (preds: SeriesPrediction[]) => {
+        const g = preds.filter(isTune).map((p) => p.skillGap);
+        const m = g.reduce((s, x) => s + x, 0) / g.length;
+        return Math.sqrt(g.reduce((s, x) => s + (x - m) ** 2, 0) / (g.length - 1));
+    };
+    const liveSd = sdOf(live);
+    const skillCandidates = [180, 365, 730].flatMap((h) => {
+        const weight = (params.skillWeight * liveSd) / sdOf(runWith({ skillHalfLife: h }));
+        return [0.75, 1, 1.25].map((x) => ({ label: `half-life ${h}d, ${x}× live pts/SD`, adjust: { skillHalfLife: h, skillWeight: weight * x } }));
+    });
+    family("Skill θ half-life (skill term only; luck stays live)", skillCandidates);
+
+    if (columns.has("reliability")) {
+        family("Reliability-scaled luck weight", [0.6, 0.8, 1].map((w) => ({ label: `luckWeight ${w} × reliability`, adjust: { luckWeight: w, luckReliability: 1 } })));
+    } else console.log("\nReliability-scaled luck weight: skipped, luck-maps.jsonl has no `reliability` (rerun `cs2wp luck`)");
+
+    const decay = [180, 365, 730].filter((h) => columns.has(`xMarginValueH${h}`));
+    if (decay.length) family("Luck θ half-life (value variant)", decay.map((h) => ({ label: `value, θ half-life ${h}d`, adjust: {}, suffix: `ValueH${h}` })));
+    else console.log("Luck θ half-life: skipped, luck-maps.jsonl has no `xMarginValueH*` (rerun `cs2wp luck`)");
+
+    const ADJ_SKILL_PATH = path.resolve("data/elo/player-skill-adj.json");
+    if (columns.has("xMarginValueAdj") && fs.existsSync(ADJ_SKILL_PATH)) {
+        const adjSkill = makeSkillLookup(JSON.parse(fs.readFileSync(ADJ_SKILL_PATH, "utf8")) as PlayerSkill);
+        const weight = (params.skillWeight * liveSd) / sdOf(runWith({}, "Value", adjSkill));
+        family("Opponent-adjusted θ", [
+            { label: "luck only", adjust: {}, suffix: "ValueAdj" },
+            ...[0.75, 1, 1.25].flatMap((x) => [
+                { label: `skill only, ${x}× live pts/SD`, adjust: { skillWeight: weight * x }, skill: adjSkill },
+                { label: `luck + skill, ${x}× live pts/SD`, adjust: { skillWeight: weight * x }, suffix: "ValueAdj", skill: adjSkill },
+            ]),
+        ]);
+    } else console.log("Opponent-adjusted θ: skipped, no `xMarginValueAdj` or player-skill-adj.json (rerun `cs2wp luck`)");
+
+    // Power for the tier-2 holdout: treated series outside tier-1 LAN if every tier 1–2 map since 2023-10 had a luck row.
+    const lookup = lookupFor("Value");
+    const inScope = (p: SeriesPrediction) => p.tier <= 2 && dayOf(p.t) >= "2023-10-01";
+    const scoped = new Map(none.filter(inScope).map((p) => [p.id, p.maps.length]));
+    const wider: LuckLookup = (id, index) => lookup(id, index) ?? (index < (scoped.get(id) ?? 0) ? { xMargin: 0, yHat: 0.5 } : undefined);
+    const widerTreated = treatedSeries(none, wider);
+    const isNew = (p: SeriesPrediction) => widerTreated.has(p.id) && inScope(p) && !(p.tier === 1 && p.lan);
+    console.log(`\nWider scope, with full HLTV coverage of tier 1–2 assumed: treated series outside tier-1 LAN by year`);
+    for (const y of ["2024", "2025", "2026"]) {
+        const kept = none.filter((p) => isNew(p) && year(p) === y);
+        const t1 = kept.filter((p) => p.tier === 1).length;
+        console.log(`  ${y}: ${kept.length} (tier-1 online ${t1}, tier 2 ${kept.length - t1}); tier-1 LAN treated now ${none.filter((p) => treated.has(p.id) && year(p) === y && p.tier === 1 && p.lan).length}`);
+    }
+}
+
 function adjustmentExperiment(key: "luckWeight" | "skillWeight"): void {
     const LUCK_PATH = path.resolve("data/elo/luck-maps.jsonl");
     const SKILL_PATH = path.resolve("data/elo/player-skill.json");
     const MIN_TREATED_MAPS = 5;
-    const WINDOW = 120 * 86400;
     const SUFFIX: Record<string, string> = { raw: "", skill: "Skill", value: "Value", full: "Full", skillonly: "SkillOnly" };
     const variant = option("luck-variant", "skill");
     if (!(variant in SUFFIX)) throw new Error(`Bad --luck-variant ${variant}`);
@@ -722,17 +882,8 @@ function adjustmentExperiment(key: "luckWeight" | "skillWeight"): void {
     const runWith = (adjust: Partial<EloParams>) =>
         new EloEngine({ ...params, luckWeight: 0, skillWeight: 0, ...adjust }, feed.players, lookup, skill).run(feed.matches);
 
-    const history = new Map<number, number[]>();
-    const treated = new Set<string>();
     const base = runWith({});
-    for (const p of base) {
-        const recent = (l: number) => (history.get(l) ?? []).filter((t) => t >= p.t - WINDOW && t < p.t).length;
-        if (p.lineages.every((l) => recent(l) >= MIN_TREATED_MAPS)) treated.add(p.id);
-        p.maps.forEach((_, index) => {
-            if (!lookup(p.id, index)) return;
-            for (const l of p.lineages) history.set(l, [...(history.get(l) ?? []), p.t]);
-        });
-    }
+    const treated = treatedSeries(base, lookup);
     const inYear = (year: string) => (p: SeriesPrediction) => treated.has(p.id) && dayOf(p.t).startsWith(year);
     const isTreatedTrain = inYear("2025");
     const isTreatedTest = (p: SeriesPrediction) => treated.has(p.id) && isTest(p);
@@ -794,8 +945,7 @@ function adjustmentExperiment(key: "luckWeight" | "skillWeight"): void {
     report("gate set series", (p) => gateIds.has(p.id));
     report("all series", isTest);
 
-    const loss = (p: SeriesPrediction) => -Math.log(Math.min(1 - 1e-6, Math.max(1e-6, p.y ? p.p : 1 - p.p)));
-    const gains = b.map((p, i) => loss(p) - loss(t[i]));
+    const gains = b.map((p, i) => seriesLoss(p) - seriesLoss(t[i]));
     const [lo, hi] = clusterCi(gains, b.map((p) => eventOf.get(p.id)!));
     const gain = gains.reduce((s, g) => s + g, 0) / Math.max(1, gains.length);
     const pass = tuned !== base && lo > 0;

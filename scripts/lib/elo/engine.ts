@@ -96,6 +96,8 @@ export interface LuckRow {
     xMargin: number;
     /** P(teams[0] wins the map | xMargin). */
     yHat: number;
+    /** 0–1: mean share of the map's θ that rests on the players' own duels rather than the prior; scales `luckWeight` under `luckReliability`. */
+    reliability?: number;
 }
 
 /** Looks up a series' map by its position among the scored maps. */
@@ -111,16 +113,20 @@ export interface PlayerSkill {
     players: Record<string, Array<[number, number, number]>>;
 }
 
-/** θ = execution summed over earlier series / (their duels + k). The maps of one series share `t`, so a series never sees itself. */
-export const makeSkillLookup = ({ k, players }: PlayerSkill): SkillLookup => {
+/** θ = execution over earlier series / (their duels + k), each series weighted `0.5^(age / halfLifeDays)` when that is > 0; a series never sees its own maps. */
+export const makeSkillLookup = ({ k, players }: PlayerSkill, halfLifeDays = 0): SkillLookup => {
+    const halfLife = halfLifeDays * 86400;
+    // Running sums of values scaled by 2^((t − t0) / halfLife), rescaled at the query time.
+    const growth = (t: number, t0: number) => (halfLife > 0 ? 2 ** ((t - t0) / halfLife) : 1);
     const cumulative = new Map<string, { t: number[]; exec: number[]; duels: number[] }>();
     for (const [player, rows] of Object.entries(players)) {
         let e = 0;
         let d = 0;
+        const t0 = rows[0]?.[0] ?? 0;
         cumulative.set(player, {
             t: rows.map((r) => r[0]),
-            exec: rows.map((r) => (e += r[1])),
-            duels: rows.map((r) => (d += r[2])),
+            exec: rows.map((r) => (e += r[1] * growth(r[0], t0))),
+            duels: rows.map((r) => (d += r[2] * growth(r[0], t0))),
         });
     }
     return (player, t) => {
@@ -133,7 +139,9 @@ export const makeSkillLookup = ({ k, players }: PlayerSkill): SkillLookup => {
             if (c.t[mid] < t) lo = mid + 1;
             else hi = mid;
         }
-        return lo === 0 ? undefined : c.exec[lo - 1] / (c.duels[lo - 1] + k);
+        if (lo === 0) return undefined;
+        const scale = growth(t, c.t[0]);
+        return c.exec[lo - 1] / scale / (c.duels[lo - 1] / scale + k);
     };
 };
 
@@ -339,8 +347,9 @@ export class EloEngine {
             if (roundWeight > 0) target = (1 - roundWeight) * y + roundWeight / (1 + Math.exp(-p.roundSlope * margin));
             const luck = p.luckWeight > 0 ? this.luck?.(m.id, index) : undefined;
             if (luck) {
-                margin = (1 - p.luckWeight) * margin + p.luckWeight * luck.xMargin;
-                target = (1 - p.luckWeight) * target + p.luckWeight * luck.yHat;
+                const w = p.luckWeight * (p.luckReliability ? (luck.reliability ?? 1) : 1);
+                margin = (1 - w) * margin + w * luck.xMargin;
+                target = (1 - w) * target + w * luck.yHat;
             }
             const winnerSign = margin > 0 || (margin === 0 && y) ? 1 : -1;
             const edge = (A.rating - B.rating) * winnerSign;

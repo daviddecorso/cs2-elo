@@ -53,6 +53,7 @@ __pycache__/
 wp-models.tar
 # Every luck variant, for backtest experiments; the live one is the committed luck-live.jsonl.
 data/elo/luck-maps.jsonl
+data/elo/player-skill-adj.json
 data/external/
 # Carries HLTV ban and pick rates; veto-weights.json is the committed part.
 data/sim/veto-model.json

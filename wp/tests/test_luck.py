@@ -2,8 +2,8 @@ import numpy as np
 import polars as pl
 import pytest
 
-from cs2wp.luck import (consecutive_pairs, cross_fit, kill_stakes, other_event_residuals, player_priors, player_skill,
-                        trailing_rows, with_skill)
+from cs2wp.luck import (adjusted_priors, consecutive_pairs, cross_fit, kill_stakes, map_reliability, other_event_residuals, player_priors,
+                        player_skill, trailing_rows, with_skill)
 
 
 def _duel_views() -> pl.DataFrame:
@@ -18,10 +18,41 @@ def _duel_views() -> pl.DataFrame:
 
 def test_priors_use_only_duels_before_the_event():
     priors = player_priors(_duel_views(), k=100.0)
-    theta = {(s, e): t for s, e, t in priors.iter_rows()}
+    theta = {(s, e): t for s, e, t, _ in priors.iter_rows()}
     assert theta[(1, "a")] == 0.0 and theta[(2, "a")] == 0.0
     assert theta[(1, "b")] == pytest.approx(50 / 200)
     assert theta[(2, "b")] == pytest.approx(-50 / 200)
+
+
+def test_decayed_priors_discount_duels_by_age():
+    # Event b starts 31 days after event a's duels; with a 31-day half-life they count half.
+    priors = player_priors(_duel_views(), k=100.0, half_life=31.0)
+    row = priors.filter((pl.col("steamid") == 1) & (pl.col("event") == "b")).row(0, named=True)
+    assert row["n"] == pytest.approx(50)
+    assert row["theta"] == pytest.approx(25 / 150)
+
+
+def test_adjusted_priors_credit_the_opponents_strength():
+    # Player 3 breaks even with player 2 in February, after player 2 lost every duel to player 1 in January.
+    def views(who, opp, event, date, n, e):
+        return pl.DataFrame({"steamid": [who] * n, "opponent": [opp] * n, "event": [event] * n, "date": [date] * n,
+                             "key": [event] * n, "exec": [e] * n})
+
+    values = pl.concat([views(1, 2, "a", "2025-01-01", 100, 0.5), views(2, 1, "a", "2025-01-01", 100, -0.5),
+                        views(3, 2, "b", "2025-02-01", 100, 0.0), views(2, 3, "b", "2025-02-01", 100, 0.0),
+                        views(3, 1, "c", "2025-03-01", 1, 0.0), views(1, 3, "c", "2025-03-01", 1, 0.0)])
+    def theta_3c(priors):
+        return priors.filter((pl.col("steamid") == 3) & (pl.col("event") == "c"))["theta"].item()
+
+    assert theta_3c(player_priors(values, k=100.0)) == 0.0
+    assert theta_3c(adjusted_priors(values, k=100.0, passes=1)[0]) == pytest.approx(-25 / 200)
+
+
+def test_reliability_is_each_sides_share_of_own_record():
+    values = _duel_views()
+    out = dict(map_reliability(values, player_priors(values, k=100.0), k=100.0).iter_rows())
+    assert out["10/m1"] == 0.0
+    assert out["20/m1"] == pytest.approx(100 / 200)
 
 
 def test_skill_timeline_sums_each_series_and_drops_only_unmapped_players():

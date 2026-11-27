@@ -13,6 +13,8 @@ ELO_LUCK = DATA / "elo" / "luck-maps.jsonl"
 ELO_LUCK_LIVE = DATA / "elo" / "luck-live.jsonl"
 # Committed; read by the live Elo and `npm run backtest-elo -- --skill`.
 PLAYER_SKILL = DATA / "elo" / "player-skill.json"
+# Gitignored; the same timeline from opponent-adjusted execution, read by `npm run backtest-elo -- --luck-form`.
+PLAYER_SKILL_ADJ = DATA / "elo" / "player-skill-adj.json"
 VETOES = DATA / "demos" / "hltv" / "veto"
 STATES = WP / "states"
 MODELS = WP / "models"

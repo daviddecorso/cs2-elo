@@ -12,7 +12,7 @@ from . import credit, data, warcheck
 from .duels import FOLDS, event_folds
 from .duelstats import _mults, _z_ci, duel_values
 from .paths import (CREDITS, DUEL_PLAYERS, DUEL_TEAM_MAPS, DUELS, ELO_LUCK, ELO_LUCK_LIVE, LUCK_MAPS, PLAYER_SKILL,
-                    ROLE_ROUNDS, STATES, TEAM_MAP_RESIDUALS, TEAM_STAT_MAPS, WAR_REPORTS)
+                    PLAYER_SKILL_ADJ, ROLE_ROUNDS, STATES, TEAM_MAP_RESIDUALS, TEAM_STAT_MAPS, WAR_REPORTS)
 from .states import CT, T
 
 RESAMPLES = 1000
@@ -22,6 +22,10 @@ MIN_OTHER_DUELS = 150
 # The treated rule of `backtest-elo --luck`: both teams need this many maps in the window before the series.
 MIN_TRAILING_MAPS = 5
 TRAILING_SECONDS = 120 * 86400
+# Exploratory θ half-lives in days for the `value` variant, written to luck-maps.jsonl as `xMarginValueH<days>`.
+HALF_LIVES = (180, 365, 730)
+# Passes of `opponent_adjusted` behind the exploratory `adj` variant (`xMarginValueAdj`, player-skill-adj.json).
+ADJUST_PASSES = 2
 # Trailing per-map means in rounds of margin, team minus opponent.
 CARRY = {"exec": "Execution (skill + luck)", "exec_skill": "Skill part", "exec_luck": "Luck part",
          "exec_luck_value": "Luck part, value-weighted", "conv": "Round conversion over duels",
@@ -66,7 +70,8 @@ def map_rows(team_maps: pl.DataFrame, residuals: pl.DataFrame, elo: list[tuple[s
     score = residuals.select("key", "lp_team", "rounds", "rounds_won", "elo")
     opp = residuals.select("key", pl.col("lp_team").alias("opponent"), pl.col("elo").alias("elo_opp"))
     return (team_maps.select("key", "series", "event", "date", "lp_team", "opponent", "exec", "exec_skill", "exec_luck",
-                             "exec_value", "exec_skill_value", "exec_luck_value", pl.col("conv").fill_null(0.0), "duels")
+                             "exec_value", "exec_skill_value", "exec_luck_value", pl.col("conv").fill_null(0.0), "duels",
+                             pl.col(r"^exec_luck_value_(h\d+|adj)$"))
             .join(score, on=["key", "lp_team"])
             .join(opp, on=["key", "opponent"])
             .join(keys, left_on=["key", "lp_team"], right_on=["key", "team0"])
@@ -86,18 +91,52 @@ def skill_k() -> float:
     return first["duels"] * (1 - first["reliability"]) / first["reliability"]
 
 
-def player_priors(values: pl.DataFrame, k: float) -> pl.DataFrame:
-    """Per (steamid, event): θ, execution per duel shrunk by `k` duels, from duels dated before the event's first day."""
+def player_priors(values: pl.DataFrame, k: float, half_life: float | None = None) -> pl.DataFrame:
+    """Per (steamid, event): θ, execution per duel shrunk by `k` duels, from duels dated before the event's first day,
+    and `n`, those duels. With `half_life` (days) each duel counts `0.5^(age / half_life)` in both sums."""
     day = pl.col("date").str.to_date().alias("day")
-    daily = (values.group_by("steamid", day).agg(pl.col("exec").sum().alias("e"), pl.len().cast(pl.Float64).alias("d"))
-             .sort("steamid", "day")
+    daily = values.group_by("steamid", day).agg(pl.col("exec").sum().alias("e"), pl.len().cast(pl.Float64).alias("d"))
+    # Decay as a running sum of 2^(x/h)-scaled values, divided by 2^(x/h) at the event; x counts days from the first duel.
+    origin = daily["day"].min()
+    growth = (2.0 ** ((pl.col("day") - origin).dt.total_days() / half_life)) if half_life else pl.lit(1.0)
+    daily = (daily.with_columns(pl.col("e", "d") * growth).sort("steamid", "day")
              .with_columns(pl.col("e", "d").cum_sum().over("steamid")).sort("day"))
     starts = values.group_by("event").agg(day.min())
     units = values.select("steamid", "event").unique().join(starts, on="event").sort("day")
     return (units.join_asof(daily, on="day", by="steamid", strategy="backward", allow_exact_matches=False,
                             check_sortedness=False)
-            .with_columns((pl.col("e").fill_null(0.0) / (pl.col("d").fill_null(0.0) + k)).alias("theta"))
-            .select("steamid", "event", "theta"))
+            .with_columns(pl.col("e", "d").fill_null(0.0) / growth)
+            .with_columns((pl.col("e") / (pl.col("d") + k)).alias("theta"), pl.col("d").alias("n"))
+            .select("steamid", "event", "theta", "n"))
+
+
+def opponent_adjusted(values: pl.DataFrame, priors: pl.DataFrame) -> pl.DataFrame:
+    """`values` with each duel view's `exec` plus the opponent's θ, so θ from it is skill against an average opponent
+    rather than against whoever a player happened to face. Duels within a closed pool (a tier-2 scene, say) would
+    otherwise average 0 like the tier-1 pool, since execution is zero-sum within a duel."""
+    opp = priors.select(pl.col("steamid").alias("opponent"), "event", pl.col("theta").alias("_theta_opp"))
+    return (values.join(opp, on=["opponent", "event"], how="left")
+            .with_columns(pl.col("exec") + pl.col("_theta_opp").fill_null(0.0)).drop("_theta_opp"))
+
+
+def adjusted_priors(values: pl.DataFrame, k: float, passes: int = ADJUST_PASSES) -> tuple[pl.DataFrame, pl.DataFrame]:
+    """(priors, values) after `passes` rounds of `opponent_adjusted`, each from the previous round's θ."""
+    priors, adjusted = player_priors(values, k), values
+    for _ in range(passes):
+        adjusted = opponent_adjusted(values, priors)
+        priors = player_priors(adjusted, k)
+    return priors, adjusted
+
+
+def map_reliability(values: pl.DataFrame, priors: pl.DataFrame, k: float) -> pl.DataFrame:
+    """Per map `key`: `reliability`, the mean over duel views of both players' `n / (n + k)`, the share of θ that is
+    their own record rather than the prior. 1 when every θ rests on many duels, 0 when none has history."""
+    r = (pl.col("n") / (pl.col("n") + k)).alias("r")
+    own = priors.select("steamid", "event", r)
+    return (values.select("key", "event", "steamid", "opponent")
+            .join(own, on=["steamid", "event"])
+            .join(own.rename({"steamid": "opponent", "r": "r_opp"}), on=["opponent", "event"])
+            .group_by("key").agg(((pl.col("r") + pl.col("r_opp")) / 2).mean().alias("reliability")))
 
 
 def player_skill(values: pl.DataFrame, players: pl.DataFrame, times: pl.DataFrame) -> tuple[dict[str, list], dict]:
@@ -126,6 +165,7 @@ def with_skill(team_maps: pl.DataFrame, values: pl.DataFrame, teams: pl.DataFram
         values = values.with_columns(pl.lit(1.0).alias("stake"))
     skill = pl.col("theta_self") - pl.col("theta_opp")
     sums = ["s", "ev", "sv"]
+    priors = priors.select("steamid", "event", "theta")
     per = (values.join(priors.rename({"theta": "theta_self"}), on=["steamid", "event"])
            .join(priors.rename({"steamid": "opponent", "theta": "theta_opp"}), on=["opponent", "event"])
            .join(teams, on=["key", "steamid"])
@@ -414,13 +454,29 @@ def build(resamples: int = RESAMPLES) -> int:
     teams = roles.select("key", "steamid", "lp_team")
     k = skill_k()
     conv = pl.read_parquet(TEAM_STAT_MAPS).select("key", "lp_team", "conv")
-    team_maps = (with_skill(pl.read_parquet(DUEL_TEAM_MAPS), values, teams, player_priors(values, k))
+    priors = player_priors(values, k)
+    team_maps = (with_skill(pl.read_parquet(DUEL_TEAM_MAPS), values, teams, priors)
                  .join(conv, on=["key", "lp_team"], how="left"))
+    for h in HALF_LIVES:
+        decayed = with_skill(team_maps.select("key", "lp_team", "opponent", "exec"), values, teams,
+                             player_priors(values, k, h))
+        team_maps = team_maps.join(decayed.select("key", "lp_team", pl.col("exec_luck_value").alias(f"exec_luck_value_h{h}")),
+                                   on=["key", "lp_team"], how="left")
+    priors_adj, values_adj = adjusted_priors(values, k)
+    adj = with_skill(team_maps.select("key", "lp_team", "opponent", "exec"), values, teams, priors_adj)
+    team_maps = team_maps.join(adj.select("key", "lp_team", pl.col("exec_luck_value").alias("exec_luck_value_adj")),
+                               on=["key", "lp_team"], how="left")
     elo = data.elo_rows()
     times = pl.DataFrame({"key": [key for key, _, _ in elo], "t": [r["t"] for _, _, r in elo]}).unique("key")
-    timeline, dropped = player_skill(values, roles.select("key", "steamid", "lp_player"), times)
-    rows = map_rows(team_maps, pl.read_parquet(TEAM_MAP_RESIDUALS), elo)
+    player_pages = roles.select("key", "steamid", "lp_player")
+    timeline, dropped = player_skill(values, player_pages, times)
+    timeline_adj, _ = player_skill(values_adj, player_pages, times)
+    rows = (map_rows(team_maps, pl.read_parquet(TEAM_MAP_RESIDUALS), elo)
+            .join(map_reliability(values, priors, k), on="key", how="left"))
     folds = event_folds(rows)
+    for suffix in [*(f"h{h}" for h in HALF_LIVES), "adj"]:
+        _, x_v, y_v = cross_fit(rows, folds, f"exec_luck_value_{suffix}")
+        rows = rows.with_columns(pl.Series(f"x_margin_value_{suffix}", x_v), pl.Series(f"y_hat_value_{suffix}", y_v))
     ex, margin = rows["exec"].to_numpy(), rows["margin"].to_numpy().astype(float)
     beta, x_margin, y_hat = cross_fit(rows, folds)
     beta_skill, x_margin_skill, y_hat_skill = cross_fit(rows, folds, "exec_luck")
@@ -484,12 +540,17 @@ def build(resamples: int = RESAMPLES) -> int:
                                 "yHatValue": round(r["y_hat_value"], 4), "xMarginFull": round(r["x_margin_full"], 3),
                                 "yHatFull": round(r["y_hat_full"], 4),
                                 "xMarginSkillOnly": round(r["x_margin_skillonly"], 3),
-                                "yHatSkillOnly": round(r["y_hat_skillonly"], 4)}) + "\n")
+                                "yHatSkillOnly": round(r["y_hat_skillonly"], 4),
+                                **{f"{n}Value{s.capitalize()}": round(r[f"{c}_value_{s}"], d)
+                                   for s in [*(f"h{h}" for h in HALF_LIVES), "adj"]
+                                   for n, c, d in (("xMargin", "x_margin", 3), ("yHat", "y_hat", 4))},
+                                "reliability": round(r["reliability"] or 0.0, 4)}) + "\n")
     with ELO_LUCK_LIVE.open("w", encoding="utf-8", newline="\n") as f:
         for r in rows.iter_rows(named=True):
             f.write(json.dumps({"match2id": r["match2id"], "index": r["index"], "xMargin": round(r["x_margin_value"], 3),
                                 "yHat": round(r["y_hat_value"], 4)}) + "\n")
     PLAYER_SKILL.write_text(json.dumps({"k": k, "players": timeline}, separators=(",", ":")))
+    PLAYER_SKILL_ADJ.write_text(json.dumps({"k": k, "players": timeline_adj}, separators=(",", ":")))
 
     lines = report_lines(rows, beta_full, r2, ll, hh, verdict, skill, carry, value, full, carry_2025)
     WAR_REPORTS.mkdir(parents=True, exist_ok=True)
@@ -497,5 +558,5 @@ def build(resamples: int = RESAMPLES) -> int:
     print("\n".join(lines))
     print(f"\nPlayer skill: {len(timeline):,} players; {100 * dropped['unmapped']:.1f}% of duel views have no Liquipedia "
           f"page (θ = 0 in Elo), {100 * dropped['untimed']:.1f}% of the rest have no Elo row.")
-    print(f"wrote {LUCK_MAPS}, {ELO_LUCK}, {ELO_LUCK_LIVE}, {PLAYER_SKILL}")
+    print(f"wrote {LUCK_MAPS}, {ELO_LUCK}, {ELO_LUCK_LIVE}, {PLAYER_SKILL}, {PLAYER_SKILL_ADJ}")
     return 0

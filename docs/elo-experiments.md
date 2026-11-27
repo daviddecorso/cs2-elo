@@ -33,6 +33,36 @@ An entry is kept only if it lowers gate log loss. Tuning moves of under 0.0005 c
 
 - A tier-1 K multiplier. Tier-1 rating changes from the last 90 days revert at tier-1 LANs (β −0.21 ± 0.09 on 2024–25, from the tier-1 diagnostics entry below). Declare it under the tier-1 LAN rule before any 2026 read.
 - A temperature scoped to online tier-1 qualifiers (tournament `publishertier` "Tier 1 Qualifier" / `liquipediatiertype` Qualifier or Online Stage) rather than all of tier 2. It's where the 2026 tier-2 overconfidence sits (see the tier-2 entry below), but it can't clear the gate on its own either. It only matters for the simulator's qualifier odds.
+- A `skillWeight` that grows for new lineups. The live term's gain is largest when the newer side has under 30 maps since its core changed (luck-form entry below). Every tier-1 LAN year has now been seen, so this would have to wait for the tier-2 holdout or 2027.
+
+## 2026-11-27: Luck form, phase 1 (exploratory)
+
+Assumption: the live skill + luck term ([elo-model.md](elo-model.md)) leaves accuracy on the table in how θ is formed and how much luck each map removes. Each change is compared against the live term, not against no adjustment, on the registered treated rule. Tune: 1,722 treated series in 2024–25. Check: 836 in 2026. Every year here has been seen, so nothing is gated, and a change is kept only if it gains on both. Run with `npm run backtest-elo -- --luck-form`. The run confirms its live arm matches the shipped engine.
+
+Treated log loss: none 0.62397 tune and 0.62168 check; live 0.62065 and 0.61778.
+
+**Where the live gain sits** (all treated series 2024–26, gain over none, 90% event CI):
+
+| Newer side's maps since its core changed | Series | Gain |
+| --- | --- | --- |
+| Under 30 | 1,340 | +0.0039 (+0.0007, +0.0071) |
+| 30–99 | 941 | +0.0033 (−0.0003, +0.0070) |
+| 100+ or never | 277 | +0.0025 (−0.0031, +0.0084) |
+
+By \|skill gap\| tercile: low +0.0019, mid +0.0032, high +0.0054. The term earns most where Elo has the least lineup history and where the lineups' prior duel skill differs most.
+
+**Skill θ half-life** (`skillHalfLife`, `makeSkillLookup`): each earlier series counts `0.5^(age / h)`. h is 180, 365 or 730 days, and `skillWeight` is rescaled to the live points per SD of the 2024–25 treated gap, times 0.75, 1 or 1.25. Luck stays live. Best on tune: 730 days at 0.75×, gaining +0.0002 (−0.0005, +0.0009) on tune and −0.0001 (−0.0013, +0.0010) on check. **Dropped.** Shorter half-lives are worse on both. Cumulative θ is the better skill estimate, and θ doesn't go stale at this horizon.
+
+**Pending a PC rerun of `cs2wp luck`.** The local `data/war` tables predate the 2024 backfill, with 3,111 maps against 4,780. `cs2wp luck` now writes two more column sets to `luck-maps.jsonl`, and `--luck-form` scores both once the file has them:
+- `reliability`: for `luckReliability` (the luck weight times each map's mean `n / (n + k)` over its duel views). Tried at w 0.6, 0.8 and 1.
+- `xMarginValueH180/365/730`: the value variant with θ decayed by the same rule inside `luck.py:player_priors`.
+- `xMarginValueAdj` and the gitignored `data/elo/player-skill-adj.json`: opponent-adjusted θ, below. Tried as luck only, as skill only at 0.75, 1 and 1.25× the live points per SD, and as both.
+
+**Tier-aware θ prior: replaced before it was tried.** The plan was to shrink θ toward the mean θ of players at the event's tier rather than toward 0. That doesn't work, because execution is zero-sum within a duel. A tier-2 scene that mostly plays itself averages θ ≈ 0 just as the tier-1 pool does, so the tier means would hold no information. The real gap is that θ measures skill against whoever a player happened to face. On tier-1 LAN today, that flatters a player who farmed the weak teams at a Major opening stage. On tier-2 data, it would put a tier-2 star level with a tier-1 star.
+
+**Opponent-adjusted θ** (`luck.py:adjusted_priors`). It adds the opponent's prior θ to each duel view's execution before summing, since `with_skill` expects `θ_self − θ_opp` per duel. Two passes, each from the previous pass's θ, and every θ still uses only duels before the event. Cross-tier matches carry strength between pools. It already has signal on tier-1 LAN, where the field includes weaker qualifiers. This is the declared stand-in for the tier-aware prior.
+
+**Power for the tier-2 holdout.** If HLTV had demos for every tier 1–2 map since 2023-10, there would be 417 treated series outside tier-1 LAN in 2024, 271 in 2025 and 371 in 2026: 1,059 in all. 84 are tier-1 online and the rest tier 2. For comparison, tier-1 LAN has 542, 681 and 577 treated series. Real HLTV coverage of tier-2 online will be lower.
 
 ## 2026-11-27: Registered 2024 test: result — primary passes
 

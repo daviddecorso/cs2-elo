@@ -56,8 +56,12 @@ export interface EloParams {
     seriesMapTempOnline: number;
     /** Weight on the duel-expected result in rating updates, 0–1; only maps with a luck row are affected. */
     luckWeight: number;
+    /** 1 scales `luckWeight` on each map by its luck row's `reliability`; 0 uses it as is. */
+    luckReliability: number;
     /** Rating points added to the gap per unit of the sides' mean prior duel-skill (θ) difference; needs a SkillLookup. */
     skillWeight: number;
+    /** Days for a series' weight in θ to halve (`makeSkillLookup`); 0 weights every earlier series fully. */
+    skillHalfLife: number;
     /** Fixed rating offsets against Europe, added to the gap whenever two rosters' regions differ (Oceania split out of Asia). */
     regionPriorAmericas: number;
     regionPriorAsia: number;
@@ -123,7 +127,9 @@ export const STARTING_PARAMS: EloParams = {
     seriesMapTemp: 1,
     seriesMapTempOnline: 1,
     luckWeight: 0,
+    luckReliability: 0,
     skillWeight: 0,
+    skillHalfLife: 0,
     burstMaps: 0,
     burstDays: 7,
     regionPriorAmericas: 0,

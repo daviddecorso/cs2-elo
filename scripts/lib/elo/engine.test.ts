@@ -287,6 +287,26 @@ describe("EloEngine", () => {
         expect(preds[1].skillGap).toBeCloseTo(0.25, 10);
     });
 
+    it("halves an earlier series' weight in θ per skillHalfLife days", () => {
+        const history: Array<[number, number, number]> = [[DAY, 5, 10], [2 * DAY, 10, 10]];
+        const decayed = makeSkillLookup({ k: 10, players: { p: history } }, 1);
+        expect(decayed("p", 2 * DAY)).toBeCloseTo(2.5 / 15, 10);
+        expect(decayed("p", 3 * DAY)).toBeCloseTo((1.25 + 5) / (2.5 + 5 + 10), 10);
+    });
+
+    it("scales the luck weight by the row's reliability under luckReliability", () => {
+        const a = roster("lr");
+        const b = roster("ls");
+        const series = [match(0, ["A", "B"], [a, b], 0, [[13, 3]])];
+        const ratingOf = (luckWeight: number, luckReliability: number) => {
+            const engine = new EloEngine({ ...params, luckWeight, luckReliability }, players, () => ({ xMargin: -4, yHat: 0.3, reliability: 0.5 }));
+            engine.run(series);
+            return engine.teamLineageOf("A")!.rating;
+        };
+        expect(ratingOf(1, 1)).toBeCloseTo(ratingOf(0.5, 0), 10);
+        expect(ratingOf(1, 0)).not.toBeCloseTo(ratingOf(0.5, 0), 4);
+    });
+
     it("gives players without history their teammates' mean θ and needs 3 with history per side", () => {
         const a = roster("x");
         const b = roster("y");
